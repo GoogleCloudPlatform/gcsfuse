@@ -453,7 +453,12 @@ async def main():
                 args.project_id, args.gcsfuse_branch, temp_dir, STAGING_VERSION
             )
         )
-        await asyncio.gather(setup_task, build_task)
+        results = await asyncio.gather(
+            setup_task, build_task, return_exceptions=True
+        )
+        for res in results:
+          if isinstance(res, Exception):
+            raise res
 
       await set_up_bucket_permissions(
           args.project_id, args.zone, args.cluster_name, args.bucket_name

@@ -56,14 +56,15 @@ async def run_command_async(command_list, check=True, cwd=None):
   stdout_decoded = stdout.decode().strip()
   stderr_decoded = stderr.decode().strip()
 
+  print(stdout_decoded)
+  print(stderr_decoded, file=sys.stderr)
+  sys.stdout.flush()
+
   if check and process.returncode != 0:
     raise subprocess.CalledProcessError(
         process.returncode, command_str, stdout_decoded, stderr_decoded
     )
 
-  print(stdout_decoded)
-  print(stderr_decoded, file=sys.stderr)
-  sys.stdout.flush()
   return stdout_decoded, stderr_decoded, process.returncode
 
 

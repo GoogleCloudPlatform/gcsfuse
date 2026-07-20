@@ -168,7 +168,10 @@ async def main():
             else:
                 setup_task = asyncio.create_task(utils.setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name, args.reservation_name))
                 build_task = asyncio.create_task(utils.build_gcsfuse_image(args.project_id,args.gcsfuse_branch, temp_dir, STAGING_VERSION))
-                await asyncio.gather(setup_task, build_task)
+                results = await asyncio.gather(setup_task, build_task, return_exceptions=True)
+                for res in results:
+                    if isinstance(res, Exception):
+                        raise res
 
             throughputs = await execute_workload_and_gather_results(args.project_id, args.zone, args.cluster_name, args.bucket_name, timestamp, args.iterations, STAGING_VERSION, args.pod_timeout_seconds, args.client_protocol)
 
