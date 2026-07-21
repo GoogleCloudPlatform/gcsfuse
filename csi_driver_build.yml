@@ -95,14 +95,21 @@ steps:
   - '-c'
   - |
     set -e
-    # --- Install gcloud ---
+    # --- Install gcloud and newer Docker CLI ---
     apt-get update && apt-get install -y apt-transport-https ca-certificates gnupg curl
+    
+    # Docker repo
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu focal stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+    
+    # Gcloud repo
     curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee /etc/apt/sources.list.d/google-cloud-sdk.list
-    apt-get update && apt-get install -y google-cloud-cli kubectl
+    
+    apt-get update && apt-get install -y google-cloud-cli docker-ce-cli kubectl
 
     # --- Authenticate Docker ---
-    gcloud auth configure-docker gcr.io --quiet
+    gcloud auth configure-docker us-docker.pkg.dev --quiet
 
     # --- Download gcsfuse binaries ---
     GCSFUSE_PATH=$$(cat /workspace/bucket_name)
@@ -112,9 +119,14 @@ steps:
       STAGINGVERSION=${BUILD_ID}
       STAGINGVERSION=${_IMAGE_PREFIX}-$${STAGINGVERSION:0:8}
     fi
-    REGISTRY="gcr.io/${PROJECT_ID}/${_USER}-gcsfuse-csi"
+    REGISTRY="us-docker.pkg.dev/${PROJECT_ID}/${_USER}-gcsfuse-csi"
 
-    make build-image-and-push-multi-arch REGISTRY=$${REGISTRY} GCSFUSE_PATH=$${GCSFUSE_PATH} STAGINGVERSION=$${STAGINGVERSION} BUILD_ARM=${_BUILD_ARM}
+    make build-image-and-push-multi-arch \
+      REGISTRY=$${REGISTRY} \
+      GCSFUSE_PATH=$${GCSFUSE_PATH} \
+      STAGINGVERSION=$${STAGINGVERSION} \
+      BUILD_ARM=${_BUILD_ARM} \
+      SKIP_VAR=true
 
 # This step cleans up the GCS bucket.
 - name: 'gcr.io/cloud-builders/gcloud'
