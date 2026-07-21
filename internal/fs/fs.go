@@ -1373,9 +1373,10 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 // LOCKS_REQUIRED(f)
 func (fs *fileSystem) promoteToGenerationBacked(f *inode.FileInode) {
 	fs.mu.Lock()
-	delete(fs.localFileInodes, f.Name())
-	if _, ok := fs.generationBackedInodes[f.Name()]; !ok {
-		fs.generationBackedInodes[f.Name()] = f
+	name := f.Name()
+	delete(fs.localFileInodes, name)
+	if _, ok := fs.generationBackedInodes[name]; !ok {
+		fs.generationBackedInodes[name] = f
 	}
 	fs.mu.Unlock()
 
@@ -1416,7 +1417,7 @@ func (fs *fileSystem) flushFile(
 	}
 
 	// Flush the inode.
-	err := f.Flush(ctx)
+	err := f.Flush(ctx, fs.getWriteContext())
 	if err != nil {
 		err = fmt.Errorf("FileInode.Sync: %w", err)
 		// If the inode was local file inode, treat it as unlinked.
@@ -1457,7 +1458,7 @@ func (fs *fileSystem) syncFile(
 	}
 
 	// Sync the inode.
-	gcsSynced, err := f.Sync(ctx)
+	gcsSynced, err := f.Sync(ctx, fs.getWriteContext())
 	if err != nil {
 		err = fmt.Errorf("FileInode.Sync: %w", err)
 		// If the inode was local file inode, treat it as unlinked.
@@ -1497,7 +1498,7 @@ func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
 func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
-	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx, openMode)
+	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx, openMode, fs.getWriteContext())
 	if err != nil {
 		return err
 	}
@@ -1913,6 +1914,15 @@ func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Conte
 	return ctx
 }
 
+func (fs *fileSystem) getWriteContext() *inode.WriteContext {
+	return &inode.WriteContext{
+		Config:             fs.newConfig,
+		GlobalMaxBlocksSem: fs.globalMaxWriteBlocksSem,
+		TraceHandle:        fs.traceHandle,
+		MetricHandle:       fs.metricHandle,
+	}
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
@@ -1998,7 +2008,7 @@ func (fs *fileSystem) SetInodeAttributes(
 		if err != nil {
 			return
 		}
-		gcsSynced, err := file.Truncate(ctx, int64(*op.Size))
+		gcsSynced, err := file.Truncate(ctx, int64(*op.Size), fs.getWriteContext())
 		// Sync the inode if finalize during truncate is successful
 		// even if the truncate operation later resulted error.
 		if gcsSynced {
@@ -3229,7 +3239,7 @@ func (fs *fileSystem) WriteFile(
 		return err
 	}
 	// Serve the request.
-	gcsSynced, err = in.Write(ctx, op.Data, op.Offset, fh.OpenMode())
+	gcsSynced, err = in.Write(ctx, op.Data, op.Offset, fh.OpenMode(), fs.getWriteContext())
 	if err != nil {
 		return
 	}

@@ -170,7 +170,7 @@ func (t *FileMockBucketTest) TestFlushLocalFileDoesNotForceFetchObjectFromGCS() 
 	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
 		Return(&gcs.Object{Name: fileName}, nil)
 
-	err := t.in.Flush(t.ctx)
+	err := t.in.Flush(t.ctx, getWriteContext())
 
 	require.NoError(t.T(), err)
 	t.bucket.AssertExpectations(t.T())
@@ -179,13 +179,13 @@ func (t *FileMockBucketTest) TestFlushLocalFileDoesNotForceFetchObjectFromGCS() 
 func (t *FileMockBucketTest) TestFlushLocalFile_SizeMismatch_ReturnsError() {
 	assert.True(t.T(), t.in.IsLocal())
 	// Write some data so that the local temp file size becomes 4
-	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0))
+	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0), getWriteContext())
 	require.NoError(t.T(), err)
 	// Mock CreateObject to return an object with a mismatched size
 	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
 		Return(&gcs.Object{Name: fileName, Size: 2}, nil)
 
-	err = t.in.Flush(t.ctx)
+	err = t.in.Flush(t.ctx, getWriteContext())
 
 	require.Error(t.T(), err)
 	assert.Contains(t.T(), err.Error(), "could not upload entire data, expected size 4, got 2")
@@ -204,7 +204,7 @@ func (t *FileMockBucketTest) TestFlushSyncedFileForceFetchObjectFromGCS() {
 	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
 		Return(&gcs.Object{Name: fileName}, nil)
 
-	err := t.in.Flush(t.ctx)
+	err := t.in.Flush(t.ctx, getWriteContext())
 
 	require.NoError(t.T(), err)
 	t.bucket.AssertExpectations(t.T())
@@ -217,7 +217,7 @@ func (t *FileMockBucketTest) TestSync_RemoteAppendClobber() {
 	t.createLockedInode(fileName, emptyGCSFile)
 	assert.False(t.T(), t.in.IsLocal())
 	// Dirty the file.
-	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0))
+	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0), getWriteContext())
 	require.NoError(t.T(), err)
 	// Mock StatObject to return same generation but larger size (remote append).
 	// Current size is 0 (emptyGCSFile).
@@ -230,7 +230,7 @@ func (t *FileMockBucketTest) TestSync_RemoteAppendClobber() {
 			Size:           100, // Larger size
 		}, &gcs.ExtendedObjectAttributes{}, nil)
 
-	_, err = t.in.Sync(t.ctx)
+	_, err = t.in.Sync(t.ctx, getWriteContext())
 
 	require.Error(t.T(), err)
 	var clobberedErr *gcsfuse_errors.FileClobberedError
@@ -245,7 +245,7 @@ func (t *FileMockBucketTest) TestSync_GenerationMismatchClobber() {
 	t.createLockedInode(fileName, emptyGCSFile)
 	assert.False(t.T(), t.in.IsLocal())
 	// Dirty the file.
-	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0))
+	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0), getWriteContext())
 	require.NoError(t.T(), err)
 	// Mock StatObject to return different generation.
 	t.bucket.On("StatObject", t.ctx, mock.AnythingOfType("*gcs.StatObjectRequest")).
@@ -256,7 +256,7 @@ func (t *FileMockBucketTest) TestSync_GenerationMismatchClobber() {
 			Size:           0,
 		}, &gcs.ExtendedObjectAttributes{}, nil)
 
-	_, err = t.in.Sync(t.ctx)
+	_, err = t.in.Sync(t.ctx, getWriteContext())
 
 	require.Error(t.T(), err)
 	var clobberedErr *gcsfuse_errors.FileClobberedError
@@ -360,11 +360,12 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_
 	// Create Inode (Non-local)
 	t.createLockedInode(fileName, emptyGCSFile)
 	t.in.content = nil // Force content to nil to allow BWH init
-	t.in.config.Write = *getWriteConfigWithEnabledRapidAppends()
+	writeCtx := getWriteContext()
+	writeCtx.Config.Write = *getWriteConfigWithEnabledRapidAppends()
 
 	// Call Method
 	// We do NOT expect StatObject to be called.
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.ReadWrite, util.O_APPEND))
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.ReadWrite, util.O_APPEND), writeCtx)
 
 	// Assertions
 	require.NoError(t.T(), err)
@@ -383,13 +384,14 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_
 	// Create Inode (Non-local)
 	t.createLockedInode(fileName, emptyGCSFile)
 	t.in.content = nil // Force content to nil to allow BWH init
-	t.in.config.Write = *getWriteConfigWithEnabledRapidAppends()
+	writeCtx := getWriteContext()
+	writeCtx.Config.Write = *getWriteConfigWithEnabledRapidAppends()
 	// We expect to make a StatObject() call to GCS to fetch the latest minObject.
 	t.bucket.On("StatObject", t.ctx, mock.AnythingOfType("*gcs.StatObjectRequest")).
 		Return(&gcs.MinObject{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, &gcs.ExtendedObjectAttributes{}, nil)
 
 	// Call Method
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0))
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0), writeCtx)
 
 	// Assertions
 	require.NoError(t.T(), err)
@@ -407,13 +409,14 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_RegionalBuck
 	// Create Inode (Non-local)
 	t.createLockedInode(fileName, emptyGCSFile)
 	t.in.content = nil // Force content to nil to allow BWH init
-	t.in.config.Write = *getWriteConfigWithEnabledRapidAppends()
+	writeCtx := getWriteContext()
+	writeCtx.Config.Write = *getWriteConfigWithEnabledRapidAppends()
 	// We expect to make a StatObject() call to GCS to fetch the latest minObject.
 	t.bucket.On("StatObject", t.ctx, mock.AnythingOfType("*gcs.StatObjectRequest")).
 		Return(&gcs.MinObject{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, &gcs.ExtendedObjectAttributes{}, nil)
 
 	// Call Method
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0))
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0), writeCtx)
 
 	// Assertions
 	require.NoError(t.T(), err)

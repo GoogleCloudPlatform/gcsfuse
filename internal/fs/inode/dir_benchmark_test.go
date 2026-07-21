@@ -80,10 +80,12 @@ func runBenchmark(b *testing.B, cachedType metadata.Type, name string, setupBuck
 		setupBucket(d)
 	}
 	ctx := context.Background()
+	dirName := NewDirName(d.Name(), name)
+	fileName := NewFileName(d.Name(), name)
 
 	b.ResetTimer()
 	for b.Loop() {
-		_, _ = d.fetchCoreEntity(ctx, name, cachedType)
+		_, _ = d.fetchCoreEntity(ctx, name, cachedType, fileName, dirName)
 	}
 }
 
