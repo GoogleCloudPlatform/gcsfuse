@@ -416,16 +416,6 @@ func makeRootForBucket(
 		fuseops.RootInodeID,
 		inode.NewRootName(""),
 		nil, // For root buckets, there is no parent and hence no parent context.
-		fuseops.InodeAttributes{
-			Uid:  fs.uid,
-			Gid:  fs.gid,
-			Mode: fs.dirMode,
-
-			// We guarantee only that directory times be "reasonable".
-			Atime: fs.mtimeClock.Now(),
-			Ctime: fs.mtimeClock.Now(),
-			Mtime: fs.mtimeClock.Now(),
-		},
 		fs.implicitDirs,
 		fs.enableNonexistentTypeCache,
 		fs.dirTypeCacheTTL,
@@ -441,16 +431,6 @@ func makeRootForAllBuckets(fs *fileSystem) inode.DirInode {
 	return inode.NewBaseDirInode(
 		fuseops.RootInodeID,
 		inode.NewRootName(""),
-		fuseops.InodeAttributes{
-			Uid:  fs.uid,
-			Gid:  fs.gid,
-			Mode: fs.dirMode,
-
-			// We guarantee only that directory times be "reasonable".
-			Atime: fs.mtimeClock.Now(),
-			Ctime: fs.mtimeClock.Now(),
-			Mtime: fs.mtimeClock.Now(),
-		},
 		fs.bucketManager,
 		fs.metricHandle,
 		fs.newConfig.EnableTypeCacheDeprecation,
@@ -933,16 +913,6 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 		ic.FullName,
 		parInodeCtx,
 		ic.MinObject,
-		fuseops.InodeAttributes{
-			Uid:  fs.uid,
-			Gid:  fs.gid,
-			Mode: fs.dirMode,
-
-			// We guarantee only that directory times be "reasonable".
-			Atime: fs.mtimeClock.Now(),
-			Ctime: fs.mtimeClock.Now(),
-			Mtime: fs.mtimeClock.Now(),
-		},
 		fs.implicitDirs,
 		fs.enableNonexistentTypeCache,
 		fs.dirTypeCacheTTL,
@@ -976,16 +946,6 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			id,
 			ic.FullName,
 			parInodeCtx,
-			fuseops.InodeAttributes{
-				Uid:  fs.uid,
-				Gid:  fs.gid,
-				Mode: fs.dirMode,
-
-				// We guarantee only that directory times be "reasonable".
-				Atime: fs.mtimeClock.Now(),
-				Ctime: fs.mtimeClock.Now(),
-				Mtime: fs.mtimeClock.Now(),
-			},
 			fs.implicitDirs,
 			fs.enableNonexistentTypeCache,
 			fs.dirTypeCacheTTL,
@@ -1003,11 +963,7 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			ic.FullName,
 			ic.Bucket,
 			ic.MinObject,
-			fuseops.InodeAttributes{
-				Uid:  fs.uid,
-				Gid:  fs.gid,
-				Mode: fs.fileMode | os.ModeSymlink,
-			})
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -1017,11 +973,6 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			id,
 			ic.FullName,
 			ic.MinObject,
-			fuseops.InodeAttributes{
-				Uid:  fs.uid,
-				Gid:  fs.gid,
-				Mode: fs.fileMode,
-			},
 			ic.Bucket,
 			fs.localFileCache,
 			fs.contentCache,
@@ -1610,9 +1561,27 @@ func (fs *fileSystem) getAttributes(
 	expiration time.Time,
 	err error) {
 	// Call through.
-	attr, err = in.Attributes(ctx, true)
+	size, mtime, nlink, err := in.Attributes(ctx, true)
 	if err != nil {
 		return
+	}
+
+	attr.Size = size
+	attr.Mtime = mtime
+	attr.Atime = mtime
+	attr.Ctime = mtime
+	attr.Crtime = mtime
+	attr.Nlink = nlink
+	attr.Uid = fs.uid
+	attr.Gid = fs.gid
+
+	switch in.(type) {
+	case inode.DirInode:
+		attr.Mode = fs.dirMode
+	case *inode.FileInode:
+		attr.Mode = fs.fileMode
+	case *inode.SymlinkInode:
+		attr.Mode = fs.fileMode | os.ModeSymlink
 	}
 
 	// Set up the expiration time.
@@ -1715,13 +1684,12 @@ func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name,
 	defer child.Unlock()
 
 	// Extract the child's attributes.
-	attributes, err := child.Attributes(ctx, false)
+	attributes, expiration, err := fs.getAttributes(ctx, child)
 	if err != nil {
 		// The inode is valid, but we couldn't get attributes.
 		return nil, fmt.Errorf("coreToDirentPlus: unable to fetch attributes for %s: %w", path.Base(fullName.LocalName()), err)
 	}
 
-	expiration := time.Now().Add(fs.inodeAttributeCacheTTL)
 	entryPlus = &fuseutil.DirentPlus{
 		Dirent: fuseutil.Dirent{
 			Name:  path.Base(fullName.LocalName()),
@@ -1794,7 +1762,7 @@ func (fs *fileSystem) lookupAndFetchAttributesForLocalFileEntriesPlus(parentName
 			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: local file %q disappeared", localEntryName)
 		}
 		// Fetch attributes from the child inode.
-		attrs, err := child.Attributes(context.Background(), false)
+		attrs, expiration, err := fs.getAttributes(context.Background(), child)
 		if err != nil {
 			child.Unlock()
 			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: unable to fetch attributes for %s: %w", localEntryName, err)
@@ -1802,7 +1770,6 @@ func (fs *fileSystem) lookupAndFetchAttributesForLocalFileEntriesPlus(parentName
 		// Unlock the inode after retrieving its attributes.
 		child.Unlock()
 
-		expiration := time.Now().Add(fs.inodeAttributeCacheTTL)
 		childInodeEntry := fuseops.ChildInodeEntry{
 			Child:                child.ID(),
 			Attributes:           attrs,

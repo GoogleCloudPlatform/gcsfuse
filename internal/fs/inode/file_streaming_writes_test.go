@@ -32,7 +32,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
-	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
@@ -154,11 +153,6 @@ func (t *FileStreamingWritesCommon) createInode(fileType string) {
 		fileInodeID,
 		name,
 		t.backingObj,
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: fileMode,
-		},
 		&syncerBucket,
 		false, // localFileCache
 		contentcache.New("", &t.clock),
@@ -261,13 +255,13 @@ func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZon
 	gcsSynced, err := t.in.Write(t.ctx, []byte("foobar"), 0, WriteMode, t.writeCtx)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	assert.Equal(t.T(), uint64(0), t.in.src.Size)
+	assert.Equal(t.T(), uint64(0), t.in.src.size)
 
 	gcsSynced, err = t.in.SyncPendingBufferedWrites(context.Background())
 
 	require.NoError(t.T(), err)
 	assert.True(t.T(), gcsSynced)
-	assert.Equal(t.T(), uint64(6), t.in.src.Size)
+	assert.Equal(t.T(), uint64(6), t.in.src.size)
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -310,13 +304,13 @@ func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucket
 	gcsSynced, err := t.in.Write(t.ctx, []byte("foobar"), 0, WriteMode, t.writeCtx)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	assert.Equal(t.T(), uint64(0), t.in.src.Size)
+	assert.Equal(t.T(), uint64(0), t.in.src.size)
 
 	gcsSynced, err = t.in.SyncPendingBufferedWrites(context.Background())
 
 	require.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	assert.Equal(t.T(), uint64(0), t.in.src.Size)
+	assert.Equal(t.T(), uint64(0), t.in.src.size)
 }
 
 func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempFile() {
@@ -354,13 +348,13 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 			assert.False(t.T(), gcsSynced)
 			require.NotNil(t.T(), t.in.bwh)
 			// validate attributes.
-			attrs, err := t.in.Attributes(t.ctx, true)
+			size, mtime, _, err := t.in.Attributes(t.ctx, true)
 			require.Nil(t.T(), err)
-			assert.WithinDuration(t.T(), attrs.Mtime, createTime, 0)
-			assert.Equal(t.T(), uint64(4), attrs.Size)
+			assert.WithinDuration(t.T(), mtime, createTime, 0)
+			assert.Equal(t.T(), uint64(4), size)
 
 			// Out of order write.
-			mtime := t.clock.Now()
+			writeTime := t.clock.Now()
 			gcsSynced, err = t.in.Write(t.ctx, []byte("hello"), tc.offset, WriteMode, t.writeCtx)
 			require.Nil(t.T(), err)
 			assert.True(t.T(), gcsSynced)
@@ -369,10 +363,10 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempF
 			assert.Nil(t.T(), t.in.bwh)
 			assert.NotNil(t.T(), t.in.content)
 			// The inode should agree about the new mtime and size.
-			attrs, err = t.in.Attributes(t.ctx, true)
+			size, mtime, _, err = t.in.Attributes(t.ctx, true)
 			require.Nil(t.T(), err)
-			assert.Equal(t.T(), uint64(len(tc.expectedContent)), attrs.Size)
-			assert.WithinDuration(t.T(), attrs.Mtime, mtime, 0)
+			assert.Equal(t.T(), uint64(len(tc.expectedContent)), size)
+			assert.WithinDuration(t.T(), mtime, writeTime, 0)
 			// sync file and validate content
 			gcsSynced, err = t.in.Sync(t.ctx, t.writeCtx)
 			require.Nil(t.T(), err)
@@ -397,13 +391,13 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWriteFollowedByOrderedWrite() {
 	assert.Nil(t.T(), t.in.bwh)
 	assert.NotNil(t.T(), t.in.content)
 	// validate attributes.
-	attrs, err := t.in.Attributes(t.ctx, true)
+	size, mtime, _, err := t.in.Attributes(t.ctx, true)
 	require.Nil(t.T(), err)
-	assert.WithinDuration(t.T(), attrs.Mtime, createTime, 0)
-	assert.Equal(t.T(), uint64(10), attrs.Size)
+	assert.WithinDuration(t.T(), mtime, createTime, 0)
+	assert.Equal(t.T(), uint64(10), size)
 
 	// Ordered write.
-	mtime := t.clock.Now()
+	writeTime := t.clock.Now()
 	gcsSynced, err = t.in.Write(t.ctx, []byte("hello"), 0, WriteMode, t.writeCtx)
 	require.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
@@ -411,10 +405,10 @@ func (t *FileStreamingWritesTest) TestOutOfOrderWriteFollowedByOrderedWrite() {
 	// Ensure bwh not re-created.
 	assert.Nil(t.T(), t.in.bwh)
 	// The inode should agree about the new mtime and size.
-	attrs, err = t.in.Attributes(t.ctx, true)
+	size, mtime, _, err = t.in.Attributes(t.ctx, true)
 	require.Nil(t.T(), err)
-	assert.Equal(t.T(), uint64(len("hello\x00taco")), attrs.Size)
-	assert.WithinDuration(t.T(), attrs.Mtime, mtime, 0)
+	assert.Equal(t.T(), uint64(len("hello\x00taco")), size)
+	assert.WithinDuration(t.T(), mtime, writeTime, 0)
 	// sync file and validate content
 	gcsSynced, err = t.in.Sync(t.ctx, t.writeCtx)
 	require.Nil(t.T(), err)
@@ -532,10 +526,10 @@ func (t *FileStreamingWritesTest) TestWriteToFileAndFlush() {
 			// Verify that fileInode is no more local
 			assert.False(t.T(), t.in.IsLocal())
 			// Check attributes.
-			attrs, err := t.in.Attributes(t.ctx, true)
+			size, mtime, _, err := t.in.Attributes(t.ctx, true)
 			require.NoError(t.T(), err)
-			assert.Equal(t.T(), uint64(len("tacos")), attrs.Size)
-			assert.Equal(t.T(), t.clock.Now().UTC(), attrs.Mtime.UTC())
+			assert.Equal(t.T(), uint64(len("tacos")), size)
+			assert.Equal(t.T(), t.clock.Now().UTC(), mtime.UTC())
 			// Validate Object on GCS.
 			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 			m, _, err := t.bucket.StatObject(t.ctx, statReq)
@@ -587,12 +581,12 @@ func (t *FileStreamingWritesTest) TestFlushEmptyFile() {
 			// Verify that fileInode is no more local
 			assert.False(t.T(), t.in.IsLocal())
 			// Check attributes.
-			attrs, err := t.in.Attributes(t.ctx, true)
+			size, mtime, _, err := t.in.Attributes(t.ctx, true)
 			require.NoError(t.T(), err)
-			assert.Equal(t.T(), uint64(0), attrs.Size)
+			assert.Equal(t.T(), uint64(0), size)
 			// For synced file, mtime is updated by SetInodeAttributes call.
 			if tc.isLocal {
-				assert.Equal(t.T(), t.clock.Now().UTC(), attrs.Mtime.UTC())
+				assert.Equal(t.T(), t.clock.Now().UTC(), mtime.UTC())
 			}
 			// Validate Object on GCS.
 			statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
@@ -753,9 +747,9 @@ func (t *FileStreamingWritesTest) TestTruncateOnFileUsingTempFileDoesNotRecreate
 	// Ensure bwh not re-created.
 	assert.Nil(t.T(), t.in.bwh)
 	// The inode should agree about the new size.
-	attrs, err := t.in.Attributes(t.ctx, true)
+	size, _, _, err := t.in.Attributes(t.ctx, true)
 	require.Nil(t.T(), err)
-	assert.Equal(t.T(), uint64(10), attrs.Size)
+	assert.Equal(t.T(), uint64(10), size)
 	// sync file and validate content
 	gcsSynced, err = t.in.Sync(t.ctx, t.writeCtx)
 	require.Nil(t.T(), err)

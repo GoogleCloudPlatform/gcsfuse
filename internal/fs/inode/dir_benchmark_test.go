@@ -25,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/sync/semaphore"
 )
@@ -55,11 +54,6 @@ func newBenchmarkDirInode(b *testing.B, implicitDirs bool) *dirInode {
 		dirInodeID,
 		NewDirName(NewRootName(""), dirInodeName),
 		ctx,
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
 		implicitDirs,
 		true, // enableNonexistentTypeCache
 		typeCacheTTL,
