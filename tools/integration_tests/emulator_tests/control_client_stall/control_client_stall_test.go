@@ -158,6 +158,7 @@ type renameFolderStallSuite struct{ controlClientStallBase }
 // os.Rename completes successfully even when a stall is induced,
 // proving that the experimental retry logic correctly handles the delayed gRPC response.
 func (c *renameFolderStallSuite) TestRenameFolderStallInducedShouldComplete() {
+	c.Suite.T().Skip("TODO(b/493729540) - Requires fix in storage-testbench: https://github.com/googleapis/storage-testbench/pull/786")
 	folderPath := path.Join(c.testDirPath, "stalled_folder_for_rename")
 	err := os.MkdirAll(folderPath, 0755)
 	assert.NoError(c.T(), err)
