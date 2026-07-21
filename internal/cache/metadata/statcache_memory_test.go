@@ -73,28 +73,50 @@ func generatePaths(workload string, count int) []string {
 func TestStatCacheMemoryWorkloads(t *testing.T) {
 	count := 1000000                   // 1 Million files
 	capacity := uint64(count * 100000) // high capacity to avoid eviction
-	workloads := []string{"flat", "nested", "deeply_nested"}
 	expiration := time.Now().Add(time.Hour)
 
-	for _, w := range workloads {
-		t.Logf("=== WORKLOAD: %s (%d files) ===", w, count)
+	tests := []struct {
+		name     string
+		workload string
+		isRadix  bool
+	}{
+		{"Flat_Map", "flat", false},
+		{"Flat_Radix", "flat", true},
+		{"Nested_Map", "nested", false},
+		{"Nested_Radix", "nested", true},
+		{"DeeplyNested_Map", "deeply_nested", false},
+		{"DeeplyNested_Radix", "deeply_nested", true},
+	}
 
-		// 1. StatCache
-		paths := generatePaths(w, count)
-		baseMem := getMemStats()
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			paths := generatePaths(tc.workload, count)
+			baseMem := getMemStats()
+			var sharedCache lru.Cache
+			if tc.isRadix {
+				sharedCache = lru.NewRadixCache(capacity)
+			} else {
+				sharedCache = lru.NewCache(capacity)
+			}
+			statCache := metadata.NewStatCacheBucketView(sharedCache, "")
 
-		sharedCache := lru.NewCache(capacity)
-		statCache := metadata.NewStatCacheBucketView(sharedCache, "")
+			// Act
+			for _, p := range paths {
+				statCache.Insert(&gcs.MinObject{Name: p}, expiration)
+			}
 
-		for _, p := range paths {
-			statCache.Insert(&gcs.MinObject{Name: p}, expiration)
-		}
+			// Assert (or Log in this case)
+			alloc := getMemStats()
+			pureMem := alloc - baseMem
+			runtime.KeepAlive(statCache)
+			runtime.KeepAlive(paths)
 
-		alloc := getMemStats()
-		pureMem := alloc - baseMem
-		runtime.KeepAlive(statCache)
-		runtime.KeepAlive(paths)
-
-		t.Logf("%-20s Heap Used: %10.2f MB\n", "StatCache", float64(pureMem)/(1024*1024))
+			cacheType := "Map StatCache"
+			if tc.isRadix {
+				cacheType = "Radix StatCache"
+			}
+			t.Logf("%-20s Heap Used: %10.2f MB\n", cacheType, float64(pureMem)/(1024*1024))
+		})
 	}
 }

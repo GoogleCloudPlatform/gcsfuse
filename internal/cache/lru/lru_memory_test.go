@@ -77,24 +77,48 @@ func (d dummyValue) Size() uint64 {
 func TestMapCacheWorkloads(t *testing.T) {
 	count := 1000000 // 1 Million files
 	capacity := uint64(count * 1000)
-	workloads := []string{"flat", "nested", "deeply_nested"}
 
-	for _, w := range workloads {
-		t.Logf("=== WORKLOAD: %s (%d files) ===", w, count)
+	tests := []struct {
+		name     string
+		workload string
+		isRadix  bool
+	}{
+		{"Flat_Map", "flat", false},
+		{"Flat_Radix", "flat", true},
+		{"Nested_Map", "nested", false},
+		{"Nested_Radix", "nested", true},
+		{"DeeplyNested_Map", "deeply_nested", false},
+		{"DeeplyNested_Radix", "deeply_nested", true},
+	}
 
-		// 1. Pure MapLRU
-		paths := generatePaths(w, count)
-		baseMem := getMemStats()
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			paths := generatePaths(tc.workload, count)
+			baseMem := getMemStats()
+			var cache lru.Cache
+			if tc.isRadix {
+				cache = lru.NewRadixCache(capacity)
+			} else {
+				cache = lru.NewCache(capacity)
+			}
 
-		pureCache := lru.NewCache(capacity)
-		for _, p := range paths {
-			_, _ = pureCache.Insert(p, dummyValue{})
-		}
-		alloc := getMemStats()
-		pureMem := alloc - baseMem
-		runtime.KeepAlive(pureCache)
-		runtime.KeepAlive(paths)
+			// Act
+			for _, p := range paths {
+				_, _ = cache.Insert(p, dummyValue{})
+			}
 
-		t.Logf("%-20s Heap Used: %10.2f MB\n", "MapLRU", float64(pureMem)/(1024*1024))
+			// Assert (or Log in this case)
+			alloc := getMemStats()
+			pureMem := alloc - baseMem
+			runtime.KeepAlive(cache)
+			runtime.KeepAlive(paths)
+
+			cacheType := "MapLRU"
+			if tc.isRadix {
+				cacheType = "RadixLRU"
+			}
+			t.Logf("%-20s Heap Used: %10.2f MB\n", cacheType, float64(pureMem)/(1024*1024))
+		})
 	}
 }
