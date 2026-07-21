@@ -29,6 +29,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/exemplar"
@@ -45,7 +46,7 @@ const cloudMonitoringMetricPrefix = "custom.googleapis.com/gcsfuse/"
 var allowedMetricPrefixes = []string{"fs/", "gcs/", "file_cache/", "buffered_read/", "grpc.", "read/"}
 
 // SetupOTelMetricExporters sets up the metrics exporters
-func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string) (shutdownFn common.ShutdownFn) {
+func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string, extraAttrs ...attribute.KeyValue) (shutdownFn common.ShutdownFn) {
 	var shutdownFns []common.ShutdownFn
 	options := make([]metric.Option, 0)
 
@@ -56,7 +57,7 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 	opts = setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
 	options = append(options, opts...)
 
-	res, err := getResource(ctx, mountID)
+	res, err := getResource(ctx, mountID, extraAttrs...)
 	if err != nil {
 		logger.Errorf("Error while fetching resource: %v", err)
 	} else {
@@ -193,15 +194,18 @@ func serveMetrics(port int64, shutdownCh <-chan context.Context, done chan<- any
 	logger.Info("Prometheus collector exporter started")
 }
 
-func getResource(ctx context.Context, mountID string) (*resource.Resource, error) {
+func getResource(ctx context.Context, mountID string, extraAttrs ...attribute.KeyValue) (*resource.Resource, error) {
+	attrs := []attribute.KeyValue{
+		semconv.ServiceName(serviceName),
+		semconv.ServiceVersion(common.GetVersion()),
+		semconv.ServiceInstanceID(mountID),
+	}
+	attrs = append(attrs, extraAttrs...)
+
 	return resource.New(ctx,
 		// Use the GCP resource detector to detect information about the GCP platform
 		resource.WithDetectors(gcp.NewDetector()),
 		resource.WithTelemetrySDK(),
-		resource.WithAttributes(
-			semconv.ServiceName(serviceName),
-			semconv.ServiceVersion(common.GetVersion()),
-			semconv.ServiceInstanceID(mountID),
-		),
+		resource.WithAttributes(attrs...),
 	)
 }

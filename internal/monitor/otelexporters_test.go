@@ -21,6 +21,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"google.golang.org/grpc/codes"
@@ -88,4 +89,21 @@ func TestPermissionAwareExporter_ExportOtherError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.False(t, exporter.disabled.Load())
+}
+
+func TestGetResource_ExtraAttributes(t *testing.T) {
+	ctx := context.Background()
+	res, err := getResource(ctx, "test-mount-id", attribute.String("volume_name", "vol-1"), attribute.String("bucket_name", "my-bucket"))
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	attrs := res.Attributes()
+	attrMap := make(map[string]string)
+	for _, a := range attrs {
+		attrMap[string(a.Key)] = a.Value.AsString()
+	}
+
+	assert.Equal(t, "vol-1", attrMap["volume_name"])
+	assert.Equal(t, "my-bucket", attrMap["bucket_name"])
+	assert.Equal(t, "test-mount-id", attrMap["service.instance.id"])
 }
