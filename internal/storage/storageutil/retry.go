@@ -21,13 +21,46 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"golang.org/x/oauth2"
 )
+
+type retryTokenSource struct {
+	base        oauth2.TokenSource
+	retryConfig *RetryConfig
+}
+
+func (ts *retryTokenSource) Token() (*oauth2.Token, error) {
+	apiCall := func(attemptCtx context.Context) (*oauth2.Token, error) {
+		tok, err := ts.base.Token()
+		if err == nil && tok != nil {
+			tokCopy := *tok
+			// Force the token to expire in 30 seconds for testing purposes.
+			tokCopy.Expiry = time.Now().Add(30 * time.Second)
+			return &tokCopy, nil
+		}
+		return tok, err
+	}
+	return ExecuteWithCustomShouldRetry(context.Background(), ts.retryConfig, "TokenSource.Token", "token", uuid.NewString(), apiCall, ShouldRetryWithoutLogging)
+}
+
+// WrapTokenSource wraps an oauth2.TokenSource with retry logic using ExecuteWithCustomShouldRetry.
+func WrapTokenSource(config *StorageClientConfig, base oauth2.TokenSource) oauth2.TokenSource {
+	if base == nil {
+		return nil
+	}
+	retryConfig := NewRetryConfig(config)
+	return &retryTokenSource{
+		base:        base,
+		retryConfig: retryConfig,
+	}
+}
 
 const (
 	// Default retry parameters.
 	DefaultRetryDeadline    = 30 * time.Second
-	DefaultTotalRetryBudget = 5 * time.Minute
+	DefaultTotalRetryBudget = 100 * time.Hour
 	DefaultInitialBackoff   = 1 * time.Second
 )
 
