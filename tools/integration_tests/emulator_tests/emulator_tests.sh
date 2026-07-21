@@ -162,29 +162,26 @@ trap cleanup EXIT
 
 wait_for_emulator
 
-# Create the JSON file to create bucket
-cat << EOF > test.json
-{"name":"test-bucket"}
-EOF
+# Helper function to create buckets on testbench server
+create_bucket() {
+  local bucket_name="$1"
+  local is_hns="${2:-false}"
+  local payload="{\"name\":\"$bucket_name\"}"
+  if [[ "$is_hns" == "true" ]]; then
+    payload="{\"name\":\"$bucket_name\", \"hierarchicalNamespace\": {\"enabled\": true}}"
+  fi
 
-# Execute the curl command to create bucket on storagetestbench server.
-if ! curl -X POST --data-binary @test.json \
-    -H "Content-Type: application/json" \
-    "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"; then
-  log_error "Failed to create bucket test-bucket"
-  exit 1
-fi
-rm test.json
+  if ! curl -X POST --data-binary "$payload" \
+      -H "Content-Type: application/json" \
+      "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"; then
+    log_error "Failed to create bucket $bucket_name"
+    exit 1
+  fi
+}
 
-# Create an HNS bucket for control client tests
-cat << EOF > test_hns.json
-{"name":"test-hns-bucket", "hierarchicalNamespace": {"enabled": true}}
-EOF
-if ! curl -X POST --data-binary @test_hns.json -H "Content-Type: application/json" "$STORAGE_EMULATOR_HOST/storage/v1/b?project=test-project"; then
-  log_error "Failed to create bucket test-hns-bucket"
-  exit 1
-fi
-rm test_hns.json
+# Create standard and HNS buckets for tests
+create_bucket "test-bucket"
+create_bucket "test-hns-bucket" "true"
 
 
 # Start the gRPC server on port 8888.

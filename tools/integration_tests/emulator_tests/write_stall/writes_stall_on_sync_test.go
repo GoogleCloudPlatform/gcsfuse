@@ -92,6 +92,8 @@ func TestChunkTransferTimeoutInfinity(t *testing.T) {
 	flagsSet := [][]string{
 		{
 			"--chunk-transfer-timeout-secs=0",
+			// TODO: Remove --enable-hns=false after proxy server supports multiplexing
+			// HTTP and gRPC on the same port.
 			// Disable HNS to prevent gRPC Control Client initialization.
 			// Legacy emulator proxy servers run on HTTP/1.1, which causes the
 			// gRPC HTTP/2 dialer to crash the mount sequence.
@@ -108,6 +110,8 @@ func TestChunkTransferTimeoutInfinity(t *testing.T) {
 }
 
 func TestChunkTransferTimeout(t *testing.T) {
+	// TODO: Remove --enable-hns=false from these flag sets after proxy server
+	// supports multiplexing HTTP and gRPC on the same port.
 	flagSets := [][]string{
 		{"--enable-hns=false"},
 		{"--chunk-transfer-timeout-secs=5", "--enable-hns=false"},
@@ -174,6 +178,8 @@ func TestChunkTransferTimeout(t *testing.T) {
 }
 
 func TestChunkRetryDeadline(t *testing.T) {
+	// TODO: Remove --enable-hns=false from these scenarios after proxy server
+	// supports multiplexing HTTP and gRPC on the same port.
 	scenarios := []struct {
 		name            string
 		flags           []string

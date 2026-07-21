@@ -119,6 +119,8 @@ func TestGRPCHeaderValidation(t *testing.T) {
 	flagsSet := [][]string{
 		{
 			"--client-protocol=grpc",
+			// TODO: Remove --enable-hns=false after proxy server supports multiplexing
+			// HTTP and gRPC on the same port.
 			"--enable-hns=false",
 		},
 	}

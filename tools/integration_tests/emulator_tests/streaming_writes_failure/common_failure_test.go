@@ -64,6 +64,8 @@ func (t *commonFailureTestSuite) SetupSuite() {
 	t.flags = []string{
 		"--write-block-size-mb=1",
 		"--write-max-blocks-per-file=1",
+		// TODO: Remove --enable-hns=false after proxy server supports multiplexing
+		// HTTP and gRPC on the same port.
 		// Disable HNS to prevent gRPC Control Client initialization.
 		// Legacy emulator proxy servers run on HTTP/1.1, which causes the
 		// gRPC HTTP/2 dialer to crash the mount sequence.
