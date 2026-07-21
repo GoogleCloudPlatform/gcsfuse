@@ -35,7 +35,7 @@ func NewArenaRadixCache(maxSize uint64) Cache {
 	}
 
 	c.root = c.allocateNode()
-	c.mu = locker.NewRW("ArenaRadixCache", c.checkInvariants)
+	c.mu = locker.New("ArenaRadixCache", c.checkInvariants)
 	return c
 }
 
@@ -114,6 +114,16 @@ func (c *arenaRadix) Insert(key string, value ValueType) ([]ValueType, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	var evictedValues []ValueType
+
+	// A single insert can allocate up to 2 nodes (one routing node, one leaf).
+	// If the slice has reached its physical uint32 maximum, we must rely entirely on the freelist.
+	// Since evicting one LRU item guarantees at least 1 leaf node (and potentially 1 routing node)
+	// is freed to the freelist, we proactively evict until we have at least 2 free nodes.
+	for uint32(len(c.nodes)) >= nilNode-2 && c.tail != nilNode && (c.freeHead == nilNode || c.nodes[c.freeHead].next == nilNode) {
+		evictedValues = append(evictedValues, c.evictOne())
+	}
+
 	if nodeID, oldValue := c.insertNode(key, value); oldValue != nil {
 		c.currentSize += valueSize - oldValue.Size()
 		c.nodeMap[hashString(key)] = nodeID
@@ -124,7 +134,6 @@ func (c *arenaRadix) Insert(key string, value ValueType) ([]ValueType, error) {
 		c.nodeMap[hashString(key)] = nodeID
 	}
 
-	var evictedValues []ValueType
 	// Evict until we're at or below maxSize
 	for c.currentSize > c.maxSize && c.tail != nilNode {
 		evictedValues = append(evictedValues, c.evictOne())
@@ -289,7 +298,7 @@ func (c *arenaRadix) freeSubtree(nodeID uint32) {
 		if c.nodes[currID].value != nil {
 			c.currentSize -= c.nodes[currID].value.Size()
 			c.remove(currID)
-			hash := c.hashNodeKey(currID)
+			hash := hashString(c.getFullKey(currID))
 			if c.nodeMap[hash] == currID {
 				delete(c.nodeMap, hash)
 			}

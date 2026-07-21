@@ -38,7 +38,7 @@ type arenaRadixNode struct {
 type arenaRadix struct {
 	maxSize     uint64
 	currentSize uint64
-	mu          locker.RWLocker
+	mu          locker.Locker
 
 	nodes    []arenaRadixNode
 	freeHead uint32
@@ -71,27 +71,14 @@ func hashString(s string) uint64 {
 	return h
 }
 
-// hashNodeKey computes the FNV-1a hash of the full key for a given node
-// without allocating a concatenated string, reducing GC pressure.
-func (c *arenaRadix) hashNodeKey(nodeID uint32) uint64 {
-	var stackBuf [64]uint32
-	stack := stackBuf[:0]
-
+func (c *arenaRadix) getFullKey(nodeID uint32) string {
+	key := ""
 	curr := nodeID
 	for curr != c.root && curr != nilNode {
-		stack = append(stack, curr)
+		key = c.nodes[curr].prefix + key
 		curr = c.nodes[curr].parent
 	}
-
-	var h uint64 = offset64
-	for i := len(stack) - 1; i >= 0; i-- {
-		prefix := c.nodes[stack[i]].prefix
-		for j := 0; j < len(prefix); j++ {
-			h ^= uint64(prefix[j])
-			h *= prime64
-		}
-	}
-	return h
+	return key
 }
 
 func (c *arenaRadix) allocateNode() uint32 {
@@ -283,7 +270,6 @@ func (c *arenaRadix) getNodeKey(key string) (uint32, bool) {
 	for curr != nilNode {
 		if len(search) == 0 {
 			if c.nodes[curr].value != nil {
-				c.nodeMap[hashString(key)] = curr
 				return curr, true
 			}
 			return nilNode, false
@@ -425,7 +411,7 @@ func (c *arenaRadix) eraseInternal(nodeID uint32) (value ValueType) {
 	c.currentSize -= deletedEntry.Size()
 
 	// Prevent hash collision cross-deletions
-	hash := c.hashNodeKey(nodeID)
+	hash := hashString(c.getFullKey(nodeID))
 	if c.nodeMap[hash] == nodeID {
 		delete(c.nodeMap, hash)
 	}
