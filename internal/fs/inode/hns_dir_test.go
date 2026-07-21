@@ -211,7 +211,7 @@ func (t *HNSDirTest) TestShouldFindExplicitHNSFolder() {
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
 
 	// Look up with the name.
-	result, err := findExplicitFolder(t.ctx, t.bucket, NewDirName(t.in.Name(), name), false)
+	result, err := findExplicitFolder(t.ctx, t.bucket, NewDirName(t.in.Name(), name), false, false)
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
@@ -225,7 +225,7 @@ func (t *HNSDirTest) TestShouldReturnNilWhenGCSFolderNotFoundForInHNS() {
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(nil, notFoundErr)
 
 	// Look up with the name.
-	result, err := findExplicitFolder(t.ctx, t.bucket, NewDirName(t.in.Name(), "not-present"), false)
+	result, err := findExplicitFolder(t.ctx, t.bucket, NewDirName(t.in.Name(), "not-present"), false, false)
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)

@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
 func getMemStats() uint64 {
@@ -84,7 +85,7 @@ func TestStatCacheMemoryWorkloads(t *testing.T) {
 		baseMem := getMemStats()
 
 		sharedCache := lru.NewCache(capacity)
-		statCache := metadata.NewStatCacheBucketView(sharedCache, "")
+		statCache := metadata.NewStatCacheBucketView(sharedCache, "", metrics.NewNoopMetrics())
 
 		for _, p := range paths {
 			statCache.Insert(&gcs.MinObject{Name: p}, expiration)

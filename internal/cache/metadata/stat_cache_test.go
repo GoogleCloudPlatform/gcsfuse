@@ -22,6 +22,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -124,16 +125,16 @@ type MultiBucketStatCacheTest struct {
 
 func (t *StatCacheTest) SetupTest() {
 	cache := lru.NewCache(uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
-	t.cache.wrapped = metadata.NewStatCacheBucketView(cache, "") // this demonstrates
-	t.statCache = metadata.NewStatCacheBucketView(cache, "")     // this demonstrates
+	t.cache.wrapped = metadata.NewStatCacheBucketView(cache, "", metrics.NewNoopMetrics()) // this demonstrates
+	t.statCache = metadata.NewStatCacheBucketView(cache, "", metrics.NewNoopMetrics())     // this demonstrates
 	// that if you are using a cache for a single bucket, then
 	// its prepending bucketName can be left empty("") without any problem.
 }
 
 func (t *MultiBucketStatCacheTest) SetupTest() {
 	sharedCache := lru.NewCache(uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
-	t.multiBucketCache.fruits = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "fruits")}
-	t.multiBucketCache.spices = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "spices")}
+	t.multiBucketCache.fruits = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "fruits", metrics.NewNoopMetrics())}
+	t.multiBucketCache.spices = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "spices", metrics.NewNoopMetrics())}
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -544,7 +545,7 @@ func (t *StatCacheTest) Test_ShouldReturnHitTrueWhenOnlyObjectAlreadyHasEntry() 
 
 func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize() {
 	localCache := lru.NewCache(uint64(2800))
-	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
+	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket", metrics.NewNoopMetrics())
 	objectEntry1 := &gcs.MinObject{Name: "1"}
 	objectEntry2 := &gcs.MinObject{Name: "2"}
 	folderEntry := &gcs.Folder{
@@ -577,7 +578,7 @@ func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize()
 
 func (t *StatCacheTest) Test_ShouldEvictAllEntriesWithPrefixFolder() {
 	localCache := lru.NewCache(uint64(10000))
-	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
+	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket", metrics.NewNoopMetrics())
 	folderEntry1 := &gcs.Folder{
 		Name: "a",
 	}
@@ -672,3 +673,165 @@ func (t *StatCacheTest) Test_Insert_OverwritesImplicitDir() {
 	assert.True(t.T(), hit)
 	assert.Equal(t.T(), m, result)
 }
+
+type recordedReadCount struct {
+	inc          int64
+	cacheHit     bool
+	entryStatus  metrics.EntryStatus
+	lookupDetail metrics.LookupDetail
+}
+
+type mockMetricHandle struct {
+	metrics.MetricHandle
+	readCounts []recordedReadCount
+}
+
+func (m *mockMetricHandle) MetadataCacheReadCount(inc int64, cacheHit bool, entryStatus metrics.EntryStatus, lookupDetail metrics.LookupDetail) {
+	m.readCounts = append(m.readCounts, recordedReadCount{
+		inc:          inc,
+		cacheHit:     cacheHit,
+		entryStatus:  entryStatus,
+		lookupDetail: lookupDetail,
+	})
+}
+
+func (t *StatCacheTest) Test_Metrics_LookupMiss_NotFound() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+
+	// Act
+	hit, entry := statCache.LookUp("nonexistent", someTime)
+
+	// Assert
+	assert.False(t.T(), hit)
+	assert.Nil(t.T(), entry)
+	assert.Equal(t.T(), 1, len(mockMetrics.readCounts))
+	assert.Equal(t.T(), recordedReadCount{
+		inc:          1,
+		cacheHit:     false,
+		entryStatus:  metrics.EntryStatusAttr,
+		lookupDetail: metrics.LookupDetailNotFoundAttr,
+	}, mockMetrics.readCounts[0])
+}
+
+func (t *StatCacheTest) Test_Metrics_LookupHit_PositiveFound() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+	m := &gcs.MinObject{Name: "file.txt", Generation: 1}
+	statCache.Insert(m, expiration)
+	mockMetrics.readCounts = nil // clear insert metrics if any (insert doesn't trigger read_count anyway)
+
+	// Act
+	hit, entry := statCache.LookUp("file.txt", someTime)
+
+	// Assert
+	assert.True(t.T(), hit)
+	assert.Equal(t.T(), m.Name, entry.Name)
+	assert.Equal(t.T(), 1, len(mockMetrics.readCounts))
+	assert.Equal(t.T(), recordedReadCount{
+		inc:          1,
+		cacheHit:     true,
+		entryStatus:  metrics.EntryStatusPositiveAttr,
+		lookupDetail: metrics.LookupDetailFoundAttr,
+	}, mockMetrics.readCounts[0])
+}
+
+func (t *StatCacheTest) Test_Metrics_LookupHit_NegativeFound() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+	statCache.AddNegativeEntry("nonexistent", expiration)
+	mockMetrics.readCounts = nil
+
+	// Act
+	hit, entry := statCache.LookUp("nonexistent", someTime)
+
+	// Assert
+	assert.True(t.T(), hit)
+	assert.Nil(t.T(), entry)
+	assert.Equal(t.T(), 1, len(mockMetrics.readCounts))
+	assert.Equal(t.T(), recordedReadCount{
+		inc:          1,
+		cacheHit:     true,
+		entryStatus:  metrics.EntryStatusNegativeAttr,
+		lookupDetail: metrics.LookupDetailFoundAttr,
+	}, mockMetrics.readCounts[0])
+}
+
+func (t *StatCacheTest) Test_Metrics_LookupMiss_PositiveExpired() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+	m := &gcs.MinObject{Name: "file.txt", Generation: 1}
+	statCache.Insert(m, expiration)
+	mockMetrics.readCounts = nil
+
+	// Act
+	// expiration is 1 minute from someTime, so someTime + 2 minutes is expired
+	hit, entry := statCache.LookUp("file.txt", expiration.Add(time.Second))
+
+	// Assert
+	assert.False(t.T(), hit)
+	assert.Nil(t.T(), entry)
+	assert.Equal(t.T(), 1, len(mockMetrics.readCounts))
+	assert.Equal(t.T(), recordedReadCount{
+		inc:          1,
+		cacheHit:     false,
+		entryStatus:  metrics.EntryStatusPositiveAttr,
+		lookupDetail: metrics.LookupDetailTtlExpiredAttr,
+	}, mockMetrics.readCounts[0])
+}
+
+func (t *StatCacheTest) Test_Metrics_LookupMiss_NegativeExpired() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+	statCache.AddNegativeEntry("nonexistent", expiration)
+	mockMetrics.readCounts = nil
+
+	// Act
+	hit, entry := statCache.LookUp("nonexistent", expiration.Add(time.Second))
+
+	// Assert
+	assert.False(t.T(), hit)
+	assert.Nil(t.T(), entry)
+	assert.Equal(t.T(), 1, len(mockMetrics.readCounts))
+	assert.Equal(t.T(), recordedReadCount{
+		inc:          1,
+		cacheHit:     false,
+		entryStatus:  metrics.EntryStatusNegativeAttr,
+		lookupDetail: metrics.LookupDetailTtlExpiredAttr,
+	}, mockMetrics.readCounts[0])
+}
+
+func (t *StatCacheTest) Test_Metrics_InsertDoesNotIncrementReadCount() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+	m := &gcs.MinObject{Name: "file.txt", Generation: 1}
+	f := &gcs.Folder{Name: "dir/"}
+
+	// Act: Perform insertion operations
+	statCache.Insert(m, expiration)
+	statCache.InsertImplicitDir("implicit_dir/", expiration)
+	statCache.InsertFolder(f, expiration)
+	statCache.AddNegativeEntry("nonexistent", expiration)
+	statCache.AddNegativeEntryForFolder("nonexistent_folder/", expiration)
+
+	// Re-inserting existing items (which triggers lookUpInternal check inside Insert/InsertImplicitDir)
+	mUpdated := &gcs.MinObject{Name: "file.txt", Generation: 2}
+	statCache.Insert(mUpdated, expiration)
+	statCache.InsertImplicitDir("implicit_dir/", expiration)
+
+	// Assert: Insertion operations must not record read count metrics
+	assert.Equal(t.T(), 0, len(mockMetrics.readCounts))
+}
+
