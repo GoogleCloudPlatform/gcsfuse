@@ -839,13 +839,12 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				GcsRetries: cfg.GcsRetriesConfig{
-					ExperimentalNonrapidFolderApiStallRetry: true,
-					ChunkRetryDeadlineSecs:                  180,
-					ChunkTransferTimeoutSecs:                20,
-					EnableMountRetries:                      false,
-					MaxRetryAttempts:                        math.MaxInt,
-					MaxRetrySleep:                           30 * time.Second,
-					Multiplier:                              2,
+					ChunkRetryDeadlineSecs:   180,
+					ChunkTransferTimeoutSecs: 20,
+					EnableMountRetries:       false,
+					MaxRetryAttempts:         math.MaxInt,
+					MaxRetrySleep:            30 * time.Second,
+					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
 						Enable:              false,
 						MinReqTimeout:       10 * time.Second,
