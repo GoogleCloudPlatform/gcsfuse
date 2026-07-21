@@ -33,7 +33,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"google.golang.org/api/iterator"
-	"google.golang.org/grpc/metadata"
 )
 
 const FullFolderPathHNS = "projects/_/buckets/%s/folders/%s"
@@ -409,9 +408,6 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		return
 	}
 
-	if bh.billingProject != "" {
-		ctx = metadata.AppendToOutgoingContext(ctx, "x-goog-user-project", bh.billingProject)
-	}
 
 	itr := bh.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
 	pi := itr.PageInfo()
