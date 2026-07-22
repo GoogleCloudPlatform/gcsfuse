@@ -152,8 +152,8 @@ write_large_files:
     configs:
       - run: TestWriteMaxRequestSize16MiB
         flags:
-          - "--enable-kernel-reader=true,--fuse-max-request-size-kb=16384,--log-severity=trace,--client-protocol=http1"
-          - "--enable-kernel-reader=true,--fuse-max-request-size-kb=16384,--log-severity=trace,--client-protocol=grpc"
+          - "--enable-kernel-reader=true,--fuse-max-request-size-kb=16384,--log-file=/gcsfuse-tmp/TestWriteMaxRequestSize16MiB.log,--log-severity=trace,--client-protocol=http1"
+          - "--enable-kernel-reader=true,--fuse-max-request-size-kb=16384,--log-file=/gcsfuse-tmp/TestWriteMaxRequestSize16MiB.log,--log-severity=trace,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -1366,8 +1366,8 @@ flag_optimizations:
     configs:
       - run: TestKernelReaderLargeReadSuite
         flags:
-          - "--enable-kernel-reader=true,--fuse-max-request-size-kb=16384,--log-severity=trace,--client-protocol=http1"
-          - "--enable-kernel-reader=true,--fuse-max-request-size-kb=16384,--log-severity=trace,--client-protocol=grpc"
+          - "--enable-kernel-reader=true,--fuse-max-request-size-kb=16384,--log-file=/gcsfuse-tmp/TestKernelReaderLargeReadSuite.log,--log-severity=trace,--client-protocol=http1"
+          - "--enable-kernel-reader=true,--fuse-max-request-size-kb=16384,--log-file=/gcsfuse-tmp/TestKernelReaderLargeReadSuite.log,--log-severity=trace,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
