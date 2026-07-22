@@ -65,9 +65,10 @@ type BufferedWriteHandler interface {
 // bufferedWriteHandlerImpl is responsible for filling up the buffers with the data
 // as it receives and handing over to uploadHandler which uploads to GCS.
 type bufferedWriteHandlerImpl struct {
-	current       block.Block
-	blockPool     *block.GenBlockPool[block.Block]
-	uploadHandler *UploadHandler
+	current             block.Block
+	blockPool           *block.GenBlockPool[block.Block]
+	uploadHandler       *UploadHandler
+	blocksUploadedCount int
 	// Total size of data buffered so far. Some part of buffered data might have
 	// been uploaded to GCS as well. Depending on the state we are in, it might or
 	// might not include truncatedSize.
@@ -96,6 +97,7 @@ type CreateBWHandlerRequest struct {
 	ObjectName               string
 	Bucket                   gcs.Bucket
 	BlockSize                int64
+	UploadChunkSize          int64
 	MaxBlocksPerFile         int64
 	GlobalMaxBlocksSem       *semaphore.Weighted
 	ChunkRetryDeadlineSecs   int64
@@ -123,7 +125,7 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 			Bucket:                   req.Bucket,
 			BlockPool:                bp,
 			MaxBlocksPerFile:         req.MaxBlocksPerFile,
-			BlockSize:                req.BlockSize,
+			UploadChunkSize:          req.UploadChunkSize,
 			ChunkRetryDeadlineSecs:   req.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
 			TraceHandle:              req.TraceHandle,
@@ -162,6 +164,15 @@ func (wh *bufferedWriteHandlerImpl) Write(ctx context.Context, data []byte, offs
 	return wh.appendBuffer(ctx, data)
 }
 
+func (wh *bufferedWriteHandlerImpl) uploadBlock(ctx context.Context, b block.Block) error {
+	err := wh.uploadHandler.Upload(ctx, b)
+	if err != nil {
+		return err
+	}
+	wh.blocksUploadedCount++
+	return nil
+}
+
 func (wh *bufferedWriteHandlerImpl) appendBuffer(ctx context.Context, data []byte) (err error) {
 	dataWritten := 0
 	for dataWritten < len(data) {
@@ -183,7 +194,7 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(ctx context.Context, data []byt
 		dataWritten += bytesToCopy
 
 		if wh.current.Size() == wh.blockPool.BlockSize() {
-			err := wh.uploadHandler.Upload(ctx, wh.current)
+			err := wh.uploadBlock(ctx, wh.current)
 			if err != nil {
 				return err
 			}
@@ -205,7 +216,7 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(ctx context.Context, data []byt
 func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject, err error) {
 	// Upload current block (for both regional and zonal buckets).
 	if wh.current != nil && wh.current.Size() != 0 {
-		err = wh.uploadHandler.Upload(ctx, wh.current)
+		err = wh.uploadBlock(ctx, wh.current)
 		if err != nil {
 			return nil, err
 		}
@@ -254,11 +265,39 @@ func (wh *bufferedWriteHandlerImpl) Flush(ctx context.Context) (*gcs.MinObject, 
 	}
 
 	if wh.current != nil {
-		err := wh.uploadHandler.Upload(ctx, wh.current)
-		if err != nil {
-			return nil, err
+		if wh.blocksUploadedCount == 0 {
+			// We only have this block, and we haven't uploaded anything yet.
+			// Upload synchronously with ChunkSize = nearest multiple of 256KB to allow retries.
+			fileSize := wh.current.Size()
+			const chunkAlignment = 256 * 1024 // 256KB
+			gcsChunkSize := ((fileSize + chunkAlignment - 1) / chunkAlignment) * chunkAlignment
+			if gcsChunkSize == 0 {
+				gcsChunkSize = chunkAlignment
+			}
+			obj, err := wh.uploadHandler.UploadSingleBlock(ctx, wh.current, gcsChunkSize)
+			if err != nil {
+				return nil, err
+			}
+			wh.current = nil
+
+			if obj != nil && obj.Size != uint64(wh.totalSize) {
+				return nil, fmt.Errorf("could not upload entire data, expected size %d, got %d", wh.totalSize, obj.Size)
+			}
+
+			err = wh.blockPool.ClearFreeBlockChannel(true)
+			if err != nil {
+				// Only logging an error in case of resource leak as upload succeeded.
+				logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
+			}
+
+			return obj, nil
+		} else {
+			err := wh.uploadBlock(ctx, wh.current)
+			if err != nil {
+				return nil, err
+			}
+			wh.current = nil
 		}
-		wh.current = nil
 	}
 
 	obj, err := wh.uploadHandler.Finalize(ctx)

@@ -830,6 +830,8 @@ type WriteConfig struct {
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
 	MaxBlocksPerFile int64 `yaml:"max-blocks-per-file"`
+
+	UploadChunkSizeKb int64 `yaml:"upload-chunk-size-kb"`
 }
 
 func BuildFlagSet(flagSet *pflag.FlagSet) error {
@@ -1490,6 +1492,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("write-upload-chunk-size-kb", "", 32768, "Specifies the chunk size for uploading to GCS in resumable uploads. Must be a multiple of 256 and >= 256. Defaults to 32768 (32MB) to match default write-block-size-mb.")
+
+	if err := flagSet.MarkHidden("write-upload-chunk-size-kb"); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -2092,6 +2100,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("write.max-blocks-per-file", flagSet.Lookup("write-max-blocks-per-file")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("write.upload-chunk-size-kb", flagSet.Lookup("write-upload-chunk-size-kb")); err != nil {
 		return err
 	}
 

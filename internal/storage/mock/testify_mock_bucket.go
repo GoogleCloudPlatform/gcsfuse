@@ -53,7 +53,7 @@ func (m *TestifyMockBucket) CreateObject(ctx context.Context, req *gcs.CreateObj
 }
 
 func (m *TestifyMockBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
-	args := m.Called(ctx, req)
+	args := m.Called(ctx, req, chunkSize, callBack)
 	if args.Get(1) != nil {
 		return nil, args.Error(1)
 	}
@@ -70,12 +70,18 @@ func (m *TestifyMockBucket) CreateAppendableObjectWriter(ctx context.Context, re
 
 func (m *TestifyMockBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	args := m.Called(ctx, w)
-	return args.Get(0).(*gcs.MinObject), args.Error(1)
+	if args.Get(1) != nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*gcs.MinObject), nil
 }
 
 func (m *TestifyMockBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	args := m.Called(ctx, w)
-	return args.Get(0).(*gcs.MinObject), args.Error(1)
+	if args.Get(1) != nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*gcs.MinObject), nil
 }
 
 func (m *TestifyMockBucket) CopyObject(ctx context.Context, req *gcs.CopyObjectRequest) (*gcs.Object, error) {

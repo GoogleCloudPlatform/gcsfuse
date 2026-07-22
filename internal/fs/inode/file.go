@@ -1263,11 +1263,17 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	}
 
 	if f.bwh == nil {
+		blockSize := writeCtx.Config.Write.BlockSizeMb * util.MiB
+		uploadChunkSize := writeCtx.Config.Write.UploadChunkSizeKb * util.KiB
+		if uploadChunkSize == 0 {
+			uploadChunkSize = blockSize
+		}
 		f.bwh, err = bufferedwrites.NewBWHandler(&bufferedwrites.CreateBWHandlerRequest{
 			Object:                   latestGcsObj,
 			ObjectName:               f.src.name,
 			Bucket:                   f.bucket,
-			BlockSize:                writeCtx.Config.Write.BlockSizeMb * util.MiB,
+			BlockSize:                blockSize,
+			UploadChunkSize:          uploadChunkSize,
 			MaxBlocksPerFile:         writeCtx.Config.Write.MaxBlocksPerFile,
 			GlobalMaxBlocksSem:       writeCtx.GlobalMaxBlocksSem,
 			ChunkRetryDeadlineSecs:   writeCtx.Config.GcsRetries.ChunkRetryDeadlineSecs,
