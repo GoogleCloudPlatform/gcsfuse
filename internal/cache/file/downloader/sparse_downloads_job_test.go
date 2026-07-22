@@ -43,7 +43,7 @@ func init() { RegisterTestSuite(&sparseDownloaderTest{}) }
 func (dt *sparseDownloaderTest) SetUp(*TestInfo) {
 	dt.defaultFileCacheConfig = &cfg.FileCacheConfig{
 		ExperimentalEnableChunkCache:           true,
-		DownloadChunkSizeMb:                    20, // 20MB chunks for sparse files
+		DownloadChunkSizeMb:                    2, // 2MB chunks for sparse files
 		EnableCrc:                              true,
 		ExperimentalParallelDownloadsDefaultOn: true,
 	}
@@ -63,36 +63,36 @@ func (dt *sparseDownloaderTest) Test_getChunksToDownload() {
 		{
 			name:           "single chunk - aligned",
 			offset:         0,
-			requiredOffset: 10 * util.MiB,
-			chunkSizeMb:    20,
-			objectSize:     100 * util.MiB,
+			requiredOffset: 1 * util.MiB,
+			chunkSizeMb:    2,
+			objectSize:     10 * util.MiB,
 			expectedChunks: []uint64{0},
 			expectError:    false,
 		},
 		{
 			name:           "single chunk - unaligned start",
-			offset:         5 * util.MiB,
-			requiredOffset: 10 * util.MiB,
-			chunkSizeMb:    20,
-			objectSize:     100 * util.MiB,
+			offset:         500 * util.KiB,
+			requiredOffset: 1 * util.MiB,
+			chunkSizeMb:    2,
+			objectSize:     10 * util.MiB,
 			expectedChunks: []uint64{0},
 			expectError:    false,
 		},
 		{
 			name:           "single chunk - unaligned end",
-			offset:         15 * util.MiB,
-			requiredOffset: 25 * util.MiB,
-			chunkSizeMb:    20,
-			objectSize:     100 * util.MiB,
+			offset:         1500 * util.KiB,
+			requiredOffset: 2500 * util.KiB,
+			chunkSizeMb:    2,
+			objectSize:     10 * util.MiB,
 			expectedChunks: []uint64{0, 1},
 			expectError:    false,
 		},
 		{
 			name:           "chunk end capped at object size",
-			offset:         90 * util.MiB,
-			requiredOffset: 95 * util.MiB,
-			chunkSizeMb:    20,
-			objectSize:     100 * util.MiB,
+			offset:         9 * util.MiB,
+			requiredOffset: 9500 * util.KiB,
+			chunkSizeMb:    2,
+			objectSize:     10 * util.MiB,
 			expectedChunks: []uint64{4},
 			expectError:    false,
 		},
@@ -100,16 +100,16 @@ func (dt *sparseDownloaderTest) Test_getChunksToDownload() {
 			name:           "invalid range - offset >= requiredOffset",
 			offset:         10,
 			requiredOffset: 10,
-			chunkSizeMb:    20,
-			objectSize:     100 * util.MiB,
+			chunkSizeMb:    2,
+			objectSize:     10 * util.MiB,
 			expectError:    true,
 		},
 		{
 			name:           "invalid range - negative offset",
 			offset:         -1,
 			requiredOffset: 10,
-			chunkSizeMb:    20,
-			objectSize:     100 * util.MiB,
+			chunkSizeMb:    2,
+			objectSize:     10 * util.MiB,
 			expectError:    true,
 		},
 	}
@@ -142,11 +142,11 @@ func (dt *sparseDownloaderTest) Test_getChunksToDownload() {
 
 func (dt *sparseDownloaderTest) Test_getChunksToDownload_WithInflight() {
 	objectName := "test/sparse_inflight.txt"
-	objectSize := 100 * util.MiB
+	objectSize := 10 * util.MiB
 	dt.initJobTest(objectName, nil, DefaultSequentialReadSizeMb, uint64(objectSize), func() {})
-	dt.job.fileCacheConfig.DownloadChunkSizeMb = 20 // 20MB chunks
-	// Scenario: Request [0, 60MB) -> Chunks 0, 1, 2.
-	// Chunk 1 (20MB-40MB) is already in-flight.
+	dt.job.fileCacheConfig.DownloadChunkSizeMb = 2 // 2MB chunks
+	// Scenario: Request [0, 6MB) -> Chunks 0, 1, 2.
+	// Chunk 1 (2MB-4MB) is already in-flight.
 	// Expected: Download Chunk 0 and Chunk 2. Wait for Chunk 1.
 	inflightCh := make(chan struct{})
 	dt.job.mu.Lock()
@@ -157,10 +157,10 @@ func (dt *sparseDownloaderTest) Test_getChunksToDownload_WithInflight() {
 		BucketName: dt.job.bucket.Name(),
 		ObjectName: dt.job.object.Name,
 	}
-	chunkSizeBytes := uint64(20) * 1024 * 1024
+	chunkSizeBytes := uint64(2) * 1024 * 1024
 	fileInfo := data.NewFileInfo(fileInfoKey, dt.job.object.Generation, uint64(objectSize), ^uint64(0), true, data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)), 1)
 
-	chunks, waitChans, err := dt.job.getChunksToDownload(fileInfo, 0, 60*util.MiB)
+	chunks, waitChans, err := dt.job.getChunksToDownload(fileInfo, 0, 6*util.MiB)
 
 	AssertEq(nil, err)
 	// Should have 2 chunks to download: Chunk 0 and Chunk 2
@@ -183,7 +183,7 @@ func (dt *sparseDownloaderTest) Test_getChunksToDownload_WithInflight() {
 
 func (dt *sparseDownloaderTest) Test_DownloadRange() {
 	objectName := "test/sparse_download_range.txt"
-	objectSize := 50 * util.MiB
+	objectSize := 5 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	var callbackExecuted atomic.Bool
 	removeCallback := func() { callbackExecuted.Store(true) }
@@ -191,7 +191,7 @@ func (dt *sparseDownloaderTest) Test_DownloadRange() {
 
 	// Set up sparse file mode
 	dt.job.fileCacheConfig.ExperimentalEnableChunkCache = true
-	dt.job.fileCacheConfig.DownloadChunkSizeMb = 20
+	dt.job.fileCacheConfig.DownloadChunkSizeMb = 2
 
 	// Create the cache file
 	file, err := util.CreateFile(data.FileSpec{
@@ -210,14 +210,14 @@ func (dt *sparseDownloaderTest) Test_DownloadRange() {
 	fileInfoKeyName, err := fileInfoKey.Key()
 	AssertEq(nil, err)
 
-	chunkSizeBytes := uint64(20) * 1024 * 1024
+	chunkSizeBytes := uint64(2) * 1024 * 1024
 	fileInfo := data.NewFileInfo(fileInfoKey, dt.object.Generation, uint64(objectSize), ^uint64(0), true, data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)), 1)
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
 
-	// Download a range [10MB, 30MB)
-	start := uint64(10 * util.MiB)
-	end := uint64(30 * util.MiB)
+	// Download a range [1MB, 3MB)
+	start := uint64(1 * util.MiB)
+	end := uint64(3 * util.MiB)
 	err = dt.job.downloadSparseRange(context.Background(), start, end)
 	AssertEq(nil, err)
 
@@ -238,12 +238,12 @@ func (dt *sparseDownloaderTest) Test_DownloadRange() {
 
 func (dt *sparseDownloaderTest) Test_HandleSparseRead_AlreadyDownloaded() {
 	objectName := "test/sparse_already_downloaded.txt"
-	objectSize := 50 * util.MiB
+	objectSize := 5 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize), func() {})
 
 	dt.job.fileCacheConfig.ExperimentalEnableChunkCache = true
-	dt.job.fileCacheConfig.DownloadChunkSizeMb = 20
+	dt.job.fileCacheConfig.DownloadChunkSizeMb = 2
 
 	// Set up sparse file info with pre-downloaded range
 	fileInfoKey := data.FileInfoKey{
@@ -253,17 +253,17 @@ func (dt *sparseDownloaderTest) Test_HandleSparseRead_AlreadyDownloaded() {
 	fileInfoKeyName, err := fileInfoKey.Key()
 	AssertEq(nil, err)
 
-	chunkSizeBytes := uint64(20) * 1024 * 1024
+	chunkSizeBytes := uint64(2) * 1024 * 1024
 	downloadedRanges := data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize))
-	downloadedRanges.AddRange(0, 40*util.MiB) // Mark first 40MB as downloaded
+	downloadedRanges.AddRange(0, 4*util.MiB) // Mark first 4MB as downloaded
 
 	fileInfo := data.NewFileInfo(fileInfoKey, dt.object.Generation, uint64(objectSize), ^uint64(0), true, downloadedRanges, 1)
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
 
-	// Request a range that's already downloaded [5MB, 10MB)
-	offset := int64(5 * util.MiB)
-	requiredOffset := int64(10 * util.MiB)
+	// Request a range that's already downloaded [500KB, 1MB)
+	offset := int64(500 * util.KiB)
+	requiredOffset := int64(1 * util.MiB)
 	cacheHit, err := dt.job.HandleSparseRead(context.Background(), offset, requiredOffset)
 
 	AssertEq(nil, err)
@@ -272,12 +272,12 @@ func (dt *sparseDownloaderTest) Test_HandleSparseRead_AlreadyDownloaded() {
 
 func (dt *sparseDownloaderTest) Test_HandleSparseRead_NeedsDownload() {
 	objectName := "test/sparse_needs_download.txt"
-	objectSize := 100 * util.MiB
+	objectSize := 10 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize), func() {})
 
 	dt.job.fileCacheConfig.ExperimentalEnableChunkCache = true
-	dt.job.fileCacheConfig.DownloadChunkSizeMb = 20
+	dt.job.fileCacheConfig.DownloadChunkSizeMb = 2
 
 	// Create the cache file
 	file, err := util.CreateFile(data.FileSpec{
@@ -296,26 +296,26 @@ func (dt *sparseDownloaderTest) Test_HandleSparseRead_NeedsDownload() {
 	fileInfoKeyName, err := fileInfoKey.Key()
 	AssertEq(nil, err)
 
-	chunkSizeBytes := uint64(20) * 1024 * 1024
+	chunkSizeBytes := uint64(2) * 1024 * 1024
 	fileInfo := data.NewFileInfo(fileInfoKey, dt.object.Generation, uint64(objectSize), ^uint64(0), true, data.NewByteRangeMap(chunkSizeBytes, uint64(objectSize)), 1)
 	_, err = dt.cache.Insert(fileInfoKeyName, fileInfo)
 	AssertEq(nil, err)
 
-	// Request a range that needs to be downloaded [15MB, 25MB)
-	offset := int64(15 * util.MiB)
-	requiredOffset := int64(25 * util.MiB)
+	// Request a range that needs to be downloaded [1.5MB, 2.5MB)
+	offset := int64(1500 * util.KiB)
+	requiredOffset := int64(2500 * util.KiB)
 	cacheHit, err := dt.job.HandleSparseRead(context.Background(), offset, requiredOffset)
 
 	AssertEq(nil, err)
 	AssertTrue(cacheHit, "Should be a cache hit after successful download")
 
-	// Verify the chunk was downloaded [0, 40MB) due to alignment
-	// offset 15MB rounds down to 0, requiredOffset 25MB rounds up to 40MB
+	// Verify the chunk was downloaded [0, 4MB) due to alignment
+	// offset 1.5MB rounds down to 0, requiredOffset 2.5MB rounds up to 4MB
 	updatedFileInfoVal := dt.cache.LookUpWithoutChangingOrder(fileInfoKeyName)
 	AssertTrue(updatedFileInfoVal != nil, "FileInfo should exist in cache")
 	updatedFileInfo := updatedFileInfoVal.(data.FileInfo)
-	AssertTrue(updatedFileInfo.DownloadedChunks.ContainsRange(0, 40*util.MiB),
-		"Expected range [0, 40MB) to be downloaded")
+	AssertTrue(updatedFileInfo.DownloadedChunks.ContainsRange(0, 4*util.MiB),
+		"Expected range [0, 4MB) to be downloaded")
 
 	// Verify the content
 	_, err = file.Seek(int64(offset), 0)
