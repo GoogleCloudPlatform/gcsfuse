@@ -472,6 +472,53 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_WriteConfigNewFlags(t *testing.T) {
+	tests := []struct {
+		name                           string
+		args                           []string
+		expectedWriteBlockSizeKB       int64
+		expectedWriteUploadChunkSizeKB int64
+	}{
+		{
+			name:                           "Test default new flags.",
+			args:                           []string{"gcsfuse", "abc", "pqr"},
+			expectedWriteBlockSizeKB:       0,
+			expectedWriteUploadChunkSizeKB: 32768,
+		},
+		{
+			name:                           "Test positive write-block-size-kb flag.",
+			args:                           []string{"gcsfuse", "--enable-streaming-writes", "--write-block-size-kb=256", "abc", "pqr"},
+			expectedWriteBlockSizeKB:       256,
+			expectedWriteUploadChunkSizeKB: 32768,
+		},
+		{
+			name:                           "Test positive write-upload-chunk-size-kb flag.",
+			args:                           []string{"gcsfuse", "--enable-streaming-writes", "--write-upload-chunk-size-kb=512", "abc", "pqr"},
+			expectedWriteBlockSizeKB:       0,
+			expectedWriteUploadChunkSizeKB: 512,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var wc cfg.WriteConfig
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				wc = mountInfo.config.Write
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedWriteBlockSizeKB, wc.BlockSizeKb)
+				assert.Equal(t, tc.expectedWriteUploadChunkSizeKB, wc.UploadChunkSizeKb)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 	tests := []struct {
 		name                             string

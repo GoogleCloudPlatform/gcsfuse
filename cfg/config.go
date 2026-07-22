@@ -815,6 +815,8 @@ type WorkloadInsightConfig struct {
 }
 
 type WriteConfig struct {
+	BlockSizeKb int64 `yaml:"block-size-kb"`
+
 	BlockSizeMb int64 `yaml:"block-size-mb"`
 
 	CreateEmptyFile bool `yaml:"create-empty-file"`
@@ -1478,6 +1480,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("write-block-size-kb", "", 0, "Specifies the block size for streaming writes in KiB. If set, this takes precedence over write-block-size-mb.")
+
+	if err := flagSet.MarkHidden("write-block-size-kb"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more than 0.")
 
 	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
@@ -2088,6 +2096,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("workload-insight.output-file", flagSet.Lookup("workload-insight-output-file")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("write.block-size-kb", flagSet.Lookup("write-block-size-kb")); err != nil {
 		return err
 	}
 

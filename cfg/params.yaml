@@ -1280,6 +1280,15 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "write.block-size-kb"
+    flag-name: "write-block-size-kb"
+    type: "int"
+    usage: >-
+      Specifies the block size for streaming writes in KiB. If set, this takes
+      precedence over write-block-size-mb.
+    default: 0
+    hide-flag: true
+
   - config-path: "write.block-size-mb"
     flag-name: "write-block-size-mb"
     type: "int"

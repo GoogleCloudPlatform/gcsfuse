@@ -29,6 +29,7 @@ const (
 
 	MaxMiBsInUint64 uint64 = math.MaxUint64 >> 20
 	MaxMiBsInInt64  int64  = math.MaxInt64 >> 20
+	MaxKiBsInInt64  int64  = math.MaxInt64 >> 10
 	MiB                    = 1024 * 1024
 	KiB                    = 1024
 

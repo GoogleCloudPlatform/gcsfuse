@@ -1263,7 +1263,12 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	}
 
 	if f.bwh == nil {
-		blockSize := writeCtx.Config.Write.BlockSizeMb * util.MiB
+		var blockSize int64
+		if writeCtx.Config.Write.BlockSizeKb > 0 {
+			blockSize = writeCtx.Config.Write.BlockSizeKb * util.KiB
+		} else {
+			blockSize = writeCtx.Config.Write.BlockSizeMb * util.MiB
+		}
 		uploadChunkSize := writeCtx.Config.Write.UploadChunkSizeKb * util.KiB
 		if uploadChunkSize == 0 {
 			uploadChunkSize = blockSize

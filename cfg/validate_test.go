@@ -778,6 +778,22 @@ func Test_isValidWriteStreamingConfig_ErrorScenarios(t *testing.T) {
 			GlobalMaxBlocks:       20,
 			MaxBlocksPerFile:      0,
 		}},
+		{"negative_block_size_kb", WriteConfig{
+			BlockSizeMb:           32,
+			BlockSizeKb:           -1,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       -1,
+			MaxBlocksPerFile:      -1,
+		}},
+		{"very_large_block_size_kb", WriteConfig{
+			BlockSizeMb:           32,
+			BlockSizeKb:           util.MaxKiBsInInt64 + 1,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       -1,
+			MaxBlocksPerFile:      -1,
+		}},
 	}
 
 	for _, tc := range testCases {
@@ -996,6 +1012,22 @@ func Test_isValidWriteStreamingConfig_SuccessScenarios(t *testing.T) {
 			EnableStreamingWrites: true,
 			GlobalMaxBlocks:       20,
 			MaxBlocksPerFile:      1,
+		}},
+		{"valid_block_size_kb", WriteConfig{
+			BlockSizeMb:           32,
+			BlockSizeKb:           256,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       -1,
+			MaxBlocksPerFile:      -1,
+		}},
+		{"zero_block_size_kb", WriteConfig{
+			BlockSizeMb:           32,
+			BlockSizeKb:           0,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       -1,
+			MaxBlocksPerFile:      -1,
 		}},
 	}
 

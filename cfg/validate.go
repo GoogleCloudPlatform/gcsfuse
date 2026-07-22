@@ -217,13 +217,16 @@ func isValidWriteStreamingConfig(wc *WriteConfig) error {
 	if wc.BlockSizeMb <= 0 || wc.BlockSizeMb > util.MaxMiBsInInt64 {
 		return fmt.Errorf("invalid value of write-block-size-mb; can't be less than 1 or more than %d", util.MaxMiBsInInt64)
 	}
+	if wc.BlockSizeKb < 0 || wc.BlockSizeKb > util.MaxKiBsInInt64 {
+		return fmt.Errorf("invalid value of write-block-size-kb; can't be less than 0 or more than %d", util.MaxKiBsInInt64)
+	}
 	if !(wc.MaxBlocksPerFile == -1 || wc.MaxBlocksPerFile >= 1) {
 		return fmt.Errorf("invalid value of write-max-blocks-per-file: %d; should be >=1 or -1 (for infinite)", wc.MaxBlocksPerFile)
 	}
 	if wc.GlobalMaxBlocks < -1 {
 		return fmt.Errorf("invalid value of write-global-max-blocks: %d; should be >=0 or -1 (for infinite)", wc.GlobalMaxBlocks)
 	}
-	if wc.UploadChunkSizeKb < 256 || wc.UploadChunkSizeKb%256 != 0 {
+	if wc.UploadChunkSizeKb != 0 && (wc.UploadChunkSizeKb < 256 || wc.UploadChunkSizeKb%256 != 0) {
 		return fmt.Errorf("invalid value of write-upload-chunk-size-kb: %d; must be a multiple of 256 and >= 256", wc.UploadChunkSizeKb)
 	}
 	return nil
