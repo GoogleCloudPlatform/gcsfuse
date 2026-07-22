@@ -683,6 +683,8 @@ type GcsRetriesConfig struct {
 
 	ExperimentalNonrapidFolderApiStallRetry bool `yaml:"experimental-nonrapid-folder-api-stall-retry"`
 
+	GkeMountRetriesErrorFile ResolvedPath `yaml:"gke-mount-retries-error-file"`
+
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
 
 	MaxRetrySleep time.Duration `yaml:"max-retry-sleep"`
@@ -1203,6 +1205,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
+
+	flagSet.StringP("gke-mount-retries-error-file", "", "", "File path to write GCSFuse mounting errors during mount retries in GKE environment when enable-mount-retries is set.")
+
+	if err := flagSet.MarkHidden("gke-mount-retries-error-file"); err != nil {
+		return err
+	}
 
 	flagSet.StringP("grpc-path-strategy", "", "direct-path-with-fallback", "Strategy for DirectPath connectivity when client-protocol=grpc. Options: 'direct-path-only' (fail if unavailable), 'direct-path-with-fallback' (always fallback to HTTP/1 when direct path is not available).")
 
@@ -1800,6 +1808,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.gid", flagSet.Lookup("gid")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-retries.gke-mount-retries-error-file", flagSet.Lookup("gke-mount-retries-error-file")); err != nil {
 		return err
 	}
 
