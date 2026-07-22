@@ -98,7 +98,7 @@ async def set_up_bucket_permissions(
 
   # Grant Storage objectUser role to the 'default' KSA principal
   principal = f"principal://iam.googleapis.com/projects/{project_number}/locations/global/workloadIdentityPools/{project_id}.svc.id.goog/subject/ns/default/sa/default"
-  print(
+  utils.log_info(
       f"Granting roles/storage.objectUser to {principal} on bucket"
       f" {bucket_name}..."
   )
@@ -153,7 +153,7 @@ async def execute_test_workload(
   Returns:
       True if the test passed, False otherwise.
   """
-  print(f"Executing workload for machine type: {machine_type}...")
+  utils.log_step(f"Executing workload for machine type: {machine_type}...")
 
   if not is_tpu_machine_type(machine_type):
     raise ValueError(
@@ -164,14 +164,14 @@ async def execute_test_workload(
   template_file = "pod_tpu.yaml.template"
 
   template_path = os.path.join(SCRIPT_DIR, template_file)
-  print(f"Using pod template: {template_path}")
+  utils.log_info(f"Using pod template: {template_path}")
 
   with open(template_path, "r") as f:
     pod_template = Template(f.read())
 
   # Use timestamp to make pod name unique to avoid conflict
   pod_name = f"gcsfuse-gke-machine-type-test-{timestamp}"
-  print(f"Pod name: {pod_name}")
+  utils.log_info(f"Pod name: {pod_name}")
 
   manifest = pod_template.safe_substitute(
       project_id=project_id,
@@ -202,20 +202,20 @@ async def execute_test_workload(
 
     # Check if pod exists and delete it (just in case, though name is unique now)
     # We ignore the error if it doesn't exist
-    print("Checking for existing pod...")
+    utils.log_info("Checking for existing pod...")
     await utils.run_command_async(
         ["kubectl", "delete", "pod", pod_name, "--ignore-not-found=true"],
         check=False,
     )
 
-    print(f"Applying manifest: {manifest_filename}")
+    utils.log_info(f"Applying manifest: {manifest_filename}")
     await utils.run_command_async(["kubectl", "apply", "-f", manifest_filename])
 
     start_time = datetime.now()
     pod_finished = False
     success = False
 
-    print(
+    utils.log_info(
         f"Waiting for pod {pod_name} to complete (timeout:"
         f" {pod_timeout_seconds}s)..."
     )
@@ -254,7 +254,7 @@ async def execute_test_workload(
       if not line and log_process.poll() is not None:
         break
       if line:
-        print(line, end="")
+        print(line, end="", flush=True)
 
     # Wait for the pod status to update to Succeeded or Failed
     # kubectl logs -f exits when the container stops, but the pod status update might be delayed.
@@ -273,21 +273,20 @@ async def execute_test_workload(
       status = status.strip("'")
       if status in ["Succeeded", "Failed"]:
         break
-      print(f"Pod status is '{status}'. Waiting for final status...")
+      utils.log_info(f"Pod status is '{status}'. Waiting for final status...")
       await asyncio.sleep(5)
 
     if status == "Succeeded":
-      print(f"Pod {pod_name} succeeded.")
+      utils.log_success(f"Pod {pod_name} succeeded.")
       success = True
     elif status == "Failed":
-      print(f"Pod {pod_name} failed.")
+      utils.log_error(f"Pod {pod_name} failed.")
       success = False
     else:
       # If logs finished but pod is not Succeeded/Failed (e.g. timeout or crash loop?), check timeout
       if (datetime.now() - start_time).total_seconds() > pod_timeout_seconds:
-        print(
-            f"Pod did not complete within {pod_timeout_seconds / 60} minutes.",
-            file=sys.stderr,
+        utils.log_error(
+            f"Pod did not complete within {pod_timeout_seconds / 60} minutes."
         )
         success = False
       else:
@@ -298,7 +297,7 @@ async def execute_test_workload(
 
     return success
   finally:
-    print("Cleaning up pod resources...")
+    utils.log_info("Cleaning up pod resources...")
     await utils.run_command_async(
         ["kubectl", "delete", "configmap", "machine-type-test-scripts"],
         check=False,
@@ -422,6 +421,9 @@ async def main():
   return_code = 0
   with tempfile.TemporaryDirectory() as temp_dir:
     try:
+      await utils.clone_and_log_branch_info(args.gcsfuse_branch, temp_dir)
+
+      utils.log_step("Setting up GKE Cluster and building CSI Driver")
       if args.skip_csi_driver_build:
         await utils.setup_gke_cluster(
             args.project_id,
@@ -450,11 +452,12 @@ async def main():
         )
         build_task = asyncio.create_task(
             utils.build_gcsfuse_image(
-                args.project_id, args.gcsfuse_branch, temp_dir, STAGING_VERSION
+                args.project_id, temp_dir, STAGING_VERSION
             )
         )
         await asyncio.gather(setup_task, build_task)
 
+      utils.log_step("Setting up Workload Identity Permissions")
       await set_up_bucket_permissions(
           args.project_id, args.zone, args.cluster_name, args.bucket_name
       )
@@ -472,12 +475,13 @@ async def main():
       )
 
       if success:
-        print("Test passed successfully.")
+        utils.log_success("Test passed successfully.")
       else:
-        print("Test failed.", file=sys.stderr)
+        utils.log_error("Test failed.")
         return_code = 1
     finally:
       if not args.no_cleanup:
+        utils.log_step("Cleaning up cluster resources")
         await utils.cleanup(
             args.project_id,
             args.zone,

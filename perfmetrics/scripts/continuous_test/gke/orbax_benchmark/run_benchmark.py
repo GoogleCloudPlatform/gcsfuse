@@ -61,10 +61,10 @@ def parse_all_gbytes_per_sec(logs):
         match = re.search(r"gbytes_per_sec: ([\d.]+) Bytes/s", line)
         if match:
             gbytes_per_sec = float(match.group(1))
-            print(f"Extracted gbytes_per_sec: {gbytes_per_sec}")
+            utils.log_info(f"Extracted gbytes_per_sec: {gbytes_per_sec}")
             values.append(gbytes_per_sec)
     if not values:
-        print("gbytes_per_sec not found in logs.", file=sys.stderr)
+        utils.log_error("gbytes_per_sec not found in logs.")
     return values
 
 # Workload Execution and Result Gathering
@@ -106,8 +106,14 @@ async def execute_workload_and_gather_results(project_id, zone, cluster_name, bu
 
         start_time = datetime.now()
         pod_finished = False
+        last_status = None
         while (datetime.now() - start_time).total_seconds() < pod_timeout_seconds:
-            status, stderr, _ = await utils.run_command_async(["kubectl", "get", "pod", pod_name, "-o", "jsonpath='{.status.phase}'"], check=False)
+            status, stderr, _ = await utils.run_command_async(["kubectl", "get", "pod", pod_name, "-o", "jsonpath='{.status.phase}'"], check=False, silent=True)
+            status_clean = status.strip("'")
+            if status_clean and status_clean != last_status:
+                utils.log_info(f"Pod status: {status_clean}")
+                last_status = status_clean
+                
             if "Succeeded" in status or "Failed" in status:
                 pod_finished = True
                 break
@@ -152,6 +158,7 @@ async def main():
     parser.add_argument("--client_protocol", default=os.environ.get("CLIENT_PROTOCOL", "http1"), help="The client protocol to use for GCS. Can also be set with CLIENT_PROTOCOL env var.")
     args = parser.parse_args()
 
+
     # Append zone to default network and subnet names to avoid collisions
     if args.network_name == "gke-orbax-benchmark-network":
         args.network_name = f"{args.network_name}-{args.zone}"
@@ -163,31 +170,38 @@ async def main():
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     with tempfile.TemporaryDirectory() as temp_dir:
         try:
+            await utils.clone_and_log_branch_info(args.gcsfuse_branch, temp_dir)
+
+            utils.log_step("Setting up GKE Cluster and building CSI Driver")
             if args.skip_csi_driver_build:
                 await utils.setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name, args.reservation_name)
             else:
                 setup_task = asyncio.create_task(utils.setup_gke_cluster(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name, args.zone.rsplit('-', 1)[0], args.machine_type, args.node_pool_name, args.reservation_name))
-                build_task = asyncio.create_task(utils.build_gcsfuse_image(args.project_id,args.gcsfuse_branch, temp_dir, STAGING_VERSION))
+                build_task = asyncio.create_task(utils.build_gcsfuse_image(args.project_id, temp_dir, STAGING_VERSION))
                 await asyncio.gather(setup_task, build_task)
 
+            utils.log_step("Executing workload and gathering results")
             throughputs = await execute_workload_and_gather_results(args.project_id, args.zone, args.cluster_name, args.bucket_name, timestamp, args.iterations, STAGING_VERSION, args.pod_timeout_seconds, args.client_protocol)
 
             if not throughputs:
-                print("No throughput data was collected.", file=sys.stderr)
+                utils.log_error("No throughput data was collected.")
                 if not args.no_cleanup:
+                    utils.log_step("Cleaning up cluster resources")
                     await utils.cleanup(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name)
                 sys.exit(-1)
 
             successful_iterations = sum(1 for t in throughputs if t >= args.performance_threshold_gbps)
             if successful_iterations < (len(throughputs) * 5)/8: # At least 5/8th of the iterations must meet the threshold.
-                print(f"Benchmark failed: Only {successful_iterations}/{len(throughputs)} iterations were >= {args.performance_threshold_gbps} gbytes/sec.", file=sys.stderr)
+                utils.log_error(f"Benchmark failed: Only {successful_iterations}/{len(throughputs)} iterations were >= {args.performance_threshold_gbps} gbytes/sec.")
                 if not args.no_cleanup:
+                    utils.log_step("Cleaning up cluster resources")
                     await utils.cleanup(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name)
                 sys.exit(-1)
 
-            print(f"Benchmark successful: {successful_iterations}/{len(throughputs)} iterations met the performance threshold ({args.performance_threshold_gbps} GB/s).")
+            utils.log_success(f"Benchmark successful: {successful_iterations}/{len(throughputs)} iterations met the performance threshold ({args.performance_threshold_gbps} GB/s).")
         finally:
             if not args.no_cleanup:
+                utils.log_step("Cleaning up cluster resources")
                 await utils.cleanup(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name)
 
 if __name__ == "__main__":
