@@ -74,6 +74,9 @@ func (t *GcsfuseTest) gcsfuseCommand(args []string, env []string) (cmd *exec.Cmd
 
 	// Teach gcsfuse where fusermount lives.
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PATH=%s", path.Dir(gFusermountPath)))
+	if gcoverdir := os.Getenv("GOCOVERDIR"); gcoverdir != "" {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("GOCOVERDIR=%s", gcoverdir))
+	}
 
 	return
 }
