@@ -128,6 +128,15 @@ write_large_files:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
     configs:
+      - run: TestWriteMaxRequestSize16MiB
+        flags:
+          - "--enable-kernel-reader=true,--fuse-max-request-size-kb=16384,--log-severity=trace,--client-protocol=http1"
+          - "--enable-kernel-reader=true,--fuse-max-request-size-kb=16384,--log-severity=trace,--client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: false
+        run_on_gke: true
       - flags:
           - "--enable-streaming-writes=false,--client-protocol=http1"
           - "--enable-streaming-writes=false,--client-protocol=grpc"
@@ -1181,6 +1190,15 @@ flag_optimizations:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
     configs:
+      - run: TestKernelReaderLargeReadSuite
+        flags:
+          - "--enable-kernel-reader=true,--fuse-max-request-size-kb=16384,--log-severity=trace,--client-protocol=http1"
+          - "--enable-kernel-reader=true,--fuse-max-request-size-kb=16384,--log-severity=trace,--client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: false
+        run_on_gke: true
       - run: TestMountFails
         flags:
           - "--profile=unknown-profile,--client-protocol=http1"
