@@ -466,6 +466,14 @@ params:
       bucket-type-optimization:
         - bucket-type: "flat, hierarchical"
           value: "StorageClassStandard.DefaultFuseMaxRequestSizeKb()"
+  - config-path: "file-system.fuse-max-write-size-mb"
+    flag-name: "fuse-max-write-size-mb"
+    type: "int"
+    usage: >-
+      Sets the maximum write size in MiB that FUSE can process in a single write request.
+      Must be between 1 and 256.
+    default: 1
+    hide-flag: true
 
   - config-path: "file-system.fuse-options"
     flag-name: "o"

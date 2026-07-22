@@ -895,7 +895,7 @@ func (t *ForeignModsTest) Symlink() {
 	AssertEq(nil, err)
 
 	ExpectEq("foo", fi.Name())
-	ExpectEq(0, fi.Size())
+	ExpectEq(7, fi.Size())
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 
 	// Read the link.

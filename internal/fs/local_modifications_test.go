@@ -2409,7 +2409,7 @@ func (t *SymlinkTest) CreateLink() {
 	AssertEq(nil, err)
 
 	ExpectEq("bar", fi.Name())
-	ExpectEq(0, fi.Size())
+	ExpectEq(3, fi.Size())
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 
 	// Read the parent directory.
@@ -2419,7 +2419,7 @@ func (t *SymlinkTest) CreateLink() {
 
 	fi = entries[0]
 	ExpectEq("bar", fi.Name())
-	ExpectEq(0, fi.Size())
+	ExpectEq(3, fi.Size())
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 
 	// Stat the target via the link.

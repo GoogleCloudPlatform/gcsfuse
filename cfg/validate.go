@@ -126,6 +126,17 @@ func isValidFuseMaxRequestSizeKb(requestSizeKb int64) error {
 	return nil
 }
 
+func isValidFuseMaxWriteSizeMb(writeSizeMb int64) error {
+	if writeSizeMb <= 0 {
+		return fmt.Errorf("invalid value for fuse-max-write-size-mb: %d; should be > 0", writeSizeMb)
+	}
+	maxAllowedMb := (int64(FuseMaxPagesLimit) * int64(kernelPageSize)) / (1024 * 1024)
+	if writeSizeMb > maxAllowedMb {
+		return fmt.Errorf("invalid value for fuse-max-write-size-mb: %d; exceeds maximum allowed limit of %d", writeSizeMb, maxAllowedMb)
+	}
+	return nil
+}
+
 // isTTLInSecsValid return nil error if ttlInSecs is valid.
 func isTTLInSecsValid(secs int64) error {
 	if secs < -1 {
@@ -361,6 +372,12 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 	if v.IsSet("file-system.fuse-max-request-size-kb") {
 		if err = isValidFuseMaxRequestSizeKb(config.FileSystem.FuseMaxRequestSizeKb); err != nil {
 			return fmt.Errorf("error parsing fuse-max-request-size-kb config: %w", err)
+		}
+	}
+
+	if v.IsSet("file-system.fuse-max-write-size-mb") {
+		if err = isValidFuseMaxWriteSizeMb(config.FileSystem.FuseMaxWriteSizeMb); err != nil {
+			return fmt.Errorf("error parsing fuse-max-write-size-mb config: %w", err)
 		}
 	}
 

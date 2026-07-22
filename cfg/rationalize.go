@@ -160,6 +160,15 @@ func resolveTraceConfig(t *TraceConfig) {
 	}
 }
 
+func resolveFuseMaxRequestSizeKb(c *FileSystemConfig) {
+	if c.FuseMaxWriteSizeMb > 0 {
+		requiredRequestSizeKb := c.FuseMaxWriteSizeMb * 1024
+		if c.FuseMaxRequestSizeKb < requiredRequestSizeKb {
+			c.FuseMaxRequestSizeKb = requiredRequestSizeKb
+		}
+	}
+}
+
 func resolveGCSRetriesConfig(c *GcsRetriesConfig) {
 	if c.MaxRetryAttempts == 0 {
 		c.MaxRetryAttempts = math.MaxInt
@@ -187,6 +196,7 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	resolveParallelDownloadsValue(v, &c.FileCache, c)
 	resolveFileCacheAndBufferedReadConflict(v, c)
 	resolveGCSRetriesConfig(&c.GcsRetries)
+	resolveFuseMaxRequestSizeKb(&c.FileSystem)
 
 	return nil
 }

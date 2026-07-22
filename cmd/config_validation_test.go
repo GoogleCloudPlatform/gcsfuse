@@ -671,6 +671,9 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
+				if tc.expectedConfig.FileSystem.FuseMaxWriteSizeMb == 0 {
+					tc.expectedConfig.FileSystem.FuseMaxWriteSizeMb = 1
+				}
 				assert.EqualValues(t, tc.expectedConfig.FileSystem, gotConfig.FileSystem)
 			}
 		})

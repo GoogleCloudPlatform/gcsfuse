@@ -15,10 +15,13 @@
 package cmd
 
 import (
+	"os"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetFuseMountConfig_MountOptionsFormattedCorrectly(t *testing.T) {
@@ -145,6 +148,66 @@ func TestGetFuseMountConfig_EnableReaddirplus(t *testing.T) {
 			fuseMountCfg := getFuseMountConfig(fsName, newConfig)
 
 			assert.Equal(t, tc.expectedValue, fuseMountCfg.EnableReaddirplus)
+		})
+	}
+}
+
+func TestGetFuseMountConfig_MaxWriteAndMaxPages(t *testing.T) {
+	pageSize := os.Getpagesize()
+	testCases := []struct {
+		name             string
+		maxWriteSizeMb   int64
+		maxRequestSizeKb int64
+		expectedMaxWrite uint32
+		expectedMaxPages uint16
+	}{
+		{
+			name:             "only_max_write_set",
+			maxWriteSizeMb:   16,
+			maxRequestSizeKb: 0,
+			expectedMaxWrite: 16 * 1024 * 1024,
+			expectedMaxPages: uint16((16 * 1024 * 1024) / pageSize),
+		},
+		{
+			name:             "max_write_and_request_size_set_write_dominant",
+			maxWriteSizeMb:   16,
+			maxRequestSizeKb: 1024,                                  // 1MB = 256 pages (if 4KB page)
+			expectedMaxWrite: 16 * 1024 * 1024,                      // 16MB = 4096 pages
+			expectedMaxPages: uint16((16 * 1024 * 1024) / pageSize), // 4096 pages
+		},
+		{
+			name:             "max_write_and_request_size_set_request_dominant",
+			maxWriteSizeMb:   1,     // 1MB = 256 pages
+			maxRequestSizeKb: 16384, // 16MB = 4096 pages
+			expectedMaxWrite: 1 * 1024 * 1024,
+			expectedMaxPages: uint16((16384 * 1024) / pageSize), // 4096 pages
+		},
+		{
+			name:             "neither_set",
+			maxWriteSizeMb:   0,
+			maxRequestSizeKb: 0,
+			expectedMaxWrite: 0,
+			expectedMaxPages: 0,
+		},
+	}
+
+	fsName := "mybucket"
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			newConfig := &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					FuseMaxWriteSizeMb:   tc.maxWriteSizeMb,
+					FuseMaxRequestSizeKb: tc.maxRequestSizeKb,
+				},
+			}
+
+			err := cfg.Rationalize(viper.New(), newConfig, []string{})
+			require.NoError(t, err)
+
+			fuseMountCfg := getFuseMountConfig(fsName, newConfig)
+
+			assert.Equal(t, tc.expectedMaxWrite, fuseMountCfg.MaxWrite)
+			assert.Equal(t, tc.expectedMaxPages, fuseMountCfg.MaxPages)
 		})
 	}
 }

@@ -611,6 +611,8 @@ type FileSystemConfig struct {
 
 	FuseMaxRequestSizeKb int64 `yaml:"fuse-max-request-size-kb"`
 
+	FuseMaxWriteSizeMb int64 `yaml:"fuse-max-write-size-mb"`
+
 	FuseOptions []string `yaml:"fuse-options"`
 
 	Gid int64 `yaml:"gid"`
@@ -1199,6 +1201,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("fuse-max-request-size-kb", "", StorageClassRapid.DefaultFuseMaxRequestSizeKb(), "Sets the target maximum request size in KiB that FUSE can process in a single request (currently used to control read requests only). This is translated to the kernel max_pages limit based on host page size. As max_pages_limit is a global, machine-level configuration across all mounts, the host's limit is only updated if the calculated pages value is greater than the current system limit. Note that the FUSE kernel max_pages limit can be set to at most 65535 (fuse_max_max_pages), so the value of this parameter must be > 0 and translate to at most 65535 pages.  Additionally, on GKE, the system-wide setting is capped to 16 MiB (16384 KiB) by default by the CSI driver. If needed to be set beyond that on GKE, the user has to manually increase the value on the node before GCSFuse mounting begins.")
 
 	if err := flagSet.MarkHidden("fuse-max-request-size-kb"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("fuse-max-write-size-mb", "", 1, "Sets the maximum write size in MiB that FUSE can process in a single write request. Must be between 1 and 256.")
+
+	if err := flagSet.MarkHidden("fuse-max-write-size-mb"); err != nil {
 		return err
 	}
 
@@ -1796,6 +1804,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.fuse-max-request-size-kb", flagSet.Lookup("fuse-max-request-size-kb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.fuse-max-write-size-mb", flagSet.Lookup("fuse-max-write-size-mb")); err != nil {
 		return err
 	}
 

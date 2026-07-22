@@ -1503,3 +1503,70 @@ func Test_isValidFuseMaxRequestSizeKb_ErrorScenarios(t *testing.T) {
 		})
 	}
 }
+
+func Test_isValidFuseMaxWriteSizeMb_ValidScenarios(t *testing.T) {
+	testCases := []struct {
+		name        string
+		writeSizeMb int64
+	}{
+		{"valid_1_mb", 1},
+		{"valid_128_mb", 128},
+		{"valid_max_allowed", (int64(FuseMaxPagesLimit) * int64(kernelPageSize)) / (1024 * 1024)},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidFuseMaxWriteSizeMb(tc.writeSizeMb)
+
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func Test_isValidFuseMaxWriteSizeMb_ErrorScenarios(t *testing.T) {
+	testCases := []struct {
+		name        string
+		writeSizeMb int64
+	}{
+		{"invalid_zero", 0},
+		{"invalid_negative", -10},
+		{"invalid_exceeds_max_allowed", ((int64(FuseMaxPagesLimit) * int64(kernelPageSize)) / (1024 * 1024)) + 1},
+		{"invalid_overflow", int64(math.MaxInt)},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidFuseMaxWriteSizeMb(tc.writeSizeMb)
+
+			assert.Error(t, err)
+		})
+	}
+}
+
+func TestValidateConfig_FuseMaxWriteSize(t *testing.T) {
+	testCases := []struct {
+		name        string
+		writeSizeMb int64
+		expectError bool
+	}{
+		{"valid_1", 1, false},
+		{"valid_128", 128, false},
+		{"invalid_zero", 0, true},
+		{"invalid_too_large", 9999, true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := viper.New()
+			v.Set("file-system.fuse-max-write-size-mb", tc.writeSizeMb)
+			config := validConfig(t)
+			config.FileSystem.FuseMaxWriteSizeMb = tc.writeSizeMb
+			err := ValidateConfig(v, &config)
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

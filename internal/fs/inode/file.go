@@ -68,6 +68,7 @@ type fileSourceMetadata struct {
 	metaGeneration  int64
 	size            uint64
 	contentEncoding string
+	crc32c          *uint32
 	isUnfinalized   bool
 }
 
@@ -109,6 +110,7 @@ func newFileSourceMetadata(m *gcs.MinObject) fileSourceMetadata {
 		metaGeneration:  m.MetaGeneration,
 		size:            m.Size,
 		contentEncoding: m.ContentEncoding,
+		crc32c:          m.CRC32C,
 		isUnfinalized:   m.IsUnfinalized(),
 	}
 }
@@ -269,6 +271,7 @@ func (f *FileInode) srcMinObject() gcs.MinObject {
 		Size:            f.src.size,
 		Updated:         f.mtime,
 		ContentEncoding: f.src.contentEncoding,
+		CRC32C:          f.src.crc32c,
 		Finalized:       finalized,
 	}
 }
