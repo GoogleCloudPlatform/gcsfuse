@@ -483,13 +483,13 @@ func TestArgsParsing_WriteConfigNewFlags(t *testing.T) {
 			name:                           "Test default new flags.",
 			args:                           []string{"gcsfuse", "abc", "pqr"},
 			expectedWriteBlockSizeKB:       0,
-			expectedWriteUploadChunkSizeKB: 32768,
+			expectedWriteUploadChunkSizeKB: 0,
 		},
 		{
 			name:                           "Test positive write-block-size-kb flag.",
 			args:                           []string{"gcsfuse", "--enable-streaming-writes", "--write-block-size-kb=256", "abc", "pqr"},
 			expectedWriteBlockSizeKB:       256,
-			expectedWriteUploadChunkSizeKB: 32768,
+			expectedWriteUploadChunkSizeKB: 0,
 		},
 		{
 			name:                           "Test positive write-upload-chunk-size-kb flag.",

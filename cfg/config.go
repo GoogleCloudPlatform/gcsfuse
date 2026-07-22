@@ -1500,7 +1500,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("write-upload-chunk-size-kb", "", 32768, "Specifies the chunk size for uploading to GCS in resumable uploads. Must be a multiple of 256 and >= 256. Defaults to 32768 (32MB) to match default write-block-size-mb.")
+	flagSet.IntP("write-upload-chunk-size-kb", "", 0, "Specifies the chunk size for uploading to GCS in resumable uploads. Must be a multiple of 256 and >= 256. If 0 (default), it falls back to the write block size.")
 
 	if err := flagSet.MarkHidden("write-upload-chunk-size-kb"); err != nil {
 		return err

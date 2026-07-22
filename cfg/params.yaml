@@ -1363,9 +1363,9 @@ params:
     type: "int"
     usage: >-
       Specifies the chunk size for uploading to GCS in resumable uploads.
-      Must be a multiple of 256 and >= 256.
-      Defaults to 32768 (32MB) to match default write-block-size-mb.
-    default: 32768
+      Must be a multiple of 256 and >= 256. If 0 (default), it falls back to
+      the write block size.
+    default: 0
     hide-flag: true
 
   - flag-name: "debug_fs"
