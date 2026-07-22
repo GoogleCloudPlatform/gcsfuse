@@ -109,6 +109,7 @@ func (uh *UploadHandler) Upload(ctx context.Context, block block.Block) error {
 }
 
 func (uh *UploadHandler) getWriter(ctx context.Context, chunkSize int64) (gcs.Writer, error) {
+	logger.Infof("getWriter: creating writer for %s with chunkSize: %d", uh.objectName, chunkSize)
 	req := gcs.NewCreateObjectRequest(uh.obj, uh.objectName, nil, uh.chunkRetryDeadline, uh.chunkTransferTimeout)
 	if uh.bucket.BucketType().RapidWritesEnabled() && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
 		chunkWriterReq := gcs.CreateObjectChunkWriterRequest{
@@ -226,6 +227,7 @@ func (uh *UploadHandler) Finalize(ctx context.Context) (obj *gcs.MinObject, err 
 // It should only be called if no blocks have been uploaded yet.
 // It bypasses the background uploader goroutine.
 func (uh *UploadHandler) UploadSingleBlock(ctx context.Context, b block.Block, chunkSize int64) (obj *gcs.MinObject, err error) {
+	logger.Infof("UploadSingleBlock: uploading block for %s with size: %d, chunkSize: %d", uh.objectName, b.Size(), chunkSize)
 	ctx = uh.traceHandle.PropagateTraceContext(context.Background(), ctx)
 	bytes := b.Size()
 	_, finishSpan := uh.traceHandle.TraceUpload(ctx, tracing.StreamingUploadFinalize, uh.objectName, &bytes, &err)

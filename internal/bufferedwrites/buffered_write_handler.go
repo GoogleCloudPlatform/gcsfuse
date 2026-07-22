@@ -340,7 +340,16 @@ func (wh *bufferedWriteHandlerImpl) WriteFileInfo() WriteFileInfo {
 
 func (wh *bufferedWriteHandlerImpl) Destroy() error {
 	wh.uploadHandler.Destroy()
-	return wh.blockPool.ClearFreeBlockChannel(true)
+	var err error
+	if wh.current != nil {
+		err = wh.current.Deallocate()
+		wh.current = nil
+	}
+	clearErr := wh.blockPool.ClearFreeBlockChannel(true)
+	if err != nil {
+		return err
+	}
+	return clearErr
 }
 
 func (wh *bufferedWriteHandlerImpl) writeDataForTruncatedSize(ctx context.Context) error {
