@@ -905,31 +905,31 @@ func TestRationalize_MetadataCacheConfig(t *testing.T) {
 func TestRationalize_FuseMaxRequestSizeKb(t *testing.T) {
 	testCases := []struct {
 		name                         string
-		maxWriteSizeMb               int64
+		maxWriteSizeKb               int64
 		maxRequestSizeKb             int64
 		expectedFuseMaxRequestSizeKb int64
 	}{
 		{
 			name:                         "only_max_write_set_request_size_increased",
-			maxWriteSizeMb:               16,
+			maxWriteSizeKb:               16384,
 			maxRequestSizeKb:             0,
-			expectedFuseMaxRequestSizeKb: 16 * 1024,
+			expectedFuseMaxRequestSizeKb: 16384,
 		},
 		{
 			name:                         "max_write_and_request_size_set_write_dominant_request_size_increased",
-			maxWriteSizeMb:               16,
+			maxWriteSizeKb:               16384,
 			maxRequestSizeKb:             1024,
-			expectedFuseMaxRequestSizeKb: 16 * 1024,
+			expectedFuseMaxRequestSizeKb: 16384,
 		},
 		{
 			name:                         "max_write_and_request_size_set_request_dominant_no_change",
-			maxWriteSizeMb:               1,
+			maxWriteSizeKb:               1024,
 			maxRequestSizeKb:             16384,
 			expectedFuseMaxRequestSizeKb: 16384,
 		},
 		{
 			name:                         "neither_set",
-			maxWriteSizeMb:               0,
+			maxWriteSizeKb:               0,
 			maxRequestSizeKb:             0,
 			expectedFuseMaxRequestSizeKb: 0,
 		},
@@ -939,7 +939,7 @@ func TestRationalize_FuseMaxRequestSizeKb(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			config := &Config{
 				FileSystem: FileSystemConfig{
-					FuseMaxWriteSizeMb:   tc.maxWriteSizeMb,
+					FuseMaxWriteSizeKb:   tc.maxWriteSizeKb,
 					FuseMaxRequestSizeKb: tc.maxRequestSizeKb,
 				},
 			}

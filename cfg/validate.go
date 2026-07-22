@@ -126,13 +126,14 @@ func isValidFuseMaxRequestSizeKb(requestSizeKb int64) error {
 	return nil
 }
 
-func isValidFuseMaxWriteSizeMb(writeSizeMb int64) error {
-	if writeSizeMb <= 0 {
-		return fmt.Errorf("invalid value for fuse-max-write-size-mb: %d; should be > 0", writeSizeMb)
+func isValidFuseMaxWriteSizeKb(writeSizeKb int64) error {
+	if writeSizeKb < 4 {
+		return fmt.Errorf("invalid value for fuse-max-write-size-kb: %d; should be >= 4", writeSizeKb)
 	}
-	maxAllowedMb := (int64(FuseMaxPagesLimit) * int64(kernelPageSize)) / (1024 * 1024)
-	if writeSizeMb > maxAllowedMb {
-		return fmt.Errorf("invalid value for fuse-max-write-size-mb: %d; exceeds maximum allowed limit of %d", writeSizeMb, maxAllowedMb)
+	pageSizeKb := int64(kernelPageSize) / 1024
+	maxAllowedKb := int64(FuseMaxPagesLimit) * pageSizeKb
+	if writeSizeKb > maxAllowedKb {
+		return fmt.Errorf("invalid value for fuse-max-write-size-kb: %d; exceeds maximum allowed limit of %d", writeSizeKb, maxAllowedKb)
 	}
 	return nil
 }
@@ -375,9 +376,9 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 		}
 	}
 
-	if v.IsSet("file-system.fuse-max-write-size-mb") {
-		if err = isValidFuseMaxWriteSizeMb(config.FileSystem.FuseMaxWriteSizeMb); err != nil {
-			return fmt.Errorf("error parsing fuse-max-write-size-mb config: %w", err)
+	if v.IsSet("file-system.fuse-max-write-size-kb") {
+		if err = isValidFuseMaxWriteSizeKb(config.FileSystem.FuseMaxWriteSizeKb); err != nil {
+			return fmt.Errorf("error parsing fuse-max-write-size-kb config: %w", err)
 		}
 	}
 

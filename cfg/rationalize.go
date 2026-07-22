@@ -161,10 +161,9 @@ func resolveTraceConfig(t *TraceConfig) {
 }
 
 func resolveFuseMaxRequestSizeKb(c *FileSystemConfig) {
-	if c.FuseMaxWriteSizeMb > 0 {
-		requiredRequestSizeKb := c.FuseMaxWriteSizeMb * 1024
-		if c.FuseMaxRequestSizeKb < requiredRequestSizeKb {
-			c.FuseMaxRequestSizeKb = requiredRequestSizeKb
+	if c.FuseMaxWriteSizeKb > 0 {
+		if c.FuseMaxRequestSizeKb < c.FuseMaxWriteSizeKb {
+			c.FuseMaxRequestSizeKb = c.FuseMaxWriteSizeKb
 		}
 	}
 }

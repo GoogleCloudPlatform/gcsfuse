@@ -956,7 +956,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 		ExperimentalEnableReaddirplus: false,
 		FileMode:                      0644,
 		FuseMaxRequestSizeKb:          int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
-		FuseMaxWriteSizeMb:            1,
+		FuseMaxWriteSizeKb:            1024,
 		FuseOptions:                   []string{},
 		Gid:                           -1,
 		IgnoreInterrupts:              true,
@@ -1387,8 +1387,8 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			checkMachineType: true,
 		},
 		{
-			name: "Test file system fuse-max-write-size-mb flag.",
-			args: []string{"gcsfuse", "--fuse-max-write-size-mb=16", "abc", "pqr"},
+			name: "Test file system fuse-max-write-size-kb flag.",
+			args: []string{"gcsfuse", "--fuse-max-write-size-kb=16384", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: 16384,
@@ -1400,13 +1400,13 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					InactiveMrdCacheSize: 1000,
 					ExperimentalODirect:  false,
 					Uid:                  -1,
-					FuseMaxWriteSizeMb:   16,
+					FuseMaxWriteSizeKb:   16384,
 				},
 			},
 		},
 		{
-			name: "Test file system fuse-max-write-size-mb from config file.",
-			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "file-system:\n  fuse-max-write-size-mb: 32"), "abc", "pqr"},
+			name: "Test file system fuse-max-write-size-kb from config file.",
+			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "file-system:\n  fuse-max-write-size-kb: 32768"), "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: 32768,
@@ -1418,7 +1418,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					InactiveMrdCacheSize: 1000,
 					ExperimentalODirect:  false,
 					Uid:                  -1,
-					FuseMaxWriteSizeMb:   32,
+					FuseMaxWriteSizeKb:   32768,
 				},
 			},
 		},
@@ -1437,8 +1437,8 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			err = cmd.Execute()
 
 			if assert.NoError(t, err) {
-				if tc.expectedConfig.FileSystem.FuseMaxWriteSizeMb == 0 {
-					tc.expectedConfig.FileSystem.FuseMaxWriteSizeMb = 1
+				if tc.expectedConfig.FileSystem.FuseMaxWriteSizeKb == 0 {
+					tc.expectedConfig.FileSystem.FuseMaxWriteSizeKb = 1024
 				}
 				assert.Equal(t, tc.expectedConfig.FileSystem, gotConfig.FileSystem)
 				if tc.checkMachineType {

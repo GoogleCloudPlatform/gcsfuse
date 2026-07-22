@@ -156,35 +156,35 @@ func TestGetFuseMountConfig_MaxWriteAndMaxPages(t *testing.T) {
 	pageSize := os.Getpagesize()
 	testCases := []struct {
 		name             string
-		maxWriteSizeMb   int64
+		maxWriteSizeKb   int64
 		maxRequestSizeKb int64
 		expectedMaxWrite uint32
 		expectedMaxPages uint16
 	}{
 		{
 			name:             "only_max_write_set",
-			maxWriteSizeMb:   16,
+			maxWriteSizeKb:   16384,
 			maxRequestSizeKb: 0,
 			expectedMaxWrite: 16 * 1024 * 1024,
-			expectedMaxPages: uint16((16 * 1024 * 1024) / pageSize),
+			expectedMaxPages: uint16((16384 * 1024) / pageSize),
 		},
 		{
 			name:             "max_write_and_request_size_set_write_dominant",
-			maxWriteSizeMb:   16,
-			maxRequestSizeKb: 1024,                                  // 1MB = 256 pages (if 4KB page)
-			expectedMaxWrite: 16 * 1024 * 1024,                      // 16MB = 4096 pages
-			expectedMaxPages: uint16((16 * 1024 * 1024) / pageSize), // 4096 pages
+			maxWriteSizeKb:   16384,
+			maxRequestSizeKb: 1024,
+			expectedMaxWrite: 16 * 1024 * 1024,
+			expectedMaxPages: uint16((16384 * 1024) / pageSize),
 		},
 		{
 			name:             "max_write_and_request_size_set_request_dominant",
-			maxWriteSizeMb:   1,     // 1MB = 256 pages
-			maxRequestSizeKb: 16384, // 16MB = 4096 pages
+			maxWriteSizeKb:   1024,
+			maxRequestSizeKb: 16384,
 			expectedMaxWrite: 1 * 1024 * 1024,
-			expectedMaxPages: uint16((16384 * 1024) / pageSize), // 4096 pages
+			expectedMaxPages: uint16((16384 * 1024) / pageSize),
 		},
 		{
 			name:             "neither_set",
-			maxWriteSizeMb:   0,
+			maxWriteSizeKb:   0,
 			maxRequestSizeKb: 0,
 			expectedMaxWrite: 0,
 			expectedMaxPages: 0,
@@ -196,7 +196,7 @@ func TestGetFuseMountConfig_MaxWriteAndMaxPages(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			newConfig := &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					FuseMaxWriteSizeMb:   tc.maxWriteSizeMb,
+					FuseMaxWriteSizeKb:   tc.maxWriteSizeKb,
 					FuseMaxRequestSizeKb: tc.maxRequestSizeKb,
 				},
 			}

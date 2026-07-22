@@ -611,7 +611,7 @@ type FileSystemConfig struct {
 
 	FuseMaxRequestSizeKb int64 `yaml:"fuse-max-request-size-kb"`
 
-	FuseMaxWriteSizeMb int64 `yaml:"fuse-max-write-size-mb"`
+	FuseMaxWriteSizeKb int64 `yaml:"fuse-max-write-size-kb"`
 
 	FuseOptions []string `yaml:"fuse-options"`
 
@@ -1204,9 +1204,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("fuse-max-write-size-mb", "", 1, "Sets the maximum write size in MiB that FUSE can process in a single write request. Must be between 1 and 256.")
+	flagSet.IntP("fuse-max-write-size-kb", "", 1024, "Sets the maximum write size in KiB that FUSE can process in a single write request. Must be at least 4 KiB and translate to at most 65535 pages.")
 
-	if err := flagSet.MarkHidden("fuse-max-write-size-mb"); err != nil {
+	if err := flagSet.MarkHidden("fuse-max-write-size-kb"); err != nil {
 		return err
 	}
 
@@ -1807,7 +1807,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("file-system.fuse-max-write-size-mb", flagSet.Lookup("fuse-max-write-size-mb")); err != nil {
+	if err := v.BindPFlag("file-system.fuse-max-write-size-kb", flagSet.Lookup("fuse-max-write-size-kb")); err != nil {
 		return err
 	}
 
