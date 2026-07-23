@@ -153,99 +153,24 @@ func TestGetFuseMountConfig_EnableReaddirplus(t *testing.T) {
 func TestGetFuseMountConfig_MaxPagesAndMaxWrite(t *testing.T) {
 	testCases := []struct {
 		name                 string
-		enableKernelReader   bool
 		fuseMaxRequestSizeKb int64
 		fuseMaxWriteSizeKb   int64
 		expectedMaxPages     uint16
 		expectedMaxWrite     uint32
 	}{
 		{
-			name:                 "KernelReaderDisabled_Default",
-			enableKernelReader:   false,
+			name:                 "RequestSizeGreaterThanWriteSize_NoCapping",
 			fuseMaxRequestSizeKb: 16384,
 			fuseMaxWriteSizeKb:   1024,
 			expectedMaxPages:     uint16(cfg.MaxPagesForRequestSizeKb(16384)),
 			expectedMaxWrite:     uint32(util.MiB),
 		},
 		{
-			name:                 "KernelReaderDisabled_SmallRequestSize",
-			enableKernelReader:   false,
+			name:                 "RequestSizeLessThanWriteSize_Capped",
 			fuseMaxRequestSizeKb: 512,
 			fuseMaxWriteSizeKb:   1024,
 			expectedMaxPages:     uint16(cfg.MaxPagesForRequestSizeKb(512)),
 			expectedMaxWrite:     uint32(512 * 1024),
-		},
-		{
-			name:                 "KernelReaderEnabled_Default",
-			enableKernelReader:   true,
-			fuseMaxRequestSizeKb: 16384,
-			fuseMaxWriteSizeKb:   1024,
-			expectedMaxPages:     uint16(cfg.MaxPagesForRequestSizeKb(16384)),
-			expectedMaxWrite:     uint32(util.MiB),
-		},
-		{
-			name:                 "KernelReaderEnabled_SmallRequestSize",
-			enableKernelReader:   true,
-			fuseMaxRequestSizeKb: 512,
-			fuseMaxWriteSizeKb:   1024,
-			expectedMaxPages:     uint16(cfg.MaxPagesForRequestSizeKb(512)),
-			expectedMaxWrite:     uint32(512 * 1024),
-		},
-		{
-			name:                 "KernelReaderEnabled_ExplicitWriteSize",
-			enableKernelReader:   true,
-			fuseMaxRequestSizeKb: 16384,
-			fuseMaxWriteSizeKb:   512,
-			expectedMaxPages:     uint16(cfg.MaxPagesForRequestSizeKb(16384)),
-			expectedMaxWrite:     uint32(512 * 1024),
-		},
-		{
-			name:                 "KernelReaderEnabled_ExplicitWriteSize_SmallRequestSize",
-			enableKernelReader:   true,
-			fuseMaxRequestSizeKb: 256,
-			fuseMaxWriteSizeKb:   512,
-			expectedMaxPages:     uint16(cfg.MaxPagesForRequestSizeKb(256)),
-			expectedMaxWrite:     uint32(256 * 1024),
-		},
-		{
-			name:                 "KernelReaderDisabled_ExplicitWriteSize",
-			enableKernelReader:   false,
-			fuseMaxRequestSizeKb: 16384,
-			fuseMaxWriteSizeKb:   512,
-			expectedMaxPages:     uint16(cfg.MaxPagesForRequestSizeKb(16384)),
-			expectedMaxWrite:     uint32(512 * 1024),
-		},
-		{
-			name:                 "KernelReaderDisabled_ExplicitWriteSize_SmallRequestSize",
-			enableKernelReader:   false,
-			fuseMaxRequestSizeKb: 256,
-			fuseMaxWriteSizeKb:   512,
-			expectedMaxPages:     uint16(cfg.MaxPagesForRequestSizeKb(256)),
-			expectedMaxWrite:     uint32(256 * 1024),
-		},
-		{
-			name:                 "KernelReaderEnabled_RequestSizeZero_WriteSizeSet",
-			enableKernelReader:   true,
-			fuseMaxRequestSizeKb: 0,
-			fuseMaxWriteSizeKb:   512,
-			expectedMaxPages:     0,
-			expectedMaxWrite:     uint32(512 * 1024),
-		},
-		{
-			name:                 "KernelReaderDisabled_RequestSizeZero_WriteSizeSet",
-			enableKernelReader:   false,
-			fuseMaxRequestSizeKb: 0,
-			fuseMaxWriteSizeKb:   512,
-			expectedMaxPages:     0,
-			expectedMaxWrite:     uint32(512 * 1024),
-		},
-		{
-			name:                 "WriteSizeZero_KeepsMaxWriteZero",
-			enableKernelReader:   true,
-			fuseMaxRequestSizeKb: 16384,
-			fuseMaxWriteSizeKb:   0,
-			expectedMaxPages:     uint16(cfg.MaxPagesForRequestSizeKb(16384)),
-			expectedMaxWrite:     0,
 		},
 	}
 
@@ -254,7 +179,6 @@ func TestGetFuseMountConfig_MaxPagesAndMaxWrite(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			newConfig := &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
-					EnableKernelReader:   tc.enableKernelReader,
 					FuseMaxRequestSizeKb: tc.fuseMaxRequestSizeKb,
 					FuseMaxWriteSizeKb:   tc.fuseMaxWriteSizeKb,
 				},

@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
@@ -206,8 +205,8 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 	// Right now vectored reads are available only when kernel range reader is enabled
 	mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxRequestSizeKb)))
 
-	mountCfg.MaxWrite = uint32(newConfig.FileSystem.FuseMaxWriteSizeKb * util.MiB)
-	mountCfg.MaxWrite = min(mountCfg.MaxWrite, uint32(newConfig.FileSystem.FuseMaxRequestSizeKb*util.MiB))
+	mountCfg.MaxWrite = uint32(newConfig.FileSystem.FuseMaxWriteSizeKb * 1024)
+	mountCfg.MaxWrite = min(mountCfg.MaxWrite, uint32(newConfig.FileSystem.FuseMaxRequestSizeKb*1024))
 
 	if newConfig.Logging.WireLog != "" {
 		wireLog, err := os.Create(string(newConfig.Logging.WireLog))
