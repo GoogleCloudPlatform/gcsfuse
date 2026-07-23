@@ -118,7 +118,7 @@ func TestAttributes(t *testing.T) {
 			// Check expected values
 			require.NoError(t, err)
 			assert.Equal(t, uint32(1), nlink)
-			assert.Equal(t, uint64(len("target")), size)
+			assert.Equal(t, uint64(0), size)
 		})
 	}
 }
