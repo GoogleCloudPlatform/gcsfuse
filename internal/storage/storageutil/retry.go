@@ -26,8 +26,8 @@ import (
 
 const (
 	// Default retry parameters.
-	DefaultRetryDeadline    = 30 * time.Second
-	DefaultInitialBackoff   = 1 * time.Second
+	DefaultRetryDeadline  = 30 * time.Second
+	DefaultInitialBackoff = 1 * time.Second
 )
 
 // exponentialBackoffConfig is config parameters
@@ -101,8 +101,8 @@ type RetryConfig struct {
 // NewCustomRetryConfig creates a new RetryConfig with custom retry timeout parameters.
 func NewCustomRetryConfig(clientConfig *StorageClientConfig, retryDeadline time.Duration) *RetryConfig {
 	return &RetryConfig{
-		RetryDeadline:    retryDeadline,
-		MaxAttempts:      clientConfig.MaxRetryAttempts,
+		RetryDeadline: retryDeadline,
+		MaxAttempts:   clientConfig.MaxRetryAttempts,
 		BackoffConfig: exponentialBackoffConfig{
 			initial:    DefaultInitialBackoff,
 			max:        clientConfig.MaxRetrySleep,
@@ -121,8 +121,8 @@ func NewRetryConfig(clientConfig *StorageClientConfig) *RetryConfig {
 // It is intended for use in tests of other packages (like package storage) to avoid slow tests.
 func NewRetryConfigForTesting(retryDeadline, initialBackoff, maxRetrySleep time.Duration, retryMultiplier float64, maxAttempts int) *RetryConfig {
 	return &RetryConfig{
-		RetryDeadline:    retryDeadline,
-		MaxAttempts:      maxAttempts,
+		RetryDeadline: retryDeadline,
+		MaxAttempts:   maxAttempts,
 		BackoffConfig: exponentialBackoffConfig{
 			initial:    initialBackoff,
 			max:        maxRetrySleep,
