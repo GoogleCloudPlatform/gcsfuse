@@ -80,14 +80,6 @@ func (w *FakeObjectWriter) Attrs() *storage.ObjectAttrs {
 	return &w.ObjectAttrs
 }
 
-func (w *FakeObjectWriter) WriteChunkAsync(ctx context.Context, data []byte, onComplete func(err error)) error {
-	_, err := w.Write(data)
-	if onComplete != nil {
-		onComplete(err)
-	}
-	return err
-}
-
 func NewFakeObjectWriter(b *bucket, req *gcs.CreateObjectRequest, append bool) (w *FakeObjectWriter, err error) {
 	// Check that the name is legal.
 	err = checkName(req.Name)
