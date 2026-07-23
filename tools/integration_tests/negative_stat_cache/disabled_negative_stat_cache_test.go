@@ -114,6 +114,63 @@ func (s *disabledNegativeStatCacheTest) TestNegativeStatCacheDisabled_ImplicitDi
 	assert.Nil(s.T(), f.Close())
 }
 
+func (s *disabledNegativeStatCacheTest) TestNegativeStatCacheDisabled_ImplicitDirsDisabled() {
+	if isImplicitDirsEnabled(s.flags) || isHNSBucket() {
+		s.T().Skip("Skipping test: requires flat bucket with implicit-dirs disabled.")
+	}
+
+	implicitDir := path.Join(testEnv.testDirPath, "implicit_dir")
+	targetFile := path.Join(implicitDir, "file1.txt")
+
+	// Stat of non-existent implicit dir should fail.
+	_, err := os.Stat(implicitDir)
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+
+	// Open of non-existent file should fail.
+	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+
+	// Create object in GCS directly under implicit_dir path.
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, s.testDir, "implicit_dir/file1.txt", "some-content", s.T())
+
+	// Since --implicit-dirs is disabled, stat on implicit dir still fails even though file exists in GCS.
+	_, err = os.Stat(implicitDir)
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+
+	// Opening the file directly should succeed because file negative cache is disabled (TTL = 0).
+	f, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
+	assert.NoError(s.T(), err)
+	assert.Contains(s.T(), f.Name(), "implicit_dir/file1.txt")
+	assert.Nil(s.T(), f.Close())
+}
+
+func (s *disabledNegativeStatCacheTest) TestNegativeStatCacheDisabled_HNSFolder() {
+	if !isHNSBucket() {
+		s.T().Skip("Skipping test: requires HNS bucket.")
+	}
+
+	hnsDirName := "hns_dir"
+	hnsDirPath := path.Join(testEnv.testDirPath, hnsDirName)
+	hnsDirPathOnBucket := path.Join(s.testDir, hnsDirName)
+
+	// Stat of non-existent HNS folder should fail.
+	_, err := os.Stat(hnsDirPath)
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+
+	// Create folder out-of-band on HNS bucket using control client.
+	_, err = client.CreateFolderInBucket(testEnv.ctx, testEnv.storageControlClient, hnsDirPathOnBucket)
+	assert.NoError(s.T(), err)
+
+	// Since negative stat cache is disabled (TTL = 0), stat on HNS folder should succeed immediately.
+	fi, err := os.Stat(hnsDirPath)
+	assert.NoError(s.T(), err)
+	assert.True(s.T(), fi.IsDir())
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
