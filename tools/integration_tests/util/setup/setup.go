@@ -631,6 +631,16 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	return FlatBucket, nil
 }
 
+func shouldSkipConfig(testName, configRun, configSkip string) bool {
+	if testName != "" && configSkip != "" && testName == configSkip {
+		return true
+	}
+	if testName != "" && configRun != "" && testName != configRun {
+		return true
+	}
+	return false
+}
+
 // BuildFlagSets dynamically builds a list of flag sets based on bucket compatibility.
 // bucketType should be "flat", "hns", "zonal", "flat_pirlo", or "hns_pirlo".
 // The run parameter filters flag sets based on the 'Run' field in the test
@@ -665,7 +675,7 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][
 			}
 		}
 		tpcRun := (TestOnTPCEndPoint() == testCase.TPC)
-		if isCompatible && tpcRun && (run == "" || run == testCase.Run) {
+		if isCompatible && tpcRun && !shouldSkipConfig(run, testCase.Run, testCase.Skip) {
 			// 3. If compatible, process its flags and add them to the result.
 			for _, flagString := range testCase.Flags {
 				flagString = strings.ReplaceAll(flagString, ",", " ")

@@ -40,12 +40,7 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 	// testBucket/dirForExplicitDirTests/explicitDirectory/fileInExplicitDir1                               -- File
 	// testBucket/dirForExplicitDirTests/explicitDirectory/fileInExplicitDir2                               -- File
 
-	// TODO: Remove the condition and keep the storage-client flow for non-ZB too.
-	if setup.IsZonalBucketRun() {
-		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, DirForExplicitDirTests)
-	} else {
-		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForExplicitDirTests)
-	}
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, DirForExplicitDirTests)
 	implicit_and_explicit_dir_setup.CreateExplicitDirectoryStructure(DirForExplicitDirTests, t)
 
 	err := filepath.WalkDir(testDir, func(path string, dir fs.DirEntry, err error) error {
@@ -110,12 +105,7 @@ func TestListOnlyExplicitObjectsFromBucket(t *testing.T) {
 
 func TestStatImplicitDirAfterList(t *testing.T) {
 	testDirPath := setup.SetupTestDirectory(DirForExplicitDirTests)
-	// TODO: Remove the condition and keep the storage-client flow for non-ZB too.
-	if setup.IsZonalBucketRun() {
-		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, DirForExplicitDirTests)
-	} else {
-		implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructure(DirForExplicitDirTests)
-	}
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, DirForExplicitDirTests)
 
 	// List the directory
 	_, err := os.ReadDir(testDirPath)

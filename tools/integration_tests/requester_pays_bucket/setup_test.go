@@ -74,8 +74,8 @@ var (
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
-	if setup.IsZonalBucketRun() {
-		log.Fatal("Test not supported for zonal bucket as they don't support requester-pays feature")
+	if setup.IsZonalBucketRun() || setup.IsPirloBucketRun() {
+		log.Fatal("Test not supported for rapid bucket as they don't support requester-pays feature")
 	}
 
 	// Load and parse the common configuration.

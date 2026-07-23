@@ -32,7 +32,8 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 type readOnlyCredsTest struct {
-	testDirPath string
+	testDirPath          string
+	isRapidWritesEnabled bool
 	suite.Suite
 }
 
@@ -72,7 +73,7 @@ func (r *readOnlyCredsTest) TestEmptyCreateFileFails_FailedFileNotInListing() {
 	filePath := path.Join(r.testDirPath, testFileName)
 
 	fh, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, operations.FilePermission_0777)
-	if setup.IsZonalBucketRun() {
+	if setup.IsZonalBucketRun() || (setup.IsPirloBucketRun() && r.isRapidWritesEnabled) {
 		require.Error(r.T(), err)
 		assert.True(r.T(), strings.Contains(err.Error(), permissionDeniedError))
 	} else {
@@ -86,7 +87,7 @@ func (r *readOnlyCredsTest) TestNonEmptyCreateFileFails_FailedFileNotInListing()
 	filePath := path.Join(r.testDirPath, testFileName)
 
 	fh, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, operations.FilePermission_0777)
-	if setup.IsZonalBucketRun() {
+	if setup.IsZonalBucketRun() || (setup.IsPirloBucketRun() && r.isRapidWritesEnabled) {
 		require.Error(r.T(), err)
 		assert.True(r.T(), strings.Contains(err.Error(), permissionDeniedError))
 	} else {
@@ -102,9 +103,15 @@ func (r *readOnlyCredsTest) TestNonEmptyCreateFileFails_FailedFileNotInListing()
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestReadOnlyTest(t *testing.T) {
-	ts := &readOnlyCredsTest{}
+func TestReadOnlyCredsBase(t *testing.T) {
+	ts := &readOnlyCredsTest{isRapidWritesEnabled: false}
+	suite.Run(t, ts)
+}
 
-	// Run tests.
+func TestReadOnlyCredsRapidWritesEnabled(t *testing.T) {
+	if !setup.IsPirloBucketRun() {
+		t.Skip("Rapid writes tests are only applicable to Pirlo buckets")
+	}
+	ts := &readOnlyCredsTest{isRapidWritesEnabled: true}
 	suite.Run(t, ts)
 }

@@ -39,6 +39,7 @@ const (
 )
 
 func TestMountTimeout(t *testing.T) {
+	// TODO(b/537558043): Add support and tests for Pirlo bucket run.
 	if setup.IsZonalBucketRun() {
 		zone := os.Getenv("TEST_ENV")
 		switch zone {
