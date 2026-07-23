@@ -15,7 +15,6 @@
 package inode
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -101,11 +100,9 @@ type FileInode struct {
 	// code.
 	MRDWrapper *gcsx.MultiRangeDownloaderWrapper
 
-	bwh              bufferedwrites.BufferedWriteHandler
-	mpuWriter        gcs.ParallelUploadWriter
-	mpuTotalSize     int64
-	mpuTruncatedSize int64
-	config           *cfg.Config
+	bwh        bufferedwrites.BufferedWriteHandler
+	mpuHandler *MPUWriteHandler
+	config     *cfg.Config
 
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
@@ -435,9 +432,9 @@ func (f *FileInode) IsUnlinked() bool {
 func (f *FileInode) Unlink() {
 	f.unlinked = true
 
-	if f.mpuWriter != nil {
-		_ = f.mpuWriter.Abort(context.Background())
-		f.mpuWriter = nil
+	if f.mpuHandler != nil {
+		_ = f.mpuHandler.Abort(context.Background())
+		f.mpuHandler = nil
 	}
 
 	if f.bwh != nil {
@@ -619,9 +616,8 @@ func (f *FileInode) Attributes(
 		attrs.Size = uint64(writeFileInfo.TotalSize)
 	}
 
-	if f.mpuWriter != nil {
-		sz := max(f.mpuTotalSize, f.mpuTruncatedSize)
-		attrs.Size = uint64(sz)
+	if f.mpuHandler != nil {
+		attrs.Size = uint64(f.mpuHandler.TotalSize())
 	}
 
 	// We require only that atime and ctime be "reasonable".
@@ -757,7 +753,7 @@ func (f *FileInode) Write(
 	data []byte,
 	offset int64,
 	openMode util.OpenMode) (bool, error) {
-	if f.mpuWriter != nil {
+	if f.mpuHandler != nil {
 		return f.writeUsingMPUWriter(ctx, data, offset, openMode)
 	}
 	if f.bwh != nil {
@@ -773,35 +769,18 @@ func (f *FileInode) writeUsingMPUWriter(
 	offset int64,
 	openMode util.OpenMode) (bool, error) {
 
-	if f.mpuTruncatedSize != -1 && offset == f.mpuTruncatedSize {
-		if err := f.padMPUZeroBytesUpTo(ctx, f.mpuTruncatedSize); err != nil {
-			return false, err
-		}
-		f.mpuTruncatedSize = -1
-	}
-
-	if offset != f.mpuTotalSize {
+	_, err := f.mpuHandler.Write(ctx, data, offset)
+	if errors.Is(err, ErrOutOfOrderWrite) {
 		logger.Infof("Out of order write detected on MPU file %s. Falling back to disk staging.", f.name.String())
-
-		if err := f.mpuWriter.Close(); err != nil {
-			return false, fmt.Errorf("could not finalize MPU segments on fallback: %w", err)
-		}
-		f.mpuWriter = nil
-		f.mpuTruncatedSize = -1
+		_ = f.mpuHandler.Close()
+		f.mpuHandler = nil
 		recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOutOfOrderAttr)
-
 		return false, f.writeUsingTempFile(ctx, data, offset)
 	}
-
-	n, err := io.Copy(f.mpuWriter, bytes.NewReader(data))
 	if err != nil {
-		return false, fmt.Errorf("f.mpuWriter.Write(): %w", err)
+		return false, err
 	}
 
-	f.mpuTotalSize += n
-	if f.mpuTruncatedSize != -1 && f.mpuTotalSize >= f.mpuTruncatedSize {
-		f.mpuTruncatedSize = -1
-	}
 	return false, nil
 }
 
@@ -1041,16 +1020,13 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	// If we have not been dirtied, there is nothing to do.
-	if f.content == nil && f.bwh == nil && f.mpuWriter == nil {
+	if f.content == nil && f.bwh == nil && f.mpuHandler == nil {
 		return
 	}
 
-	if f.mpuWriter != nil {
-		if f.mpuTruncatedSize != -1 && f.mpuTruncatedSize > f.mpuTotalSize {
-			if err := f.padMPUZeroBytesUpTo(ctx, f.mpuTruncatedSize); err != nil {
-				return false, err
-			}
-			f.mpuTruncatedSize = -1
+	if f.mpuHandler != nil {
+		if err := f.mpuHandler.Sync(ctx); err != nil {
+			return false, err
 		}
 		return false, nil
 	}
@@ -1253,54 +1229,15 @@ func (f *FileInode) Truncate(
 	if f.IsUsingBWH() {
 		return f.truncateUsingBufferedWriteHandler(ctx, size)
 	}
-	if f.mpuWriter != nil {
-		return f.truncateUsingMPUWriter(ctx, size)
+	if f.mpuHandler != nil {
+		fallback, err := f.mpuHandler.Truncate(ctx, size)
+		if fallback {
+			f.mpuHandler = nil
+			return false, f.truncateUsingTempFile(ctx, size)
+		}
+		return false, err
 	}
 	return false, f.truncateUsingTempFile(ctx, size)
-}
-
-func (f *FileInode) padMPUZeroBytesUpTo(ctx context.Context, targetOffset int64) error {
-	paddingNeeded := targetOffset - f.mpuTotalSize
-	if paddingNeeded <= 0 {
-		return nil
-	}
-
-	zeroBuf := make([]byte, min(paddingNeeded, 1*util.MiB))
-	for paddingNeeded > 0 {
-		toWrite := min(paddingNeeded, int64(len(zeroBuf)))
-		n, err := io.Copy(f.mpuWriter, bytes.NewReader(zeroBuf[:toWrite]))
-		if err != nil {
-			return fmt.Errorf("mpuWriter zero-padding failed: %w", err)
-		}
-		f.mpuTotalSize += n
-		paddingNeeded -= n
-	}
-	return nil
-}
-
-func (f *FileInode) truncateUsingMPUWriter(ctx context.Context, size int64) (bool, error) {
-	effectiveSize := f.mpuTotalSize
-	if f.mpuTruncatedSize != -1 {
-		effectiveSize = f.mpuTruncatedSize
-	}
-
-	if size == effectiveSize {
-		return false, nil
-	}
-
-	if size < f.mpuTotalSize {
-		logger.Infof("Truncate to smaller size (%d < %d) detected on MPU file %s. Finalizing existing stream and falling back to disk staging.", size, f.mpuTotalSize, f.name.String())
-		if err := f.mpuWriter.Close(); err != nil {
-			return false, fmt.Errorf("could not finalize MPU writer on fallback: %w", err)
-		}
-		f.mpuWriter = nil
-		f.mpuTruncatedSize = -1
-		return false, f.truncateUsingTempFile(ctx, size)
-	}
-
-	// size > effectiveSize: Store truncation offset lazily without immediate zero padding.
-	f.mpuTruncatedSize = size
-	return false, nil
 }
 
 // Ensures cache content on read if content cache enabled
@@ -1336,7 +1273,7 @@ func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) InitMPUWriterIfEligible(ctx context.Context, openMode util.OpenMode) error {
-	if f.mpuWriter != nil || f.content != nil {
+	if f.mpuHandler != nil || f.content != nil {
 		return nil
 	}
 
@@ -1364,7 +1301,7 @@ func (f *FileInode) InitMPUWriterIfEligible(ctx context.Context, openMode util.O
 		gen = &latestGcsObj.Generation
 	}
 
-	f.mpuWriter, err = f.bucket.CreateMPUWriter(
+	writer, err := f.bucket.CreateMPUWriter(
 		ctx,
 		&gcs.CreateObjectRequest{
 			Name:                   f.name.GcsObjectName(),
@@ -1377,8 +1314,7 @@ func (f *FileInode) InitMPUWriterIfEligible(ctx context.Context, openMode util.O
 		return fmt.Errorf("CreateObjectWriter (MPU): %w", err)
 	}
 
-	f.mpuTotalSize = 0
-	f.mpuTruncatedSize = -1
+	f.mpuHandler = NewMPUWriteHandler(writer)
 	return nil
 }
 
