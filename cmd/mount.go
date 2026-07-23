@@ -32,7 +32,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/perms"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
@@ -204,7 +203,10 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 
 	if newConfig.FileSystem.EnableKernelReader && newConfig.FileSystem.FuseMaxRequestSizeKb > 0 {
 		mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxRequestSizeKb)))
-		mountCfg.MaxWrite = uint32(util.MiB)
+	}
+
+	if newConfig.FileSystem.FuseMaxWriteSizeKb > 0 {
+		mountCfg.MaxWrite = uint32(newConfig.FileSystem.FuseMaxWriteSizeKb * 1024)
 	}
 
 	if newConfig.Logging.WireLog != "" {

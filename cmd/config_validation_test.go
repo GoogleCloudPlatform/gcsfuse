@@ -197,13 +197,38 @@ func TestValidateCliFlag(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "invalid less than 1024 fuse-max-request-size-kb",
-			args:    []string{"--fuse-max-request-size-kb=16"},
+			name:    "valid <1MB fuse-max-request-size-kb",
+			args:    []string{"--fuse-max-request-size-kb=512"},
+			wantErr: false,
+		},
+		{
+			name:    "invalid less than page size fuse-max-request-size-kb",
+			args:    []string{"--fuse-max-request-size-kb=1"},
 			wantErr: true,
 		},
 		{
 			name:    "invalid exceeding max pages fuse-max-request-size-kb",
 			args:    []string{"--fuse-max-request-size-kb=10000000"},
+			wantErr: true,
+		},
+		{
+			name:    "valid fuse-max-write-size-kb",
+			args:    []string{"--fuse-max-write-size-kb=1024"},
+			wantErr: false,
+		},
+		{
+			name:    "invalid negative fuse-max-write-size-kb",
+			args:    []string{"--fuse-max-write-size-kb=-10"},
+			wantErr: true,
+		},
+		{
+			name:    "invalid less than page size fuse-max-write-size-kb",
+			args:    []string{"--fuse-max-write-size-kb=1"},
+			wantErr: true,
+		},
+		{
+			name:    "invalid exceeds 1MB fuse-max-write-size-kb",
+			args:    []string{"--fuse-max-write-size-kb=2048"},
 			wantErr: true,
 		},
 	}
@@ -609,6 +634,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
+					FuseMaxWriteSizeKb:     1024,
 					DirMode:                0755,
 					DisableParallelDirops:  false,
 					FileMode:               0644,
@@ -630,6 +656,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
+					FuseMaxWriteSizeKb:     1024,
 					DirMode:                0755,
 					DisableParallelDirops:  false,
 					FileMode:               0644,
@@ -651,6 +678,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
+					FuseMaxWriteSizeKb:     1024,
 					DirMode:                0777,
 					DisableParallelDirops:  true,
 					FileMode:               0666,

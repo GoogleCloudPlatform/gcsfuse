@@ -45,6 +45,12 @@ func (sc StorageClass) DefaultFuseMaxRequestSizeKb() int {
 	return rapidMaxRequestSizeKb
 }
 
+const defaultFuseMaxWriteSizeKb = 1024
+
+func (sc StorageClass) DefaultFuseMaxWriteSizeKb() int {
+	return defaultFuseMaxWriteSizeKb
+}
+
 // MaxPagesForRequestSizeKb converts a request size in KiB to the number of kernel pages.
 func MaxPagesForRequestSizeKb(requestSizeKb int) int {
 	return ((requestSizeKb * 1024) + kernelPageSize - 1) / kernelPageSize

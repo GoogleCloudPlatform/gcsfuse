@@ -611,6 +611,8 @@ type FileSystemConfig struct {
 
 	FuseMaxRequestSizeKb int64 `yaml:"fuse-max-request-size-kb"`
 
+	FuseMaxWriteSizeKb int64 `yaml:"fuse-max-write-size-kb"`
+
 	FuseOptions []string `yaml:"fuse-options"`
 
 	Gid int64 `yaml:"gid"`
@@ -813,7 +815,7 @@ type WorkloadInsightConfig struct {
 }
 
 type WriteConfig struct {
-	BlockSizeMb int64 `yaml:"block-size-mb"`
+	BlockSizeMb float64 `yaml:"block-size-mb"`
 
 	CreateEmptyFile bool `yaml:"create-empty-file"`
 
@@ -1202,6 +1204,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("fuse-max-write-size-kb", "", 1024, "Sets the target maximum write size in KiB that FUSE can process in a single write request. This is translated to the kernel max_pages limit based on host page size. Right now only  a maximum value of 1MB is supported.")
+
+	if err := flagSet.MarkHidden("fuse-max-write-size-kb"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
 
 	flagSet.StringP("grpc-path-strategy", "", "direct-path-with-fallback", "Strategy for DirectPath connectivity when client-protocol=grpc. Options: 'direct-path-only' (fail if unavailable), 'direct-path-with-fallback' (always fallback to HTTP/1 when direct path is not available).")
@@ -1468,7 +1476,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more than 0.")
+	flagSet.Float64P("write-block-size-mb", "", 32, "Specifies the block size for streaming writes in MB. Supports fractional values (e.g. 0.25 for 256 KiB). The value should be more than 0.")
 
 	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
 		return err
@@ -1796,6 +1804,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.fuse-max-request-size-kb", flagSet.Lookup("fuse-max-request-size-kb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.fuse-max-write-size-kb", flagSet.Lookup("fuse-max-write-size-kb")); err != nil {
 		return err
 	}
 

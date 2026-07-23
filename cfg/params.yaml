@@ -468,6 +468,16 @@ params:
         - bucket-type: "flat, hierarchical"
           value: "StorageClassStandard.DefaultFuseMaxRequestSizeKb()"
 
+  - config-path: "file-system.fuse-max-write-size-kb"
+    flag-name: "fuse-max-write-size-kb"
+    type: "int"
+    usage: >-
+      Sets the target maximum write size in KiB that FUSE can process in a single write request.
+      This is translated to the kernel max_pages limit based on host page size. Right now only 
+      a maximum value of 1MB is supported.
+    default: 1024
+    hide-flag: true
+
   - config-path: "file-system.fuse-options"
     flag-name: "o"
     type: "[]string"
@@ -1275,10 +1285,10 @@ params:
 
   - config-path: "write.block-size-mb"
     flag-name: "write-block-size-mb"
-    type: "int"
+    type: "float64"
     usage: >-
-      Specifies the block size for streaming writes. The value should be more
-      than 0.
+      Specifies the block size for streaming writes in MB. Supports fractional
+      values (e.g. 0.25 for 256 KiB). The value should be more than 0.
     default: 32
     hide-flag: true
 
