@@ -473,8 +473,7 @@ params:
     type: "int"
     usage: >-
       Sets the target maximum write size in KiB that FUSE can process in a single write request.
-      This is translated to the kernel max_pages limit based on host page size. Right now only 
-      a maximum value of 1MB is supported.
+      Right now only a maximum value of 1MB is supported.
     default: 1024
     hide-flag: true
 
