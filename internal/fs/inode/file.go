@@ -1230,7 +1230,38 @@ func (f *FileInode) Truncate(
 	if f.IsUsingBWH() {
 		return f.truncateUsingBufferedWriteHandler(ctx, size)
 	}
+	if f.mpuWriter != nil {
+		return f.truncateUsingMPUWriter(ctx, size)
+	}
 	return false, f.truncateUsingTempFile(ctx, size)
+}
+
+func (f *FileInode) truncateUsingMPUWriter(ctx context.Context, size int64) (bool, error) {
+	if size == f.mpuOffset {
+		return false, nil
+	}
+
+	if size < f.mpuOffset {
+		logger.Infof("Truncate to smaller size (%d < %d) detected on MPU file %s. Falling back to disk staging.", size, f.mpuOffset, f.name.String())
+		_ = f.mpuWriter.Abort(ctx)
+		f.mpuWriter = nil
+		return false, f.truncateUsingTempFile(ctx, size)
+	}
+
+	// size > f.mpuOffset: Pad with zero bytes using a 1 MiB chunk buffer.
+	paddingNeeded := size - f.mpuOffset
+	zeroBuf := make([]byte, min(paddingNeeded, 1*util.MiB))
+	for paddingNeeded > 0 {
+		toWrite := min(paddingNeeded, int64(len(zeroBuf)))
+		n, err := io.Copy(f.mpuWriter, bytes.NewReader(zeroBuf[:toWrite]))
+		if err != nil {
+			return false, fmt.Errorf("mpuWriter zero-padding failed: %w", err)
+		}
+		f.mpuOffset += n
+		paddingNeeded -= n
+	}
+
+	return false, nil
 }
 
 // Ensures cache content on read if content cache enabled
