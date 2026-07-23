@@ -27,38 +27,29 @@ import (
 
 var ErrOutOfOrderWrite = errors.New("outOfOrder write detected")
 
-// MPUWriteHandler defines operations for gRPC parallel upload streaming (MPU).
-type MPUWriteHandler interface {
-	Write(ctx context.Context, data []byte, offset int64) (n int64, err error)
-	Truncate(ctx context.Context, size int64) (fallback bool, err error)
-	Sync(ctx context.Context) error
-	TotalSize() int64
-	Close() error
-	Abort(ctx context.Context) error
-}
-
-type mpuWriteHandlerImpl struct {
+// MPUWriteHandler encapsulates state and operations for gRPC parallel upload streaming (MPU).
+type MPUWriteHandler struct {
 	writer        gcs.ParallelUploadWriter
 	totalSize     int64
 	truncatedSize int64
 }
 
-func NewMPUWriteHandler(writer gcs.ParallelUploadWriter) MPUWriteHandler {
-	return &mpuWriteHandlerImpl{
+func NewMPUWriteHandler(writer gcs.ParallelUploadWriter) *MPUWriteHandler {
+	return &MPUWriteHandler{
 		writer:        writer,
 		totalSize:     0,
 		truncatedSize: -1,
 	}
 }
 
-func (h *mpuWriteHandlerImpl) TotalSize() int64 {
+func (h *MPUWriteHandler) TotalSize() int64 {
 	if h.truncatedSize != -1 {
 		return max(h.totalSize, h.truncatedSize)
 	}
 	return h.totalSize
 }
 
-func (h *mpuWriteHandlerImpl) Write(ctx context.Context, data []byte, offset int64) (n int64, err error) {
+func (h *MPUWriteHandler) Write(ctx context.Context, data []byte, offset int64) (n int64, err error) {
 	if h.truncatedSize != -1 && offset == h.truncatedSize {
 		if err := h.padZeroBytesUpTo(ctx, h.truncatedSize); err != nil {
 			return 0, err
@@ -82,7 +73,7 @@ func (h *mpuWriteHandlerImpl) Write(ctx context.Context, data []byte, offset int
 	return n, nil
 }
 
-func (h *mpuWriteHandlerImpl) Truncate(ctx context.Context, size int64) (fallback bool, err error) {
+func (h *MPUWriteHandler) Truncate(ctx context.Context, size int64) (fallback bool, err error) {
 	effectiveSize := h.TotalSize()
 	if size == effectiveSize {
 		return false, nil
@@ -101,7 +92,7 @@ func (h *mpuWriteHandlerImpl) Truncate(ctx context.Context, size int64) (fallbac
 	return false, nil
 }
 
-func (h *mpuWriteHandlerImpl) Sync(ctx context.Context) error {
+func (h *MPUWriteHandler) Sync(ctx context.Context) error {
 	if h.truncatedSize != -1 && h.truncatedSize > h.totalSize {
 		if err := h.padZeroBytesUpTo(ctx, h.truncatedSize); err != nil {
 			return err
@@ -111,15 +102,15 @@ func (h *mpuWriteHandlerImpl) Sync(ctx context.Context) error {
 	return nil
 }
 
-func (h *mpuWriteHandlerImpl) Close() error {
+func (h *MPUWriteHandler) Close() error {
 	return h.writer.Close()
 }
 
-func (h *mpuWriteHandlerImpl) Abort(ctx context.Context) error {
+func (h *MPUWriteHandler) Abort(ctx context.Context) error {
 	return h.writer.Abort(ctx)
 }
 
-func (h *mpuWriteHandlerImpl) padZeroBytesUpTo(ctx context.Context, targetOffset int64) error {
+func (h *MPUWriteHandler) padZeroBytesUpTo(ctx context.Context, targetOffset int64) error {
 	paddingNeeded := targetOffset - h.totalSize
 	if paddingNeeded <= 0 {
 		return nil
