@@ -61,7 +61,6 @@ const (
 	directPathDetectionMaxAttempts      = 5
 	directPathDetectionTimeout          = 15 * time.Second
 	directPathDetectionMaxBackoff       = 5 * time.Second
-	directPathDetectionMaxRetryDuration = 1 * time.Minute
 
 	// nonExistentObjectName is the object name used for bucket existence/access check when HNS feature is disabled by providing "--enable-hns:false". E.g. Using Regional Endpoints which do not support GRPC protocol.
 	nonExistentObjectName = "gcsfuse-nonexistent-object-check"
@@ -244,7 +243,7 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 		RetryMultiplier:  clientConfig.RetryMultiplier,
 		MaxRetryAttempts: directPathDetectionMaxAttempts,
 	}
-	retryConfig := storageutil.NewCustomRetryConfig(dpClientConfig, directPathDetectionTimeout, directPathDetectionMaxRetryDuration)
+	retryConfig := storageutil.NewCustomRetryConfig(dpClientConfig, directPathDetectionTimeout)
 
 	apiCall := func(attemptCtx context.Context) (*storage.ObjectAttrs, error) {
 		return bucketHandle.Object(testObject).Attrs(attemptCtx)
