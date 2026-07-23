@@ -21,7 +21,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -40,6 +39,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/sync/semaphore"
 )
@@ -99,7 +99,7 @@ type FileInode struct {
 	/////////////////////////
 
 	id           fuseops.InodeID
-	bucketName   string
+	name         Name
 	contentCache *contentcache.ContentCache
 
 	/////////////////////////
@@ -108,7 +108,7 @@ type FileInode struct {
 
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
-	mu sync.Mutex
+	mu syncutil.InvariantMutex
 
 	// GUARDED_BY(mu)
 	lc lookupCount
@@ -201,7 +201,7 @@ func NewFileInode(
 		bucket:         bucket,
 		mtimeClock:     mtimeClock,
 		id:             id,
-		bucketName:     name.BucketName(),
+		name:           name,
 		mtime:          parseMtime(m),
 		localFileCache: localFileCache,
 		contentCache:   contentCache,
@@ -222,6 +222,7 @@ func NewFileInode(
 	}
 
 	f.lc.Init(id)
+	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
 
 	return
 }
@@ -229,6 +230,33 @@ func NewFileInode(
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
+
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) checkInvariants() {
+	if f.destroyed {
+		return
+	}
+
+	// Make sure the name is legal.
+	name := f.Name()
+	if !name.IsFile() {
+		panic("Illegal file name: " + name.String())
+	}
+
+	// INVARIANT: For non-local inodes, src.Name == name
+	if !f.IsLocal() && f.src.Name != name.GcsObjectName() {
+		panic(fmt.Sprintf(
+			"Name mismatch: %q vs. %q",
+			f.src.Name,
+			name.GcsObjectName(),
+		))
+	}
+
+	// INVARIANT: content.CheckInvariants() does not panic
+	if f.content != nil {
+		f.content.CheckInvariants()
+	}
+}
 
 // clobbered checks if the FileInode's corresponding GCS object has been
 // unexpectedly modified or deleted.
@@ -395,10 +423,7 @@ func (f *FileInode) ID() fuseops.InodeID {
 }
 
 func (f *FileInode) Name() Name {
-	return Name{
-		bucketName: f.bucketName,
-		objectName: f.src.Name,
-	}
+	return f.name
 }
 
 func (f *FileInode) IsLocal() bool {
