@@ -194,7 +194,7 @@ func (t *FileTest) validateMrdInstanceMinObject() {
 	t.T().Helper()
 	// Validate only for rapid buckets
 	if t.in.bucket.BucketType().IsRapid() {
-		minObj := t.in.srcMinObject()
+		minObj := t.in.src
 		actual := t.in.mrdInstance.GetMinObject()
 		assert.Equal(t.T(), minObj.Name, actual.Name)
 		assert.Equal(t.T(), minObj.Generation, actual.Generation)
@@ -208,7 +208,7 @@ func (t *FileTest) validateMrdWrapperMinObject() {
 	t.T().Helper()
 	// Validate only for rapid buckets
 	if t.in.bucket.BucketType().IsRapid() {
-		minObj := t.in.srcMinObject()
+		minObj := t.in.src
 		actual := t.in.MRDWrapper.GetMinObject()
 		assert.Equal(t.T(), minObj.Name, actual.Name)
 		assert.Equal(t.T(), minObj.Generation, actual.Generation)

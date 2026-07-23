@@ -255,13 +255,13 @@ func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZon
 	gcsSynced, err := t.in.Write(t.ctx, []byte("foobar"), 0, WriteMode, t.writeCtx)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	assert.Equal(t.T(), uint64(0), t.in.src.size)
+	assert.Equal(t.T(), uint64(0), t.in.src.Size)
 
 	gcsSynced, err = t.in.SyncPendingBufferedWrites(context.Background())
 
 	require.NoError(t.T(), err)
 	assert.True(t.T(), gcsSynced)
-	assert.Equal(t.T(), uint64(6), t.in.src.size)
+	assert.Equal(t.T(), uint64(6), t.in.src.Size)
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -304,13 +304,13 @@ func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucket
 	gcsSynced, err := t.in.Write(t.ctx, []byte("foobar"), 0, WriteMode, t.writeCtx)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	assert.Equal(t.T(), uint64(0), t.in.src.size)
+	assert.Equal(t.T(), uint64(0), t.in.src.Size)
 
 	gcsSynced, err = t.in.SyncPendingBufferedWrites(context.Background())
 
 	require.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	assert.Equal(t.T(), uint64(0), t.in.src.size)
+	assert.Equal(t.T(), uint64(0), t.in.src.Size)
 }
 
 func (t *FileStreamingWritesTest) TestOutOfOrderWritesToLocalFileFallBackToTempFile() {

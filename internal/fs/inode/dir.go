@@ -672,7 +672,6 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	cachedType := metadata.UnknownType
-	names := lazyNames{parent: d.Name(), child: name}
 
 	// 1. Optimization: If Type Cache is deprecated, attempt a lookup via the Stat Cache first.
 	// We skip this if the metadata cache TTL is 0, as the cache layer is inactive.
@@ -683,9 +682,9 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		var dirResult *Core
 		var dirErr error
 		if d.Bucket().BucketType().Hierarchical {
-			dirResult, dirErr = findExplicitFolder(ctx, d.Bucket(), names.getDir(), true)
+			dirResult, dirErr = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
 		} else {
-			dirResult, dirErr = findExplicitInode(ctx, d.Bucket(), names.getDir(), true)
+			dirResult, dirErr = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
 		}
 
 		// If we hit a real error (not a cache miss), exit early.
@@ -699,7 +698,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		}
 
 		// 2. Try File ONLY if directory wasn't found
-		fileResult, fileErr := findExplicitInode(ctx, d.Bucket(), names.getFile(), true)
+		fileResult, fileErr := findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
 		if fileErr != nil && !errors.As(fileErr, &cacheMissErr) {
 			return nil, fileErr
 		}
@@ -721,7 +720,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	// 3. Main Lookup Logic (Unified)
-	result, err := d.fetchCoreEntity(ctx, name, cachedType, names.getFile(), names.getDir())
+	result, err := d.fetchCoreEntity(ctx, name, cachedType)
 	if err != nil {
 		return nil, err
 	}
@@ -740,12 +739,12 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 // fetchCoreEntity contains all the existing logic for looking up children
 // without worrying about the isTypeCacheDeprecated flag.
-func (d *dirInode) fetchCoreEntity(ctx context.Context, name string, cachedType metadata.Type, fileName Name, dirName Name) (*Core, error) {
+func (d *dirInode) fetchCoreEntity(ctx context.Context, name string, cachedType metadata.Type) (*Core, error) {
 	switch cachedType {
 	case metadata.ImplicitDirType:
 		return &Core{
 			Bucket:    d.Bucket(),
-			FullName:  dirName,
+			FullName:  NewDirName(d.Name(), name),
 			MinObject: nil,
 		}, nil
 
@@ -754,30 +753,30 @@ func (d *dirInode) fetchCoreEntity(ctx context.Context, name string, cachedType 
 
 	case metadata.ExplicitDirType:
 		if d.isBucketHierarchical() {
-			return findExplicitFolder(ctx, d.Bucket(), dirName, false)
+			return findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
 		}
-		return findExplicitInode(ctx, d.Bucket(), dirName, false)
+		return findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
 
 	case metadata.RegularFileType, metadata.SymlinkType:
-		return findExplicitInode(ctx, d.Bucket(), fileName, false)
+		return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
 
 	case metadata.UnknownType:
-		return d.lookUpUnknownType(ctx, name, fileName, dirName)
+		return d.lookUpUnknownType(ctx, name)
 	}
 
 	return nil, nil
 }
 
 // lookUpUnknownType handles the lookup of a child entity when its type is unknown.
-func (d *dirInode) lookUpUnknownType(ctx context.Context, name string, fileName Name, dirName Name) (*Core, error) {
+func (d *dirInode) lookUpUnknownType(ctx context.Context, name string) (*Core, error) {
 	// Entry not present in cache.
 	// Trigger prefetcher
 	if d.prefetcher != nil {
-		d.prefetcher.Run(fileName.GcsObjectName())
+		d.prefetcher.Run(NewFileName(d.Name(), name).GcsObjectName())
 	}
 
 	if d.isBucketHierarchical() {
-		return d.lookUpHNSRace(ctx, name, fileName, dirName)
+		return d.lookUpHNSRace(ctx, name)
 	}
 
 	group, ctx := errgroup.WithContext(ctx)
@@ -786,18 +785,18 @@ func (d *dirInode) lookUpUnknownType(ctx context.Context, name string, fileName 
 	var dirResult *Core
 
 	group.Go(func() (err error) {
-		fileResult, err = findExplicitInode(ctx, d.Bucket(), fileName, false)
+		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
 		return err
 	})
 
 	if d.implicitDirs {
 		group.Go(func() (err error) {
-			dirResult, err = findDirInode(ctx, d.Bucket(), dirName)
+			dirResult, err = findDirInode(ctx, d.Bucket(), NewDirName(d.Name(), name))
 			return err
 		})
 	} else {
 		group.Go(func() (err error) {
-			dirResult, err = findExplicitInode(ctx, d.Bucket(), dirName, false)
+			dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
 			return err
 		})
 	}
@@ -812,7 +811,7 @@ func (d *dirInode) lookUpUnknownType(ctx context.Context, name string, fileName 
 	return fileResult, nil
 }
 
-func (d *dirInode) lookUpHNSRace(ctx context.Context, name string, fileName Name, dirName Name) (*Core, error) {
+func (d *dirInode) lookUpHNSRace(ctx context.Context, name string) (*Core, error) {
 	raceCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -824,12 +823,12 @@ func (d *dirInode) lookUpHNSRace(ctx context.Context, name string, fileName Name
 	ch := make(chan raceResult, 2)
 
 	go func() {
-		res, err := findExplicitInode(raceCtx, d.Bucket(), fileName, false)
+		res, err := findExplicitInode(raceCtx, d.Bucket(), NewFileName(d.Name(), name), false)
 		ch <- raceResult{core: res, err: err}
 	}()
 
 	go func() {
-		res, err := findExplicitFolder(raceCtx, d.Bucket(), dirName, false)
+		res, err := findExplicitFolder(raceCtx, d.Bucket(), NewDirName(d.Name(), name), false)
 		ch <- raceResult{core: res, err: err}
 	}()
 
@@ -1588,29 +1587,4 @@ func (d *dirInode) isBucketHierarchical() bool {
 
 func (d *dirInode) IsTypeCacheDeprecated() bool {
 	return d.isEnableTypeCacheDeprecation
-}
-
-type lazyNames struct {
-	parent   Name
-	child    string
-	dirName  Name
-	dirOk    bool
-	fileName Name
-	fileOk   bool
-}
-
-func (ln *lazyNames) getDir() Name {
-	if !ln.dirOk {
-		ln.dirName = NewDirName(ln.parent, ln.child)
-		ln.dirOk = true
-	}
-	return ln.dirName
-}
-
-func (ln *lazyNames) getFile() Name {
-	if !ln.fileOk {
-		ln.fileName = NewFileName(ln.parent, ln.child)
-		ln.fileOk = true
-	}
-	return ln.fileName
 }
