@@ -101,7 +101,7 @@ type FileInode struct {
 	MRDWrapper *gcsx.MultiRangeDownloaderWrapper
 
 	bwh        bufferedwrites.BufferedWriteHandler
-	mpuHandler *MPUWriteHandler
+	mpuHandler MPUWriteHandler
 	config     *cfg.Config
 
 	// Limits the max number of blocks that can be created across file system when
