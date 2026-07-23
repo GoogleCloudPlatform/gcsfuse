@@ -1265,9 +1265,9 @@ func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 // Returns (initialized bool, err error).
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) InitMPUWriterIfEligible(ctx context.Context, openMode util.OpenMode) (bool, error) {
+func (f *FileInode) InitMPUWriterIfEligible(ctx context.Context, openMode util.OpenMode) error {
 	if f.mpuWriter != nil || f.content != nil {
-		return false, nil
+		return nil
 	}
 
 	mode := gcs.DetermineWriteMode(
@@ -1277,7 +1277,7 @@ func (f *FileInode) InitMPUWriterIfEligible(ctx context.Context, openMode util.O
 	)
 
 	if mode != gcs.WriteModeMPU {
-		return false, nil
+		return nil
 	}
 
 	var latestGcsObj *gcs.Object
@@ -1285,7 +1285,7 @@ func (f *FileInode) InitMPUWriterIfEligible(ctx context.Context, openMode util.O
 	if !f.local {
 		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
 		if err != nil {
-			return false, fmt.Errorf("fetchLatestGcsObject for MPU: %w", err)
+			return fmt.Errorf("fetchLatestGcsObject for MPU: %w", err)
 		}
 	}
 
@@ -1304,11 +1304,11 @@ func (f *FileInode) InitMPUWriterIfEligible(ctx context.Context, openMode util.O
 
 	if err != nil {
 		recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOtherAttr)
-		return false, fmt.Errorf("CreateObjectWriter (MPU): %w", err)
+		return fmt.Errorf("CreateObjectWriter (MPU): %w", err)
 	}
 
 	f.mpuOffset = 0
-	return true, nil
+	return nil
 }
 
 // Initializes Buffered Write Handler if the file inode is eligible and returns

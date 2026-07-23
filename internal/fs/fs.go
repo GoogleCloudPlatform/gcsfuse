@@ -1508,8 +1508,7 @@ func (fs *fileSystem) initWriterIfEligible(ctx context.Context, f *inode.FileIno
 
 	switch mode {
 	case gcs.WriteModeMPU:
-		_, err := f.InitMPUWriterIfEligible(ctx, openMode)
-		return err
+		return f.InitMPUWriterIfEligible(ctx, openMode)
 
 	case gcs.WriteModeAppendable, gcs.WriteModeDefault:
 		return fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, f, openMode)
