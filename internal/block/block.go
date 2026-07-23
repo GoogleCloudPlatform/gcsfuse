@@ -41,9 +41,6 @@ type Block interface {
 
 	// Write writes the given data to block.
 	Write(bytes []byte) (n int, err error)
-
-	// Bytes returns the underlying byte slice of the block.
-	Bytes() []byte
 }
 
 type memoryBlock struct {
@@ -64,10 +61,6 @@ func (m *memoryBlock) Size() int64 {
 
 func (m *memoryBlock) Cap() int64 {
 	return int64(cap(m.buffer))
-}
-
-func (m *memoryBlock) Bytes() []byte {
-	return m.buffer
 }
 
 // Read reads data from the block into the provided byte slice.
