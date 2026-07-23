@@ -202,11 +202,6 @@ func TestValidateCliFlag(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "invalid less than page size fuse-max-request-size-kb",
-			args:    []string{"--fuse-max-request-size-kb=1"},
-			wantErr: true,
-		},
-		{
 			name:    "invalid exceeding max pages fuse-max-request-size-kb",
 			args:    []string{"--fuse-max-request-size-kb=10000000"},
 			wantErr: true,
@@ -219,11 +214,6 @@ func TestValidateCliFlag(t *testing.T) {
 		{
 			name:    "invalid negative fuse-max-write-size-kb",
 			args:    []string{"--fuse-max-write-size-kb=-10"},
-			wantErr: true,
-		},
-		{
-			name:    "invalid less than page size fuse-max-write-size-kb",
-			args:    []string{"--fuse-max-write-size-kb=1"},
 			wantErr: true,
 		},
 		{

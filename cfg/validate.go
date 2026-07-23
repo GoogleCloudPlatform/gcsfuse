@@ -120,9 +120,6 @@ func isValidFuseMaxRequestSizeKb(requestSizeKb int64) error {
 		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; must be greater than 0", requestSizeKb)
 	}
 	pageSizeKb := int64(kernelPageSize) / 1024
-	if requestSizeKb < pageSizeKb {
-		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; should be at least %d (page size)", requestSizeKb, pageSizeKb)
-	}
 	if requestSizeKb > FuseMaxPagesLimit*pageSizeKb {
 		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; exceeds maximum allowed limit of %d", requestSizeKb, FuseMaxPagesLimit*pageSizeKb)
 	}
@@ -132,10 +129,6 @@ func isValidFuseMaxRequestSizeKb(requestSizeKb int64) error {
 func isValidFuseMaxWriteSizeKb(writeSizeKb int64) error {
 	if writeSizeKb <= 0 {
 		return fmt.Errorf("invalid value for fuse-max-write-size-kb: %d; must be greater than 0", writeSizeKb)
-	}
-	pageSizeKb := int64(kernelPageSize) / 1024
-	if writeSizeKb < pageSizeKb {
-		return fmt.Errorf("invalid value for fuse-max-write-size-kb: %d; should be at least %d (page size)", writeSizeKb, pageSizeKb)
 	}
 	if writeSizeKb > 1024 {
 		return fmt.Errorf("invalid value for fuse-max-write-size-kb: %d; exceeds maximum allowed limit of 1024 (1 MiB)", writeSizeKb)

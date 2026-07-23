@@ -201,9 +201,9 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
 	}
 
-	// If fuseMaxRequestSizeKB > MaxWrite, we need vectored reads support, otherwise reads will not work.
-	// Right now vectored reads are available only when kernel range reader is enabled
-	mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxRequestSizeKb)))
+	if newConfig.FileSystem.EnableKernelReader && newConfig.FileSystem.FuseMaxRequestSizeKb > 0 {
+		mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxRequestSizeKb)))
+	}
 
 	mountCfg.MaxWrite = uint32(newConfig.FileSystem.FuseMaxWriteSizeKb * 1024)
 	mountCfg.MaxWrite = min(mountCfg.MaxWrite, uint32(newConfig.FileSystem.FuseMaxRequestSizeKb*1024))
