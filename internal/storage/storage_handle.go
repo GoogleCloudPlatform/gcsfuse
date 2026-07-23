@@ -77,14 +77,11 @@ type storageClient struct {
 	grpcClient               *storage.Client
 	grpcClientWithBidiConfig *storage.Client
 	clientConfig             storageutil.StorageClientConfig
-	// rawStorageControlClientWithoutGaxRetries is without any retries.
-	// WARNING: Do not mutate this client or its CallOptions in-place after initialization,
-	// as it is a shared template client used to derive bucket-specific control clients.
-	rawStorageControlClientWithoutGaxRetries *control.StorageControlClient
-	// rawStorageControlClientWithGaxRetries is with retry for Folder APIs.
-	// WARNING: Do not mutate this client or its CallOptions in-place after initialization,
-	// as it is a shared template client used to derive bucket-specific control clients.
-	rawStorageControlClientWithGaxRetries *control.StorageControlClient
+	// rawStorageControlClient is the underlying base client without any retries configured.
+	// WARNING: Do not mutate this client or its CallOptions in-place after initialization.
+	// It serves as a shared template to derive new control clients (e.g., wrapped with
+	// folder stall retries and billing projects) for each BucketHandle invocation.
+	rawStorageControlClient *control.StorageControlClient
 	// storageControlClient is with retry for GetStorageLayout and with handling for billing project.
 	storageControlClient StorageControlClient
 }
@@ -388,8 +385,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	// The default protocol for the Go Storage control client's folders API is gRPC.
 	// gcsfuse will initially mirror this behavior due to the client's lack of HTTP support.
 	var controlClient StorageControlClient
-	var rawStorageControlClientWithoutGaxRetries *control.StorageControlClient
-	var rawStorageControlClientWithGaxRetries *control.StorageControlClient
+	var rawStorageControlClient *control.StorageControlClient
 	var clientOpts []option.ClientOption
 
 	// Control-client is needed for folder APIs and for getting storage-layout of the bucket.
@@ -400,33 +396,22 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}
-		rawStorageControlClientWithoutGaxRetries, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, true)
+		rawStorageControlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, true)
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client without default gax retries: %w", err)
-		}
-		// rawStorageControlClientWithGaxRetries cannot be just a wrapper over rawStorageControlClientWithoutGaxRetries,
-		// as it has its own dedicated array of CallOptions, and we need to keep those independent.
-		rawStorageControlClientWithGaxRetries, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, false)
-		if err != nil {
-			return nil, fmt.Errorf("could not create StorageControl Client with default gax retries: %w", err)
-		}
-		err = addGaxRetriesForFolderAPIs(rawStorageControlClientWithGaxRetries, &clientConfig)
-		if err != nil {
-			return nil, fmt.Errorf("could not add custom gax retries to StorageControl Client: %w", err)
 		}
 		// Create a default storage control client with billing project.
 		// This client is used during mount initialization and subsequent bucket type lookups
 		// for GetStorageLayout operations only, and has stall retries enabled by default on GetStorageLayout calls.
-		controlClient = NewStorageControlClient(rawStorageControlClientWithoutGaxRetries, &clientConfig,
+		controlClient = NewStorageControlClient(rawStorageControlClient, &clientConfig,
 			WithBillingProject(billingProject),
 		)
 	}
 
 	sh = &storageClient{
-		rawStorageControlClientWithoutGaxRetries: rawStorageControlClientWithoutGaxRetries,
-		rawStorageControlClientWithGaxRetries:    rawStorageControlClientWithGaxRetries,
-		storageControlClient:                     controlClient,
-		clientConfig:                             clientConfig,
+		rawStorageControlClient: rawStorageControlClient,
+		storageControlClient:    controlClient,
+		clientConfig:            clientConfig,
 	}
 	return
 }
@@ -482,29 +467,6 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 	return sh.httpClient, err
 }
 
-// controlClientForBucketHandle returns a bucket-specific StorageControlClient which is used after the mount is complete.
-// Depending on the bucket type, it calls NewStorageControlClient with appropriate options.
-func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType, billingProject string) StorageControlClient {
-	if sh.rawStorageControlClientWithGaxRetries == nil || sh.rawStorageControlClientWithoutGaxRetries == nil {
-		return nil
-	}
-
-	if bucketType.IsRapid() || sh.clientConfig.ExperimentalNonrapidFolderApiStallRetry {
-		// For rapid buckets or when non-rapid folder API stall retries are enabled, use the raw
-		// control client without gax retries, and wrap it with stall retries on folder APIs and the billing project.
-		return NewStorageControlClient(sh.rawStorageControlClientWithoutGaxRetries, &sh.clientConfig,
-			WithRetriesOnFolderAPI(),
-			WithBillingProject(billingProject),
-		)
-	}
-
-	// For non-rapid buckets, use the raw client that already has GAX retries applied.
-	// Wrap it with stall retries for GetStorageLayout and the billing project.
-	return NewStorageControlClient(sh.rawStorageControlClientWithGaxRetries, &sh.clientConfig,
-		WithBillingProject(billingProject),
-	)
-}
-
 func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error) {
 	var client *storage.Client
 	bucketType, err := sh.lookupBucketType(bucketName)
@@ -521,7 +483,13 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	if billingProject != "" {
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
-	controlClient := sh.controlClientForBucketHandle(bucketType, billingProject)
+	var controlClient StorageControlClient
+	if sh.rawStorageControlClient != nil {
+		controlClient = NewStorageControlClient(sh.rawStorageControlClient, &sh.clientConfig,
+			WithRetriesOnFolderAPI(),
+			WithBillingProject(billingProject),
+		)
+	}
 
 	bh = &bucketHandle{
 		bucket:         storageBucketHandle,
