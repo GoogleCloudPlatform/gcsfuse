@@ -27,7 +27,6 @@ import (
 const (
 	// Default retry parameters.
 	DefaultRetryDeadline    = 30 * time.Second
-	DefaultTotalRetryBudget = 5 * time.Minute
 	DefaultInitialBackoff   = 1 * time.Second
 )
 
@@ -93,8 +92,6 @@ func (b *exponentialBackoff) waitWithJitter(ctx context.Context) error {
 type RetryConfig struct {
 	// Time-limit on every individual retry attempt.
 	RetryDeadline time.Duration
-	// Total duration allowed across all the attempts.
-	TotalRetryBudget time.Duration
 	// Max attempts to make for the operation.
 	MaxAttempts int
 	// Config for managing backoff durations in-between retry attempts.
@@ -102,10 +99,9 @@ type RetryConfig struct {
 }
 
 // NewCustomRetryConfig creates a new RetryConfig with custom retry timeout parameters.
-func NewCustomRetryConfig(clientConfig *StorageClientConfig, retryDeadline, totalRetryBudget time.Duration) *RetryConfig {
+func NewCustomRetryConfig(clientConfig *StorageClientConfig, retryDeadline time.Duration) *RetryConfig {
 	return &RetryConfig{
 		RetryDeadline:    retryDeadline,
-		TotalRetryBudget: totalRetryBudget,
 		MaxAttempts:      clientConfig.MaxRetryAttempts,
 		BackoffConfig: exponentialBackoffConfig{
 			initial:    DefaultInitialBackoff,
@@ -116,17 +112,16 @@ func NewCustomRetryConfig(clientConfig *StorageClientConfig, retryDeadline, tota
 }
 
 // NewRetryConfig creates a new RetryConfig using the standard defaults for
-// deadline and total budget, combined with the user-provided clientConfig.
+// deadline, combined with the user-provided clientConfig.
 func NewRetryConfig(clientConfig *StorageClientConfig) *RetryConfig {
-	return NewCustomRetryConfig(clientConfig, DefaultRetryDeadline, DefaultTotalRetryBudget)
+	return NewCustomRetryConfig(clientConfig, DefaultRetryDeadline)
 }
 
 // NewRetryConfigForTesting creates a RetryConfig with custom parameters for testing.
 // It is intended for use in tests of other packages (like package storage) to avoid slow tests.
-func NewRetryConfigForTesting(retryDeadline, totalRetryBudget, initialBackoff, maxRetrySleep time.Duration, retryMultiplier float64, maxAttempts int) *RetryConfig {
+func NewRetryConfigForTesting(retryDeadline, initialBackoff, maxRetrySleep time.Duration, retryMultiplier float64, maxAttempts int) *RetryConfig {
 	return &RetryConfig{
 		RetryDeadline:    retryDeadline,
-		TotalRetryBudget: totalRetryBudget,
 		MaxAttempts:      maxAttempts,
 		BackoffConfig: exponentialBackoffConfig{
 			initial:    initialBackoff,
@@ -159,14 +154,11 @@ func ExecuteWithCustomShouldRetryAtLogLevel[T any](
 		return zero, err
 	}
 
-	parentCtx, cancel := context.WithTimeout(ctx, config.TotalRetryBudget)
-	defer cancel()
-
 	// Create a new backoff controller specific to this api call.
 	backoff := newExponentialBackoff(&config.BackoffConfig)
 	var lastErr error
 	for attemptNum := 1; ; attemptNum++ {
-		attemptCtx, attemptCancel := context.WithTimeout(parentCtx, config.RetryDeadline)
+		attemptCtx, attemptCancel := context.WithTimeout(ctx, config.RetryDeadline)
 		if attemptNum == 1 {
 			logger.GetLogFHandler(logLevel)("Calling %s for %q: InvocationID: %s, Attempt: %d, with deadline=%v", operationName, reqDescription, requestID, attemptNum, config.RetryDeadline)
 		} else {
@@ -191,15 +183,15 @@ func ExecuteWithCustomShouldRetryAtLogLevel[T any](
 			return zero, fmt.Errorf("%s for %q failed: InvocationID: %s, Attempt: %d, with error: %w", operationName, reqDescription, requestID, attemptNum, err)
 		}
 
-		// If the parent context is cancelled/timed-out, we should stop retrying.
-		if parentCtx.Err() != nil {
-			return zero, fmt.Errorf("%s for %q failed: InvocationID: %s, Attempt: %d, (last server/client error = %v), with error: %w", operationName, reqDescription, requestID, attemptNum, err, parentCtx.Err())
+		// If the context is cancelled/timed-out, we should stop retrying.
+		if ctx.Err() != nil {
+			return zero, fmt.Errorf("%s for %q failed: InvocationID: %s, Attempt: %d, (last server/client error = %v), with error: %w", operationName, reqDescription, requestID, attemptNum, err, ctx.Err())
 		}
 
 		// Do a jittery backoff after each retry.
-		parentCtxErr := backoff.waitWithJitter(parentCtx)
-		if parentCtxErr != nil {
-			return zero, fmt.Errorf("%s for %q failed: InvocationID: %s, Attempt: %d, (last server/client error = %v), with error: %w", operationName, reqDescription, requestID, attemptNum, err, parentCtxErr)
+		ctxErr := backoff.waitWithJitter(ctx)
+		if ctxErr != nil {
+			return zero, fmt.Errorf("%s for %q failed: InvocationID: %s, Attempt: %d, (last server/client error = %v), with error: %w", operationName, reqDescription, requestID, attemptNum, err, ctxErr)
 		}
 	}
 }
