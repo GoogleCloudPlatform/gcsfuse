@@ -36,6 +36,10 @@ func (m *MockRandomReader) Object() *gcs.MinObject {
 	return args.Get(0).(*gcs.MinObject)
 }
 
+func (m *MockRandomReader) UpdateObjectSize(newSize uint64) {
+	m.Called(newSize)
+}
+
 func (m *MockRandomReader) Destroy() {
 	m.Called()
 }

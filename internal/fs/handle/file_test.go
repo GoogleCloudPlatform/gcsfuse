@@ -501,6 +501,7 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 			mockReader := new(gcsx.MockRandomReader)
 			mockReader.On("ReadAt", t.ctx, dst, int64(0)).Return(gcsx.ObjectData{}, tc.returnErr)
 			mockReader.On("Object").Return(&object)
+			mockReader.On("UpdateObjectSize", mock.Anything).Maybe()
 			fh.reader = mockReader
 
 			output, n, err := fh.Read(t.ctx, dst, 0, 200)

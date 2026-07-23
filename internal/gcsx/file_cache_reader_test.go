@@ -735,6 +735,14 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCa
 	objectSizeIncrease := uint64(10)
 	newObjectSize := origObjectSize + objectSizeIncrease
 	t.unfinalized_object.Size = newObjectSize
+	assert.NotNil(t.T(), t.reader_unfinalized_object.fileCacheHandle)
+	if t.reader_unfinalized_object.fileCacheHandle != nil {
+		job := t.reader_unfinalized_object.fileCacheHandle.GetDownloadJob()
+		assert.NotNil(t.T(), job)
+		if job != nil {
+			job.UpdateSize(newObjectSize)
+		}
+	}
 	readResponse, err := t.reader_unfinalized_object.ReadAt(t.ctx, &ReadRequest{
 		Buffer: make([]byte, cachedObjectSize+1),
 		Offset: cachedObjectSize / 2,
@@ -760,6 +768,14 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCa
 	objectSizeIncrease := uint64(10)
 	newObjectSize := origObjectSize + objectSizeIncrease
 	t.unfinalized_object.Size = newObjectSize
+	assert.NotNil(t.T(), t.reader_unfinalized_object.fileCacheHandle)
+	if t.reader_unfinalized_object.fileCacheHandle != nil {
+		job := t.reader_unfinalized_object.fileCacheHandle.GetDownloadJob()
+		assert.NotNil(t.T(), job)
+		if job != nil {
+			job.UpdateSize(newObjectSize)
+		}
+	}
 	readResponse, err := t.reader_unfinalized_object.ReadAt(t.ctx, &ReadRequest{
 		Buffer: make([]byte, newObjectSize),
 		Offset: cachedObjectSize / 2,

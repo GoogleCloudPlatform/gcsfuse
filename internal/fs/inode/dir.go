@@ -21,6 +21,7 @@ import (
 	"path"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -1123,6 +1124,9 @@ func (d *dirInode) CreateChildFile(ctx context.Context, name string) (*Core, err
 		FileMtimeMetadataKey: d.mtimeClock.Now().UTC().Format(time.RFC3339Nano),
 	}
 	fullName := NewFileName(d.Name(), name)
+	if len(fullName.GcsObjectName()) > 1024 {
+		return nil, syscall.ENAMETOOLONG
+	}
 
 	o, err := d.createNewObject(ctx, fullName, childMetadata, "")
 	if err != nil {
@@ -1207,6 +1211,9 @@ func (d *dirInode) CreateChildSymlink(ctx context.Context, name string, target s
 	// No need to cancel prefetch here as creation of new symlink can not lead to stale data in metadata cache.
 
 	fullName := NewFileName(d.Name(), name)
+	if len(fullName.GcsObjectName()) > 1024 {
+		return nil, syscall.ENAMETOOLONG
+	}
 	var childMetadata map[string]string
 	var content string
 
@@ -1244,6 +1251,9 @@ func (d *dirInode) CreateChildDir(ctx context.Context, name string) (*Core, erro
 	// No need to cancel prefetch here as creation of new directory can not lead to stale data in metadata cache.
 	// Generate the full name for the new directory.
 	fullName := NewDirName(d.Name(), name)
+	if len(fullName.GcsObjectName()) > 1024 {
+		return nil, syscall.ENAMETOOLONG
+	}
 	var m *gcs.MinObject
 	var f *gcs.Folder
 	var err error
