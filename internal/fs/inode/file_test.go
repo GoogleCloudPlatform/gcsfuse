@@ -155,12 +155,7 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		t.backingObj = nil
 	}
 
-	t.writeCtx = &WriteContext{
-		Config:             &cfg.Config{},
-		GlobalMaxBlocksSem: semaphore.NewWeighted(math.MaxInt64),
-		TraceHandle:        tracing.NewNoopTracer(),
-		MetricHandle:       metrics.NewNoopMetrics(),
-	}
+	t.writeCtx = getWriteContext()
 
 	t.in = NewFileInode(
 		fileInodeID,
@@ -2087,5 +2082,14 @@ func getWriteConfigWithEnabledRapidAppends() *cfg.WriteConfig {
 		BlockSizeMb:           1,
 		EnableStreamingWrites: true,
 		EnableRapidAppends:    true,
+	}
+}
+
+func getWriteContext() *WriteContext {
+	return &WriteContext{
+		Config:             &cfg.Config{},
+		GlobalMaxBlocksSem: semaphore.NewWeighted(math.MaxInt64),
+		TraceHandle:        tracing.NewNoopTracer(),
+		MetricHandle:       metrics.NewNoopMetrics(),
 	}
 }

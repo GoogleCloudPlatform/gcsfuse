@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"os"
 	"sync"
@@ -1518,4 +1519,13 @@ func (t *fileTest) Test_ReadWithReadManager_WorkloadInsightVisual() {
 	// Validate the output file creation for workload insight.
 	assert.FileExists(t.T(), "test.txt")
 	require.NoError(t.T(), os.Remove("test.txt")) // Clean up the file after test.
+}
+
+func getWriteContext() *inode.WriteContext {
+	return &inode.WriteContext{
+		Config:             &cfg.Config{},
+		GlobalMaxBlocksSem: semaphore.NewWeighted(math.MaxInt64),
+		TraceHandle:        tracing.NewNoopTracer(),
+		MetricHandle:       metrics.NewNoopMetrics(),
+	}
 }
