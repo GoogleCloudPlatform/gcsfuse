@@ -265,7 +265,8 @@ type dirInode struct {
 	// (via kernel) the directory listing from the filesystem.
 	// Specially used when kernelListCacheTTL > 0 that means kernel list-cache is
 	// enabled.
-	prevDirListingTimeStamp time.Time
+	// Guarded atomically to allow lock-free, thread-safe access.
+	prevDirListingTimeStamp atomic.Int64 // Unix nanoseconds, 0 if zero
 
 	metadataCacheTtlSecs int64
 
@@ -1112,7 +1113,7 @@ func (d *dirInode) ReadEntryCores(ctx context.Context, tok string) (cores map[Na
 		return
 	}
 
-	d.prevDirListingTimeStamp = d.cacheClock.Now()
+	d.prevDirListingTimeStamp.Store(d.cacheClock.Now().UnixNano())
 	return
 }
 
@@ -1515,11 +1516,12 @@ func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntrie
 func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
 	// prevDirListingTimeStamp.IsZero() true means listing has not happened yet, and we should
 	// invalidate for clean start.
-	if d.prevDirListingTimeStamp.IsZero() {
+	ts := d.prevDirListingTimeStamp.Load()
+	if ts == 0 {
 		return true
 	}
 
-	cachedDuration := d.cacheClock.Now().Sub(d.prevDirListingTimeStamp)
+	cachedDuration := d.cacheClock.Now().Sub(time.Unix(0, ts))
 	return cachedDuration >= ttl
 }
 
@@ -1578,7 +1580,7 @@ func (d *dirInode) RenameFolder(ctx context.Context, folderName string, destinat
 
 func (d *dirInode) InvalidateKernelListCache() {
 	// Set prevDirListingTimeStamp to Zero time so that cache is invalidated.
-	d.prevDirListingTimeStamp = time.Time{}
+	d.prevDirListingTimeStamp.Store(0)
 }
 
 func (d *dirInode) isBucketHierarchical() bool {

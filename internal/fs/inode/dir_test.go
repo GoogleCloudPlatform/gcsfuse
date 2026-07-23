@@ -982,13 +982,13 @@ func (t *DirTest) TestReadDescendants_NonEmpty() {
 func (t *DirTest) TestReadEntries_Empty() {
 	d := t.in.(*dirInode)
 	require.NotNil(t.T(), d)
-	require.True(t.T(), d.prevDirListingTimeStamp.IsZero())
+	require.True(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 	entries, err := t.readAllEntries()
 
 	require.NoError(t.T(), err)
 	assert.ElementsMatch(t.T(), []fuseutil.Dirent{}, entries)
 	// Make sure prevDirListingTimeStamp is initialized.
-	require.False(t.T(), d.prevDirListingTimeStamp.IsZero())
+	require.False(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 }
 
 func (t *DirTest) TestReadEntries_NonEmpty_ImplicitDirsDisabled() {
@@ -1015,7 +1015,7 @@ func (t *DirTest) TestReadEntries_NonEmpty_ImplicitDirsDisabled() {
 	// Nil prevDirListingTimeStamp
 	d := t.in.(*dirInode)
 	require.NotNil(t.T(), d)
-	require.True(t.T(), d.prevDirListingTimeStamp.IsZero())
+	require.True(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 
 	// Read entries.
 	entries, err := t.readAllEntries()
@@ -1052,7 +1052,7 @@ func (t *DirTest) TestReadEntries_NonEmpty_ImplicitDirsDisabled() {
 	}
 
 	// Make sure prevDirListingTimeStamp is initialized.
-	require.False(t.T(), d.prevDirListingTimeStamp.IsZero())
+	require.False(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 }
 
 func (t *DirTest) TestReadEntries_NonEmpty_ImplicitDirsEnabled() {
@@ -1082,7 +1082,7 @@ func (t *DirTest) TestReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	// Nil prevDirListingTimeStamp
 	d := t.in.(*dirInode)
 	require.NotNil(t.T(), d)
-	require.True(t.T(), d.prevDirListingTimeStamp.IsZero())
+	require.True(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 
 	// Read entries.
 	entries, err := t.readAllEntries()
@@ -1126,7 +1126,7 @@ func (t *DirTest) TestReadEntries_NonEmpty_ImplicitDirsEnabled() {
 	}
 
 	// Make sure prevDirListingTimeStamp is initialized.
-	require.False(t.T(), d.prevDirListingTimeStamp.IsZero())
+	require.False(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 }
 
 func (t *DirTest) TestReadEntries_TypeCaching() {
@@ -1146,7 +1146,7 @@ func (t *DirTest) TestReadEntries_TypeCaching() {
 	// Nil prevDirListingTimeStamp
 	d := t.in.(*dirInode)
 	require.NotNil(t.T(), d)
-	require.True(t.T(), d.prevDirListingTimeStamp.IsZero())
+	require.True(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 
 	// Read the directory, priming the type cache.
 	_, err = t.readAllEntries()
@@ -1185,13 +1185,13 @@ func (t *DirTest) TestReadEntries_TypeCaching() {
 	assert.Equal(t.T(), dirObjName, result.MinObject.Name)
 
 	// Make sure prevDirListingTimeStamp is initialized.
-	require.False(t.T(), d.prevDirListingTimeStamp.IsZero())
+	require.False(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 }
 
 func (t *DirTest) TestReadEntryCores_Empty() {
 	d := t.in.(*dirInode)
 	require.NotNil(t.T(), d)
-	require.True(t.T(), d.prevDirListingTimeStamp.IsZero())
+	require.True(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 
 	cores, unsupportedPaths, err := t.readAllEntryCores()
 
@@ -1199,7 +1199,7 @@ func (t *DirTest) TestReadEntryCores_Empty() {
 	assert.Equal(t.T(), 0, len(cores))
 	assert.Equal(t.T(), 0, len(unsupportedPaths))
 	// Make sure prevDirListingTimeStamp is initialized.
-	require.False(t.T(), d.prevDirListingTimeStamp.IsZero())
+	require.False(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 }
 
 func (t *DirTest) TestReadEntryCores_NonEmpty_ImplicitDirsDisabled() {
@@ -1233,7 +1233,7 @@ func (t *DirTest) TestReadEntryCores_NonEmpty_ImplicitDirsDisabled() {
 	// Nil prevDirListingTimeStamp
 	d := t.in.(*dirInode)
 	require.NotNil(t.T(), d)
-	require.True(t.T(), d.prevDirListingTimeStamp.IsZero())
+	require.True(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 
 	// Read cores.
 	cores, _, _, err = t.in.ReadEntryCores(t.ctx, "")
@@ -1245,7 +1245,7 @@ func (t *DirTest) TestReadEntryCores_NonEmpty_ImplicitDirsDisabled() {
 	t.validateCore(cores, "file", false, metadata.RegularFileType, testFileName)
 	t.validateCore(cores, "symlink", false, metadata.SymlinkType, symlinkName)
 	// Make sure prevDirListingTimeStamp is initialized.
-	require.False(t.T(), d.prevDirListingTimeStamp.IsZero())
+	require.False(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 }
 
 func (t *DirTest) TestReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
@@ -1287,7 +1287,7 @@ func (t *DirTest) TestReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 	// Nil prevDirListingTimeStamp
 	d := t.in.(*dirInode)
 	require.NotNil(t.T(), d)
-	require.True(t.T(), d.prevDirListingTimeStamp.IsZero())
+	require.True(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 
 	// Read cores.
 	cores, unsupportedPaths, err = t.readAllEntryCores()
@@ -1302,7 +1302,7 @@ func (t *DirTest) TestReadEntryCores_NonEmpty_ImplicitDirsEnabled() {
 	t.validateCore(cores, "symlink", false, metadata.SymlinkType, symlinkName)
 	assert.ElementsMatch(t.T(), []string{dirInodeName + "../", dirInodeName + "/"}, unsupportedPaths)
 	// Make sure prevDirListingTimeStamp is initialized.
-	require.False(t.T(), d.prevDirListingTimeStamp.IsZero())
+	require.False(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 }
 
 func (t *DirTest) TestCreateChildFile_DoesntExist() {
@@ -2072,7 +2072,7 @@ func (t *DirTest) TestLocalFileEntriesWithUnlinkedLocalChildFiles() {
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_ListingNotHappenedYet() {
 	d := t.in.(*dirInode)
-	d.prevDirListingTimeStamp = time.Time{}
+	d.prevDirListingTimeStamp.Store(0)
 
 	// Irrespective of the ttl value, this should always return true.
 	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(util.MaxTimeDuration)
@@ -2082,7 +2082,7 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_ListingNotHappenedYet() {
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_WithinTtl() {
 	d := t.in.(*dirInode)
-	d.prevDirListingTimeStamp = d.cacheClock.Now()
+	d.prevDirListingTimeStamp.Store(d.cacheClock.Now().UnixNano())
 	ttl := time.Second * 10
 	t.clock.AdvanceTime(ttl / 2)
 
@@ -2093,7 +2093,7 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_WithinTtl() {
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_ExpiredTtl() {
 	d := t.in.(*dirInode)
-	d.prevDirListingTimeStamp = d.cacheClock.Now()
+	d.prevDirListingTimeStamp.Store(d.cacheClock.Now().UnixNano())
 	ttl := 10 * time.Second
 	t.clock.AdvanceTime(ttl + time.Second)
 
@@ -2104,7 +2104,7 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_ExpiredTtl() {
 
 func (t *DirTest) Test_ShouldInvalidateKernelListCache_ZeroTtl() {
 	d := t.in.(*dirInode)
-	d.prevDirListingTimeStamp = d.cacheClock.Now()
+	d.prevDirListingTimeStamp.Store(d.cacheClock.Now().UnixNano())
 	ttl := time.Duration(0)
 
 	shouldInvalidate := t.in.ShouldInvalidateKernelListCache(ttl)
@@ -2114,12 +2114,12 @@ func (t *DirTest) Test_ShouldInvalidateKernelListCache_ZeroTtl() {
 
 func (t *DirTest) Test_InvalidateKernelListCache() {
 	d := t.in.(*dirInode)
-	d.prevDirListingTimeStamp = d.cacheClock.Now()
-	assert.False(t.T(), d.prevDirListingTimeStamp.IsZero())
+	d.prevDirListingTimeStamp.Store(d.cacheClock.Now().UnixNano())
+	assert.False(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 
 	t.in.InvalidateKernelListCache()
 
-	assert.True(t.T(), d.prevDirListingTimeStamp.IsZero())
+	assert.True(t.T(), d.prevDirListingTimeStamp.Load() == 0)
 }
 
 func (t *DirTest) Test_ReadObjectsUnlocked() {
