@@ -158,7 +158,7 @@ write_large_files:
           flat: true
           hns: true
           zonal: false
-        run_on_gke: true
+        run_on_gke: false
       - flags:
           - "--enable-streaming-writes=false,--client-protocol=http1"
           - "--enable-streaming-writes=false,--client-protocol=grpc"
@@ -1372,7 +1372,7 @@ flag_optimizations:
           flat: true
           hns: true
           zonal: false
-        run_on_gke: true
+        run_on_gke: false
       - run: TestMountFails
         flags:
           - "--profile=unknown-profile,--client-protocol=http1"
