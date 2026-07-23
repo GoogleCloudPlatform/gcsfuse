@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -145,6 +146,55 @@ func TestGetFuseMountConfig_EnableReaddirplus(t *testing.T) {
 			fuseMountCfg := getFuseMountConfig(fsName, newConfig)
 
 			assert.Equal(t, tc.expectedValue, fuseMountCfg.EnableReaddirplus)
+		})
+	}
+}
+
+func TestGetFuseMountConfig_MaxPagesAndMaxWrite(t *testing.T) {
+	testCases := []struct {
+		name                 string
+		enableKernelReader   bool
+		fuseMaxRequestSizeKb int64
+		expectedMaxPages     uint16
+		expectedMaxWrite     uint32
+	}{
+		{
+			name:                 "KernelReaderDisabled_MaxRequestSizeSet",
+			enableKernelReader:   false,
+			fuseMaxRequestSizeKb: 16384,
+			expectedMaxPages:     0,
+			expectedMaxWrite:     0,
+		},
+		{
+			name:                 "KernelReaderEnabled_MaxRequestSizeZero",
+			enableKernelReader:   true,
+			fuseMaxRequestSizeKb: 0,
+			expectedMaxPages:     0,
+			expectedMaxWrite:     0,
+		},
+		{
+			name:                 "KernelReaderEnabled_MaxRequestSizeSet",
+			enableKernelReader:   true,
+			fuseMaxRequestSizeKb: 16384,
+			expectedMaxPages:     uint16(cfg.MaxPagesForRequestSizeKb(16384)),
+			expectedMaxWrite:     uint32(util.MiB),
+		},
+	}
+
+	fsName := "mybucket"
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			newConfig := &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					EnableKernelReader:   tc.enableKernelReader,
+					FuseMaxRequestSizeKb: tc.fuseMaxRequestSizeKb,
+				},
+			}
+
+			fuseMountCfg := getFuseMountConfig(fsName, newConfig)
+
+			assert.Equal(t, tc.expectedMaxPages, fuseMountCfg.MaxPages)
+			assert.Equal(t, tc.expectedMaxWrite, fuseMountCfg.MaxWrite)
 		})
 	}
 }
