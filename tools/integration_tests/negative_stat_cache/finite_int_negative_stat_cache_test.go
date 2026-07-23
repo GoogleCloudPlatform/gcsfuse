@@ -91,6 +91,51 @@ func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache() {
 	assert.Nil(s.T(), f.Close())
 }
 
+func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache_ImplicitDirectory() {
+	if !isImplicitDirsEnabled(s.flags) {
+		s.T().Skip("Skipping implicit directory test as --implicit-dirs flag is not enabled.")
+	}
+
+	implicitDir := path.Join(testEnv.testDirPath, "implicit_dir")
+	targetFile := path.Join(implicitDir, "file1.txt")
+
+	// Stat of non-existent implicit dir should fail, populating the negative stat cache for implicit_dir.
+	_, err := os.Stat(implicitDir)
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+
+	// Open of non-existent file in implicit dir should fail.
+	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+
+	// Create object in GCS directly under implicit_dir path.
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, s.testDir, "implicit_dir/file1.txt", "some-content", s.T())
+
+	// Call should be served from negative cache (error returned) before cache expires.
+	_, err = os.Stat(implicitDir)
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+
+	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+
+	// Wait for cache to expire (TTL = 5s).
+	time.Sleep(5 * time.Second)
+
+	// Stat on implicit dir should now succeed after cache expiration.
+	fi, err := os.Stat(implicitDir)
+	assert.NoError(s.T(), err)
+	assert.True(s.T(), fi.IsDir())
+
+	// File should now be found and readable.
+	f, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
+	assert.NoError(s.T(), err)
+	assert.Contains(s.T(), f.Name(), "implicit_dir/file1.txt")
+	assert.Nil(s.T(), f.Close())
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////

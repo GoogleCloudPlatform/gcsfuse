@@ -1863,6 +1863,8 @@ negative_stat_cache:
       - flags:
           - "--metadata-cache-negative-ttl-secs=0,--client-protocol=http1"
           - "--metadata-cache-negative-ttl-secs=0,--client-protocol=grpc"
+          - "--metadata-cache-negative-ttl-secs=0,--implicit-dirs,--client-protocol=http1"
+          - "--metadata-cache-negative-ttl-secs=0,--implicit-dirs,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -1871,6 +1873,7 @@ negative_stat_cache:
         run_on_gke: true
       - flags:
           - "--experimental-enable-pirlo,--metadata-cache-negative-ttl-secs=0,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--metadata-cache-negative-ttl-secs=0,--implicit-dirs,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -1880,6 +1883,8 @@ negative_stat_cache:
       - flags:
           - "--metadata-cache-negative-ttl-secs=5,--client-protocol=http1"
           - "--metadata-cache-negative-ttl-secs=5,--client-protocol=grpc"
+          - "--metadata-cache-negative-ttl-secs=5,--implicit-dirs,--client-protocol=http1"
+          - "--metadata-cache-negative-ttl-secs=5,--implicit-dirs,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -1888,6 +1893,7 @@ negative_stat_cache:
         run_on_gke: true
       - flags:
           - "--experimental-enable-pirlo,--metadata-cache-negative-ttl-secs=5,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--metadata-cache-negative-ttl-secs=5,--implicit-dirs,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -1897,6 +1903,8 @@ negative_stat_cache:
       - flags:
           - "--metadata-cache-negative-ttl-secs=-1,--client-protocol=http1"
           - "--metadata-cache-negative-ttl-secs=-1,--client-protocol=grpc"
+          - "--metadata-cache-negative-ttl-secs=-1,--implicit-dirs,--client-protocol=http1"
+          - "--metadata-cache-negative-ttl-secs=-1,--implicit-dirs,--client-protocol=grpc"
         compatible:
           flat: true
           hns: true
@@ -1905,6 +1913,7 @@ negative_stat_cache:
         run_on_gke: true
       - flags:
           - "--experimental-enable-pirlo,--metadata-cache-negative-ttl-secs=-1,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--metadata-cache-negative-ttl-secs=-1,--implicit-dirs,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true

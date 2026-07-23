@@ -80,6 +80,40 @@ func (s *disabledNegativeStatCacheTest) TestNegativeStatCacheDisabled() {
 	assert.Nil(s.T(), f.Close())
 }
 
+func (s *disabledNegativeStatCacheTest) TestNegativeStatCacheDisabled_ImplicitDirectory() {
+	if !isImplicitDirsEnabled(s.flags) {
+		s.T().Skip("Skipping implicit directory test as --implicit-dirs flag is not enabled.")
+	}
+
+	implicitDir := path.Join(testEnv.testDirPath, "implicit_dir")
+	targetFile := path.Join(implicitDir, "file1.txt")
+
+	// Stat of non-existent implicit dir should fail.
+	_, err := os.Stat(implicitDir)
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+
+	// Open of non-existent file in implicit dir should fail.
+	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+
+	// Create object in GCS directly under implicit_dir path.
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, s.testDir, "implicit_dir/file1.txt", "some-content", s.T())
+
+	// Since negative stat cache is disabled (TTL = 0), GCSFuse should not serve from negative cache.
+	// Stat on implicit dir should now succeed.
+	fi, err := os.Stat(implicitDir)
+	assert.NoError(s.T(), err)
+	assert.True(s.T(), fi.IsDir())
+
+	// File should be found and readable.
+	f, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
+	assert.NoError(s.T(), err)
+	assert.Contains(s.T(), f.Name(), "implicit_dir/file1.txt")
+	assert.Nil(s.T(), f.Close())
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
