@@ -172,6 +172,13 @@ func TestGetFuseMountConfig_MaxPagesAndMaxWrite(t *testing.T) {
 			expectedMaxPages:     uint16(cfg.MaxPagesForRequestSizeKb(512)),
 			expectedMaxWrite:     uint32(512 * 1024),
 		},
+		{
+			name:                 "RequestSizeEqualToWriteSize",
+			fuseMaxRequestSizeKb: 1024,
+			fuseMaxWriteSizeKb:   1024,
+			expectedMaxPages:     uint16(cfg.MaxPagesForRequestSizeKb(1024)),
+			expectedMaxWrite:     uint32(util.MiB),
+		},
 	}
 
 	fsName := "mybucket"
