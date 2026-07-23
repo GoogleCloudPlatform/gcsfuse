@@ -1204,7 +1204,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("fuse-max-write-size-kb", "", 1024, "Sets the target maximum write size in KiB that FUSE can process in a single write request. Right now only a maximum value of 1MB is supported.")
+	flagSet.IntP("fuse-max-write-size-kb", "", 0, "Sets the target maximum write size in KiB that FUSE can process in a single write request. Right now only a maximum value of 1MB is supported.")
 
 	if err := flagSet.MarkHidden("fuse-max-write-size-kb"); err != nil {
 		return err

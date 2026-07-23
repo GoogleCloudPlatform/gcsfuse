@@ -127,6 +127,9 @@ func isValidFuseMaxRequestSizeKb(requestSizeKb int64) error {
 }
 
 func isValidFuseMaxWriteSizeKb(writeSizeKb int64) error {
+	if writeSizeKb == 0 {
+		return nil
+	}
 	pageSizeKb := int64(kernelPageSize) / 1024
 	if writeSizeKb < pageSizeKb {
 		return fmt.Errorf("invalid value for fuse-max-write-size-kb: %d; should be at least %d (page size)", writeSizeKb, pageSizeKb)

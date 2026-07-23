@@ -474,7 +474,7 @@ params:
     usage: >-
       Sets the target maximum write size in KiB that FUSE can process in a single write request.
       Right now only a maximum value of 1MB is supported.
-    default: 1024
+    default: 0
     hide-flag: true
 
   - config-path: "file-system.fuse-options"

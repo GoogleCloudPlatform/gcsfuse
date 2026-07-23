@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/spf13/viper"
@@ -201,8 +202,13 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
 	}
 
-	if newConfig.FileSystem.EnableKernelReader && newConfig.FileSystem.FuseMaxRequestSizeKb > 0 {
-		mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxRequestSizeKb)))
+	if newConfig.FileSystem.EnableKernelReader {
+		if newConfig.FileSystem.FuseMaxRequestSizeKb > 0 {
+			mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxRequestSizeKb)))
+		}
+		if newConfig.FileSystem.FuseMaxWriteSizeKb == 0 {
+			mountCfg.MaxWrite = uint32(util.MiB)
+		}
 	}
 
 	if newConfig.FileSystem.FuseMaxWriteSizeKb > 0 {
