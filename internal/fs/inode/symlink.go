@@ -21,12 +21,12 @@ import (
 	"sync"
 	"time"
 
+	"context"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
-	"golang.org/x/net/context"
 )
 
 // When this custom metadata key is present in an object record, it is to be
@@ -232,7 +232,6 @@ func (s *SymlinkInode) Destroy() (err error) {
 func (s *SymlinkInode) Attributes(
 	ctx context.Context, clobberedCheck bool) (size uint64, mtime time.Time, nlink uint32, err error) {
 	mtime = s.mtime
-	size = uint64(len(s.target))
 	nlink = 1
 	return
 }

@@ -1582,6 +1582,9 @@ func (fs *fileSystem) getAttributes(
 		attr.Mode = fs.fileMode
 	case *inode.SymlinkInode:
 		attr.Mode = fs.fileMode | os.ModeSymlink
+	default:
+		err = fmt.Errorf("getAttributes: unknown inode type %T", in)
+		return
 	}
 
 	// Set up the expiration time.
