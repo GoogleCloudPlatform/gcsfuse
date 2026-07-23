@@ -223,8 +223,10 @@ func (t *StatCacheTest) Test_ExpiresLeastRecentlyUsed() {
 
 	// Insert another.
 	o3 := &gcs.MinObject{Name: "queso"}
-	t.cache.Insert(o3, expiration) // size = 1402 bytes (cumulative = 5810 bytes)
-	// This would evict the least recent entry i.e o1/"taco".
+	t.cache.Insert(o3, expiration) 
+
+	// Add a large negative entry to force eviction of taco.
+	t.cache.AddNegativeEntry("very_long_negative_entry_name_to_force_eviction", expiration)
 
 	// See what's left.
 	assert.False(t.T(), t.cache.Hit("taco", someTime))

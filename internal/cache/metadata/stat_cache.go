@@ -220,9 +220,16 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 		}
 	}
 
+	var mCopy *gcs.MinObject
+	if m != nil {
+		mVal := *m
+		mVal.Name = ""
+		mCopy = &mVal
+	}
+
 	// Insert an entry.
 	e := entry{
-		m:          m,
+		m:          mCopy,
 		expiration: timeToUnixNano(expiration),
 	}
 
@@ -309,7 +316,12 @@ func (sc *statCacheBucketView) LookUp(
 		if entry.implicitDir {
 			return true, &gcs.MinObject{Name: objectName}
 		}
-		return hit, entry.m
+		if entry.m != nil {
+			mCopy := *entry.m
+			mCopy.Name = objectName
+			return hit, &mCopy
+		}
+		return hit, nil
 	}
 
 	return false, nil
@@ -322,7 +334,12 @@ func (sc *statCacheBucketView) LookUpFolder(
 	hit, entry := sc.sharedCacheLookup(folderName, now)
 
 	if hit {
-		return hit, entry.f
+		if entry.f != nil {
+			fCopy := *entry.f
+			fCopy.Name = folderName
+			return hit, &fCopy
+		}
+		return hit, nil
 	}
 
 	return false, nil
@@ -353,8 +370,15 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time) {
 	name := sc.key(f.Name)
 
+	var fCopy *gcs.Folder
+	if f != nil {
+		fVal := *f
+		fVal.Name = ""
+		fCopy = &fVal
+	}
+
 	e := entry{
-		f:          f,
+		f:          fCopy,
 		expiration: timeToUnixNano(expiration),
 	}
 
