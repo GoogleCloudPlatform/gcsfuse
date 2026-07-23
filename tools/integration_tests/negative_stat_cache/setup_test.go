@@ -59,7 +59,7 @@ var testEnv env
 
 func isImplicitDirsEnabled(flags []string) bool {
 	for _, flagSet := range flags {
-		if strings.Contains(flagSet, "implicit-dirs") {
+		if strings.Contains(flagSet, "implicit-dirs") && !strings.Contains(flagSet, "implicit-dirs=false") {
 			return true
 		}
 	}
@@ -67,7 +67,7 @@ func isImplicitDirsEnabled(flags []string) bool {
 }
 
 func isHNSBucket() bool {
-	return setup.IsHierarchicalBucket(testEnv.ctx, testEnv.storageClient)
+	return setup.ResolveIsHierarchicalBucket(testEnv.ctx, setup.TestBucket(), testEnv.storageClient)
 }
 
 ////////////////////////////////////////////////////////////////////////

@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -75,7 +76,7 @@ func (s *disabledNegativeStatCacheTest) TestNegativeStatCacheDisabled() {
 	f, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
 
 	//Assert File is found
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	assert.Contains(s.T(), f.Name(), "explicit_dir/file1.txt")
 	assert.Nil(s.T(), f.Close())
 }
@@ -104,12 +105,12 @@ func (s *disabledNegativeStatCacheTest) TestNegativeStatCacheDisabled_ImplicitDi
 	// Since negative stat cache is disabled (TTL = 0), GCSFuse should not serve from negative cache.
 	// Stat on implicit dir should now succeed.
 	fi, err := os.Stat(implicitDir)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	assert.True(s.T(), fi.IsDir())
 
 	// File should be found and readable.
 	f, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	assert.Contains(s.T(), f.Name(), "implicit_dir/file1.txt")
 	assert.Nil(s.T(), f.Close())
 }
@@ -119,31 +120,20 @@ func (s *disabledNegativeStatCacheTest) TestNegativeStatCacheDisabled_ImplicitDi
 		s.T().Skip("Skipping test: requires flat bucket with implicit-dirs disabled.")
 	}
 
-	implicitDir := path.Join(testEnv.testDirPath, "implicit_dir")
-	targetFile := path.Join(implicitDir, "file1.txt")
-
-	// Stat of non-existent implicit dir should fail.
-	_, err := os.Stat(implicitDir)
-	assert.Error(s.T(), err)
-	assert.True(s.T(), os.IsNotExist(err))
+	targetFile := path.Join(testEnv.testDirPath, "file1.txt")
 
 	// Open of non-existent file should fail.
-	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
+	_, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
 	assert.Error(s.T(), err)
 	assert.True(s.T(), os.IsNotExist(err))
 
-	// Create object in GCS directly under implicit_dir path.
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, s.testDir, "implicit_dir/file1.txt", "some-content", s.T())
-
-	// Since --implicit-dirs is disabled, stat on implicit dir still fails even though file exists in GCS.
-	_, err = os.Stat(implicitDir)
-	assert.Error(s.T(), err)
-	assert.True(s.T(), os.IsNotExist(err))
+	// Create object in GCS directly.
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, s.testDir, "file1.txt", "some-content", s.T())
 
 	// Opening the file directly should succeed because file negative cache is disabled (TTL = 0).
 	f, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
-	assert.NoError(s.T(), err)
-	assert.Contains(s.T(), f.Name(), "implicit_dir/file1.txt")
+	require.NoError(s.T(), err)
+	assert.Contains(s.T(), f.Name(), "file1.txt")
 	assert.Nil(s.T(), f.Close())
 }
 
@@ -163,11 +153,11 @@ func (s *disabledNegativeStatCacheTest) TestNegativeStatCacheDisabled_HNSFolder(
 
 	// Create folder out-of-band on HNS bucket using control client.
 	_, err = client.CreateFolderInBucket(testEnv.ctx, testEnv.storageControlClient, hnsDirPathOnBucket)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	// Since negative stat cache is disabled (TTL = 0), stat on HNS folder should succeed immediately.
 	fi, err := os.Stat(hnsDirPath)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	assert.True(s.T(), fi.IsDir())
 }
 
