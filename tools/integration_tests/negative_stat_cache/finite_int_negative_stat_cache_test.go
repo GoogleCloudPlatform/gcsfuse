@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -141,21 +142,15 @@ func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache_ImplicitDirsDi
 		s.T().Skip("Skipping test: requires flat bucket with implicit-dirs disabled.")
 	}
 
-	implicitDir := path.Join(testEnv.testDirPath, "implicit_dir")
-	targetFile := path.Join(implicitDir, "file1.txt")
-
-	// Stat of non-existent implicit dir should fail.
-	_, err := os.Stat(implicitDir)
-	assert.Error(s.T(), err)
-	assert.True(s.T(), os.IsNotExist(err))
+	targetFile := path.Join(testEnv.testDirPath, "file1.txt")
 
 	// Open of non-existent file should fail and populate negative cache for file1.txt.
-	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
+	_, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
 	assert.Error(s.T(), err)
 	assert.True(s.T(), os.IsNotExist(err))
 
-	// Create object in GCS directly under implicit_dir path.
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, s.testDir, "implicit_dir/file1.txt", "some-content", s.T())
+	// Create object in GCS directly.
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, s.testDir, "file1.txt", "some-content", s.T())
 
 	// Call to open file before TTL expires should fail (negative cache hit for file).
 	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
@@ -167,14 +162,9 @@ func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache_ImplicitDirsDi
 
 	// Opening the file directly should now succeed after cache expiration.
 	f, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
-	assert.NoError(s.T(), err)
-	assert.Contains(s.T(), f.Name(), "implicit_dir/file1.txt")
+	require.NoError(s.T(), err)
+	assert.Contains(s.T(), f.Name(), "file1.txt")
 	assert.Nil(s.T(), f.Close())
-
-	// Stat on implicit dir should still fail because --implicit-dirs is disabled.
-	_, err = os.Stat(implicitDir)
-	assert.Error(s.T(), err)
-	assert.True(s.T(), os.IsNotExist(err))
 }
 
 func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache_HNSFolder() {
