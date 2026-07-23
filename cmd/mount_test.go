@@ -173,7 +173,7 @@ func TestGetFuseMountConfig_MaxPagesAndMaxWrite(t *testing.T) {
 			fuseMaxRequestSizeKb: 0,
 			fuseMaxWriteSizeKb:   0,
 			expectedMaxPages:     0,
-			expectedMaxWrite:     uint32(util.MiB),
+			expectedMaxWrite:     0,
 		},
 		{
 			name:                 "KernelReaderEnabled_MaxRequestSizeSet_MaxWriteSizeZero",
