@@ -20,14 +20,11 @@ import (
 
 	gcstesting "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake/testing"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
 
-func TestBucket(t *testing.T) { ogletest.RunTests(t) }
-
-func init() {
+func TestBucket(t *testing.T) {
 	makeDeps := func(ctx context.Context) (deps gcstesting.BucketTestDeps) {
 		// Set up a fixed, non-zero time.
 		clock := &timeutil.SimulatedClock{}
@@ -40,5 +37,5 @@ func init() {
 		return
 	}
 
-	gcstesting.RegisterBucketTests(makeDeps)
+	gcstesting.RunBucketTests(t, makeDeps)
 }
