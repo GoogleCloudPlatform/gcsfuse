@@ -16,6 +16,7 @@ package inode
 
 import (
 	"sync"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
@@ -44,7 +45,7 @@ type Inode interface {
 	// The `clobberedCheck` parameter controls whether this function performs a
 	// remote check to see if the backing GCS object has been modified by another
 	// process.
-	Attributes(ctx context.Context, clobberedCheck bool) (fuseops.InodeAttributes, error)
+	Attributes(ctx context.Context, clobberedCheck bool) (size uint64, mtime time.Time, nlink uint32, err error)
 
 	// Decrement the lookup count for the inode by the given amount.
 	//

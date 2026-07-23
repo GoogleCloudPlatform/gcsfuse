@@ -44,7 +44,7 @@ type baseDirInode struct {
 	// INVARIANT: name.IsDir()
 	name Name
 
-	attrs fuseops.InodeAttributes
+	mtime time.Time
 
 	/////////////////////////
 	// Mutable state
@@ -72,14 +72,13 @@ type baseDirInode struct {
 func NewBaseDirInode(
 	id fuseops.InodeID,
 	name Name,
-	attrs fuseops.InodeAttributes,
 	bm gcsx.BucketManager,
 	metricHandle metrics.MetricHandle,
 	isEnableTypeCacheDeprecation bool) (d DirInode) {
 	typed := &baseDirInode{
 		id:                           id,
 		name:                         NewRootName(""),
-		attrs:                        attrs,
+		mtime:                        time.Now(),
 		bucketManager:                bm,
 		buckets:                      make(map[string]gcsx.SyncerBucket),
 		metricHandle:                 metricHandle,
@@ -151,11 +150,9 @@ func (d *baseDirInode) Destroy() (err error) {
 
 // LOCKS_REQUIRED(d)
 func (d *baseDirInode) Attributes(
-	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
-	// Set up basic attributes.
-	attrs = d.attrs
-	attrs.Nlink = 1
-
+	ctx context.Context, clobberedCheck bool) (size uint64, mtime time.Time, nlink uint32, err error) {
+	mtime = d.mtime
+	nlink = 1
 	return
 }
 
