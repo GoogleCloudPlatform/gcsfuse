@@ -331,6 +331,18 @@ func isValidOptimizationProfile(config *Config) error {
 	return nil
 }
 
+func isValidGcsAuthConfig(config *GcsAuthConfig) error {
+	if config.ExperimentalAuthTokenFile != "" {
+		if config.KeyFile != "" {
+			return fmt.Errorf("experimental-auth-token-file cannot be used together with key-file")
+		}
+		if config.TokenUrl != "" {
+			return fmt.Errorf("experimental-auth-token-file cannot be used together with token-url")
+		}
+	}
+	return nil
+}
+
 // ValidateConfig returns a non-nil error if the config is invalid.
 func ValidateConfig(v *viper.Viper, config *Config) error {
 	var err error
@@ -353,6 +365,10 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 
 	if err = isValidURL(config.GcsAuth.TokenUrl); err != nil {
 		return fmt.Errorf("error parsing token-url config: %w", err)
+	}
+
+	if err = isValidGcsAuthConfig(&config.GcsAuth); err != nil {
+		return fmt.Errorf("error parsing gcs-auth config: %w", err)
 	}
 
 	if err = isValidSequentialReadSizeMB(config.GcsConnection.SequentialReadSizeMb); err != nil {

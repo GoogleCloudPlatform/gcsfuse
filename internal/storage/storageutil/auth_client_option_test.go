@@ -19,15 +19,45 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/api/option"
 )
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
+
+func Test_GetClientAuthOptionsAndToken_AuthTokenFileSuccess(t *testing.T) {
+	tokenFile := path.Join(t.TempDir(), "token.json")
+	require.NoError(t, os.WriteFile(tokenFile, []byte(`{"access_token":"dummy-token","expires_in":3600,"token_type":"Bearer"}`), 0o600))
+	config := &StorageClientConfig{
+		ExperimentalAuthTokenFile: tokenFile,
+	}
+
+	clientOpts, tokenSrc, err := GetClientAuthOptionsAndToken(context.TODO(), config)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, tokenSrc)
+	assert.Len(t, clientOpts, 1) // Only tokenSource option attached
+	token, err := tokenSrc.Token()
+	assert.NoError(t, err)
+	assert.Equal(t, "dummy-token", token.AccessToken)
+}
+
+func Test_GetClientAuthOptionsAndToken_AuthTokenFileError(t *testing.T) {
+	config := &StorageClientConfig{ExperimentalAuthTokenFile: path.Join(t.TempDir(), "missing.json")}
+
+	clientOpts, tokenSrc, err := GetClientAuthOptionsAndToken(context.TODO(), config)
+
+	assert.Error(t, err)
+	assert.Nil(t, tokenSrc)
+	assert.Empty(t, clientOpts)
+}
 
 func Test_GetClientAuthOptionsAndToken_TokenUrlSuccess(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

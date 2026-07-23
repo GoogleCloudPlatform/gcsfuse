@@ -754,14 +754,25 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 			},
 		},
 		{
+			name: "Test experimental-auth-token-file flag.",
+			args: []string{"gcsfuse", "--experimental-auth-token-file=token.json", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				GcsAuth: cfg.GcsAuthConfig{
+					ExperimentalAuthTokenFile: cfg.ResolvedPath(path.Join(wd, "token.json")),
+					ReuseTokenFromUrl:         true,
+				},
+			},
+		},
+		{
 			name: "Test default gcs auth flags.",
 			args: []string{"gcsfuse", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				GcsAuth: cfg.GcsAuthConfig{
-					AnonymousAccess:   false,
-					KeyFile:           "",
-					ReuseTokenFromUrl: true,
-					TokenUrl:          "",
+					AnonymousAccess:           false,
+					KeyFile:                   "",
+					ExperimentalAuthTokenFile: "",
+					ReuseTokenFromUrl:         true,
+					TokenUrl:                  "",
 				},
 			},
 		},
@@ -803,6 +814,14 @@ func TestArgsParsing_GCSAuthFlagsThrowsError(t *testing.T) {
 		{
 			name: "Invalid value for token-url flag",
 			args: []string{"gcsfuse", "--token-url=a_b://abc", "abc", "pqr"},
+		},
+		{
+			name: "experimental-auth-token-file set together with key-file",
+			args: []string{"gcsfuse", "--experimental-auth-token-file=token.json", "--key-file=key.file", "abc", "pqr"},
+		},
+		{
+			name: "experimental-auth-token-file set together with token-url",
+			args: []string{"gcsfuse", "--experimental-auth-token-file=token.json", "--token-url=www.abc.com", "abc", "pqr"},
 		},
 	}
 

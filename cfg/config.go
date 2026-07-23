@@ -637,6 +637,8 @@ type FileSystemConfig struct {
 type GcsAuthConfig struct {
 	AnonymousAccess bool `yaml:"anonymous-access"`
 
+	ExperimentalAuthTokenFile ResolvedPath `yaml:"experimental-auth-token-file"`
+
 	KeyFile ResolvedPath `yaml:"key-file"`
 
 	ReuseTokenFromUrl bool `yaml:"reuse-token-from-url"`
@@ -1065,6 +1067,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("enable-unsupported-path-support"); err != nil {
 		return err
 	}
+
+	flagSet.StringP("experimental-auth-token-file", "", "", "Experimental: Absolute path to a file containing an OAuth2 token response in JSON format ({\"access_token\": \"...\", \"expires_in\": 3600, \"token_type\": \"Bearer\"}), to be used directly as the GCS credential. Mounting fails if the token is expired. The file is re-read when the token expires, so an external process may refresh the credential by rewriting the file.")
 
 	flagSet.BoolP("experimental-enable-dentry-cache", "", false, "When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl. This enables kernel to use cached entry to map the file paths to inodes, instead of making LookUpInode calls to GCSFuse.")
 
@@ -1676,6 +1680,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-unsupported-path-support", flagSet.Lookup("enable-unsupported-path-support")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-auth.experimental-auth-token-file", flagSet.Lookup("experimental-auth-token-file")); err != nil {
 		return err
 	}
 
