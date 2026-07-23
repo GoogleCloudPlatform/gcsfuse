@@ -314,6 +314,7 @@ func (f *FileInode) CheckClobbered(ctx context.Context) (err error) {
 	}
 	if clobbered {
 		return &gcsfuse_errors.FileClobberedError{
+			Err:        errors.New("file was clobbered due to generation/metageneration mismatch"),
 			ObjectName: f.name.GcsObjectName(),
 		}
 	}

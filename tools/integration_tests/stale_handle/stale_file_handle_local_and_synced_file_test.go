@@ -208,6 +208,8 @@ func (s *staleFileHandleOpenFileWhenClobbered) TearDownTest() {
 }
 
 func (s *staleFileHandleOpenFileWhenClobbered) TestOpenFileWhenClobbered() {
+	defer func() { _ = s.f1.Close() }()
+
 	// 1. Get old inode ID.
 	fi1, err := os.Stat(s.f1.Name())
 	assert.NoError(s.T(), err)
@@ -221,7 +223,7 @@ func (s *staleFileHandleOpenFileWhenClobbered) TestOpenFileWhenClobbered() {
 	// 3. Open the file again. It should succeed (VFS retry).
 	fh2, err := os.OpenFile(path.Join(testEnv.testDirPath, s.fileName), os.O_RDWR|syscall.O_DIRECT, 0)
 	assert.NoError(s.T(), err)
-	defer fh2.Close()
+	defer operations.CloseFileShouldNotThrowError(s.T(), fh2)
 
 	// 4. Get new inode ID.
 	fi2, err := fh2.Stat()
