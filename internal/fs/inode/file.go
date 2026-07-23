@@ -193,8 +193,6 @@ func NewFileInode(
 	var minObj gcs.MinObject
 	if m != nil {
 		minObj = *m
-	} else {
-		minObj.Name = name.GcsObjectName()
 	}
 
 	f = &FileInode{
@@ -279,7 +277,7 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
 	req := &gcs.StatObjectRequest{
-		Name:                           f.src.Name,
+		Name:                           f.name.GcsObjectName(),
 		ForceFetchFromGcs:              forceFetchFromGcs,
 		ReturnExtendedObjectAttributes: includeExtendedObjectAttributes,
 	}
@@ -332,7 +330,7 @@ func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 	rc, err := f.bucket.NewReaderWithReadHandle(
 		ctx,
 		&gcs.ReadObjectRequest{
-			Name:           f.src.Name,
+			Name:           f.name.GcsObjectName(),
 			Generation:     f.src.Generation,
 			ReadCompressed: f.src.HasContentEncodingGzip(),
 		})
@@ -343,7 +341,7 @@ func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 	if errors.As(err, &notFoundError) {
 		err = &gcsfuse_errors.FileClobberedError{
 			Err:        fmt.Errorf("NewReader: %w", err),
-			ObjectName: f.src.Name,
+			ObjectName: f.name.GcsObjectName(),
 		}
 	}
 	if err != nil {
@@ -359,7 +357,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 	if f.localFileCache {
 		// Fetch content from the cache after validating generation numbers again
 		// Generation validation first occurs at inode creation/destruction
-		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.src.Name}
+		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.GcsObjectName()}
 		if cacheObject, exists := f.contentCache.Get(cacheObjectKey); exists {
 			if cacheObject.ValidateGeneration(f.src.Generation, f.src.MetaGeneration) {
 				f.content = cacheObject.CacheFile
@@ -556,7 +554,7 @@ func (f *FileInode) UpdateSize(size uint64) {
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
 	if f.localFileCache {
-		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.src.Name}
+		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.GcsObjectName()}
 		f.contentCache.Remove(cacheObjectKey)
 	} else if f.content != nil {
 		f.content.Destroy()
@@ -735,7 +733,7 @@ func (f *FileInode) Write(
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset int64, writeCtx *WriteContext) (err error) {
 	bytes := int64(len(data))
-	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.WriteFileStaged, f.src.Name, &bytes, &err)
+	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.WriteFileStaged, f.name.GcsObjectName(), &bytes, &err)
 	defer finishSpan()
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
@@ -756,14 +754,14 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64, openMode util.OpenMode, writeCtx *WriteContext) (_ bool, err error) {
 	bytes := int64(len(data))
-	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.WriteFileStreaming, f.src.Name, &bytes, &err)
+	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.WriteFileStreaming, f.name.GcsObjectName(), &bytes, &err)
 	defer finishSpan()
 	err = f.bwh.Write(ctx, data, offset)
 	var preconditionErr *gcs.PreconditionError
 	if errors.As(err, &preconditionErr) {
 		return false, &gcsfuse_errors.FileClobberedError{
 			Err:        fmt.Errorf("f.bwh.Write(): %w", err),
-			ObjectName: f.src.Name,
+			ObjectName: f.name.GcsObjectName(),
 		}
 	}
 	// Fall back to temp file for Out-Of-Order Writes.
@@ -793,7 +791,7 @@ func (f *FileInode) flushUsingBufferedWriteHandler(ctx context.Context) error {
 	if errors.As(err, &preconditionErr) {
 		return &gcsfuse_errors.FileClobberedError{
 			Err:        fmt.Errorf("f.bwh.Flush(): %w", err),
-			ObjectName: f.src.Name,
+			ObjectName: f.name.GcsObjectName(),
 		}
 	}
 	if err != nil {
@@ -817,7 +815,7 @@ func (f *FileInode) SyncPendingBufferedWrites(ctx context.Context) (gcsSynced bo
 	if errors.As(err, &preconditionErr) {
 		err = &gcsfuse_errors.FileClobberedError{
 			Err:        fmt.Errorf("f.bwh.Sync(ctx): %w", err),
-			ObjectName: f.src.Name,
+			ObjectName: f.name.GcsObjectName(),
 		}
 		return
 	}
@@ -882,7 +880,7 @@ func (f *FileInode) SetMtime(
 	srcGen := f.SourceGeneration()
 
 	req := &gcs.UpdateObjectRequest{
-		Name:                       f.src.Name,
+		Name:                       f.name.GcsObjectName(),
 		Generation:                 srcGen.Object,
 		MetaGenerationPrecondition: &srcGen.Metadata,
 		Metadata: map[string]*string{
@@ -945,7 +943,7 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 		}
 		return nil, &gcsfuse_errors.FileClobberedError{
 			Err:        err,
-			ObjectName: f.src.Name,
+			ObjectName: f.name.GcsObjectName(),
 		}
 	}
 	return latestGcsObj, nil
@@ -1006,7 +1004,7 @@ func (f *FileInode) getTempContentSizeForSpan(config *cfg.Config) int64 {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) syncUsingContent(ctx context.Context, writeCtx *WriteContext) (err error) {
 	bytes := f.getTempContentSizeForSpan(writeCtx.Config)
-	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.SyncFileStaged, f.src.Name, &bytes, &err)
+	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.SyncFileStaged, f.name.GcsObjectName(), &bytes, &err)
 	defer finishSpan()
 	var latestGcsObj *gcs.Object
 	if !f.local {
@@ -1025,7 +1023,7 @@ func (f *FileInode) syncUsingContent(ctx context.Context, writeCtx *WriteContext
 	if errors.As(err, &preconditionErr) {
 		return &gcsfuse_errors.FileClobberedError{
 			Err:        fmt.Errorf("SyncObject: %w", err),
-			ObjectName: f.src.Name,
+			ObjectName: f.name.GcsObjectName(),
 		}
 	}
 
@@ -1244,7 +1242,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	if f.bwh == nil {
 		f.bwh, err = bufferedwrites.NewBWHandler(&bufferedwrites.CreateBWHandlerRequest{
 			Object:                   latestGcsObj,
-			ObjectName:               f.src.Name,
+			ObjectName:               f.name.GcsObjectName(),
 			Bucket:                   f.bucket,
 			BlockSize:                writeCtx.Config.Write.BlockSizeMb * util.MiB,
 			MaxBlocksPerFile:         writeCtx.Config.Write.MaxBlocksPerFile,
