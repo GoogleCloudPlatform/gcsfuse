@@ -213,8 +213,8 @@ func isValidWriteStreamingConfig(wc *WriteConfig) error {
 		return nil
 	}
 
-	if wc.BlockSizeMb <= 0 || wc.BlockSizeMb > float64(util.MaxMiBsInInt64) {
-		return fmt.Errorf("invalid value of write-block-size-mb; can't be less than or equal to 0 or more than %d", util.MaxMiBsInInt64)
+	if wc.BlockSizeMb <= 0 || wc.BlockSizeMb > util.MaxMiBsInInt64 {
+		return fmt.Errorf("invalid value of write-block-size-mb; can't be less than 1 or more than %d", util.MaxMiBsInInt64)
 	}
 	if !(wc.MaxBlocksPerFile == -1 || wc.MaxBlocksPerFile >= 1) {
 		return fmt.Errorf("invalid value of write-max-blocks-per-file: %d; should be >=1 or -1 (for infinite)", wc.MaxBlocksPerFile)

@@ -279,7 +279,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		expectedCreateEmptyFile       bool
 		expectedEnableStreamingWrites bool
 		expectedEnableRapidAppends    bool
-		expectedWriteBlockSizeMB      float64
+		expectedWriteBlockSizeMB      int64
 		expectedWriteGlobalMaxBlocks  int64
 		expectedWriteMaxBlocksPerFile int64
 		expectedEnableRapidWrites     bool
@@ -352,16 +352,6 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedEnableStreamingWrites: true,
 			expectedEnableRapidAppends:    true,
 			expectedWriteBlockSizeMB:      10,
-			expectedWriteGlobalMaxBlocks:  4,
-			expectedWriteMaxBlocksPerFile: 1,
-		},
-		{
-			name:                          "Test fractional write-block-size-mb flag.",
-			args:                          []string{"gcsfuse", "--enable-streaming-writes", "--write-block-size-mb=0.5", "abc", "pqr"},
-			expectedCreateEmptyFile:       false,
-			expectedEnableStreamingWrites: true,
-			expectedEnableRapidAppends:    true,
-			expectedWriteBlockSizeMB:      0.5,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
 		},

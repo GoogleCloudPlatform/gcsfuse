@@ -1285,10 +1285,10 @@ params:
 
   - config-path: "write.block-size-mb"
     flag-name: "write-block-size-mb"
-    type: "float64"
+    type: "int"
     usage: >-
-      Specifies the block size for streaming writes in MB. Supports fractional
-      values (e.g. 0.25 for 256 KiB). The value should be more than 0.
+      Specifies the block size for streaming writes. The value should be more
+      than 0.
     default: 32
     hide-flag: true
 

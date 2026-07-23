@@ -815,7 +815,7 @@ type WorkloadInsightConfig struct {
 }
 
 type WriteConfig struct {
-	BlockSizeMb float64 `yaml:"block-size-mb"`
+	BlockSizeMb int64 `yaml:"block-size-mb"`
 
 	CreateEmptyFile bool `yaml:"create-empty-file"`
 
@@ -1476,7 +1476,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.Float64P("write-block-size-mb", "", 32, "Specifies the block size for streaming writes in MB. Supports fractional values (e.g. 0.25 for 256 KiB). The value should be more than 0.")
+	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more than 0.")
 
 	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
 		return err
