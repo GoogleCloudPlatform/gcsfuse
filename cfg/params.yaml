@@ -473,7 +473,8 @@ params:
     type: "int"
     usage: >-
       Sets the target maximum write size in KiB that FUSE can process in a single write request.
-      Right now only a maximum value of 1MB is supported.
+      Must be less than or equal to fuse-max-request-size-kb. Right now only a maximum value
+      of 1MB is supported.
     default: 0
     hide-flag: true
 

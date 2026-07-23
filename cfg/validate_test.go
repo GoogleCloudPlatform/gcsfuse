@@ -688,6 +688,20 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Invalid Config: request size < write size",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				FileSystem: FileSystemConfig{
+					FuseMaxRequestSizeKb: 512,
+					FuseMaxWriteSizeKb:   1024,
+				},
+				GcsConnection: GcsConnectionConfig{
+					SequentialReadSizeMb: 200,
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

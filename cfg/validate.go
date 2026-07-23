@@ -384,6 +384,10 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 		}
 	}
 
+	if config.FileSystem.FuseMaxRequestSizeKb < config.FileSystem.FuseMaxWriteSizeKb {
+		return fmt.Errorf("invalid config: fuse-max-request-size-kb (%d) cannot be less than fuse-max-write-size-kb (%d)", config.FileSystem.FuseMaxRequestSizeKb, config.FileSystem.FuseMaxWriteSizeKb)
+	}
+
 	if err = isValidKernelListCacheTTL(config.FileSystem.KernelListCacheTtlSecs); err != nil {
 		return fmt.Errorf("error parsing kernel-list-cache-ttl-secs config: %w", err)
 	}
