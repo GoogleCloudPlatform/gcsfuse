@@ -181,8 +181,6 @@ async def main():
 
             if not throughputs:
                 print("No throughput data was collected.", file=sys.stderr)
-                if not args.no_cleanup:
-                    await utils.cleanup(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name)
                 sys.exit(-1)
 
             successful_iterations = sum(1 for t in throughputs if t >= args.performance_threshold_gbps)
@@ -192,8 +190,6 @@ async def main():
                     print(f"Warning: Only {successful_iterations}/{len(throughputs)} iterations were >= {args.performance_threshold_gbps} gbytes/sec, but continuing as success for GRPC.")
                 else:
                     print(f"Benchmark failed: Only {successful_iterations}/{len(throughputs)} iterations were >= {args.performance_threshold_gbps} gbytes/sec.", file=sys.stderr)
-                    if not args.no_cleanup:
-                        await utils.cleanup(args.project_id, args.zone, args.cluster_name, args.network_name, args.subnet_name)
                     sys.exit(-1)
             else:
                 print(f"Benchmark successful: {successful_iterations}/{len(throughputs)} iterations met the performance threshold ({args.performance_threshold_gbps} GB/s).")
