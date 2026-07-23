@@ -43,6 +43,10 @@ func (bt BucketType) IsRapid() bool {
 	return bt.Zonal || bt.Pirlo
 }
 
+func (bt BucketType) RapidWritesEnabled() bool {
+	return bt.IsRapid()
+}
+
 const (
 	// ReqIdField is the key for the value of
 	// GCS req-id in context.

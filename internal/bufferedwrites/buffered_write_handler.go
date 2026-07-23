@@ -217,7 +217,7 @@ func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject,
 	// the Writer's buffer to Cloud Storage, thereby making them available for
 	// other operations like read.
 	// This functionality is exclusively supported on rapid buckets.
-	if wh.uploadHandler.bucket.BucketType().IsRapid() {
+	if wh.uploadHandler.bucket.BucketType().RapidWritesEnabled() {
 		o, err = wh.uploadHandler.FlushPendingWrites(ctx)
 		if err != nil {
 			return nil, err
