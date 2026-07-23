@@ -395,6 +395,43 @@ func (t *FileTest) TestAttributes_Clobbered_WithClobberCheckFalse() {
 	assert.Equal(t.T(), uint32(1), attrs.Nlink)
 }
 
+func (t *FileTest) TestCheckClobbered_NotClobbered() {
+	err := t.in.CheckClobbered(t.ctx)
+
+	assert.NoError(t.T(), err)
+}
+
+func (t *FileTest) TestCheckClobbered_Clobbered() {
+	// Simulate a clobbered file by creating a new object with the same name,
+	// which will have a new generation.
+	_, err := storageutil.CreateObject(
+		t.ctx,
+		t.bucket,
+		t.in.Name().GcsObjectName(),
+		[]byte("new clobbering content"))
+	require.NoError(t.T(), err)
+
+	err = t.in.CheckClobbered(t.ctx)
+
+	var fcErr *gcsfuse_errors.FileClobberedError
+	assert.True(t.T(), errors.As(err, &fcErr), "expected FileClobberedError but got %v", err)
+	assert.Contains(t.T(), err.Error(), "generation/metageneration mismatch")
+}
+
+func (t *FileTest) TestCheckClobbered_Deleted() {
+	// Simulate a deleted file.
+	err := t.bucket.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{
+		Name: t.in.Name().GcsObjectName(),
+	})
+	require.NoError(t.T(), err)
+
+	err = t.in.CheckClobbered(t.ctx)
+
+	var fcErr *gcsfuse_errors.FileClobberedError
+	assert.True(t.T(), errors.As(err, &fcErr), "expected FileClobberedError but got %v", err)
+	assert.Contains(t.T(), err.Error(), "generation/metageneration mismatch")
+}
+
 func (t *FileTest) TestInitialAttributes() {
 	attrs, err := t.in.Attributes(t.ctx, true)
 	require.NoError(t.T(), err)

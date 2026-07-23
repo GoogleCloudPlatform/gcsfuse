@@ -3062,6 +3062,13 @@ func (fs *fileSystem) OpenFile(
 	in.Lock()
 	defer in.Unlock()
 
+	if fs.newConfig.FileSystem.StrongConsistencyOnOpen {
+		err = in.CheckClobbered(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Get the fs lock again.
 	fs.mu.Lock()
 	defer fs.mu.Unlock()

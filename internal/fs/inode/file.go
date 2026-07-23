@@ -304,6 +304,23 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 	}
 }
 
+// CheckClobbered checks if the file has been clobbered by making a stat call to GCS.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) CheckClobbered(ctx context.Context) (err error) {
+	_, clobbered, err := f.clobbered(ctx, true, false)
+	if err != nil {
+		return err
+	}
+	if clobbered {
+		return &gcsfuse_errors.FileClobberedError{
+			Err:        errors.New("file was clobbered due to generation/metageneration mismatch"),
+			ObjectName: f.name.GcsObjectName(),
+		}
+	}
+	return nil
+}
+
 // Open a reader for the generation of object we care about.
 func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 	rc, err := f.bucket.NewReaderWithReadHandle(

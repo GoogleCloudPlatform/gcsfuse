@@ -965,6 +965,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 		TempDir:                       "",
 		ExperimentalODirect:           false,
 		Uid:                           -1,
+		StrongConsistencyOnOpen:       false,
 	}
 	expectedAIMLCheckpointingFileSystemConfig := expectedDefaultFileSystemConfig
 	expectedAIMLCheckpointingFileSystemConfig.RenameDirLimit = 200000
@@ -1328,6 +1329,24 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					ExperimentalODirect:  false,
 					Uid:                  -1,
 					EnableKernelReader:   false,
+				},
+			},
+		},
+		{
+			name: "Test file system strong-consistency-on-open flag enabled.",
+			args: []string{"gcsfuse", "--strong-consistency-on-open", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					FuseMaxRequestSizeKb:    int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
+					DirMode:                 0755,
+					FileMode:                0644,
+					FuseOptions:             []string{},
+					Gid:                     -1,
+					IgnoreInterrupts:        true,
+					InactiveMrdCacheSize:    1000,
+					ExperimentalODirect:     false,
+					Uid:                     -1,
+					StrongConsistencyOnOpen: true,
 				},
 			},
 		},
