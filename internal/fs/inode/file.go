@@ -103,7 +103,7 @@ type FileInode struct {
 
 	bwh              bufferedwrites.BufferedWriteHandler
 	mpuWriter        gcs.ParallelUploadWriter
-	mpuOffset        int64
+	mpuTotalSize     int64
 	mpuTruncatedSize int64
 	config           *cfg.Config
 
@@ -620,7 +620,7 @@ func (f *FileInode) Attributes(
 	}
 
 	if f.mpuWriter != nil {
-		sz := max(f.mpuOffset, f.mpuTruncatedSize)
+		sz := max(f.mpuTotalSize, f.mpuTruncatedSize)
 		attrs.Size = uint64(sz)
 	}
 
@@ -780,7 +780,7 @@ func (f *FileInode) writeUsingMPUWriter(
 		f.mpuTruncatedSize = -1
 	}
 
-	if offset != f.mpuOffset {
+	if offset != f.mpuTotalSize {
 		logger.Infof("Out of order write detected on MPU file %s. Falling back to disk staging.", f.name.String())
 
 		if err := f.mpuWriter.Close(); err != nil {
@@ -798,8 +798,8 @@ func (f *FileInode) writeUsingMPUWriter(
 		return false, fmt.Errorf("f.mpuWriter.Write(): %w", err)
 	}
 
-	f.mpuOffset += n
-	if f.mpuTruncatedSize != -1 && f.mpuOffset >= f.mpuTruncatedSize {
+	f.mpuTotalSize += n
+	if f.mpuTruncatedSize != -1 && f.mpuTotalSize >= f.mpuTruncatedSize {
 		f.mpuTruncatedSize = -1
 	}
 	return false, nil
@@ -1046,7 +1046,7 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	}
 
 	if f.mpuWriter != nil {
-		if f.mpuTruncatedSize != -1 && f.mpuTruncatedSize > f.mpuOffset {
+		if f.mpuTruncatedSize != -1 && f.mpuTruncatedSize > f.mpuTotalSize {
 			if err := f.padMPUZeroBytesUpTo(ctx, f.mpuTruncatedSize); err != nil {
 				return false, err
 			}
@@ -1260,7 +1260,7 @@ func (f *FileInode) Truncate(
 }
 
 func (f *FileInode) padMPUZeroBytesUpTo(ctx context.Context, targetOffset int64) error {
-	paddingNeeded := targetOffset - f.mpuOffset
+	paddingNeeded := targetOffset - f.mpuTotalSize
 	if paddingNeeded <= 0 {
 		return nil
 	}
@@ -1272,14 +1272,14 @@ func (f *FileInode) padMPUZeroBytesUpTo(ctx context.Context, targetOffset int64)
 		if err != nil {
 			return fmt.Errorf("mpuWriter zero-padding failed: %w", err)
 		}
-		f.mpuOffset += n
+		f.mpuTotalSize += n
 		paddingNeeded -= n
 	}
 	return nil
 }
 
 func (f *FileInode) truncateUsingMPUWriter(ctx context.Context, size int64) (bool, error) {
-	effectiveSize := f.mpuOffset
+	effectiveSize := f.mpuTotalSize
 	if f.mpuTruncatedSize != -1 {
 		effectiveSize = f.mpuTruncatedSize
 	}
@@ -1288,8 +1288,8 @@ func (f *FileInode) truncateUsingMPUWriter(ctx context.Context, size int64) (boo
 		return false, nil
 	}
 
-	if size < f.mpuOffset {
-		logger.Infof("Truncate to smaller size (%d < %d) detected on MPU file %s. Finalizing existing stream and falling back to disk staging.", size, f.mpuOffset, f.name.String())
+	if size < f.mpuTotalSize {
+		logger.Infof("Truncate to smaller size (%d < %d) detected on MPU file %s. Finalizing existing stream and falling back to disk staging.", size, f.mpuTotalSize, f.name.String())
 		if err := f.mpuWriter.Close(); err != nil {
 			return false, fmt.Errorf("could not finalize MPU writer on fallback: %w", err)
 		}
@@ -1377,7 +1377,7 @@ func (f *FileInode) InitMPUWriterIfEligible(ctx context.Context, openMode util.O
 		return fmt.Errorf("CreateObjectWriter (MPU): %w", err)
 	}
 
-	f.mpuOffset = 0
+	f.mpuTotalSize = 0
 	f.mpuTruncatedSize = -1
 	return nil
 }
