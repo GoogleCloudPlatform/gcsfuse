@@ -459,7 +459,7 @@ params:
       65535 (fuse_max_max_pages), so the value of this parameter must be > 0 and translate to at most 65535 pages. 
       Additionally, on GKE, the system-wide setting is capped to 16 MiB (16384 KiB) by default by the CSI driver.
       If needed to be set beyond that on GKE, the user has to manually increase the value on the node before
-      GCSFuse mounting begins. Not supported for rapid buckets for now. Setting this flag on rapid buckets will result in mount failure.
+      GCSFuse mounting begins. Requires enable-kernel-reader to be set to true, otherwise the value will be ignored. Not supported for rapid buckets for now. Setting this flag on rapid buckets will result in mount failure.
     default: "StorageClassRapid.DefaultFuseMaxRequestSizeKb()"
     hide-flag: true
     optimizations:
