@@ -272,7 +272,11 @@ func (bh *bucketHandle) CreateMPUWriter(ctx context.Context, req *gcs.CreateObje
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
 	wc := &ObjectWriter{Writer: obj.NewWriter(ctx)}
-	wc.ChunkSize = int(bh.writeConfig.BlockSizeMb * 1024 * 1024)
+	wc.EnableParallelUpload = true
+	wc.ParallelUploadConfig = storage.ParallelUploadConfig{
+		PartSize:       int(bh.writeConfig.BlockSizeMb * 1024 * 1024),
+		MaxConcurrency: int(bh.writeConfig.MaxBlocksPerFile),
+	}
 	wc.Writer = storageutil.SetAttrsInWriter(wc.Writer, req)
 	wc.ChunkRetryDeadline = time.Duration(req.ChunkRetryDeadlineSecs) * time.Second
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
