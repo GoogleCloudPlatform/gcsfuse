@@ -350,8 +350,9 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_RetryableThenNonRetryab
 	assert.Equal(t.T(), 2, callCount)
 }
 
-func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_Timeout() {
+func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_AllAttemptsTimeOut() {
 	// Arrange
+	t.retryConfig.MaxAttempts = 3
 	stallDuration := t.retryConfig.RetryDeadline + 100*time.Millisecond
 	var callCount int
 	apiCall := func(ctx context.Context) (string, error) {

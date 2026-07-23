@@ -260,7 +260,7 @@ func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_MountRetriesEnabled
 
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), layout)
-	assert.ErrorIs(t.T(), err, context.DeadlineExceeded)
+	assert.Contains(t.T(), err.Error(), mountErr.Error())
 	t.mockRawClient.AssertExpectations(t.T())
 }
 
@@ -338,8 +338,9 @@ func (t *StorageLayoutRetryWrapperTest) TestRenameFolder_IsNotRetried() {
 func (t *ControlClientRetryWrapperTest) newHelperRetryWrapper(controlClient StorageControlClient, retryDeadline, initialBackoff, maxRetrySleep time.Duration, backoffMultiplier float64, retryFolderAPIs bool) StorageControlClient {
 	t.T().Helper()
 	clientConfig := &storageutil.StorageClientConfig{
-		MaxRetrySleep:   maxRetrySleep,
-		RetryMultiplier: backoffMultiplier,
+		MaxRetrySleep:    maxRetrySleep,
+		RetryMultiplier:  backoffMultiplier,
+		MaxRetryAttempts: 3,
 	}
 	var opts []ControlClientOption
 	if retryFolderAPIs {
@@ -369,6 +370,7 @@ func (t *ControlClientRetryWrapperTest) newHelperRetryWrapperWithMountRetries(co
 		MaxRetrySleep:      maxRetrySleep,
 		RetryMultiplier:    backoffMultiplier,
 		EnableMountRetries: enableRetriesOnMount,
+		MaxRetryAttempts:   3,
 	}
 	var opts []ControlClientOption
 	if retryFolderAPIs {
