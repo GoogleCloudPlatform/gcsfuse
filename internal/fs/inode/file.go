@@ -452,6 +452,7 @@ func (f *FileInode) IsUsingBWH() bool {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Source() *gcs.MinObject {
+	// Make a copy, since we modify f.src.
 	o := f.src
 	return &o
 }

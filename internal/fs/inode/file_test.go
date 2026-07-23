@@ -190,13 +190,10 @@ func (t *FileTest) validateMrdInstanceMinObject() {
 	t.T().Helper()
 	// Validate only for rapid buckets
 	if t.in.bucket.BucketType().IsRapid() {
-		minObj := t.in.src
-		actual := t.in.mrdInstance.GetMinObject()
-		assert.Equal(t.T(), minObj.Name, actual.Name)
-		assert.Equal(t.T(), minObj.Generation, actual.Generation)
-		assert.Equal(t.T(), minObj.MetaGeneration, actual.MetaGeneration)
-		assert.Equal(t.T(), minObj.Size, actual.Size)
-		assert.Equal(t.T(), minObj.ContentEncoding, actual.ContentEncoding)
+		// Validate MinObject in inode and MRDInstance points to different copy of MinObject.
+		assert.NotSame(t.T(), &t.in.src, t.in.mrdInstance.GetMinObject())
+		// Validate MinObject in MRDInstance is equal to the MinObject in inode.
+		assert.Equal(t.T(), &t.in.src, t.in.mrdInstance.GetMinObject())
 	}
 }
 
@@ -204,13 +201,10 @@ func (t *FileTest) validateMrdWrapperMinObject() {
 	t.T().Helper()
 	// Validate only for rapid buckets
 	if t.in.bucket.BucketType().IsRapid() {
-		minObj := t.in.src
-		actual := t.in.MRDWrapper.GetMinObject()
-		assert.Equal(t.T(), minObj.Name, actual.Name)
-		assert.Equal(t.T(), minObj.Generation, actual.Generation)
-		assert.Equal(t.T(), minObj.MetaGeneration, actual.MetaGeneration)
-		assert.Equal(t.T(), minObj.Size, actual.Size)
-		assert.Equal(t.T(), minObj.ContentEncoding, actual.ContentEncoding)
+		// Validate MinObject in inode and MRDWrapper points to different copy of MinObject.
+		assert.NotSame(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
+		// Validate MinObject in MRDWrapper is equal to the MinObject in inode.
+		assert.Equal(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
 	}
 }
 
