@@ -60,14 +60,11 @@ type Writer interface {
 	Flush() (int64, error)
 	ObjectName() string
 	Attrs() *storage.ObjectAttrs
-	Abort(ctx context.Context) error
 }
 
 // ParallelUploadWriter abstracts the Go Storage SDK parallel upload session.
 type ParallelUploadWriter interface {
-	io.Writer
-	io.WriterAt
-	io.Closer
+	Writer
 	Abort(ctx context.Context) error
 }
 
@@ -165,6 +162,9 @@ type Bucket interface {
 	// writer is closed (finalized). For appendable uploads, the unfinalized
 	// object is available for reading immediately.
 	CreateObjectChunkWriter(ctx context.Context, req *CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (Writer, error)
+
+	// CreateMPUWriter creates a ParallelUploadWriter for gRPC parallel stream uploads (MPU).
+	CreateMPUWriter(ctx context.Context, req *CreateObjectRequest) (ParallelUploadWriter, error)
 
 	// CreateAppendableObjectWriter creates a Writer for "Takeover"
 	// operations. It allows appending to an existing, unfinalized object by

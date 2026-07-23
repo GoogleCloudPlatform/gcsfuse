@@ -134,6 +134,10 @@ func (b *debugBucket) BucketType() gcs.BucketType {
 	return b.wrapped.BucketType()
 }
 
+func (b *debugBucket) CreateMPUWriter(ctx context.Context, req *gcs.CreateObjectRequest) (gcs.ParallelUploadWriter, error) {
+	return b.wrapped.CreateMPUWriter(ctx, req)
+}
+
 func setupReader(ctx context.Context, b *debugBucket, req *gcs.ReadObjectRequest, method string) (gcs.StorageReader, error) {
 	id, desc, start := b.startRequest("%s(%q, %v)", method, req.Name, req.Range)
 

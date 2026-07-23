@@ -110,6 +110,14 @@ func (b *prefixBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cre
 	return wc, err
 }
 
+func (b *prefixBucket) CreateMPUWriter(ctx context.Context, req *gcs.CreateObjectRequest) (gcs.ParallelUploadWriter, error) {
+	mReq := new(gcs.CreateObjectRequest)
+	*mReq = *req
+	mReq.Name = b.wrappedName(req.Name)
+
+	return b.wrapped.CreateMPUWriter(ctx, mReq)
+}
+
 func (b *prefixBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
 	// Modify the request and call through.
 	mReq := new(gcs.CreateObjectChunkWriterRequest)

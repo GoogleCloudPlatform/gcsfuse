@@ -65,6 +65,10 @@ func (d *dummyIOBucket) BucketType() gcs.BucketType {
 	return d.wrapped.BucketType()
 }
 
+func (d *dummyIOBucket) CreateMPUWriter(ctx context.Context, req *gcs.CreateObjectRequest) (gcs.ParallelUploadWriter, error) {
+	return d.wrapped.CreateMPUWriter(ctx, req)
+}
+
 // NewReaderWithReadHandle creates a reader for reading object contents.
 // Returns a dummy reader that serves zeros efficiently instead of reading from GCS.
 func (d *dummyIOBucket) NewReaderWithReadHandle(

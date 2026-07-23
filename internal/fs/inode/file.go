@@ -102,7 +102,7 @@ type FileInode struct {
 	MRDWrapper *gcsx.MultiRangeDownloaderWrapper
 
 	bwh       bufferedwrites.BufferedWriteHandler
-	mpuWriter gcs.Writer
+	mpuWriter gcs.ParallelUploadWriter
 	mpuOffset int64
 	config    *cfg.Config
 
@@ -433,6 +433,11 @@ func (f *FileInode) IsUnlinked() bool {
 
 func (f *FileInode) Unlink() {
 	f.unlinked = true
+
+	if f.mpuWriter != nil {
+		_ = f.mpuWriter.Abort(context.Background())
+		f.mpuWriter = nil
+	}
 
 	if f.bwh != nil {
 		f.bwh.Unlink()
@@ -1278,25 +1283,23 @@ func (f *FileInode) InitMPUWriterIfEligible(ctx context.Context, openMode util.O
 	var latestGcsObj *gcs.Object
 	var err error
 	if !f.local {
-		if f.bucket.BucketType().IsRapid() && openMode.IsAppend() {
-			latestGcsObj = storageutil.ConvertMinObjectToObject(&f.src)
-		} else {
-			latestGcsObj, err = f.fetchLatestGcsObject(ctx)
-			if err != nil {
-				return false, err
-			}
+		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
+		if err != nil {
+			return false, fmt.Errorf("fetchLatestGcsObject for MPU: %w", err)
 		}
 	}
 
-	f.mpuWriter, err = f.bucket.CreateObjectChunkWriter(
+	var gen *int64
+	if latestGcsObj != nil {
+		gen = &latestGcsObj.Generation
+	}
+
+	f.mpuWriter, err = f.bucket.CreateMPUWriter(
 		ctx,
 		&gcs.CreateObjectRequest{
 			Name:                   f.name.GcsObjectName(),
-			StorageClass:           "RAPID",
-			GenerationPrecondition: &latestGcsObj.Generation,
+			GenerationPrecondition: gen,
 		},
-		int(f.config.Write.BlockSizeMb * util.MiB),
-		nil,
 	)
 
 	if err != nil {

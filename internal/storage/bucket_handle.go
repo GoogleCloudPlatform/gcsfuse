@@ -268,6 +268,23 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	return wc, nil
 }
 
+func (bh *bucketHandle) CreateMPUWriter(ctx context.Context, req *gcs.CreateObjectRequest) (gcs.ParallelUploadWriter, error) {
+	if bh.BucketType().Pirlo {
+		req.StorageClass = storageClassRapid
+	}
+
+	obj := bh.getObjectHandleWithPreconditionsSet(req)
+
+	wc := &ObjectWriter{Writer: obj.NewWriter(ctx)}
+	wc.ChunkSize = int(bh.writeConfig.BlockSizeMb * 1024 * 1024)
+	wc.Writer = storageutil.SetAttrsInWriter(wc.Writer, req)
+	wc.ChunkRetryDeadline = time.Duration(req.ChunkRetryDeadlineSecs) * time.Second
+	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
+	wc.ProgressFunc = req.CallBack
+
+	return wc, nil
+}
+
 func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
 

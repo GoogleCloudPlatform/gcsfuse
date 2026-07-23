@@ -649,6 +649,10 @@ func (b *fastStatBucket) NewMultiRangeDownloader(
 	return
 }
 
+func (b *fastStatBucket) CreateMPUWriter(ctx context.Context, req *gcs.CreateObjectRequest) (gcs.ParallelUploadWriter, error) {
+	return b.wrapped.CreateMPUWriter(ctx, req)
+}
+
 func (b *fastStatBucket) GCSName(obj *gcs.MinObject) string {
 	return b.wrapped.GCSName(obj)
 }

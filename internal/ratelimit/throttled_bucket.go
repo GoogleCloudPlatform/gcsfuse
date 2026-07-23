@@ -120,6 +120,14 @@ func (b *throttledBucket) CreateAppendableObjectWriter(ctx context.Context, req 
 	return
 }
 
+func (b *throttledBucket) CreateMPUWriter(ctx context.Context, req *gcs.CreateObjectRequest) (gcs.ParallelUploadWriter, error) {
+	err := b.opThrottle.Wait(ctx, 1)
+	if err != nil {
+		return nil, err
+	}
+	return b.wrapped.CreateMPUWriter(ctx, req)
+}
+
 func (b *throttledBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	// FinalizeUpload is not throttled to prevent permanent data loss in case the
 	// limiter's burst size is exceeded.

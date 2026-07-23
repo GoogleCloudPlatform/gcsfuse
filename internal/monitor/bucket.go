@@ -168,6 +168,10 @@ func (mb *monitoringBucket) DeleteObject(
 	return err
 }
 
+func (mb *monitoringBucket) CreateMPUWriter(ctx context.Context, req *gcs.CreateObjectRequest) (gcs.ParallelUploadWriter, error) {
+	return mb.wrapped.CreateMPUWriter(ctx, req)
+}
+
 func (mb *monitoringBucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.MoveObject(ctx, req)

@@ -709,6 +709,10 @@ func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObj
 	return NewFakeObjectWriter(b, req, false)
 }
 
+func (b *bucket) CreateMPUWriter(ctx context.Context, req *gcs.CreateObjectRequest) (gcs.ParallelUploadWriter, error) {
+	return NewFakeObjectWriter(b, req, false)
+}
+
 func (b *bucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
 	index := b.objects.find(req.Name)
 	if index != len(b.objects) {

@@ -88,7 +88,7 @@ func (w *FakeObjectWriter) WriteChunkAsync(ctx context.Context, data []byte, onC
 	return err
 }
 
-func NewFakeObjectWriter(b *bucket, req *gcs.CreateObjectRequest, append bool) (w gcs.Writer, err error) {
+func NewFakeObjectWriter(b *bucket, req *gcs.CreateObjectRequest, append bool) (w *FakeObjectWriter, err error) {
 	// Check that the name is legal.
 	err = checkName(req.Name)
 	if err != nil {

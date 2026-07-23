@@ -160,6 +160,31 @@ func (m *mockBucket) CreateObjectChunkWriter(p0 context.Context, p1 *gcs.CreateO
 	return
 }
 
+func (m *mockBucket) CreateMPUWriter(p0 context.Context, p1 *gcs.CreateObjectRequest) (o0 gcs.ParallelUploadWriter, o1 error) {
+	_, file, line, _ := runtime.Caller(1)
+
+	retVals := m.controller.HandleMethodCall(
+		m,
+		"CreateMPUWriter",
+		file,
+		line,
+		[]any{p0, p1})
+
+	if len(retVals) != 2 {
+		panic(fmt.Sprintf("mockBucket.CreateMPUWriter: invalid return values: %v", retVals))
+	}
+
+	if retVals[0] != nil {
+		o0 = retVals[0].(gcs.ParallelUploadWriter)
+	}
+
+	if retVals[1] != nil {
+		o1 = retVals[1].(error)
+	}
+
+	return
+}
+
 func (m *mockBucket) CreateAppendableObjectWriter(p0 context.Context, p1 *gcs.CreateObjectChunkWriterRequest) (o0 gcs.Writer, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
