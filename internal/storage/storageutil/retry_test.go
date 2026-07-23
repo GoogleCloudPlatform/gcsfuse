@@ -263,7 +263,7 @@ type ExecuteWithRetryTestSuite struct {
 
 func (t *ExecuteWithRetryTestSuite) SetupTest() {
 	t.retryConfig = &RetryConfig{
-		RetryDeadline:    50 * time.Millisecond,
+		RetryDeadline: 50 * time.Millisecond,
 		BackoffConfig: exponentialBackoffConfig{
 			initial:    1 * time.Millisecond,
 			max:        10 * time.Millisecond,
@@ -375,7 +375,6 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_Timeout() {
 		"take longer than the per-attempt deadline.")
 }
 
-
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutShorterThanRetryDeadline() {
 	// Arrange
 	var callCount int
@@ -433,7 +432,6 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutBet
 	assert.Empty(t.T(), result)
 	assert.Greater(t.T(), callCount, 0, "apiCall should have been called at least once")
 }
-
 
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextAlreadyCancelled() {
 	// Arrange
