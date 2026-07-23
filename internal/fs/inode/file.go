@@ -1359,6 +1359,8 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			GlobalMaxBlocksSem:       f.globalMaxWriteBlocksSem,
 			ChunkRetryDeadlineSecs:   f.config.GcsRetries.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
+			EnableRapidWrites:        f.config.Write.EnableRapidWrites,
+			EnableAppendableWrites:   f.config.Write.EnableAppendableWrites,
 			TraceHandle:              f.traceHandle,
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {

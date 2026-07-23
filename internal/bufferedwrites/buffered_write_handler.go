@@ -100,6 +100,8 @@ type CreateBWHandlerRequest struct {
 	GlobalMaxBlocksSem       *semaphore.Weighted
 	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
+	EnableRapidWrites        bool
+	EnableAppendableWrites   bool
 	TraceHandle              tracing.TraceHandle
 }
 
@@ -126,6 +128,8 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 			BlockSize:                req.BlockSize,
 			ChunkRetryDeadlineSecs:   req.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
+			EnableRapidWrites:        req.EnableRapidWrites,
+			EnableAppendableWrites:   req.EnableAppendableWrites,
 			TraceHandle:              req.TraceHandle,
 		}),
 		totalSize:     size,
@@ -217,7 +221,8 @@ func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject,
 	// the Writer's buffer to Cloud Storage, thereby making them available for
 	// other operations like read.
 	// This functionality is exclusively supported on rapid buckets.
-	if wh.uploadHandler.bucket.BucketType().IsRapid() {
+	mode := gcs.DetermineWriteMode(wh.uploadHandler.bucket.BucketType(), wh.uploadHandler.enableRapidWrites, wh.uploadHandler.enableAppendableWrites)
+	if mode == gcs.WriteModeAppendable {
 		o, err = wh.uploadHandler.FlushPendingWrites(ctx)
 		if err != nil {
 			return nil, err
