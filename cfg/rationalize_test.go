@@ -484,7 +484,7 @@ func TestRationalize_WriteConfig(t *testing.T) {
 		config                   *Config
 		expectedCreateEmptyFile  bool
 		expectedMaxBlocksPerFile int64
-		expectedBlockSizeMB      float64
+		expectedBlockSizeMB      int64
 	}{
 		{
 			name: "valid_config_streaming_writes_enabled",
