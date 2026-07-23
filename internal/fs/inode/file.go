@@ -484,7 +484,7 @@ func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 	// Source generation is authoritative if:
 	//   1.  No pending writes exists on the inode (both content and bwh are nil).
 	//   2.  The bucket is rapid and there are no pending writes in the temporary file.
-	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().IsRapid() && f.content == nil)
+	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().Zonal && f.content == nil)
 }
 
 // Equivalent to the generation returned by f.Source().
@@ -779,12 +779,12 @@ func (f *FileInode) writeUsingMPUWriter(
 		return false, f.writeUsingTempFile(ctx, data, offset)
 	}
 
-	_, err := io.Copy(f.mpuWriter, bytes.NewReader(data))
+	n, err := io.Copy(f.mpuWriter, bytes.NewReader(data))
 	if err != nil {
 		return false, fmt.Errorf("f.mpuWriter.Write(): %w", err)
 	}
 
-	f.mpuOffset += int64(len(data))
+	f.mpuOffset += n
 	return false, nil
 }
 
@@ -1328,7 +1328,8 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	var latestGcsObj *gcs.Object
 	var err error
 	if !f.local {
-		if f.bucket.BucketType().IsRapid() && openMode.IsAppend() {
+		mode := gcs.DetermineWriteMode(f.bucket.BucketType(), f.config.Write.EnableRapidWrites, f.config.Write.EnableAppendableWrites)
+		if mode == gcs.WriteModeAppendable && openMode.IsAppend() {
 			// In case of rapid appends, we will rely on kernel's latest view of the object
 			// instead of reaching out to the server for latest metadata. This is done to avoid
 			// forceful overwrites of local and latest object metadata with possibly stale server
@@ -1386,7 +1387,8 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 	if f.local || obj.Size == 0 {
 		return true
 	}
-	if f.config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().IsRapid() && obj.Finalized.IsZero() {
+	mode := gcs.DetermineWriteMode(f.bucket.BucketType(), f.config.Write.EnableRapidWrites, f.config.Write.EnableAppendableWrites)
+	if f.config.Write.EnableRapidAppends && openMode.IsAppend() && mode == gcs.WriteModeAppendable && obj.Finalized.IsZero() {
 		return true
 	}
 	logger.Tracef("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)

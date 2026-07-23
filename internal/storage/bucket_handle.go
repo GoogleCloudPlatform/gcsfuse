@@ -258,13 +258,9 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc.ChunkRetryDeadline = time.Duration(req.ChunkRetryDeadlineSecs) * time.Second
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
 	wc.ProgressFunc = callBack
-	switch gcs.DetermineWriteMode(bh.BucketType(), bh.writeConfig.EnableRapidWrites, bh.writeConfig.EnableAppendableWrites) {
-	case gcs.WriteModeAppendable:
-		wc.Append = true
-		wc.FinalizeOnClose = bh.writeConfig.FinalizeFileForRapid
-	case gcs.WriteModeMPU, gcs.WriteModeDefault:
-		wc.Append = false
-	}
+	isAppend := gcs.DetermineWriteMode(bh.BucketType(), bh.writeConfig.EnableRapidWrites, bh.writeConfig.EnableAppendableWrites) == gcs.WriteModeAppendable
+	wc.Append = isAppend
+	wc.FinalizeOnClose = isAppend && bh.writeConfig.FinalizeFileForRapid
 	return wc, nil
 }
 
