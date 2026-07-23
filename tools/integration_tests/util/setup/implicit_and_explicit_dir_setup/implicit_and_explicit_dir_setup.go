@@ -118,6 +118,14 @@ func CreateImplicitDirectoryStructureUsingStorageClient(ctx context.Context, t *
 	// testBucket/testDir/implicitDirectory/implicitSubDirectory                             -- Dir
 	// testBucket/testDir/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
 
+	// Clean up implicit objects on GCS when the test completes
+	t.Cleanup(func() {
+		err := client.DeleteAllObjectsWithPrefix(context.Background(), storageClient, testDir)
+		if err != nil {
+			t.Logf("DeleteAllObjectsWithPrefix failed for %q: %v", testDir, err)
+		}
+	})
+
 	// Create implicit directory in bucket for testing.
 	testdataCreateObjects(ctx, t, storageClient, testDir)
 }
@@ -180,6 +188,14 @@ func CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(ctx c
 	// testBucket/testDir/explicitDirectory/implicitDirectory/fileInImplicitDir1                              -- File
 	// testBucket/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory                            -- Dir
 	// testBucket/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
+
+	// Clean up implicit objects on GCS when the test completes
+	t.Cleanup(func() {
+		err := client.DeleteAllObjectsWithPrefix(context.Background(), storageClient, testDir)
+		if err != nil {
+			t.Logf("DeleteAllObjectsWithPrefix failed for %q: %v", testDir, err)
+		}
+	})
 
 	// CreateExplicitDirectoryStructure writes files using GCSFuse.
 	CreateExplicitDirectoryStructure(testDir, t)
