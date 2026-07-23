@@ -275,8 +275,8 @@ func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplici
 }
 
 func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplicitDirAndHundredImplicitDir() {
-	if setup.IsZonalBucketRun() {
-		t.T().Skipf("Redundant test for ZB as implicit-dir is a non-HNS concept, hence not applicable here. ")
+	if setup.IsZonalBucketRun() || setup.IsPirloBucketRun() {
+		t.T().Skipf("Redundant test for Rapid as implicit-dir is a non-HNS concept, hence not applicable here. ")
 	}
 	dirPath := prepareTestDirectory(t.T(), true, true)
 

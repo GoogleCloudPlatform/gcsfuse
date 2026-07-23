@@ -114,7 +114,7 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 		}
 		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
 	} else {
-		if setup.IsZonalBucketRun() {
+		if setup.IsZonalBucketRun() || setup.IsPirloBucketRun() {
 			var opts []option.ClientOption
 			opts = append(opts, experimental.WithGRPCBidiReads())
 			if kf := setup.KeyFile(); kf != "" {
@@ -248,7 +248,7 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("Writer.Close failed for object %q: %w", object, err)
 	}
-	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
+	operations.WaitForSizeUpdate(operations.WaitDurationAfterCloseRapid)
 
 	return nil
 }
@@ -272,7 +272,7 @@ func CreateFinalizedObjectOnGCS(ctx context.Context, client *storage.Client, obj
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("Writer.Close failed for object %q: %w", object, err)
 	}
-	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
+	operations.WaitForSizeUpdate(operations.WaitDurationAfterCloseRapid)
 	return nil
 }
 
@@ -407,7 +407,7 @@ func UploadGcsObjectWithPreconditions(ctx context.Context, client *storage.Clien
 		if err := w.Close(); err != nil {
 			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
 		}
-		operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
+		operations.WaitForSizeUpdate(operations.WaitDurationAfterCloseRapid)
 	}()
 
 	filePathToUpload := localPath
