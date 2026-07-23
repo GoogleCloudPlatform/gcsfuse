@@ -1570,10 +1570,7 @@ func (fs *fileSystem) getAttributes(
 	}
 
 	attr.Size = size
-	attr.Mtime = mtime
-	attr.Atime = mtime
-	attr.Ctime = mtime
-	attr.Crtime = mtime
+	attr.Mtime, attr.Atime, attr.Ctime, attr.Crtime = mtime, mtime, mtime, mtime
 	attr.Nlink = nlink
 	attr.Uid = fs.uid
 	attr.Gid = fs.gid
