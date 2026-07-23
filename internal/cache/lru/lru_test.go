@@ -391,3 +391,54 @@ func Test_EraseEntriesWithGivenPrefix_Concurrent(t *testing.T) {
 
 	wg.Wait()
 }
+
+type mutableTestData struct {
+	mu       sync.Mutex
+	dataSize uint64
+}
+
+func (m *mutableTestData) Size() uint64 {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.dataSize
+}
+
+func (m *mutableTestData) setSize(newSize uint64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.dataSize = newSize
+}
+
+// TestMapCache_UpdateSize_TOCTOU_Underflow exhibits the TOCTOU race and size accounting underflow
+// when an entry's size is mutated in memory concurrently with eviction or erasure before UpdateSize finishes.
+func TestMapCache_UpdateSize_TOCTOU_Underflow(t *testing.T) {
+	locker.EnableInvariantsCheck()
+	cache := lru.NewCache(20000)
+	key := "test-key"
+	val := &mutableTestData{dataSize: 20}
+	_, err := cache.Insert(key, val)
+	require.NoError(t, err)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Goroutine 1: mutate the size in memory and call UpdateSize with strictly positive delta (+30)
+	go func() {
+		defer wg.Done()
+		for range 50 {
+			val.setSize(50)               // Simulate chunk download adding 30 bytes
+			_ = cache.UpdateSize(key, 30) // Strictly positive +30 delta!
+		}
+	}()
+
+	// Goroutine 2: concurrently Erase and Re-insert with initial size 20
+	go func() {
+		defer wg.Done()
+		for range 50 {
+			cache.Erase(key)
+			val.setSize(20) // Reset in-memory size for new insertion
+			_, _ = cache.Insert(key, val)
+		}
+	}()
+
+	wg.Wait()
+}
