@@ -18,11 +18,14 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -34,6 +37,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"go.opentelemetry.io/otel"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 )
@@ -933,4 +937,80 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithMaxRetryAttemptsNotZ
 	if assert.NoError(testSuite.T(), err) {
 		assert.NotNil(testSuite.T(), handleCreated)
 	}
+}
+func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_NilStorageControlClient_SucceedsForValidBucket() {
+	sh := testSuite.fakeStorage.CreateStorageHandle().(*storageClient)
+	sh.storageControlClient = nil // HNS disabled path
+	sh.clientConfig.EnableMountRetries = true
+
+	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+
+	require.NoError(testSuite.T(), err)
+	require.NotNil(testSuite.T(), bh)
+	assert.False(testSuite.T(), bh.bucketType.Hierarchical)
+	assert.False(testSuite.T(), bh.bucketType.Zonal)
+}
+
+// createMockServer creates a test server that returns a fixed response and tracks the number of attempts.
+func createMockServer(status int, body string) (*httptest.Server, *int) {
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	return server, &attempts
+}
+
+const testMaxRetryAttempts = 3
+
+// setupMockStorageClientWithMountRetries initializes a storageClient configured with custom endpoint and mount retries enabled for testing.
+func (testSuite *StorageHandleTest) setupMockStorageClientWithMountRetries(endpoint string) (*storageClient, func()) {
+	sc, err := storage.NewClient(testSuite.ctx, option.WithEndpoint(endpoint), option.WithoutAuthentication())
+	require.NoError(testSuite.T(), err)
+
+	sh := &storageClient{
+		httpClient:           sc,
+		storageControlClient: nil,
+		clientConfig: storageutil.StorageClientConfig{
+			ClientProtocol:     cfg.HTTP1,
+			EnableMountRetries: true,
+			MaxRetrySleep:      time.Microsecond,
+			RetryMultiplier:    1.0,
+			MaxRetryAttempts:   testMaxRetryAttempts,
+		},
+	}
+
+	cleanup := func() { _ = sc.Close() }
+	return sh, cleanup
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_AccessCheck_ExhaustsRetriesOnBucketNotFound() {
+	server, attempts := createMockServer(http.StatusNotFound, `{"error": {"code": 404, "message": "bucket does not exist"}}`)
+	defer server.Close()
+
+	sh, cleanup := testSuite.setupMockStorageClientWithMountRetries(server.URL)
+	defer cleanup()
+
+	bh, err := sh.BucketHandle(testSuite.ctx, invalidBucketName, "")
+
+	require.Error(testSuite.T(), err)
+	assert.Nil(testSuite.T(), bh)
+	assert.ErrorContains(testSuite.T(), err, "bucket access check failed")
+	assert.Equal(testSuite.T(), testMaxRetryAttempts, *attempts, "expected max retry attempts to be exhausted")
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_AccessCheck_ExhaustsRetriesOnForbidden() {
+	server, attempts := createMockServer(http.StatusForbidden, `{"error": {"code": 403, "message": "Permission denied"}}`)
+	defer server.Close()
+
+	sh, cleanup := testSuite.setupMockStorageClientWithMountRetries(server.URL)
+	defer cleanup()
+
+	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+
+	require.Error(testSuite.T(), err)
+	assert.Nil(testSuite.T(), bh)
+	assert.ErrorContains(testSuite.T(), err, "bucket access check failed")
+	assert.Equal(testSuite.T(), testMaxRetryAttempts, *attempts, "expected max retry attempts to be exhausted")
 }
