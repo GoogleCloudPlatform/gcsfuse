@@ -20,6 +20,8 @@
 package storage
 
 import (
+	"context"
+
 	"cloud.google.com/go/storage"
 )
 
@@ -37,3 +39,9 @@ func (e *ObjectWriter) ObjectName() string {
 func (e *ObjectWriter) Attrs() *storage.ObjectAttrs {
 	return e.Writer.Attrs()
 }
+
+// Abort cancels the active writing session.
+func (e *ObjectWriter) Abort(ctx context.Context) error {
+	return e.Writer.Close()
+}
+

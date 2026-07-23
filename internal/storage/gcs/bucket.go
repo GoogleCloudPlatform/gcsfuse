@@ -36,17 +36,11 @@ const (
 type BucketType struct {
 	Hierarchical bool
 	Zonal        bool
-	Pirlo        PirloState
+	Pirlo        bool // true if Rapid Cache Ultra (RCU) is enabled on the bucket
 }
 
 func (bt BucketType) IsRapid() bool {
-	return bt.Zonal || bt.Pirlo != PirloStateNone
-}
-
-// RapidWritesEnabled returns true if the bucket supports rapid writes
-// and they are currently active.
-func (bt BucketType) RapidWritesEnabled() bool {
-	return bt.Zonal || bt.Pirlo == PirloStateRapidWritesEnabled
+	return bt.Zonal || bt.Pirlo
 }
 
 const (
@@ -66,7 +60,52 @@ type Writer interface {
 	Flush() (int64, error)
 	ObjectName() string
 	Attrs() *storage.ObjectAttrs
+	Abort(ctx context.Context) error
 }
+
+// ParallelUploadWriter abstracts the Go Storage SDK parallel upload session.
+type ParallelUploadWriter interface {
+	io.Writer
+	io.WriterAt
+	io.Closer
+	Abort(ctx context.Context) error
+}
+
+// WriteMode represents the active upload mechanism for a bucket.
+type WriteMode int
+
+const (
+	// WriteModeDefault uses single-stream resumable uploads or GCS Compose API.
+	WriteModeDefault WriteMode = iota
+
+	// WriteModeAppendable uses the Appendable API (bidiWriteObject).
+	// Used for Zonal buckets, or Pirlo buckets when --enable-appendable-writes=true.
+	WriteModeAppendable
+
+	// WriteModeMPU uses gRPC parallel stream uploads via Go SDK (GA Target).
+	// Used for Pirlo buckets when --enable-rapid-writes=true and --enable-appendable-writes=false.
+	WriteModeMPU
+)
+
+// DetermineWriteMode returns the active write mode based on bucket type and write flags.
+func DetermineWriteMode(bt BucketType, enableRapidWrites, enableAppendableWrites bool) WriteMode {
+	// 1. Zonal buckets STRICTLY require Appendable API:
+	if bt.Zonal {
+		return WriteModeAppendable
+	}
+
+	// 2. Pirlo / RCU buckets with rapid writes enabled:
+	if bt.Pirlo && enableRapidWrites {
+		if enableAppendableWrites {
+			return WriteModeAppendable // Legacy PP path
+		}
+		return WriteModeMPU // Default GA path
+	}
+
+	// 3. Standard buckets or Pirlo buckets with rapid writes disabled:
+	return WriteModeDefault
+}
+
 
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
 // authorization information.

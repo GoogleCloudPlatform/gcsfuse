@@ -53,16 +53,19 @@ func NewSyncer(
 	chunkRetryDeadlineSecs int64,
 	chunkTransferTimeoutSecs int64,
 	tmpObjectPrefix string,
-	bucket gcs.Bucket) (os Syncer) {
+	bucket gcs.Bucket,
+	enableRapidWrites bool,
+	enableAppendableWrites bool) (os Syncer) {
 	// Create the object creators.
 	fullCreator := &fullObjectCreator{
 		bucket: bucket,
 	}
 
-	// Rapid buckets do not currently support Compose,
-	// so we always write objects in their entirety.
+	// GCS Compose is supported ONLY when writing to STANDARD storage class (WriteModeDefault).
+	// Rapid/Pirlo active writes (MPU or Appendable) do not support Compose.
+	mode := gcs.DetermineWriteMode(bucket.BucketType(), enableRapidWrites, enableAppendableWrites)
 	var composeCreator objectCreator
-	if !bucket.BucketType().RapidWritesEnabled() {
+	if mode == gcs.WriteModeDefault {
 		composeCreator = newComposeObjectCreator(
 			tmpObjectPrefix,
 			bucket)

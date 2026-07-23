@@ -15,6 +15,7 @@
 package mock
 
 import (
+	"context"
 	"io"
 
 	"cloud.google.com/go/storage"
@@ -54,4 +55,17 @@ func (mw *Writer) Flush() (int64, error) {
 func (mw *Writer) ObjectName() string {
 	args := mw.Called()
 	return args.String(0)
+}
+
+func (mw *Writer) WriteChunkAsync(ctx context.Context, data []byte, onComplete func(err error)) error {
+	_, err := mw.Write(data)
+	if onComplete != nil {
+		onComplete(err)
+	}
+	return err
+}
+
+func (mw *Writer) Abort(ctx context.Context) error {
+	args := mw.Called(ctx)
+	return args.Error(0)
 }

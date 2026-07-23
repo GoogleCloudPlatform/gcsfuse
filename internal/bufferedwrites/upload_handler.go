@@ -59,6 +59,8 @@ type UploadHandler struct {
 	chunkRetryDeadline   int64
 	chunkTransferTimeout int64
 	blockSize            int64
+	enableRapidWrites      bool
+	enableAppendableWrites bool
 
 	traceHandle tracing.TraceHandle
 }
@@ -72,6 +74,8 @@ type CreateUploadHandlerRequest struct {
 	BlockSize                int64
 	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
+	EnableRapidWrites        bool
+	EnableAppendableWrites   bool
 	TraceHandle              tracing.TraceHandle
 }
 
@@ -87,6 +91,8 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 		blockSize:            req.BlockSize,
 		chunkRetryDeadline:   req.ChunkRetryDeadlineSecs,
 		chunkTransferTimeout: req.ChunkTransferTimeoutSecs,
+		enableRapidWrites:      req.EnableRapidWrites,
+		enableAppendableWrites: req.EnableAppendableWrites,
 		traceHandle:          req.TraceHandle,
 	}
 	return uh
@@ -114,7 +120,10 @@ func (uh *UploadHandler) createObjectWriter(ctx context.Context) (err error) {
 	// We need a new context here, since the first writeFile() call will be complete
 	// (and context will be cancelled) by the time complete upload is done.
 	ctx, uh.cancelFunc = context.WithCancel(uh.traceHandle.PropagateTraceContext(context.Background(), ctx))
-	if uh.bucket.BucketType().RapidWritesEnabled() && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
+
+	mode := gcs.DetermineWriteMode(uh.bucket.BucketType(), uh.enableRapidWrites, uh.enableAppendableWrites)
+
+	if mode == gcs.WriteModeAppendable && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
 		chunkWriterReq := gcs.CreateObjectChunkWriterRequest{
 			CreateObjectRequest: *req,
 			ChunkSize:           int(uh.blockSize),
@@ -134,25 +143,16 @@ func (uh *UploadHandler) UploadError() (err error) {
 	return
 }
 
-// uploader is the single-threaded goroutine that uploads blocks.
+// uploader is the goroutine that dispatches blocks for parallel upload.
 func (uh *UploadHandler) uploader(ctx context.Context) {
 	_, finishSpan := uh.traceHandle.TraceUpload(context.Background(), tracing.StreamingUploader, "", nil, nil)
 	defer finishSpan()
 	for currBlock := range uh.uploadCh {
 		uh.uploadBlock(ctx, currBlock)
-
-		// Put back the uploaded block to the pool for re-use,
-		// irrespective of whether the upload was successful or not.
-		uh.blockPool.Release(currBlock)
-		uh.wg.Done()
 	}
 }
 
-// uploadBlock uploads the block content to GCS writer.
-// It is called by the uploader goroutine.
-// If the block is nil, it logs a warning and returns.
-// If there is already an error in uploadError, it returns without doing anything.
-// If there is an error during upload, it returns after storing the error in uploadError.
+// uploadBlock uploads the block content to GCS writer asynchronously using zero-copy.
 func (uh *UploadHandler) uploadBlock(ctx context.Context, b block.Block) {
 	var written int64
 	var err error
@@ -176,18 +176,17 @@ func (uh *UploadHandler) uploadBlock(ctx context.Context, b block.Block) {
 		return
 	}
 
-	written, err = io.Copy(uh.writer, b)
-	if errors.Is(err, context.Canceled) {
-		// Context canceled error indicates that the file was deleted from the
-		// same mount. In this case, we suppress the error to match local
-		// filesystem behavior.
-		err = nil
+	_, uploadErr := io.Copy(uh.writer, b)
+	if errors.Is(uploadErr, context.Canceled) {
+		uploadErr = nil
 	}
-	if err != nil {
-		err = gcs.GetGCSError(err)
-		uh.uploadError.Store(&err)
-		logger.Errorf("uploadBlock: failed for object %s: error in io.Copy: %v", uh.objectName, err)
+	if uploadErr != nil {
+		gcsErr := gcs.GetGCSError(uploadErr)
+		uh.uploadError.Store(&gcsErr)
+		logger.Errorf("uploadBlock: failed for object %s: %v", uh.objectName, gcsErr)
 	}
+	uh.blockPool.Release(b)
+	uh.wg.Done()
 }
 
 // Finalize finalizes the upload.

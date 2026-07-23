@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -100,8 +101,10 @@ type FileInode struct {
 	// code.
 	MRDWrapper *gcsx.MultiRangeDownloaderWrapper
 
-	bwh    bufferedwrites.BufferedWriteHandler
-	config *cfg.Config
+	bwh       bufferedwrites.BufferedWriteHandler
+	mpuWriter gcs.Writer
+	mpuOffset int64
+	config    *cfg.Config
 
 	// Limits the max number of blocks that can be created across file system when
 	// streaming writes are enabled.
@@ -476,7 +479,7 @@ func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 	// Source generation is authoritative if:
 	//   1.  No pending writes exists on the inode (both content and bwh are nil).
 	//   2.  The bucket is rapid and there are no pending writes in the temporary file.
-	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().RapidWritesEnabled() && f.content == nil)
+	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().IsRapid() && f.content == nil)
 }
 
 // Equivalent to the generation returned by f.Source().
@@ -743,11 +746,41 @@ func (f *FileInode) Write(
 	data []byte,
 	offset int64,
 	openMode util.OpenMode) (bool, error) {
+	if f.mpuWriter != nil {
+		return f.writeUsingMPUWriter(ctx, data, offset, openMode)
+	}
 	if f.bwh != nil {
 		return f.writeUsingBufferedWrites(ctx, data, offset, openMode)
 	}
 
 	return false, f.writeUsingTempFile(ctx, data, offset)
+}
+
+func (f *FileInode) writeUsingMPUWriter(
+	ctx context.Context,
+	data []byte,
+	offset int64,
+	openMode util.OpenMode) (bool, error) {
+
+	if offset != f.mpuOffset {
+		logger.Infof("Out of order write detected on MPU file %s. Falling back to disk staging.", f.name.String())
+
+		if err := f.mpuWriter.Close(); err != nil {
+			return false, fmt.Errorf("could not finalize MPU segments on fallback: %w", err)
+		}
+		f.mpuWriter = nil
+		recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOutOfOrderAttr)
+
+		return false, f.writeUsingTempFile(ctx, data, offset)
+	}
+
+	_, err := io.Copy(f.mpuWriter, bytes.NewReader(data))
+	if err != nil {
+		return false, fmt.Errorf("f.mpuWriter.Write(): %w", err)
+	}
+
+	f.mpuOffset += int64(len(data))
+	return false, nil
 }
 
 // Helper function to serve write for file using temp file.
@@ -986,8 +1019,12 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 	// If we have not been dirtied, there is nothing to do.
-	if f.content == nil && f.bwh == nil {
+	if f.content == nil && f.bwh == nil && f.mpuWriter == nil {
 		return
+	}
+
+	if f.mpuWriter != nil {
+		return false, nil
 	}
 
 	if f.bwh != nil {
@@ -1219,6 +1256,58 @@ func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 	return
 }
 
+// InitMPUWriterIfEligible initializes the Go SDK ParallelUploadWriter if eligible.
+// Returns (initialized bool, err error).
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) InitMPUWriterIfEligible(ctx context.Context, openMode util.OpenMode) (bool, error) {
+	if f.mpuWriter != nil || f.content != nil {
+		return false, nil
+	}
+
+	mode := gcs.DetermineWriteMode(
+		f.bucket.BucketType(),
+		f.config.Write.EnableRapidWrites,
+		f.config.Write.EnableAppendableWrites,
+	)
+
+	if mode != gcs.WriteModeMPU {
+		return false, nil
+	}
+
+	var latestGcsObj *gcs.Object
+	var err error
+	if !f.local {
+		if f.bucket.BucketType().IsRapid() && openMode.IsAppend() {
+			latestGcsObj = storageutil.ConvertMinObjectToObject(&f.src)
+		} else {
+			latestGcsObj, err = f.fetchLatestGcsObject(ctx)
+			if err != nil {
+				return false, err
+			}
+		}
+	}
+
+	f.mpuWriter, err = f.bucket.CreateObjectChunkWriter(
+		ctx,
+		&gcs.CreateObjectRequest{
+			Name:                   f.name.GcsObjectName(),
+			StorageClass:           "RAPID",
+			GenerationPrecondition: &latestGcsObj.Generation,
+		},
+		int(f.config.Write.BlockSizeMb * util.MiB),
+		nil,
+	)
+
+	if err != nil {
+		recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOtherAttr)
+		return false, fmt.Errorf("CreateObjectWriter (MPU): %w", err)
+	}
+
+	f.mpuOffset = 0
+	return true, nil
+}
+
 // Initializes Buffered Write Handler if the file inode is eligible and returns
 // initialized as true when the new instance of buffered writer handler is created.
 func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, openMode util.OpenMode) (bool, error) {
@@ -1236,7 +1325,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	var latestGcsObj *gcs.Object
 	var err error
 	if !f.local {
-		if f.bucket.BucketType().RapidWritesEnabled() && openMode.IsAppend() {
+		if f.bucket.BucketType().IsRapid() && openMode.IsAppend() {
 			// In case of rapid appends, we will rely on kernel's latest view of the object
 			// instead of reaching out to the server for latest metadata. This is done to avoid
 			// forceful overwrites of local and latest object metadata with possibly stale server
@@ -1267,6 +1356,8 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			GlobalMaxBlocksSem:       f.globalMaxWriteBlocksSem,
 			ChunkRetryDeadlineSecs:   f.config.GcsRetries.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
+			EnableRapidWrites:        f.config.Write.EnableRapidWrites,
+			EnableAppendableWrites:   f.config.Write.EnableAppendableWrites,
 			TraceHandle:              f.traceHandle,
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
@@ -1292,7 +1383,7 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 	if f.local || obj.Size == 0 {
 		return true
 	}
-	if f.config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().RapidWritesEnabled() && obj.Finalized.IsZero() {
+	if f.config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().IsRapid() && obj.Finalized.IsZero() {
 		return true
 	}
 	logger.Tracef("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)

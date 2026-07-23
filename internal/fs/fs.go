@@ -272,7 +272,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 			if bucketType.IsRapid() && serverCfg.ViperConfig.IsSet("file-system.fuse-max-request-size-kb") {
 				return nil, fmt.Errorf("fuse-max-request-size-kb flag is not supported for rapid buckets")
 			}
-			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.Pirlo != gcs.PirloStateNone)
+			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.Pirlo)
 			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.ViperConfig, &cfg.OptimizationInput{
 				BucketType: bucketTypeEnum,
 			})
@@ -1492,6 +1492,29 @@ func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+// Initializes appropriate write handler (MPU or BWH) based on DetermineWriteMode.
+//
+// LOCKS_EXCLUDED(fs.mu)
+// LOCKS_REQUIRED(f.mu)
+func (fs *fileSystem) initWriterIfEligible(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
+	mode := gcs.DetermineWriteMode(
+		f.Bucket().BucketType(),
+		fs.newConfig.Write.EnableRapidWrites,
+		fs.newConfig.Write.EnableAppendableWrites,
+	)
+
+	switch mode {
+	case gcs.WriteModeMPU:
+		_, err := f.InitMPUWriterIfEligible(ctx, openMode)
+		return err
+
+	case gcs.WriteModeAppendable, gcs.WriteModeDefault:
+		return fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, f, openMode)
+	}
+
 	return nil
 }
 
@@ -3120,7 +3143,7 @@ func (fs *fileSystem) ReadFile(
 		// Hence, there is no need to finalize the object from here for rapid buckets.
 		// Hence, if FinalizeFileForRapid is set, then we will call syncFile otherwise
 		// we can call flushFile (as it will not finalize when FinalizeFileForRapid is false) itself.
-		if fh.Inode().Bucket().BucketType().RapidWritesEnabled() && fs.newConfig.Write.FinalizeFileForRapid {
+		if gcs.DetermineWriteMode(fh.Inode().Bucket().BucketType(), fs.newConfig.Write.EnableRapidWrites, fs.newConfig.Write.EnableAppendableWrites) == gcs.WriteModeAppendable && fs.newConfig.Write.FinalizeFileForRapid {
 			err = fs.syncFile(ctx, fh.Inode())
 		} else {
 			err = fs.flushFile(ctx, fh.Inode())
@@ -3223,7 +3246,7 @@ func (fs *fileSystem) WriteFile(
 	var gcsSynced bool
 	in.Lock()
 	defer in.Unlock()
-	if err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode()); err != nil {
+	if err = fs.initWriterIfEligible(ctx, in, fh.OpenMode()); err != nil {
 		// A FileClobberedError on write indicates the file was modified in GCS,
 		// making the kernel's dentry stale. By invalidating the cache
 		// entry, we ensure the filesystem corrects the inconsistency caused by this

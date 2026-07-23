@@ -445,7 +445,7 @@ func (fh *FileHandle) OpenMode() util.OpenMode {
 // the known object size. This allows reading from an object that is being
 // concurrently written to.
 func (fh *FileHandle) shouldSkipSizeChecks(req *gcsx.ReadRequest) bool {
-	if !fh.inode.Bucket().BucketType().RapidWritesEnabled() {
+	if !fh.inode.Bucket().BucketType().IsRapid() {
 		return false
 	}
 	if !fh.readManager.Object().IsUnfinalized() {

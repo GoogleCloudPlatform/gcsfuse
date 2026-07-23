@@ -817,6 +817,8 @@ type WriteConfig struct {
 
 	CreateEmptyFile bool `yaml:"create-empty-file"`
 
+	EnableAppendableWrites bool `yaml:"enable-appendable-writes"`
+
 	EnableRapidAppends bool `yaml:"enable-rapid-appends"`
 
 	EnableRapidWrites bool `yaml:"enable-rapid-writes"`
