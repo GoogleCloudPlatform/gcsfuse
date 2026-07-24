@@ -1517,7 +1517,7 @@ func (d *dirInode) LocalFileEntries(localFileInodes map[Name]Inode) (localEntrie
 // ShouldInvalidateKernelListCache doesn't require any lock as d.prevDirListingTimeStamp
 // is concurrency safe, and we are okay with the in-consistent value.
 func (d *dirInode) ShouldInvalidateKernelListCache(ttl time.Duration) bool {
-	// prevDirListingTimeStamp.IsZero() true means listing has not happened yet, and we should
+	// prevDirListingTimeStamp == 0 means listing has not happened yet, and we should
 	// invalidate for clean start.
 	prevNS := d.prevDirListingTimeStamp.Load()
 	if prevNS == 0 {
