@@ -15,14 +15,13 @@
 package inode
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
 	"time"
-
-	"context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
@@ -54,6 +53,39 @@ const (
 		"For more details, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes"
 )
 
+// WriteContext wraps dependencies required during file write and sync operations,
+// allowing us to decouple them from the FileInode struct to save memory.
+type WriteContext struct {
+	Config             *cfg.Config
+	GlobalMaxBlocksSem *semaphore.Weighted
+	TraceHandle        tracing.TraceHandle
+	MetricHandle       metrics.MetricHandle
+}
+
+func parseMtime(m *gcs.MinObject) time.Time {
+	if m == nil {
+		return time.Time{}
+	}
+	mtime := m.Updated
+
+	if strTimestamp, ok := m.Metadata["goog-reserved-file-mtime"]; ok {
+		if timestamp, err := strconv.ParseInt(strTimestamp, 0, 64); err == nil {
+			mtime = time.Unix(timestamp, 0)
+		} else {
+			logger.Warnf("parseMtime: Error parsing goog-reserved-file-mtime %q: %v", strTimestamp, err)
+		}
+	}
+
+	if formatted, ok := m.Metadata["gcsfuse_mtime"]; ok {
+		if timestamp, err := time.Parse(time.RFC3339Nano, formatted); err == nil {
+			mtime = timestamp
+		} else {
+			logger.Warnf("parseMtime: Error parsing gcsfuse_mtime %q: %v", formatted, err)
+		}
+	}
+	return mtime
+}
+
 type FileInode struct {
 	/////////////////////////
 	// Dependencies
@@ -68,7 +100,6 @@ type FileInode struct {
 
 	id           fuseops.InodeID
 	name         Name
-	attrs        fuseops.InodeAttributes
 	contentCache *contentcache.ContentCache
 
 	/////////////////////////
@@ -81,6 +112,9 @@ type FileInode struct {
 
 	// GUARDED_BY(mu)
 	lc lookupCount
+
+	// GUARDED_BY(mu)
+	mtime time.Time
 
 	// The source object from which this inode derives.
 	//
@@ -100,18 +134,11 @@ type FileInode struct {
 	// code.
 	MRDWrapper *gcsx.MultiRangeDownloaderWrapper
 
-	bwh    bufferedwrites.BufferedWriteHandler
-	config *cfg.Config
-
-	// Limits the max number of blocks that can be created across file system when
-	// streaming writes are enabled.
-	globalMaxWriteBlocksSem *semaphore.Weighted
+	bwh bufferedwrites.BufferedWriteHandler
 
 	// mrdInstance manages the MultiRangeDownloader instances for this inode.
 	mrdInstance               *gcsx.MrdInstance
 	kernelRangeReaderInstance *kernel_readers.KernelRangeReaderInstance
-	metricHandle              metrics.MetricHandle
-	traceHandle               tracing.TraceHandle
 
 	// Once write is started on the file i.e, bwh is initialized, any fileHandles
 	// opened in write mode before or after this and not yet closed are considered
@@ -152,7 +179,6 @@ func NewFileInode(
 	id fuseops.InodeID,
 	name Name,
 	m *gcs.MinObject,
-	attrs fuseops.InodeAttributes,
 	bucket *gcsx.SyncerBucket,
 	localFileCache bool,
 	contentCache *contentcache.ContentCache,
@@ -168,21 +194,18 @@ func NewFileInode(
 	if m != nil {
 		minObj = *m
 	}
+
 	f = &FileInode{
-		bucket:                  bucket,
-		mtimeClock:              mtimeClock,
-		id:                      id,
-		name:                    name,
-		attrs:                   attrs,
-		localFileCache:          localFileCache,
-		contentCache:            contentCache,
-		src:                     minObj,
-		local:                   localFile,
-		unlinked:                false,
-		config:                  cfg,
-		globalMaxWriteBlocksSem: globalMaxBlocksSem,
-		traceHandle:             traceHandle,
-		metricHandle:            metricHandle,
+		bucket:         bucket,
+		mtimeClock:     mtimeClock,
+		id:             id,
+		name:           name,
+		mtime:          parseMtime(m),
+		localFileCache: localFileCache,
+		contentCache:   contentCache,
+		src:            minObj,
+		local:          localFile,
+		unlinked:       false,
 	}
 
 	if f.bucket.BucketType().IsRapid() {
@@ -192,13 +215,11 @@ func NewFileInode(
 		if err != nil {
 			logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 		}
-	} else {
+	} else if cfg.FileSystem.EnableKernelReader {
 		f.kernelRangeReaderInstance = kernel_readers.NewKernelRangeReaderInstance(&minObj)
 	}
 
 	f.lc.Init(id)
-
-	// Set up invariant checking.
 	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
 
 	return
@@ -544,7 +565,6 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 // operating on stale object information.
 func (f *FileInode) UpdateSize(size uint64) {
 	f.src.Size = size
-	f.attrs.Size = size
 	f.updateReaders()
 }
 
@@ -565,29 +585,9 @@ func (f *FileInode) Destroy() (err error) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Attributes(
-	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
-	attrs = f.attrs
-	// Obtain default information from the source object.
-	attrs.Mtime = f.src.Updated
-	attrs.Size = f.src.Size
-
-	// If the source object has an mtime metadata key, use that instead of its
-	// update time.
-	// If the file was copied via gsutil, we'll have goog-reserved-file-mtime
-	if strTimestamp, ok := f.src.Metadata["goog-reserved-file-mtime"]; ok {
-		if timestamp, err := strconv.ParseInt(strTimestamp, 0, 64); err == nil {
-			attrs.Mtime = time.Unix(timestamp, 0)
-		}
-	}
-
-	// Otherwise, if its been synced with gcsfuse before, we'll have gcsfuse_mtime
-	if formatted, ok := f.src.Metadata["gcsfuse_mtime"]; ok {
-		attrs.Mtime, err = time.Parse(time.RFC3339Nano, formatted)
-		if err != nil {
-			err = fmt.Errorf("time.Parse(%q): %w", formatted, err)
-			return
-		}
-	}
+	ctx context.Context, clobberedCheck bool) (size uint64, mtime time.Time, nlink uint32, err error) {
+	mtime = f.mtime
+	size = f.src.Size
 
 	// If we've got local content, its size and (maybe) mtime take precedence.
 	if f.content != nil {
@@ -598,21 +598,17 @@ func (f *FileInode) Attributes(
 			return
 		}
 
-		attrs.Size = uint64(sr.Size)
+		size = uint64(sr.Size)
 		if sr.Mtime != nil {
-			attrs.Mtime = *sr.Mtime
+			mtime = *sr.Mtime
 		}
 	}
 
 	if f.bwh != nil {
 		writeFileInfo := f.bwh.WriteFileInfo()
-		attrs.Mtime = writeFileInfo.Mtime
-		attrs.Size = uint64(writeFileInfo.TotalSize)
+		mtime = writeFileInfo.Mtime
+		size = uint64(writeFileInfo.TotalSize)
 	}
-
-	// We require only that atime and ctime be "reasonable".
-	attrs.Atime = attrs.Mtime
-	attrs.Ctime = attrs.Mtime
 
 	if clobberedCheck {
 		// If the object has been clobbered, we reflect that as the inode being
@@ -630,23 +626,22 @@ func (f *FileInode) Attributes(
 			// the inode attributes to reflect latest size.
 			if o != nil {
 				f.UpdateSize(o.Size)
-				attrs = f.attrs
-				attrs.Nlink = 1
+				size = o.Size
+				nlink = 1
 				return
-
 			}
 			// If the minObj is nil, it means that file has been clobbered genuinely due to generation
 			// or metageneration changes.
-			attrs.Nlink = 0
+			nlink = 0
 			return
 		}
 	}
 
-	attrs.Nlink = 1
+	nlink = 1
 
 	// For local files, also checking if file is unlinked locally.
 	if f.IsLocal() && f.IsUnlinked() {
-		attrs.Nlink = 0
+		nlink = 0
 	}
 
 	return
@@ -742,20 +737,21 @@ func (f *FileInode) Write(
 	ctx context.Context,
 	data []byte,
 	offset int64,
-	openMode util.OpenMode) (bool, error) {
+	openMode util.OpenMode,
+	writeCtx *WriteContext) (bool, error) {
 	if f.bwh != nil {
-		return f.writeUsingBufferedWrites(ctx, data, offset, openMode)
+		return f.writeUsingBufferedWrites(ctx, data, offset, openMode, writeCtx)
 	}
 
-	return false, f.writeUsingTempFile(ctx, data, offset)
+	return false, f.writeUsingTempFile(ctx, data, offset, writeCtx)
 }
 
 // Helper function to serve write for file using temp file.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset int64) (err error) {
+func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset int64, writeCtx *WriteContext) (err error) {
 	bytes := int64(len(data))
-	ctx, finishSpan := f.traceHandle.TraceUpload(ctx, tracing.WriteFileStaged, f.src.Name, &bytes, &err)
+	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.WriteFileStaged, f.src.Name, &bytes, &err)
 	defer finishSpan()
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
@@ -774,9 +770,9 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // Helper function to serve write for file using buffered writes handler.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64, openMode util.OpenMode) (_ bool, err error) {
+func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64, openMode util.OpenMode, writeCtx *WriteContext) (_ bool, err error) {
 	bytes := int64(len(data))
-	ctx, finishSpan := f.traceHandle.TraceUpload(ctx, tracing.WriteFileStreaming, f.src.Name, &bytes, &err)
+	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.WriteFileStreaming, f.src.Name, &bytes, &err)
 	defer finishSpan()
 	err = f.bwh.Write(ctx, data, offset)
 	var preconditionErr *gcs.PreconditionError
@@ -794,8 +790,8 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 		if err != nil {
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
-		recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOutOfOrderAttr)
-		return true, f.writeUsingTempFile(ctx, data, offset)
+		recordStreamingWriteFallbackMetric(writeCtx.MetricHandle, openMode, metrics.WriteFallbackReasonOutOfOrderAttr)
+		return true, f.writeUsingTempFile(ctx, data, offset, writeCtx)
 	}
 	if err != nil {
 		return false, fmt.Errorf("write to buffered write handler failed: %w", err)
@@ -918,6 +914,7 @@ func (f *FileInode) SetMtime(
 			minObj = *minObjPtr
 		}
 		f.src = minObj
+		f.mtime = parseMtime(&minObj)
 		f.updateReaders()
 		return
 	}
@@ -984,7 +981,7 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 // fails, the generation will not change.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
+func (f *FileInode) Sync(ctx context.Context, writeCtx *WriteContext) (gcsSynced bool, err error) {
 	// If we have not been dirtied, there is nothing to do.
 	if f.content == nil && f.bwh == nil {
 		return
@@ -997,7 +994,7 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 		}
 		return
 	}
-	err = f.syncUsingContent(ctx)
+	err = f.syncUsingContent(ctx, writeCtx)
 	if err != nil {
 		return false, err
 	}
@@ -1005,8 +1002,8 @@ func (f *FileInode) Sync(ctx context.Context) (gcsSynced bool, err error) {
 }
 
 // get the temp content size when tracing is enabled to set the BYTES_UPLOADED attribute
-func (f *FileInode) getTempContentSizeForSpan() int64 {
-	if !cfg.IsTracingEnabled(f.config) {
+func (f *FileInode) getTempContentSizeForSpan(config *cfg.Config) int64 {
+	if !cfg.IsTracingEnabled(config) {
 		return -1
 	}
 
@@ -1023,9 +1020,9 @@ func (f *FileInode) getTempContentSizeForSpan() int64 {
 // object, syncs the content and updates the inode state.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
-	bytes := f.getTempContentSizeForSpan()
-	ctx, finishSpan := f.traceHandle.TraceUpload(ctx, tracing.SyncFileStaged, f.src.Name, &bytes, &err)
+func (f *FileInode) syncUsingContent(ctx context.Context, writeCtx *WriteContext) (err error) {
+	bytes := f.getTempContentSizeForSpan(writeCtx.Config)
+	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.SyncFileStaged, f.src.Name, &bytes, &err)
 	defer finishSpan()
 	var latestGcsObj *gcs.Object
 	if !f.local {
@@ -1079,7 +1076,7 @@ func (f *FileInode) syncUsingContent(ctx context.Context) (err error) {
 // fails, the generation will not change.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) Flush(ctx context.Context) (err error) {
+func (f *FileInode) Flush(ctx context.Context, writeCtx *WriteContext) (err error) {
 	// If we have not been dirtied, there is nothing to do.
 	if f.content == nil && f.bwh == nil {
 		return
@@ -1090,7 +1087,7 @@ func (f *FileInode) Flush(ctx context.Context) (err error) {
 	if f.bwh != nil {
 		return f.flushUsingBufferedWriteHandler(ctx)
 	}
-	return f.syncUsingContent(ctx)
+	return f.syncUsingContent(ctx, writeCtx)
 }
 
 func (f *FileInode) updateInodeStateAfterFlush(minObj *gcs.MinObject) {
@@ -1106,6 +1103,7 @@ func (f *FileInode) updateInodeStateAfterFlush(minObj *gcs.MinObject) {
 func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
 		f.src = *minObj
+		f.mtime = parseMtime(minObj)
 		// Update MRDWrapper
 		f.updateReaders()
 		// Convert localFile to nonLocalFile after it is synced to GCS.
@@ -1145,7 +1143,7 @@ func (f *FileInode) updateReaders() {
 // the truncation, and returns true to indicate the file has been synced.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size int64) (bool, error) {
+func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size int64, writeCtx *WriteContext) (bool, error) {
 	err := f.bwh.Truncate(size)
 	// If truncate size is less than the total file size resulting in OutOfOrder write, finalize and fall back to temp file.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
@@ -1155,7 +1153,7 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 		if err != nil {
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
-		recordStreamingWriteFallbackMetric(f.metricHandle, util.NewOpenMode(util.WriteOnly, 0), metrics.WriteFallbackReasonOutOfOrderAttr)
+		recordStreamingWriteFallbackMetric(writeCtx.MetricHandle, util.NewOpenMode(util.WriteOnly, 0), metrics.WriteFallbackReasonOutOfOrderAttr)
 		return true, f.truncateUsingTempFile(ctx, size)
 	}
 	if err != nil {
@@ -1184,9 +1182,10 @@ func (f *FileInode) truncateUsingTempFile(ctx context.Context, size int64) error
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Truncate(
 	ctx context.Context,
-	size int64) (bool, error) {
+	size int64,
+	writeCtx *WriteContext) (bool, error) {
 	if f.IsUsingBWH() {
-		return f.truncateUsingBufferedWriteHandler(ctx, size)
+		return f.truncateUsingBufferedWriteHandler(ctx, size, writeCtx)
 	}
 	return false, f.truncateUsingTempFile(ctx, size)
 }
@@ -1221,14 +1220,14 @@ func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 
 // Initializes Buffered Write Handler if the file inode is eligible and returns
 // initialized as true when the new instance of buffered writer handler is created.
-func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, openMode util.OpenMode) (bool, error) {
+func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, openMode util.OpenMode, writeCtx *WriteContext) (bool, error) {
 	// bwh already initialized, do nothing.
 	if f.bwh != nil {
 		return false, nil
 	}
 
 	tempFileInUse := f.content != nil
-	if !f.config.Write.EnableStreamingWrites || tempFileInUse {
+	if !writeCtx.Config.Write.EnableStreamingWrites || tempFileInUse {
 		// bwh should not be initialized under these conditions.
 		return false, nil
 	}
@@ -1253,7 +1252,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 		}
 	}
 
-	if !f.areBufferedWritesSupported(openMode, latestGcsObj) {
+	if !f.areBufferedWritesSupported(openMode, latestGcsObj, writeCtx) {
 		return false, nil
 	}
 
@@ -1262,23 +1261,23 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			Object:                   latestGcsObj,
 			ObjectName:               f.name.GcsObjectName(),
 			Bucket:                   f.bucket,
-			BlockSize:                f.config.Write.BlockSizeMb * util.MiB,
-			MaxBlocksPerFile:         f.config.Write.MaxBlocksPerFile,
-			GlobalMaxBlocksSem:       f.globalMaxWriteBlocksSem,
-			ChunkRetryDeadlineSecs:   f.config.GcsRetries.ChunkRetryDeadlineSecs,
-			ChunkTransferTimeoutSecs: f.config.GcsRetries.ChunkTransferTimeoutSecs,
-			TraceHandle:              f.traceHandle,
+			BlockSize:                writeCtx.Config.Write.BlockSizeMb * util.MiB,
+			MaxBlocksPerFile:         writeCtx.Config.Write.MaxBlocksPerFile,
+			GlobalMaxBlocksSem:       writeCtx.GlobalMaxBlocksSem,
+			ChunkRetryDeadlineSecs:   writeCtx.Config.GcsRetries.ChunkRetryDeadlineSecs,
+			ChunkTransferTimeoutSecs: writeCtx.Config.GcsRetries.ChunkTransferTimeoutSecs,
+			TraceHandle:              writeCtx.TraceHandle,
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			logger.Tracef("File %s will use legacy staged writes because concurrent streaming write "+
 				"limit (set by --write-global-max-blocks) has been reached. To allow more concurrent files "+
 				"to use streaming writes, consider increasing this limit if sufficient memory is available. "+
 				"For more details on memory usage, see: https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes", f.name.String())
-			recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonConcurrencyLimitBreachedAttr)
+			recordStreamingWriteFallbackMetric(writeCtx.MetricHandle, openMode, metrics.WriteFallbackReasonConcurrencyLimitBreachedAttr)
 			return false, nil
 		}
 		if err != nil {
-			recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonOtherAttr)
+			recordStreamingWriteFallbackMetric(writeCtx.MetricHandle, openMode, metrics.WriteFallbackReasonOtherAttr)
 			return false, fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
 		}
 		f.bwh.SetMtime(f.mtimeClock.Now())
@@ -1287,15 +1286,15 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	return false, nil
 }
 
-func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.Object) bool {
+func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.Object, writeCtx *WriteContext) bool {
 	// For new files and existing files of size 0, buffered writes are always supported.
 	if f.local || obj.Size == 0 {
 		return true
 	}
-	if f.config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().RapidWritesEnabled() && obj.Finalized.IsZero() {
+	if writeCtx.Config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().RapidWritesEnabled() && obj.Finalized.IsZero() {
 		return true
 	}
 	logger.Tracef("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)
-	recordStreamingWriteFallbackMetric(f.metricHandle, openMode, metrics.WriteFallbackReasonExistingFileAttr)
+	recordStreamingWriteFallbackMetric(writeCtx.MetricHandle, openMode, metrics.WriteFallbackReasonExistingFileAttr)
 	return false
 }

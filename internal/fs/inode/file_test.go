@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
@@ -37,13 +39,11 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
-	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -76,6 +76,7 @@ type FileTest struct {
 	in *FileInode
 
 	bucketType gcs.BucketType
+	writeCtx   *WriteContext
 }
 
 func TestFileTestSuite(t *testing.T) {
@@ -154,32 +155,30 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 	if local {
 		t.backingObj = nil
 	}
+
+	t.writeCtx = getWriteContext()
+
 	t.in = NewFileInode(
 		fileInodeID,
 		name,
 		t.backingObj,
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: fileMode,
-		},
 		&syncerBucket,
 		false, // localFileCache
 		contentcache.New("", &t.clock),
 		&t.clock,
 		local,
-		&cfg.Config{},
-		semaphore.NewWeighted(math.MaxInt64),
+		t.writeCtx.Config,
+		t.writeCtx.GlobalMaxBlocksSem,
 		nil,
-		tracing.NewNoopTracer(),
-		metrics.NewNoopMetrics())
+		t.writeCtx.TraceHandle,
+		t.writeCtx.MetricHandle)
 
 	t.in.Lock()
 }
 
 func (t *FileTest) createBufferedWriteHandler(shouldInitialize bool, openMode util.OpenMode) {
 	// Initialize BWH for local inode created above.
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, openMode)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, openMode, t.writeCtx)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), shouldInitialize, initialized)
 	if shouldInitialize {
@@ -207,6 +206,23 @@ func (t *FileTest) validateMrdWrapperMinObject() {
 		// Validate MinObject in MRDWrapper is equal to the MinObject in inode.
 		assert.Equal(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
 	}
+}
+
+type testAttributes struct {
+	Size  uint64
+	Mtime time.Time
+	Nlink uint32
+}
+
+func (t *FileTest) getAttributes(clobberedCheck bool) (attrs testAttributes, err error) {
+	size, mtime, nlink, err := t.in.Attributes(t.ctx, clobberedCheck)
+	if err != nil {
+		return
+	}
+	attrs.Size = size
+	attrs.Mtime = mtime
+	attrs.Nlink = nlink
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -304,9 +320,9 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 		object.Finalized = tc.finalized
 		t.backingObj = storageutil.ConvertObjToMinObject(object)
 		t.createInode()
-		t.in.config.Write.EnableRapidAppends = true
+		t.writeCtx.Config.Write.EnableRapidAppends = true
 
-		isSupported := t.in.areBufferedWritesSupported(tc.openMode, object)
+		isSupported := t.in.areBufferedWritesSupported(tc.openMode, object, t.writeCtx)
 
 		assert.Equal(t.T(), tc.supported, isSupported)
 	}
@@ -320,7 +336,7 @@ func (t *FileTest) TestInitialSourceGeneration() {
 }
 
 func (t *FileTest) TestSourceGenerationSizeAfterWriteDoesNotChange() {
-	gcsSynced, err := t.in.Write(context.Background(), []byte(setup.GenerateRandomString(5)), 0, WriteMode)
+	gcsSynced, err := t.in.Write(context.Background(), []byte(setup.GenerateRandomString(5)), 0, WriteMode, t.writeCtx)
 	require.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
@@ -336,7 +352,7 @@ func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsTrue() {
 }
 
 func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWrite() {
-	gcsSynced, err := t.in.Write(t.ctx, []byte("taco"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, []byte("taco"), 0, WriteMode, t.writeCtx)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
@@ -347,7 +363,7 @@ func (t *FileTest) TestSyncPendingBufferedWritesReturnsNilAndNoOpForNonStreaming
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), t.initialContents, string(contents))
-	gcsSynced, err := t.in.Write(t.ctx, []byte("bar"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, []byte("bar"), 0, WriteMode, t.writeCtx)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
@@ -370,7 +386,7 @@ func (t *FileTest) TestAttributes_Clobbered_WithClobberCheckTrue() {
 		[]byte("new clobbering content"))
 	require.NoError(t.T(), err)
 
-	attrs, err := t.in.Attributes(t.ctx, true)
+	attrs, err := t.getAttributes(true)
 
 	require.NoError(t.T(), err)
 	// Since clobberCheck is true and the generation has changed,
@@ -388,7 +404,7 @@ func (t *FileTest) TestAttributes_Clobbered_WithClobberCheckFalse() {
 		[]byte("new clobbering content"))
 	require.NoError(t.T(), err)
 
-	attrs, err := t.in.Attributes(t.ctx, false)
+	attrs, err := t.getAttributes(false)
 
 	require.NoError(t.T(), err)
 	// Since clobberCheck is false, Nlink should be 1.
@@ -433,16 +449,11 @@ func (t *FileTest) TestCheckClobbered_Deleted() {
 }
 
 func (t *FileTest) TestInitialAttributes() {
-	attrs, err := t.in.Attributes(t.ctx, true)
+	attrs, err := t.getAttributes(true)
 	require.NoError(t.T(), err)
 
 	assert.Equal(t.T(), uint64(len(t.initialContents)), attrs.Size)
 	assert.Equal(t.T(), uint32(1), attrs.Nlink)
-	assert.Equal(t.T(), uint32(uid), attrs.Uid)
-	assert.Equal(t.T(), uint32(gid), attrs.Gid)
-	assert.Equal(t.T(), fileMode, attrs.Mode)
-	assert.Equal(t.T(), attrs.Atime, t.backingObj.Updated)
-	assert.Equal(t.T(), attrs.Ctime, t.backingObj.Updated)
 	assert.Equal(t.T(), attrs.Mtime, t.backingObj.Updated)
 }
 
@@ -458,7 +469,7 @@ func (t *FileTest) TestInitialAttributes_MtimeFromObjectMetadata_Gcsfuse() {
 	t.createInode()
 
 	// Ask it for its attributes.
-	attrs, err := t.in.Attributes(t.ctx, true)
+	attrs, err := t.getAttributes(true)
 	require.NoError(t.T(), err)
 
 	assert.Equal(t.T(), attrs.Mtime, mtime)
@@ -476,7 +487,7 @@ func (t *FileTest) TestInitialAttributes_MtimeFromObjectMetadata_Gsutil() {
 	t.createInode()
 
 	// Ask it for its attributes.
-	attrs, err := t.in.Attributes(t.ctx, true)
+	attrs, err := t.getAttributes(true)
 	require.NoError(t.T(), err)
 
 	assert.Equal(t.T(), attrs.Mtime.UTC(), mtime)
@@ -497,7 +508,7 @@ func (t *FileTest) TestInitialAttributes_MtimeFromObjectMetadata_GcsfuseOutranks
 	t.createInode()
 
 	// Ask it for its attributes.
-	attrs, err := t.in.Attributes(t.ctx, true)
+	attrs, err := t.getAttributes(true)
 	require.NoError(t.T(), err)
 
 	assert.Equal(t.T(), attrs.Mtime, canonicalMtime)
@@ -646,7 +657,7 @@ func (t *FileTest) TestWrite() {
 	assert.Equal(t.T(), "taco", t.initialContents)
 
 	// Overwite a byte.
-	gcsSynced, err := t.in.Write(t.ctx, []byte("p"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, []byte("p"), 0, WriteMode, t.writeCtx)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
@@ -654,7 +665,7 @@ func (t *FileTest) TestWrite() {
 	t.clock.AdvanceTime(time.Second)
 	writeTime := t.clock.Now()
 
-	gcsSynced, err = t.in.Write(t.ctx, []byte("burrito"), 4, WriteMode)
+	gcsSynced, err = t.in.Write(t.ctx, []byte("burrito"), 4, WriteMode, t.writeCtx)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
@@ -672,7 +683,7 @@ func (t *FileTest) TestWrite() {
 	assert.Equal(t.T(), "pacoburrito", string(buf[:res.Size]))
 
 	// Check attributes.
-	attrs, err := t.in.Attributes(t.ctx, true)
+	attrs, err := t.getAttributes(true)
 	require.NoError(t.T(), err)
 
 	assert.Equal(t.T(), uint64(len("pacoburrito")), attrs.Size)
@@ -680,7 +691,7 @@ func (t *FileTest) TestWrite() {
 }
 
 func (t *FileTest) TestTruncate() {
-	var attrs fuseops.InodeAttributes
+	var attrs testAttributes
 	var err error
 
 	assert.Equal(t.T(), "taco", t.initialContents)
@@ -689,7 +700,7 @@ func (t *FileTest) TestTruncate() {
 	t.clock.AdvanceTime(time.Second)
 	truncateTime := t.clock.Now()
 
-	gcsSynced, err := t.in.Truncate(t.ctx, 2)
+	gcsSynced, err := t.in.Truncate(t.ctx, 2, t.writeCtx)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
@@ -707,7 +718,7 @@ func (t *FileTest) TestTruncate() {
 	assert.Equal(t.T(), "ta", string(buf[:res.Size]))
 
 	// Check attributes.
-	attrs, err = t.in.Attributes(t.ctx, true)
+	attrs, err = t.getAttributes(true)
 	require.NoError(t.T(), err)
 
 	assert.Equal(t.T(), uint64(len("ta")), attrs.Size)
@@ -718,7 +729,7 @@ func (t *FileTest) TestTruncateNegative() {
 	assert.Equal(t.T(), "taco", t.initialContents)
 
 	// Truncate neagtive.
-	gcsSynced, err := t.in.Truncate(t.ctx, -1)
+	gcsSynced, err := t.in.Truncate(t.ctx, -1, t.writeCtx)
 
 	require.Error(t.T(), err)
 	assert.False(t.T(), gcsSynced)
@@ -763,7 +774,7 @@ func (t *FileTest) TestWriteThenSync() {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func() {
-			var attrs fuseops.InodeAttributes
+			var attrs testAttributes
 			var err error
 
 			assert.Equal(t.T(), "taco", t.initialContents)
@@ -772,18 +783,18 @@ func (t *FileTest) TestWriteThenSync() {
 			t.clock.AdvanceTime(time.Second)
 			writeTime := t.clock.Now()
 
-			gcsSynced, err := t.in.Write(t.ctx, []byte("p"), 0, WriteMode)
+			gcsSynced, err := t.in.Write(t.ctx, []byte("p"), 0, WriteMode, t.writeCtx)
 			assert.Nil(t.T(), err)
 			assert.False(t.T(), gcsSynced)
 
 			t.clock.AdvanceTime(time.Second)
 
 			if tc.callSync {
-				gcsSynced, err := t.in.Sync(t.ctx)
+				gcsSynced, err := t.in.Sync(t.ctx, t.writeCtx)
 				require.NoError(t.T(), err)
 				assert.True(t.T(), gcsSynced)
 			} else {
-				err = t.in.Flush(t.ctx)
+				err = t.in.Flush(t.ctx, t.writeCtx)
 				assert.Nil(t.T(), err)
 			}
 
@@ -814,7 +825,7 @@ func (t *FileTest) TestWriteThenSync() {
 			assert.Equal(t.T(), "paco", string(contents))
 
 			// Check attributes.
-			attrs, err = t.in.Attributes(t.ctx, true)
+			attrs, err = t.getAttributes(true)
 			require.NoError(t.T(), err)
 
 			assert.Equal(t.T(), uint64(len("paco")), attrs.Size)
@@ -840,7 +851,7 @@ func (t *FileTest) TestWriteToLocalFileThenSync() {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func() {
-			var attrs fuseops.InodeAttributes
+			var attrs testAttributes
 			var err error
 			// Create a local file inode.
 			t.createInodeWithLocalParam("test", true)
@@ -850,17 +861,17 @@ func (t *FileTest) TestWriteToLocalFileThenSync() {
 			// Write some content to temp file.
 			t.clock.AdvanceTime(time.Second)
 			writeTime := t.clock.Now()
-			gcsSynced, err := t.in.Write(t.ctx, []byte("tacos"), 0, WriteMode)
+			gcsSynced, err := t.in.Write(t.ctx, []byte("tacos"), 0, WriteMode, t.writeCtx)
 			assert.Nil(t.T(), err)
 			assert.False(t.T(), gcsSynced)
 			t.clock.AdvanceTime(time.Second)
 
 			if tc.callSync {
-				gcsSynced, err := t.in.Sync(t.ctx)
+				gcsSynced, err := t.in.Sync(t.ctx, t.writeCtx)
 				require.NoError(t.T(), err)
 				assert.True(t.T(), gcsSynced)
 			} else {
-				err = t.in.Flush(t.ctx)
+				err = t.in.Flush(t.ctx, t.writeCtx)
 				assert.Nil(t.T(), err)
 			}
 
@@ -885,7 +896,7 @@ func (t *FileTest) TestWriteToLocalFileThenSync() {
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), "tacos", string(contents))
 			// Check attributes.
-			attrs, err = t.in.Attributes(t.ctx, true)
+			attrs, err = t.getAttributes(true)
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), uint64(len("tacos")), attrs.Size)
 			assert.Equal(t.T(), attrs.Mtime, writeTime.UTC())
@@ -910,7 +921,7 @@ func (t *FileTest) TestSyncEmptyLocalFile() {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func() {
-			var attrs fuseops.InodeAttributes
+			var attrs testAttributes
 			var err error
 			// Create a local file inode.
 			t.createInodeWithLocalParam("test", true)
@@ -920,11 +931,11 @@ func (t *FileTest) TestSyncEmptyLocalFile() {
 			assert.Nil(t.T(), err)
 
 			if tc.callSync {
-				gcsSynced, err := t.in.Sync(t.ctx)
+				gcsSynced, err := t.in.Sync(t.ctx, t.writeCtx)
 				require.NoError(t.T(), err)
 				assert.True(t.T(), gcsSynced)
 			} else {
-				err = t.in.Flush(t.ctx)
+				err = t.in.Flush(t.ctx, t.writeCtx)
 				assert.Nil(t.T(), err)
 			}
 
@@ -951,7 +962,7 @@ func (t *FileTest) TestSyncEmptyLocalFile() {
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), "", string(contents))
 			// Check attributes.
-			attrs, err = t.in.Attributes(t.ctx, true)
+			attrs, err = t.getAttributes(true)
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), uint64(0), attrs.Size)
 		})
@@ -975,7 +986,7 @@ func (t *FileTest) TestAppendThenSync() {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func() {
-			var attrs fuseops.InodeAttributes
+			var attrs testAttributes
 			var err error
 
 			assert.Equal(t.T(), "taco", t.initialContents)
@@ -984,18 +995,18 @@ func (t *FileTest) TestAppendThenSync() {
 			t.clock.AdvanceTime(time.Second)
 			writeTime := t.clock.Now()
 
-			gcsSynced, err := t.in.Write(t.ctx, []byte("burrito"), int64(len("taco")), AppendMode)
+			gcsSynced, err := t.in.Write(t.ctx, []byte("burrito"), int64(len("taco")), AppendMode, t.writeCtx)
 			assert.Nil(t.T(), err)
 			assert.False(t.T(), gcsSynced)
 
 			t.clock.AdvanceTime(time.Second)
 
 			if tc.callSync {
-				gcsSynced, err := t.in.Sync(t.ctx)
+				gcsSynced, err := t.in.Sync(t.ctx, t.writeCtx)
 				require.NoError(t.T(), err)
 				assert.True(t.T(), gcsSynced)
 			} else {
-				err = t.in.Flush(t.ctx)
+				err = t.in.Flush(t.ctx, t.writeCtx)
 				assert.Nil(t.T(), err)
 			}
 
@@ -1025,7 +1036,7 @@ func (t *FileTest) TestAppendThenSync() {
 			assert.Equal(t.T(), "tacoburrito", string(contents))
 
 			// Check attributes.
-			attrs, err = t.in.Attributes(t.ctx, true)
+			attrs, err = t.getAttributes(true)
 			require.NoError(t.T(), err)
 
 			assert.Equal(t.T(), uint64(len("tacoburrito")), attrs.Size)
@@ -1049,16 +1060,16 @@ func (t *FileTest) TestAppendToUnfinalizedObjInZB() {
 	object.Finalized = time.Time{}
 	t.backingObj = storageutil.ConvertObjToMinObject(object)
 	t.createInode()
-	t.in.config = &cfg.Config{Write: *getWriteConfigWithEnabledRapidAppends()}
+	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfigWithEnabledRapidAppends()}
 	assert.Nil(t.T(), t.in.content)
 	t.createBufferedWriteHandler(true, AppendMode)
 	assert.NotNil(t.T(), t.in.bwh)
 
-	gcsSynced, err := t.in.Write(t.ctx, []byte("juice"), int64(len(t.initialContents)), AppendMode)
+	gcsSynced, err := t.in.Write(t.ctx, []byte("juice"), int64(len(t.initialContents)), AppendMode, t.writeCtx)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
-	gcsSynced, err = t.in.Sync(t.ctx)
+	gcsSynced, err = t.in.Sync(t.ctx, t.writeCtx)
 	require.NoError(t.T(), err)
 	assert.True(t.T(), gcsSynced)
 
@@ -1084,25 +1095,25 @@ func (t *FileTest) TestTruncateDownwardThenSync() {
 	}
 	for _, tc := range testcases {
 		t.Run(tc.name, func() {
-			var attrs fuseops.InodeAttributes
+			var attrs testAttributes
 			var err error
 
 			// Truncate downward.
 			t.clock.AdvanceTime(time.Second)
 			truncateTime := t.clock.Now()
 
-			gcsSynced, err := t.in.Truncate(t.ctx, 2)
+			gcsSynced, err := t.in.Truncate(t.ctx, 2, t.writeCtx)
 			assert.Nil(t.T(), err)
 			assert.False(t.T(), gcsSynced)
 
 			t.clock.AdvanceTime(time.Second)
 
 			if tc.callSync {
-				gcsSynced, err := t.in.Sync(t.ctx)
+				gcsSynced, err := t.in.Sync(t.ctx, t.writeCtx)
 				require.NoError(t.T(), err)
 				assert.True(t.T(), gcsSynced)
 			} else {
-				err = t.in.Flush(t.ctx)
+				err = t.in.Flush(t.ctx, t.writeCtx)
 				assert.Nil(t.T(), err)
 			}
 
@@ -1127,7 +1138,7 @@ func (t *FileTest) TestTruncateDownwardThenSync() {
 				m.Metadata["gcsfuse_mtime"])
 
 			// Check attributes.
-			attrs, err = t.in.Attributes(t.ctx, true)
+			attrs, err = t.getAttributes(true)
 			require.NoError(t.T(), err)
 
 			assert.Equal(t.T(), uint64(2), attrs.Size)
@@ -1153,7 +1164,7 @@ func (t *FileTest) TestTruncateUpwardThenFlush() {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func() {
-			var attrs fuseops.InodeAttributes
+			var attrs testAttributes
 			var err error
 
 			assert.Equal(t.T(), 4, len(t.initialContents))
@@ -1162,18 +1173,18 @@ func (t *FileTest) TestTruncateUpwardThenFlush() {
 			t.clock.AdvanceTime(time.Second)
 			truncateTime := t.clock.Now()
 
-			gcsSynced, err := t.in.Truncate(t.ctx, 6)
+			gcsSynced, err := t.in.Truncate(t.ctx, 6, t.writeCtx)
 			assert.Nil(t.T(), err)
 			assert.False(t.T(), gcsSynced)
 
 			t.clock.AdvanceTime(time.Second)
 
 			if tc.callSync {
-				gcsSynced, err := t.in.Sync(t.ctx)
+				gcsSynced, err := t.in.Sync(t.ctx, t.writeCtx)
 				require.NoError(t.T(), err)
 				assert.True(t.T(), gcsSynced)
 			} else {
-				err = t.in.Flush(t.ctx)
+				err = t.in.Flush(t.ctx, t.writeCtx)
 				assert.Nil(t.T(), err)
 			}
 
@@ -1198,7 +1209,7 @@ func (t *FileTest) TestTruncateUpwardThenFlush() {
 			assert.Equal(t.T(), uint64(6), m.Size)
 
 			// Check attributes.
-			attrs, err = t.in.Attributes(t.ctx, true)
+			attrs, err = t.getAttributes(true)
 			require.NoError(t.T(), err)
 
 			assert.Equal(t.T(), uint64(6), attrs.Size)
@@ -1209,23 +1220,23 @@ func (t *FileTest) TestTruncateUpwardThenFlush() {
 
 func (t *FileTest) TestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
-	var attrs fuseops.InodeAttributes
+	var attrs testAttributes
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	// Create a temp file for the local inode created above.
 	err = t.in.CreateEmptyTempFile(t.ctx)
 	assert.Nil(t.T(), err)
 	// Fetch the attributes and check if the file is empty.
-	attrs, err = t.in.Attributes(t.ctx, true)
+	attrs, err = t.getAttributes(true)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), uint64(0), attrs.Size)
 
-	gcsSynced, err := t.in.Truncate(t.ctx, 6)
+	gcsSynced, err := t.in.Truncate(t.ctx, 6, t.writeCtx)
 
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	// The inode should return the new size.
-	attrs, err = t.in.Attributes(t.ctx, true)
+	attrs, err = t.getAttributes(true)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), uint64(6), attrs.Size)
 	// Data shouldn't be updated to GCS.
@@ -1237,27 +1248,27 @@ func (t *FileTest) TestTruncateUpwardForLocalFileShouldUpdateLocalFileAttributes
 
 func (t *FileTest) TestTruncateDownwardForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
-	var attrs fuseops.InodeAttributes
+	var attrs testAttributes
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	// Create a temp file for the local inode created above.
 	err = t.in.CreateEmptyTempFile(t.ctx)
 	assert.Nil(t.T(), err)
 	// Write some data to the local file.
-	gcsSynced, err := t.in.Write(t.ctx, []byte("burrito"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, []byte("burrito"), 0, WriteMode, t.writeCtx)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	// Validate the new data is written correctly.
-	attrs, err = t.in.Attributes(t.ctx, true)
+	attrs, err = t.getAttributes(true)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), uint64(7), attrs.Size)
 
-	gcsSynced, err = t.in.Truncate(t.ctx, 2)
+	gcsSynced, err = t.in.Truncate(t.ctx, 2, t.writeCtx)
 
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	// The inode should return the new size.
-	attrs, err = t.in.Attributes(t.ctx, true)
+	attrs, err = t.getAttributes(true)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), uint64(2), attrs.Size)
 	// Data shouldn't be updated to GCS.
@@ -1285,31 +1296,31 @@ func (t *FileTest) TestTruncateUpwardForLocalFileWhenStreamingWritesAreEnabled()
 		t.Run(tc.name, func() {
 			// Create a local file inode.
 			t.createInodeWithLocalParam("test", true)
-			t.in.config = &cfg.Config{Write: *getWriteConfig()}
+			t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 			// Fetch the attributes and check if the file is empty.
-			attrs, err := t.in.Attributes(t.ctx, true)
+			attrs, err := t.getAttributes(true)
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), uint64(0), attrs.Size)
 
 			if tc.performWrite {
 				t.createBufferedWriteHandler(true, WriteMode)
-				gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode)
+				gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode, t.writeCtx)
 				assert.Nil(t.T(), err)
 				assert.False(t.T(), gcsSynced)
 				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
 				// Fetch the attributes and check if the file size reflects the write.
-				attrs, err := t.in.Attributes(t.ctx, true)
+				attrs, err := t.getAttributes(true)
 				require.NoError(t.T(), err)
 				assert.Equal(t.T(), uint64(2), attrs.Size)
 			}
 			t.createBufferedWriteHandler(!tc.performWrite, WriteMode)
 
-			gcsSynced, err := t.in.Truncate(t.ctx, 10)
+			gcsSynced, err := t.in.Truncate(t.ctx, 10, t.writeCtx)
 
 			assert.Nil(t.T(), err)
 			assert.False(t.T(), gcsSynced)
 			// The inode should return the new size.
-			attrs, err = t.in.Attributes(t.ctx, true)
+			attrs, err = t.getAttributes(true)
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), uint64(10), attrs.Size)
 			// Data shouldn't be updated to GCS.
@@ -1338,32 +1349,32 @@ func (t *FileTest) TestTruncateUpwardForEmptyGCSFileWhenStreamingWritesAreEnable
 	for _, tc := range tbl {
 		t.Run(tc.name, func() {
 			t.createInodeWithEmptyObject()
-			t.in.config = &cfg.Config{Write: *getWriteConfig()}
+			t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 
 			// Fetch the attributes and check if the file is empty.
-			attrs, err := t.in.Attributes(t.ctx, true)
+			attrs, err := t.getAttributes(true)
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), uint64(0), attrs.Size)
 
 			if tc.performWrite {
 				t.createBufferedWriteHandler(true, WriteMode)
-				gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode)
+				gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode, t.writeCtx)
 				assert.Nil(t.T(), err)
 				assert.False(t.T(), gcsSynced)
 				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
 				// Fetch the attributes and check if the file size reflects the write.
-				attrs, err := t.in.Attributes(t.ctx, true)
+				attrs, err := t.getAttributes(true)
 				require.NoError(t.T(), err)
 				assert.Equal(t.T(), uint64(2), attrs.Size)
 			}
 			t.createBufferedWriteHandler(!tc.performWrite, WriteMode)
 
-			gcsSynced, err := t.in.Truncate(t.ctx, 10)
+			gcsSynced, err := t.in.Truncate(t.ctx, 10, t.writeCtx)
 
 			assert.Nil(t.T(), err)
 			assert.False(t.T(), gcsSynced)
 			// The inode should return the new size.
-			attrs, err = t.in.Attributes(t.ctx, true)
+			attrs, err = t.getAttributes(true)
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), uint64(10), attrs.Size)
 			// Data shouldn't be updated to GCS.
@@ -1410,22 +1421,22 @@ func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
 			if tc.fileType == EmptyGCSFile {
 				t.createInodeWithEmptyObject()
 			}
-			t.in.config = &cfg.Config{Write: *getWriteConfig()}
+			t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 			// Fetch the attributes and check if the file is empty.
-			attrs, err := t.in.Attributes(t.ctx, true)
+			attrs, err := t.getAttributes(true)
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), uint64(0), attrs.Size)
 
 			t.createBufferedWriteHandler(true, WriteMode)
-			gcsSynced, err := t.in.Write(t.ctx, []byte("hihello"), 0, WriteMode)
+			gcsSynced, err := t.in.Write(t.ctx, []byte("hihello"), 0, WriteMode, t.writeCtx)
 			assert.Nil(t.T(), err)
 			assert.False(t.T(), gcsSynced)
 			assert.Equal(t.T(), int64(7), t.in.bwh.WriteFileInfo().TotalSize)
 			// Fetch the attributes and check if the file size reflects the write.
-			attrs, err = t.in.Attributes(t.ctx, true)
+			attrs, err = t.getAttributes(true)
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), uint64(7), attrs.Size)
-			gcsSynced, err = t.in.Truncate(t.ctx, tc.truncateSize)
+			gcsSynced, err = t.in.Truncate(t.ctx, tc.truncateSize, t.writeCtx)
 
 			require.NoError(t.T(), err)
 			assert.True(t.T(), gcsSynced)
@@ -1454,7 +1465,7 @@ func (t *FileTest) TestSyncFlush_Clobbered() {
 			var err error
 
 			// Truncate downward.
-			gcsSynced, err := t.in.Truncate(t.ctx, 2)
+			gcsSynced, err := t.in.Truncate(t.ctx, 2, t.writeCtx)
 			assert.Nil(t.T(), err)
 			assert.False(t.T(), gcsSynced)
 
@@ -1470,12 +1481,12 @@ func (t *FileTest) TestSyncFlush_Clobbered() {
 			if tc.callSync {
 				var gcsSynced bool
 				// Sync. The call should not succeed, and we expect a FileClobberedError.
-				gcsSynced, err = t.in.Sync(t.ctx)
+				gcsSynced, err = t.in.Sync(t.ctx, t.writeCtx)
 				require.Error(t.T(), err)
 				assert.False(t.T(), gcsSynced)
 			} else {
 				// Flush. The call should not succeed, and we expect a FileClobberedError.
-				err = t.in.Flush(t.ctx)
+				err = t.in.Flush(t.ctx, t.writeCtx)
 			}
 
 			t.validateMrdWrapperMinObject()
@@ -1502,7 +1513,7 @@ func (t *FileTest) TestSyncFlush_Clobbered() {
 
 func (t *FileTest) TestOpenReader_ThrowsFileClobberedError() {
 	// Modify the file locally.
-	gcsSynced, err := t.in.Truncate(t.ctx, 2)
+	gcsSynced, err := t.in.Truncate(t.ctx, 2, t.writeCtx)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	// Clobber the backing object.
@@ -1522,7 +1533,7 @@ func (t *FileTest) TestOpenReader_ThrowsFileClobberedError() {
 
 func (t *FileTest) TestSetMtime_ContentNotFaultedIn() {
 	var err error
-	var attrs fuseops.InodeAttributes
+	var attrs testAttributes
 
 	// Set mtime.
 	mtime := time.Now().UTC().Add(123*time.Second).AddDate(0, 0, 0)
@@ -1531,7 +1542,7 @@ func (t *FileTest) TestSetMtime_ContentNotFaultedIn() {
 	assert.Nil(t.T(), err)
 
 	// The inode should agree about the new mtime.
-	attrs, err = t.in.Attributes(t.ctx, true)
+	attrs, err = t.getAttributes(true)
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), attrs.Mtime, mtime)
@@ -1549,7 +1560,7 @@ func (t *FileTest) TestSetMtime_ContentNotFaultedIn() {
 
 func (t *FileTest) TestSetMtime_ContentClean() {
 	var err error
-	var attrs fuseops.InodeAttributes
+	var attrs testAttributes
 
 	// Cause the content to be faulted in.
 	_, err = t.in.Read(t.ctx, &gcsx.ReadRequest{Buffer: make([]byte, 1), Offset: 0})
@@ -1562,7 +1573,7 @@ func (t *FileTest) TestSetMtime_ContentClean() {
 	assert.Nil(t.T(), err)
 
 	// The inode should agree about the new mtime.
-	attrs, err = t.in.Attributes(t.ctx, true)
+	attrs, err = t.getAttributes(true)
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), attrs.Mtime, mtime)
@@ -1580,10 +1591,10 @@ func (t *FileTest) TestSetMtime_ContentClean() {
 
 func (t *FileTest) TestSetMtime_ContentDirty() {
 	var err error
-	var attrs fuseops.InodeAttributes
+	var attrs testAttributes
 
 	// Dirty the content.
-	gcsSynced, err := t.in.Write(t.ctx, []byte("a"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, []byte("a"), 0, WriteMode, t.writeCtx)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
@@ -1594,13 +1605,13 @@ func (t *FileTest) TestSetMtime_ContentDirty() {
 	assert.Nil(t.T(), err)
 
 	// The inode should agree about the new mtime.
-	attrs, err = t.in.Attributes(t.ctx, true)
+	attrs, err = t.getAttributes(true)
 
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), attrs.Mtime, mtime)
 
 	// Sync.
-	gcsSynced, err = t.in.Sync(t.ctx)
+	gcsSynced, err = t.in.Sync(t.ctx, t.writeCtx)
 	require.NoError(t.T(), err)
 	assert.True(t.T(), gcsSynced)
 
@@ -1676,7 +1687,7 @@ func (t *FileTest) TestSetMtime_SourceObjectMetaGenerationChanged() {
 
 func (t *FileTest) TestSetMtimeForUnlinkedFileIsNoOp() {
 	t.in.unlinked = true
-	beforeUpdateAttr, err := t.in.Attributes(t.ctx, true)
+	beforeUpdateAttr, err := t.getAttributes(true)
 	require.Nil(t.T(), err)
 	mtime := beforeUpdateAttr.Mtime.UTC().Add(123 * time.Second)
 
@@ -1684,7 +1695,7 @@ func (t *FileTest) TestSetMtimeForUnlinkedFileIsNoOp() {
 	err = t.in.SetMtime(t.ctx, mtime)
 
 	require.Nil(t.T(), err)
-	afterUpdateAttr, err := t.in.Attributes(t.ctx, true)
+	afterUpdateAttr, err := t.getAttributes(true)
 	require.NoError(t.T(), err)
 	assert.NotEqual(t.T(), mtime, afterUpdateAttr.Mtime)
 	assert.Equal(t.T(), beforeUpdateAttr.Mtime, afterUpdateAttr.Mtime)
@@ -1692,7 +1703,7 @@ func (t *FileTest) TestSetMtimeForUnlinkedFileIsNoOp() {
 
 func (t *FileTest) TestTestSetMtimeForLocalFileShouldUpdateLocalFileAttributes() {
 	var err error
-	var attrs fuseops.InodeAttributes
+	var attrs testAttributes
 
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
@@ -1701,7 +1712,7 @@ func (t *FileTest) TestTestSetMtimeForLocalFileShouldUpdateLocalFileAttributes()
 	err = t.in.CreateEmptyTempFile(t.ctx)
 	assert.Nil(t.T(), err)
 	// Validate the attributes on an empty file.
-	attrs, err = t.in.Attributes(t.ctx, true)
+	attrs, err = t.getAttributes(true)
 	require.NoError(t.T(), err)
 	assert.WithinDuration(t.T(), attrs.Mtime, createTime, Delta)
 
@@ -1711,11 +1722,9 @@ func (t *FileTest) TestTestSetMtimeForLocalFileShouldUpdateLocalFileAttributes()
 
 	assert.Nil(t.T(), err)
 	// The inode should agree about the new mtime.
-	attrs, err = t.in.Attributes(t.ctx, true)
+	attrs, err = t.getAttributes(true)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), attrs.Mtime, mtime)
-	assert.Equal(t.T(), attrs.Ctime, mtime)
-	assert.Equal(t.T(), attrs.Atime, mtime)
 	// Data shouldn't be updated to GCS.
 	statReq := &gcs.StatObjectRequest{Name: t.in.Name().GcsObjectName()}
 	_, _, err = t.bucket.StatObject(t.ctx, statReq)
@@ -1725,11 +1734,11 @@ func (t *FileTest) TestTestSetMtimeForLocalFileShouldUpdateLocalFileAttributes()
 
 func (t *FileTest) TestSetMtimeForLocalFileWhenStreamingWritesAreEnabled() {
 	var err error
-	var attrs fuseops.InodeAttributes
+	var attrs testAttributes
 
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
-	t.in.config = &cfg.Config{Write: *getWriteConfig()}
+	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 	t.createBufferedWriteHandler(true, WriteMode)
 
 	// Set mtime.
@@ -1738,11 +1747,9 @@ func (t *FileTest) TestSetMtimeForLocalFileWhenStreamingWritesAreEnabled() {
 
 	assert.Nil(t.T(), err)
 	// The inode should agree about the new mtime.
-	attrs, err = t.in.Attributes(t.ctx, true)
+	attrs, err = t.getAttributes(true)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), attrs.Mtime, mtime)
-	assert.Equal(t.T(), attrs.Ctime, mtime)
-	assert.Equal(t.T(), attrs.Atime, mtime)
 }
 
 func (t *FileTest) TestContentEncodingGzip() {
@@ -1817,7 +1824,7 @@ func (t *FileTest) TestCreateEmptyTempFileWhenBWHIsNotNil() {
 			} else {
 				t.createInodeWithEmptyObject()
 			}
-			t.in.config = &cfg.Config{Write: *getWriteConfig()}
+			t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 			t.createBufferedWriteHandler(true, WriteMode)
 
 			err := t.in.CreateEmptyTempFile(t.ctx)
@@ -1830,9 +1837,9 @@ func (t *FileTest) TestCreateEmptyTempFileWhenBWHIsNotNil() {
 
 func (t *FileTest) TestInitBufferedWriteHandlerIfEligibleShouldNotCreateBWHNonEmptySyncedFile() {
 	// Enabling buffered writes.
-	t.in.config = &cfg.Config{Write: *getWriteConfig()}
+	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, t.writeCtx)
 
 	assert.NoError(t.T(), err)
 	assert.Nil(t.T(), t.in.bwh)
@@ -1886,25 +1893,25 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 			if tc.fileType == LocalFile {
 				// Create a local file inode.
 				t.createInodeWithLocalParam("test", true)
-				t.in.config = &cfg.Config{Write: *getWriteConfig()}
+				t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 				t.createBufferedWriteHandler(true, WriteMode)
 			}
 
 			if tc.fileType == EmptyGCSFile {
 				t.createInodeWithEmptyObject()
-				t.in.config = &cfg.Config{Write: *getWriteConfig()}
+				t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 			}
 
 			if tc.performWrite {
 				t.createBufferedWriteHandler(tc.fileType != LocalFile, WriteMode)
-				gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode)
+				gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode, t.writeCtx)
 				assert.Nil(t.T(), err)
 				assert.False(t.T(), gcsSynced)
 				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
 			}
 			data := make([]byte, len("hi"))
 			// Flush is required before reading an object for which BWH is open.
-			assert.NoError(t.T(), t.in.Flush(context.Background()))
+			assert.NoError(t.T(), t.in.Flush(context.Background(), t.writeCtx))
 
 			res, err := t.in.Read(t.ctx, &gcsx.ReadRequest{Buffer: data, Offset: 0})
 
@@ -1922,7 +1929,7 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 
 func (t *FileTest) TestReadEmptyGCSFileWhenStreamingWritesAreNotInProgress() {
 	t.createInodeWithEmptyObject()
-	t.in.config = &cfg.Config{Write: *getWriteConfig()}
+	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 	data := make([]byte, 10)
 
 	res, err := t.in.Read(t.ctx, &gcsx.ReadRequest{Buffer: data, Offset: 0})
@@ -1935,9 +1942,9 @@ func (t *FileTest) TestReadEmptyGCSFileWhenStreamingWritesAreNotInProgress() {
 func (t *FileTest) TestInitBufferedWriteHandlerWithInvalidConfigWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
-	t.in.config = &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: true}}
+	t.writeCtx.Config = &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: true}}
 
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, t.writeCtx)
 
 	assert.True(t.T(), strings.Contains(err.Error(), "invalid configuration"))
 	assert.False(t.T(), initialized)
@@ -1947,10 +1954,10 @@ func (t *FileTest) TestInitBufferedWriteHandlerWithInvalidConfigWhenStreamingWri
 func (t *FileTest) TestWriteToLocalFileWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
-	t.in.config = &cfg.Config{Write: *getWriteConfig()}
+	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 	t.createBufferedWriteHandler(true, WriteMode)
 
-	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode, t.writeCtx)
 
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
@@ -1963,21 +1970,21 @@ func (t *FileTest) TestMultipleWritesToLocalFileWhenStreamingWritesAreEnabled() 
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	createTime := t.in.mtimeClock.Now()
-	t.in.config = &cfg.Config{Write: *getWriteConfig()}
+	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 	t.createBufferedWriteHandler(true, WriteMode)
 
-	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode, t.writeCtx)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	assert.NotNil(t.T(), t.in.bwh)
 	assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
 
-	gcsSynced, err = t.in.Write(t.ctx, []byte("hello"), 2, WriteMode)
+	gcsSynced, err = t.in.Write(t.ctx, []byte("hello"), 2, WriteMode, t.writeCtx)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	assert.Equal(t.T(), int64(7), t.in.bwh.WriteFileInfo().TotalSize)
 	// The inode should agree about the new mtime.
-	attrs, err := t.in.Attributes(t.ctx, true)
+	attrs, err := t.getAttributes(true)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), uint64(7), attrs.Size)
 	assert.WithinDuration(t.T(), attrs.Mtime, createTime, Delta)
@@ -1985,11 +1992,11 @@ func (t *FileTest) TestMultipleWritesToLocalFileWhenStreamingWritesAreEnabled() 
 
 func (t *FileTest) TestWriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	t.createInodeWithEmptyObject()
-	t.in.config = &cfg.Config{Write: *getWriteConfig()}
+	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 	createTime := t.in.mtimeClock.Now()
 	t.createBufferedWriteHandler(true, WriteMode)
 
-	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode, t.writeCtx)
 
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
@@ -1997,7 +2004,7 @@ func (t *FileTest) TestWriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	writeFileInfo := t.in.bwh.WriteFileInfo()
 	assert.Equal(t.T(), int64(2), writeFileInfo.TotalSize)
 	// The inode should agree about the new mtime.
-	attrs, err := t.in.Attributes(t.ctx, true)
+	attrs, err := t.getAttributes(true)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), uint64(2), attrs.Size)
 	assert.WithinDuration(t.T(), attrs.Mtime, createTime, Delta)
@@ -2005,7 +2012,7 @@ func (t *FileTest) TestWriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
 
 func (t *FileTest) TestSetMtimeOnEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	t.createInodeWithEmptyObject()
-	t.in.config = &cfg.Config{Write: *getWriteConfig()}
+	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 	assert.Nil(t.T(), t.in.bwh)
 
 	// This test checks if the mtime is updated to GCS. Since test framework
@@ -2017,10 +2024,10 @@ func (t *FileTest) TestSetMtimeOnEmptyGCSFileWhenStreamingWritesAreEnabled() {
 
 func (t *FileTest) TestSetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEnabled() {
 	t.createInodeWithEmptyObject()
-	t.in.config = &cfg.Config{Write: *getWriteConfig()}
+	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 	t.createBufferedWriteHandler(true, WriteMode)
 	// Initiate write call.
-	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode)
+	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode, t.writeCtx)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 	assert.NotNil(t.T(), t.in.bwh)
@@ -2033,18 +2040,16 @@ func (t *FileTest) TestSetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEn
 
 	assert.Nil(t.T(), err)
 	// The inode should agree about the new mtime.
-	attrs, err := t.in.Attributes(t.ctx, true)
+	attrs, err := t.getAttributes(true)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), attrs.Mtime, mtime)
-	assert.Equal(t.T(), attrs.Ctime, mtime)
-	assert.Equal(t.T(), attrs.Atime, mtime)
 }
 
 func (t *FileTest) TestUpdateSize() {
 	var err error
-	var attrs fuseops.InodeAttributes
+	var attrs testAttributes
 	// Check initial size.
-	attrs, err = t.in.Attributes(t.ctx, true)
+	attrs, err = t.getAttributes(true)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), uint64(len(t.initialContents)), attrs.Size)
 
@@ -2053,7 +2058,7 @@ func (t *FileTest) TestUpdateSize() {
 	t.in.UpdateSize(newSize)
 
 	// Check new size.
-	attrs, err = t.in.Attributes(t.ctx, true)
+	attrs, err = t.getAttributes(true)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), newSize, attrs.Size)
 }
@@ -2109,5 +2114,14 @@ func getWriteConfigWithEnabledRapidAppends() *cfg.WriteConfig {
 		BlockSizeMb:           1,
 		EnableStreamingWrites: true,
 		EnableRapidAppends:    true,
+	}
+}
+
+func getWriteContext() *WriteContext {
+	return &WriteContext{
+		Config:             &cfg.Config{},
+		GlobalMaxBlocksSem: semaphore.NewWeighted(math.MaxInt64),
+		TraceHandle:        tracing.NewNoopTracer(),
+		MetricHandle:       metrics.NewNoopMetrics(),
 	}
 }

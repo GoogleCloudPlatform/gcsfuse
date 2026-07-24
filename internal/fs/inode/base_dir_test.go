@@ -17,7 +17,6 @@ package inode
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync"
 	"syscall"
 	"testing"
@@ -90,11 +89,6 @@ func setupBaseDirTest(t *testing.T) (context.Context, *timeutil.SimulatedClock, 
 	in := NewBaseDirInode(
 		dirInodeID,
 		NewRootName(""),
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
 		bm,
 		metrics.NewNoopMetrics(),
 		isTypeCacheDeprecationEnabled,
@@ -147,23 +141,21 @@ func TestBaseDir_LookupCount(t *testing.T) {
 
 func TestBaseDir_Attributes_ClobberedCheckTrue(t *testing.T) {
 	runWithBaseDirInode(t, func(ctx context.Context, clock *timeutil.SimulatedClock, bm *fakeBucketManager, in DirInode) {
-		attrs, err := in.Attributes(ctx, true)
+		size, _, nlink, err := in.Attributes(ctx, true)
 
 		require.NoError(t, err)
-		assert.Equal(t, uint32(uid), attrs.Uid)
-		assert.Equal(t, uint32(gid), attrs.Gid)
-		assert.Equal(t, dirMode|os.ModeDir, attrs.Mode)
+		assert.Equal(t, uint64(0), size)
+		assert.Equal(t, uint32(1), nlink)
 	})
 }
 
 func TestBaseDir_Attributes_ClobberedCheckFalse(t *testing.T) {
 	runWithBaseDirInode(t, func(ctx context.Context, clock *timeutil.SimulatedClock, bm *fakeBucketManager, in DirInode) {
-		attrs, err := in.Attributes(ctx, false)
+		size, _, nlink, err := in.Attributes(ctx, false)
 
 		require.NoError(t, err)
-		assert.Equal(t, uint32(uid), attrs.Uid)
-		assert.Equal(t, uint32(gid), attrs.Gid)
-		assert.Equal(t, dirMode|os.ModeDir, attrs.Mode)
+		assert.Equal(t, uint64(0), size)
+		assert.Equal(t, uint32(1), nlink)
 	})
 }
 
@@ -253,11 +245,6 @@ func TestBaseDir_IsTypeCacheDeprecated_false(t *testing.T) {
 	dInode := NewBaseDirInode(
 		dirInodeID,
 		NewRootName(""),
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
 		bm,
 		metrics.NewNoopMetrics(),
 		false,
@@ -271,11 +258,6 @@ func TestBaseDir_IsTypeCacheDeprecated_true(t *testing.T) {
 	dInode := NewBaseDirInode(
 		dirInodeID,
 		NewRootName(""),
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
 		bm,
 		metrics.NewNoopMetrics(),
 		true,
