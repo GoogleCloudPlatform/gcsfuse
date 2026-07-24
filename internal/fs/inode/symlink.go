@@ -74,7 +74,7 @@ type SymlinkInode struct {
 	mu sync.Mutex
 
 	// GUARDED_BY(mu)
-	lc lookupCount
+	lookupCount
 }
 
 var _ Inode = &SymlinkInode{}
@@ -101,9 +101,6 @@ func NewSymlinkInode(
 		mtime:    m.Updated,
 		metadata: m.Metadata,
 	}
-
-	// Set up lookup counting.
-	s.lc.Init(id)
 
 	s.target, err = s.resolveSymlinkTarget(ctx)
 	if err != nil {
@@ -213,20 +210,9 @@ func (s *SymlinkInode) UpdateSize(size uint64) {
 	s.sourceGeneration.Size = size
 }
 
-// LOCKS_REQUIRED(s.mu)
-func (s *SymlinkInode) IncrementLookupCount() {
-	s.lc.Inc()
-}
-
-// LOCKS_REQUIRED(s.mu)
-func (s *SymlinkInode) DecrementLookupCount(n uint64) (destroy bool) {
-	destroy = s.lc.Dec(n)
-	return
-}
-
-// LOCKS_REQUIRED(s.mu)
+// LOCKS_REQUIRED(s)
 func (s *SymlinkInode) Destroy() (err error) {
-	// Nothing to do.
+	s.lookupCount.Destroy()
 	return
 }
 

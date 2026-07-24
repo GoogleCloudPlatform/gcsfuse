@@ -111,7 +111,7 @@ type FileInode struct {
 	mu syncutil.InvariantMutex
 
 	// GUARDED_BY(mu)
-	lc lookupCount
+	lookupCount
 
 	// GUARDED_BY(mu)
 	mtime time.Time
@@ -219,7 +219,6 @@ func NewFileInode(
 		f.kernelRangeReaderInstance = kernel_readers.NewKernelRangeReaderInstance(&minObj)
 	}
 
-	f.lc.Init(id)
 	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
 
 	return
@@ -519,17 +518,6 @@ func (f *FileInode) SourceGeneration() (g Generation) {
 }
 
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) IncrementLookupCount() {
-	f.lc.Inc()
-}
-
-// LOCKS_REQUIRED(f.mu)
-func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
-	destroy = f.lc.Dec(n)
-	return
-}
-
-// LOCKS_REQUIRED(f.mu)
 func (f *FileInode) RegisterFileHandle(readOnly bool) {
 	if !readOnly {
 		f.writeHandleCount++
@@ -571,6 +559,7 @@ func (f *FileInode) UpdateSize(size uint64) {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
+	f.lookupCount.Destroy()
 	if f.localFileCache {
 		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
 		f.contentCache.Remove(cacheObjectKey)
