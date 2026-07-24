@@ -210,13 +210,32 @@ elif [ "${BENCHMARK_TYPE:-}" == "local_tests" ]; then
 # 4) ZONAL PERFORMANCE TESTS
 # =================================================================
 elif [ "${BENCHMARK_TYPE:-}" == "distributed_benchmark_zonal" ]; then
-  echo "Running Zonal Performance Tests..."
-  START_TIME=$SECONDS
-  
-  # TODO: Add upcoming zonal performance tests.
-  echo "Zonal tests scaffolding ready."
-  
-  print_duration "Zonal Performance Tests" "$START_TIME"
+  TOOLS_DIR="${KOKORO_ARTIFACTS_DIR}/github/gcsfuse-tools"
+
+  if [ ! -d "$TOOLS_DIR" ]; then
+    echo "ERROR: gcsfuse-tools directory not found!"
+    exit 1
+  fi
+
+  PERF_BENCHMARKS_FAILED=0
+  ZONAL_TOTAL_START=$SECONDS
+
+  echo "Running Distributed ZONAL WRITE Micro-Benchmark from gcsfuse-tools..."
+  WRITE_START=$SECONDS
+  "$TOOLS_DIR/distributed-micro-benchmark/kokoro_run.sh" --commit "$commitId" --zonal --write || PERF_BENCHMARKS_FAILED=1
+  print_duration "Distributed ZONAL WRITE Benchmark" "$WRITE_START"
+
+  echo "Running Distributed ZONAL READ Micro-Benchmark from gcsfuse-tools..."
+  READ_START=$SECONDS
+  "$TOOLS_DIR/distributed-micro-benchmark/kokoro_run.sh" --commit "$commitId" --zonal --read || PERF_BENCHMARKS_FAILED=1
+  print_duration "Distributed ZONAL READ Benchmark" "$READ_START"
+
+  print_duration "Distributed ZONAL Benchmarks (Total)" "$ZONAL_TOTAL_START"
+
+  if [ $PERF_BENCHMARKS_FAILED -ne 0 ]; then
+    echo "Distributed ZONAL benchmarks have failed."
+    exit 1
+  fi
 
 else
   echo "Unknown or unspecified BENCHMARK_TYPE: ${BENCHMARK_TYPE:-}"
