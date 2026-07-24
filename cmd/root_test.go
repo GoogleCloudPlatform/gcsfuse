@@ -1354,6 +1354,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:    int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
+					FuseMaxWriteSizeKb:      1024,
 					DirMode:                 0755,
 					FileMode:                0644,
 					FuseOptions:             []string{},
