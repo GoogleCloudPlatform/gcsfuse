@@ -1467,11 +1467,15 @@ func Test_isValidMaxRetrySleep_ErrorScenarios(t *testing.T) {
 }
 
 func Test_isValidFuseMaxRequestSizeKb_ValidScenarios(t *testing.T) {
+	pageSizeKb := int64(kernelPageSize) / 1024
 	testCases := []struct {
 		name          string
 		requestSizeKb int64
 	}{
+		{"valid_1_kb", 1},
 		{"valid_1024_kb", 1024},
+		{"valid_min_page_size", pageSizeKb},
+		{"valid_512_kb", 512},
 		{"valid_max_pages", (int64(FuseMaxPagesLimit) * int64(kernelPageSize)) / 1024},
 	}
 
@@ -1491,7 +1495,6 @@ func Test_isValidFuseMaxRequestSizeKb_ErrorScenarios(t *testing.T) {
 	}{
 		{"invalid_zero", 0},
 		{"invalid_negative", -10},
-		{"invalid_less_than_1024", 16},
 		{"invalid_exceeds_max_pages", (int64(FuseMaxPagesLimit+1) * int64(kernelPageSize)) / 1024},
 		{"invalid_overflow", int64(math.MaxInt)},
 	}
@@ -1499,6 +1502,48 @@ func Test_isValidFuseMaxRequestSizeKb_ErrorScenarios(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := isValidFuseMaxRequestSizeKb(tc.requestSizeKb)
+
+			assert.Error(t, err)
+		})
+	}
+}
+
+func Test_isValidFuseMaxWriteSizeKb_ValidScenarios(t *testing.T) {
+	pageSizeKb := int64(kernelPageSize) / 1024
+	testCases := []struct {
+		name        string
+		writeSizeKb int64
+	}{
+		{"valid_1_kb", 1},
+		{"valid_1024_kb", 1024},
+		{"valid_min_page_size", pageSizeKb},
+		{"valid_512_kb", 512},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidFuseMaxWriteSizeKb(tc.writeSizeKb)
+
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func Test_isValidFuseMaxWriteSizeKb_ErrorScenarios(t *testing.T) {
+	testCases := []struct {
+		name        string
+		writeSizeKb int64
+	}{
+		{"invalid_zero", 0},
+		{"invalid_negative", -10},
+		{"invalid_exceeds_1_mib", 1025},
+		{"invalid_2_mib", 2048},
+		{"invalid_overflow", int64(math.MaxInt)},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidFuseMaxWriteSizeKb(tc.writeSizeKb)
 
 			assert.Error(t, err)
 		})

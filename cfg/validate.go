@@ -116,13 +116,22 @@ func isValidSequentialReadSizeMB(size int64) error {
 }
 
 func isValidFuseMaxRequestSizeKb(requestSizeKb int64) error {
-	// 1 MiB: Required minimum because FUSE MaxWrite is 1 MiB.
-	if requestSizeKb < 1024 {
-		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; should be at least 1024 (1 MiB) because max write size is 1 MiB", requestSizeKb)
+	if requestSizeKb <= 0 {
+		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; must be greater than 0", requestSizeKb)
 	}
 	pageSizeKb := int64(kernelPageSize) / 1024
 	if requestSizeKb > FuseMaxPagesLimit*pageSizeKb {
 		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; exceeds maximum allowed limit of %d", requestSizeKb, FuseMaxPagesLimit*pageSizeKb)
+	}
+	return nil
+}
+
+func isValidFuseMaxWriteSizeKb(writeSizeKb int64) error {
+	if writeSizeKb <= 0 {
+		return fmt.Errorf("invalid value for fuse-max-write-size-kb: %d; must be greater than 0", writeSizeKb)
+	}
+	if writeSizeKb > 1024 {
+		return fmt.Errorf("invalid value for fuse-max-write-size-kb: %d; exceeds maximum allowed limit of 1024 (1 MiB)", writeSizeKb)
 	}
 	return nil
 }
@@ -362,6 +371,12 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 	if v.IsSet("file-system.fuse-max-request-size-kb") {
 		if err = isValidFuseMaxRequestSizeKb(config.FileSystem.FuseMaxRequestSizeKb); err != nil {
 			return fmt.Errorf("error parsing fuse-max-request-size-kb config: %w", err)
+		}
+	}
+
+	if v.IsSet("file-system.fuse-max-write-size-kb") {
+		if err = isValidFuseMaxWriteSizeKb(config.FileSystem.FuseMaxWriteSizeKb); err != nil {
+			return fmt.Errorf("error parsing fuse-max-write-size-kb config: %w", err)
 		}
 	}
 
