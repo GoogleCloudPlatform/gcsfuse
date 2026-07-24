@@ -965,6 +965,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 		TempDir:                       "",
 		ExperimentalODirect:           false,
 		Uid:                           -1,
+		StrongConsistencyOnOpen:       false,
 	}
 	expectedAIMLCheckpointingFileSystemConfig := expectedDefaultFileSystemConfig
 	expectedAIMLCheckpointingFileSystemConfig.RenameDirLimit = 200000
@@ -1328,6 +1329,24 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					ExperimentalODirect:  false,
 					Uid:                  -1,
 					EnableKernelReader:   false,
+				},
+			},
+		},
+		{
+			name: "Test file system strong-consistency-on-open flag enabled.",
+			args: []string{"gcsfuse", "--strong-consistency-on-open", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					FuseMaxRequestSizeKb:    int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
+					DirMode:                 0755,
+					FileMode:                0644,
+					FuseOptions:             []string{},
+					Gid:                     -1,
+					IgnoreInterrupts:        true,
+					InactiveMrdCacheSize:    1000,
+					ExperimentalODirect:     false,
+					Uid:                     -1,
+					StrongConsistencyOnOpen: true,
 				},
 			},
 		},
@@ -2110,29 +2129,6 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 					MaxRetryAttempts:         math.MaxInt,
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
-					ReadStall: cfg.ReadStallGcsRetriesConfig{
-						Enable:              true,
-						InitialReqTimeout:   20 * time.Second,
-						MinReqTimeout:       1500 * time.Millisecond,
-						MaxReqTimeout:       1200 * time.Second,
-						ReqIncreaseRate:     15,
-						ReqTargetPercentile: 0.99,
-					},
-				},
-			},
-		},
-		{
-			name: "Test_with_non_default_experimental-nonrapid-folder-api-stall-retry",
-			args: []string{"gcsfuse", "--experimental-nonrapid-folder-api-stall-retry=true", "abc", "pqr"},
-			expectedConfig: &cfg.Config{
-				GcsRetries: cfg.GcsRetriesConfig{
-					ExperimentalNonrapidFolderApiStallRetry: true,
-					ChunkRetryDeadlineSecs:                  120,
-					ChunkTransferTimeoutSecs:                10,
-					EnableMountRetries:                      false,
-					MaxRetryAttempts:                        math.MaxInt,
-					MaxRetrySleep:                           30 * time.Second,
-					Multiplier:                              2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
 						Enable:              true,
 						InitialReqTimeout:   20 * time.Second,

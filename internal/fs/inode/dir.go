@@ -243,7 +243,7 @@ type dirInode struct {
 	// INVARIANT: name.IsDir()
 	name Name
 
-	attrs fuseops.InodeAttributes
+	mtime time.Time
 
 	/////////////////////////
 	// Mutable state
@@ -312,7 +312,6 @@ func NewDirInode(
 	id fuseops.InodeID,
 	name Name,
 	parentInodeCtx context.Context,
-	attrs fuseops.InodeAttributes,
 	implicitDirs bool,
 	enableNonexistentTypeCache bool,
 	typeCacheTTL time.Duration,
@@ -343,7 +342,7 @@ func NewDirInode(
 		includeFoldersAsPrefixes:               cfg.List.EnableEmptyManagedFolders,
 		enableNonexistentTypeCache:             enableNonexistentTypeCache,
 		name:                                   name,
-		attrs:                                  attrs,
+		mtime:                                  mtimeClock.Now(),
 		isHNSEnabled:                           cfg.EnableHns,
 		isStandardSymlinkRepresentationEnabled: cfg.EnableStandardSymlinks,
 		isUnsupportedPathSupportEnabled:        cfg.EnableUnsupportedPathSupport,
@@ -635,11 +634,9 @@ func (d *dirInode) UpdateSize(size uint64) {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) Attributes(
-	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
-	// Set up basic attributes.
-	attrs = d.attrs
-	attrs.Nlink = 1
-
+	ctx context.Context, clobberedCheck bool) (size uint64, mtime time.Time, nlink uint32, err error) {
+	mtime = d.mtime
+	nlink = 1
 	return
 }
 

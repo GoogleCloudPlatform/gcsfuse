@@ -23,7 +23,6 @@ import (
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -239,44 +238,4 @@ func NewStorageControlClient(raw StorageControlClient, clientConfig *storageutil
 		return &storageControlClientWithBillingProject{raw: wrapped, billingProject: state.billingProject}
 	}
 	return wrapped
-}
-
-func storageControlClientGaxRetryOptions(clientConfig *storageutil.StorageClientConfig) []gax.CallOption {
-	return []gax.CallOption{
-		gax.WithTimeout(storageutil.DefaultTotalRetryBudget),
-		gax.WithRetry(func() gax.Retryer {
-			return gax.OnCodes([]codes.Code{
-				codes.ResourceExhausted,
-				codes.Unavailable,
-				codes.DeadlineExceeded,
-				codes.Internal,
-				codes.Unknown,
-				// TODO(b/518674297): Please incorporate the correct fix post resolution of oauth2 issue.
-				codes.Unauthenticated,
-			}, gax.Backoff{
-				Max:        clientConfig.MaxRetrySleep,
-				Multiplier: clientConfig.RetryMultiplier,
-			})
-		}),
-	}
-}
-
-// addGaxRetriesForFolderAPIs updates the passed raw control client
-// to add gax retries according to the given config in-place.
-func addGaxRetriesForFolderAPIs(rawControlClient *control.StorageControlClient,
-	clientConfig *storageutil.StorageClientConfig) error {
-	if rawControlClient == nil || clientConfig == nil {
-		return fmt.Errorf("invalid input: %v, %v", rawControlClient, clientConfig)
-	}
-	if rawControlClient.CallOptions == nil {
-		return fmt.Errorf("cannot apply gax retries for folder APIs to raw control client: CallOptions is nil")
-	}
-
-	*rawControlClient.CallOptions = control.StorageControlCallOptions{}
-	gaxRetryOptions := storageControlClientGaxRetryOptions(clientConfig)
-	rawControlClient.CallOptions.RenameFolder = gaxRetryOptions
-	rawControlClient.CallOptions.GetFolder = gaxRetryOptions
-	rawControlClient.CallOptions.CreateFolder = gaxRetryOptions
-	rawControlClient.CallOptions.DeleteFolder = gaxRetryOptions
-	return nil
 }

@@ -90,7 +90,15 @@ func TestChunkTransferTimeoutInfinity(t *testing.T) {
 	ts := &chunkTransferTimeoutInfinity{}
 	// Define flag set to run the tests.
 	flagsSet := [][]string{
-		{"--chunk-transfer-timeout-secs=0"},
+		{
+			"--chunk-transfer-timeout-secs=0",
+			// TODO: Remove --enable-hns=false after proxy server supports multiplexing
+			// HTTP and gRPC on the same port.
+			// Disable HNS to prevent gRPC Control Client initialization.
+			// Legacy emulator proxy servers run on HTTP/1.1, which causes the
+			// gRPC HTTP/2 dialer to crash the mount sequence.
+			"--enable-hns=false",
+		},
 	}
 
 	// Run tests.
@@ -102,9 +110,11 @@ func TestChunkTransferTimeoutInfinity(t *testing.T) {
 }
 
 func TestChunkTransferTimeout(t *testing.T) {
+	// TODO: Remove --enable-hns=false from these flag sets after proxy server
+	// supports multiplexing HTTP and gRPC on the same port.
 	flagSets := [][]string{
-		{},
-		{"--chunk-transfer-timeout-secs=5"},
+		{"--enable-hns=false"},
+		{"--chunk-transfer-timeout-secs=5", "--enable-hns=false"},
 	}
 
 	stallScenarios := []struct {
@@ -168,6 +178,8 @@ func TestChunkTransferTimeout(t *testing.T) {
 }
 
 func TestChunkRetryDeadline(t *testing.T) {
+	// TODO: Remove --enable-hns=false from these scenarios after proxy server
+	// supports multiplexing HTTP and gRPC on the same port.
 	scenarios := []struct {
 		name            string
 		flags           []string
@@ -176,13 +188,13 @@ func TestChunkRetryDeadline(t *testing.T) {
 	}{
 		{
 			name:            "StallUnderDeadline_Pass",
-			flags:           []string{"--chunk-transfer-timeout-secs=10", "--chunk-retry-deadline-secs=120"},
+			flags:           []string{"--chunk-transfer-timeout-secs=10", "--chunk-retry-deadline-secs=120", "--enable-hns=false"},
 			expectedStall:   40 * time.Second,
 			expectedSuccess: true,
 		},
 		{
 			name:            "StallOverDeadline_Fail",
-			flags:           []string{"--chunk-transfer-timeout-secs=10", "--chunk-retry-deadline-secs=32"},
+			flags:           []string{"--chunk-transfer-timeout-secs=10", "--chunk-retry-deadline-secs=32", "--enable-hns=false"},
 			expectedStall:   40 * time.Second,
 			expectedSuccess: false,
 		},

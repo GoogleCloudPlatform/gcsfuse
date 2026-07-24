@@ -197,6 +197,11 @@ func TestValidateCliFlag(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:    "invalid less than 1024 fuse-max-request-size-kb",
+			args:    []string{"--fuse-max-request-size-kb=16"},
+			wantErr: true,
+		},
+		{
 			name:    "invalid exceeding max pages fuse-max-request-size-kb",
 			args:    []string{"--fuse-max-request-size-kb=10000000"},
 			wantErr: true,
@@ -839,13 +844,12 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				GcsRetries: cfg.GcsRetriesConfig{
-					ExperimentalNonrapidFolderApiStallRetry: true,
-					ChunkRetryDeadlineSecs:                  180,
-					ChunkTransferTimeoutSecs:                20,
-					EnableMountRetries:                      false,
-					MaxRetryAttempts:                        math.MaxInt,
-					MaxRetrySleep:                           30 * time.Second,
-					Multiplier:                              2,
+					ChunkRetryDeadlineSecs:   180,
+					ChunkTransferTimeoutSecs: 20,
+					EnableMountRetries:       false,
+					MaxRetryAttempts:         math.MaxInt,
+					MaxRetrySleep:            30 * time.Second,
+					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
 						Enable:              false,
 						MinReqTimeout:       10 * time.Second,

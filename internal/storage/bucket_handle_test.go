@@ -644,6 +644,74 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 	}
 }
 
+func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
+	// Define the bucket scenarios to test.
+	bucketScenarios := []struct {
+		name                        string
+		bucketType                  gcs.BucketType
+		expectedWriterStorageClass  string
+		expectedCreatedStorageClass string
+		canTestCreateObject         bool
+	}{
+		{
+			name:                        "StandardBucket",
+			bucketType:                  gcs.BucketType{Pirlo: gcs.PirloStateNone},
+			expectedWriterStorageClass:  "",
+			expectedCreatedStorageClass: "STANDARD",
+			canTestCreateObject:         true,
+		},
+		{
+			name:                       "ZonalBucket",
+			bucketType:                 gcs.BucketType{Zonal: true},
+			expectedWriterStorageClass: "",    // Zonal buckets do not use the RAPID storage class.
+			canTestCreateObject:        false, // Fails on HTTP append.
+		},
+		{
+			name:                       "PirloBucket_RapidEnabled",
+			bucketType:                 gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			expectedWriterStorageClass: storageClassRapid,
+			canTestCreateObject:        false, // Fails on HTTP append.
+		},
+		{
+			name:                        "PirloBucket_RapidDisabled",
+			bucketType:                  gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
+			expectedWriterStorageClass:  "",
+			expectedCreatedStorageClass: "STANDARD",
+			canTestCreateObject:         true,
+		},
+	}
+
+	for _, scenario := range bucketScenarios {
+		testSuite.T().Run(scenario.name+"/CreateObjectChunkWriter", func(t *testing.T) {
+			createBucketHandle(testSuite, &controlpb.StorageLayout{})
+			testSuite.bucketHandle.bucketType = &scenario.bucketType
+			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{}
+			req := &gcs.CreateObjectRequest{Name: "test_object_2"}
+
+			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), req, 1024, nil)
+
+			require.NoError(t, err)
+			objWr, ok := w.(*ObjectWriter)
+			require.True(t, ok)
+			assert.Equal(t, scenario.expectedWriterStorageClass, objWr.StorageClass)
+		})
+
+		if scenario.canTestCreateObject {
+			testSuite.T().Run(scenario.name+"/CreateObject", func(t *testing.T) {
+				createBucketHandle(testSuite, &controlpb.StorageLayout{})
+				testSuite.bucketHandle.bucketType = &scenario.bucketType
+				testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{}
+				req := &gcs.CreateObjectRequest{Name: "test_object_1", Contents: strings.NewReader("data")}
+
+				o, err := testSuite.bucketHandle.CreateObject(context.Background(), req)
+
+				require.NoError(t, err)
+				assert.Equal(t, scenario.expectedCreatedStorageClass, o.StorageClass)
+			})
+		}
+	}
+}
+
 func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
 	createBucketHandle(testSuite, &controlpb.StorageLayout{})
 	var generation0 int64 = 0

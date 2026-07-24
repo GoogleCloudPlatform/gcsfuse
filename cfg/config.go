@@ -629,6 +629,8 @@ type FileSystemConfig struct {
 
 	RenameDirLimit int64 `yaml:"rename-dir-limit"`
 
+	StrongConsistencyOnOpen bool `yaml:"strong-consistency-on-open"`
+
 	TempDir ResolvedPath `yaml:"temp-dir"`
 
 	Uid int64 `yaml:"uid"`
@@ -680,8 +682,6 @@ type GcsRetriesConfig struct {
 	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
 
 	EnableMountRetries bool `yaml:"enable-mount-retries"`
-
-	ExperimentalNonrapidFolderApiStallRetry bool `yaml:"experimental-nonrapid-folder-api-stall-retry"`
 
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
 
@@ -1116,12 +1116,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("experimental-nonrapid-folder-api-stall-retry", "", false, "Enables stall-retry-fix for folder APIs for non-rapid buckets.")
-
-	if err := flagSet.MarkHidden("experimental-nonrapid-folder-api-stall-retry"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("experimental-o-direct", "", false, "Experimental: Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse process.")
 
 	if err := flagSet.MarkHidden("experimental-o-direct"); err != nil {
@@ -1196,7 +1190,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
 
-	flagSet.IntP("fuse-max-request-size-kb", "", StorageClassRapid.DefaultFuseMaxRequestSizeKb(), "Sets the target maximum request size in KiB that FUSE can process in a single request (currently used to control read requests only). This is translated to the kernel max_pages limit based on host page size. As max_pages_limit is a global, machine-level configuration across all mounts, the host's limit is only updated if the calculated pages value is greater than the current system limit. Note that the FUSE kernel max_pages limit can be set to at most 65535 (fuse_max_max_pages), so the value of this parameter must be > 0 and translate to at most 65535 pages.  Additionally, on GKE, the system-wide setting is capped to 16 MiB (16384 KiB) by default by the CSI driver. If needed to be set beyond that on GKE, the user has to manually increase the value on the node before GCSFuse mounting begins.")
+	flagSet.IntP("fuse-max-request-size-kb", "", StorageClassRapid.DefaultFuseMaxRequestSizeKb(), "Sets the target maximum request size in KiB that FUSE can process in a single request (currently used to control read requests only). This is translated to the kernel max_pages limit based on host page size. As max_pages_limit is a global, machine-level configuration across all mounts, the host's limit is only updated if the calculated pages value is greater than the current system limit. Note that the FUSE kernel max_pages limit can be set to at most 65535 (fuse_max_max_pages), so the value of this parameter must be > 0 and translate to at most 65535 pages.  Additionally, on GKE, the system-wide setting is capped to 16 MiB (16384 KiB) by default by the CSI driver. If needed to be set beyond that on GKE, the user has to manually increase the value on the node before GCSFuse mounting begins. Requires enable-kernel-reader to be set to true, otherwise the value will be ignored.  Not supported for rapid buckets for now. Setting this flag on rapid buckets will result in mount failure.")
 
 	if err := flagSet.MarkHidden("fuse-max-request-size-kb"); err != nil {
 		return err
@@ -1415,6 +1409,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkDeprecated("stat-cache-ttl", "This flag has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs."); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("strong-consistency-on-open", "", false, "When enabled, during open file, GCSFuse will check with GCS if the file has been modified since it last fetched and fail with ESTALE if the file has been clobbered (externally modified).")
 
 	flagSet.StringP("temp-dir", "", "", "Path to the temporary directory where writes are staged prior to upload to Cloud Storage. (default: system default, likely /tmp)")
 
@@ -1712,10 +1708,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.experimental-metadata-prefetch-on-mount", flagSet.Lookup("experimental-metadata-prefetch-on-mount")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("gcs-retries.experimental-nonrapid-folder-api-stall-retry", flagSet.Lookup("experimental-nonrapid-folder-api-stall-retry")); err != nil {
 		return err
 	}
 
@@ -2020,6 +2012,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.deprecated-stat-cache-ttl", flagSet.Lookup("stat-cache-ttl")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.strong-consistency-on-open", flagSet.Lookup("strong-consistency-on-open")); err != nil {
 		return err
 	}
 

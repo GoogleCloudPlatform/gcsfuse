@@ -63,7 +63,6 @@ func (t *RecursiveCancellationTest) createDirInode(name Name, parentCtx context.
 		fuseops.RootInodeID+1, // ID doesn't matter much
 		name,
 		parentCtx,
-		fuseops.InodeAttributes{Mode: dirMode},
 		true, // implicitDirs
 		false,
 		time.Minute,

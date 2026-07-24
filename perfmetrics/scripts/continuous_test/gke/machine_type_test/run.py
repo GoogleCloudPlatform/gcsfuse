@@ -422,6 +422,8 @@ async def main():
   return_code = 0
   with tempfile.TemporaryDirectory() as temp_dir:
     try:
+      branch, commit_id, gcsfuse_dir = await utils.clone_and_log_branch_info(args.gcsfuse_branch, temp_dir)
+
       if args.skip_csi_driver_build:
         await utils.setup_gke_cluster(
             args.project_id,
@@ -450,10 +452,15 @@ async def main():
         )
         build_task = asyncio.create_task(
             utils.build_gcsfuse_image(
-                args.project_id, args.gcsfuse_branch, temp_dir, STAGING_VERSION
+                args.project_id, gcsfuse_dir, STAGING_VERSION
             )
         )
-        await asyncio.gather(setup_task, build_task)
+        try:
+            await asyncio.gather(setup_task, build_task)
+        except Exception:
+            print("Setup or build failed. Waiting for background tasks to finish before cleanup...", file=sys.stderr)
+            await asyncio.gather(setup_task, build_task, return_exceptions=True)
+            raise
 
       await set_up_bucket_permissions(
           args.project_id, args.zone, args.cluster_name, args.bucket_name
@@ -468,7 +475,7 @@ async def main():
           STAGING_VERSION,
           args.pod_timeout_seconds,
           args.machine_type,
-          args.gcsfuse_branch,
+          branch,
       )
 
       if success:
