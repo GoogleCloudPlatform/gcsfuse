@@ -750,8 +750,8 @@ stale_handle:
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
-          - "--metadata-cache-ttl-secs=3600,--stat-cache-size-mb=32,--type-cache-size-mb=4,--client-protocol=http1,--strong-consistency-on-open"
-          - "--metadata-cache-ttl-secs=3600,--stat-cache-size-mb=32,--type-cache-size-mb=4,--client-protocol=grpc,--strong-consistency-on-open"
+          - "--metadata-cache-ttl-secs=3600,--stat-cache-max-size-mb=32,--client-protocol=http1,--strong-consistency-on-open"
+          - "--metadata-cache-ttl-secs=3600,--stat-cache-max-size-mb=32,--client-protocol=grpc,--strong-consistency-on-open"
         compatible:
           flat: true
           hns: true
