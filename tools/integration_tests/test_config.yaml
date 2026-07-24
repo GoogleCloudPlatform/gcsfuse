@@ -2046,3 +2046,19 @@ concurrent_operations:
             different_zone: false
         run: TestConcurrentListing
         run_on_gke: true
+
+shared_chunk_cache:
+  - mounted_directory: "${MOUNTED_DIR}"
+    mounted_directory_secondary: "${MOUNTED_DIR_SECONDARY}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - flags:
+          - "--enable-experimental-shared-chunk-cache,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/shared-cache"
+        secondary_flags:
+          - "--enable-experimental-shared-chunk-cache,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/shared-cache"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run: TestSharedChunkCacheTestSuite
+        run_on_gke: true
