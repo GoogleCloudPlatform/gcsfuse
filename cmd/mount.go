@@ -32,7 +32,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/perms"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
@@ -202,9 +201,17 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
 	}
 
+	mountCfg.MaxWrite = uint32(newConfig.FileSystem.FuseMaxWriteSizeKb * 1024)
+
 	if newConfig.FileSystem.EnableKernelReader && newConfig.FileSystem.FuseMaxRequestSizeKb > 0 {
+		// Ensure MaxWrite does not exceed the maximum request size when the kernel reader is enabled.
+		// MaxPages is explicitly calculated to accommodate the request size for vectored reads.
+		mountCfg.MaxWrite = min(mountCfg.MaxWrite, uint32(newConfig.FileSystem.FuseMaxRequestSizeKb*1024))
 		mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxRequestSizeKb)))
-		mountCfg.MaxWrite = uint32(util.MiB)
+	} else {
+		// Fallback for the non-kernel reader path, where vectored reads are unsupported.
+		// We restrict MaxPages by tying it to the MaxWrite limit.
+		mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxWriteSizeKb)))
 	}
 
 	if newConfig.Logging.WireLog != "" {
