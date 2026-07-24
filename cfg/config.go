@@ -711,6 +711,10 @@ type LoggingConfig struct {
 
 	LogRotate LogRotateLoggingConfig `yaml:"log-rotate"`
 
+	OtelLoggingEnabled bool `yaml:"otel-logging-enabled"`
+
+	OtelLoggingEndpoint string `yaml:"otel-logging-endpoint"`
+
 	Severity LogSeverity `yaml:"severity"`
 
 	WireLog ResolvedPath `yaml:"wire-log"`
@@ -1309,6 +1313,10 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
+
+	flagSet.BoolP("otel-logging-enabled", "", false, "Enable OpenTelemetry log exporting.")
+
+	flagSet.StringP("otel-logging-endpoint", "", "", "The OTLP HTTP endpoint for OpenTelemetry logs.")
 
 	flagSet.StringP("profile", "", "", "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing")
 
@@ -1924,6 +1932,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("only-dir", flagSet.Lookup("only-dir")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.otel-logging-enabled", flagSet.Lookup("otel-logging-enabled")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.otel-logging-endpoint", flagSet.Lookup("otel-logging-endpoint")); err != nil {
 		return err
 	}
 

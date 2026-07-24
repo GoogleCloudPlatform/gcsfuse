@@ -475,7 +475,15 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		traceHandle = tracing.NewOTELTracer()
 	}
 
-	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
+	var logExporterShutdownFn common.ShutdownFn
+	if newConfig.Logging.OtelLoggingEnabled {
+		logExporterShutdownFn, err = monitor.SetupOTelLogExporter(ctx, newConfig.Logging.OtelLoggingEndpoint, logger.MountInstanceID(fsName(bucketName)))
+		if err != nil {
+			logger.Errorf("Failed to setup OTel log exporter: %v", err)
+		}
+	}
+
+	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn, logExporterShutdownFn)
 
 	// No-op if profiler is disabled.
 	if err := profiler.SetupCloudProfiler(&newConfig.CloudProfiler); err != nil {

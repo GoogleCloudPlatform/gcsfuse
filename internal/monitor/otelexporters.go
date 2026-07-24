@@ -37,6 +37,10 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
+	globalLog "go.opentelemetry.io/otel/log/global"
+	"go.opentelemetry.io/otel/sdk/log"
 )
 
 const serviceName = "gcsfuse"
@@ -204,4 +208,31 @@ func getResource(ctx context.Context, mountID string) (*resource.Resource, error
 			semconv.ServiceInstanceID(mountID),
 		),
 	)
+}
+
+// SetupOTelLogExporter initializes the OpenTelemetry Log provider.
+func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string) (common.ShutdownFn, error) {
+	res, err := getResource(ctx, mountID)
+	if err != nil {
+		logger.Errorf("Error while fetching resource for logs: %v", err)
+		return nil, err
+	}
+
+	exporter, err := otlploghttp.New(ctx, otlploghttp.WithEndpoint(endpoint))
+	if err != nil {
+		return nil, err
+	}
+
+	processor := log.NewBatchProcessor(exporter)
+	provider := log.NewLoggerProvider(
+		log.WithProcessor(processor),
+		log.WithResource(res),
+	)
+
+	// Optional: set it globally if needed
+	globalLog.SetLoggerProvider(provider)
+
+	return func(ctx context.Context) error {
+		return provider.Shutdown(ctx)
+	}, nil
 }

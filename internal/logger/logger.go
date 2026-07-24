@@ -25,6 +25,8 @@ import (
 	"strings"
 	"sync"
 
+	"go.opentelemetry.io/contrib/bridges/otelslog"
+
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -95,12 +97,13 @@ func InitLogFile(newLogConfig cfg.LoggingConfig, fsName string) error {
 	}
 
 	defaultLoggerFactory = &loggerFactory{
-		file:       f,
-		sysWriter:  sysWriter,
-		fileWriter: fileWriter,
-		format:     newLogConfig.Format,
-		level:      string(newLogConfig.Severity),
-		logRotate:  newLogConfig.LogRotate,
+		file:               f,
+		sysWriter:          sysWriter,
+		fileWriter:         fileWriter,
+		format:             newLogConfig.Format,
+		level:              string(newLogConfig.Severity),
+		logRotate:          newLogConfig.LogRotate,
+		otelLoggingEnabled: newLogConfig.OtelLoggingEnabled,
 	}
 	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(string(newLogConfig.Severity), fsName)
 
@@ -258,12 +261,13 @@ func SetOutput(w io.Writer) {
 
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
-	file       *os.File
-	sysWriter  *syslog.Writer
-	format     string
-	level      string
-	logRotate  cfg.LogRotateLoggingConfig
-	fileWriter *lumberjack.Logger
+	file               *os.File
+	sysWriter          *syslog.Writer
+	format             string
+	level              string
+	logRotate          cfg.LogRotateLoggingConfig
+	fileWriter         *lumberjack.Logger
+	otelLoggingEnabled bool
 }
 
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
@@ -294,12 +298,63 @@ func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog
 }
 
 func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Handler {
+	var localHandler slog.Handler
 	if f.fileWriter != nil {
-		return f.createJsonOrTextHandler(f.fileWriter, levelVar, prefix)
+		localHandler = f.createJsonOrTextHandler(f.fileWriter, levelVar, prefix)
+	} else if f.sysWriter != nil {
+		localHandler = f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
+	} else {
+		localHandler = f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
 	}
 
-	if f.sysWriter != nil {
-		return f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
+	if f.otelLoggingEnabled {
+		otelHandler := otelslog.NewHandler("gcsfuse")
+		return &multiHandler{handlers: []slog.Handler{localHandler, otelHandler}}
 	}
-	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
+	return localHandler
+}
+
+// multiHandler dispatches logs to multiple slog.Handlers.
+type multiHandler struct {
+	handlers []slog.Handler
+}
+
+func (m *multiHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	for _, h := range m.handlers {
+		if h.Enabled(ctx, level) {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *multiHandler) Handle(ctx context.Context, r slog.Record) error {
+	var errs []error
+	for _, h := range m.handlers {
+		if h.Enabled(ctx, r.Level) {
+			if err := h.Handle(ctx, r); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("multiple handler errors: %v", errs)
+	}
+	return nil
+}
+
+func (m *multiHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	var newHandlers []slog.Handler
+	for _, h := range m.handlers {
+		newHandlers = append(newHandlers, h.WithAttrs(attrs))
+	}
+	return &multiHandler{handlers: newHandlers}
+}
+
+func (m *multiHandler) WithGroup(name string) slog.Handler {
+	var newHandlers []slog.Handler
+	for _, h := range m.handlers {
+		newHandlers = append(newHandlers, h.WithGroup(name))
+	}
+	return &multiHandler{handlers: newHandlers}
 }
