@@ -631,6 +631,8 @@ type FileSystemConfig struct {
 
 	RenameDirLimit int64 `yaml:"rename-dir-limit"`
 
+	StrongConsistencyOnOpen bool `yaml:"strong-consistency-on-open"`
+
 	TempDir ResolvedPath `yaml:"temp-dir"`
 
 	Uid int64 `yaml:"uid"`
@@ -682,8 +684,6 @@ type GcsRetriesConfig struct {
 	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
 
 	EnableMountRetries bool `yaml:"enable-mount-retries"`
-
-	ExperimentalNonrapidFolderApiStallRetry bool `yaml:"experimental-nonrapid-folder-api-stall-retry"`
 
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
 
@@ -1118,12 +1118,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("experimental-nonrapid-folder-api-stall-retry", "", false, "Enables stall-retry-fix for folder APIs for non-rapid buckets.")
-
-	if err := flagSet.MarkHidden("experimental-nonrapid-folder-api-stall-retry"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("experimental-o-direct", "", false, "Experimental: Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse process.")
 
 	if err := flagSet.MarkHidden("experimental-o-direct"); err != nil {
@@ -1424,6 +1418,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("strong-consistency-on-open", "", false, "When enabled, during open file, GCSFuse will check with GCS if the file has been modified since it last fetched and fail with ESTALE if the file has been clobbered (externally modified).")
+
 	flagSet.StringP("temp-dir", "", "", "Path to the temporary directory where writes are staged prior to upload to Cloud Storage. (default: system default, likely /tmp)")
 
 	flagSet.StringP("token-url", "", "", "A url for getting an access token when the key-file is absent.")
@@ -1720,10 +1716,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.experimental-metadata-prefetch-on-mount", flagSet.Lookup("experimental-metadata-prefetch-on-mount")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("gcs-retries.experimental-nonrapid-folder-api-stall-retry", flagSet.Lookup("experimental-nonrapid-folder-api-stall-retry")); err != nil {
 		return err
 	}
 
@@ -2032,6 +2024,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.deprecated-stat-cache-ttl", flagSet.Lookup("stat-cache-ttl")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.strong-consistency-on-open", flagSet.Lookup("strong-consistency-on-open")); err != nil {
 		return err
 	}
 

@@ -127,11 +127,6 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 		dirInodeID,
 		NewDirName(NewRootName(""), dirInodeName),
 		parInodeCtx,
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
 		implicitDirs,
 		enableNonexistentTypeCache,
 		typeCacheTTL,
@@ -175,11 +170,6 @@ func (t *DirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName string
 		5,
 		NewDirName(NewRootName(""), dirInodeName),
 		parInodeCtx,
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
 		false,
 		true,
 		typeCacheTTL,
@@ -257,11 +247,6 @@ func (t *DirTest) createLocalFileInode(parent Name, name string, id fuseops.Inod
 		id,
 		NewFileName(parent, name),
 		nil,
-		fuseops.InodeAttributes{
-			Uid:  123,
-			Gid:  456,
-			Mode: 0712,
-		},
 		&t.bucket,
 		false, // localFileCache
 		contentcache.New("", &t.clock),
@@ -320,21 +305,19 @@ func (t *DirTest) TestLookupCount() {
 }
 
 func (t *DirTest) TestAttributes_WithClobberedCheckTrue() {
-	attrs, err := t.in.Attributes(t.ctx, true)
+	size, _, nlink, err := t.in.Attributes(t.ctx, true)
 
 	require.NoError(t.T(), err)
-	assert.EqualValues(t.T(), uid, attrs.Uid)
-	assert.EqualValues(t.T(), gid, attrs.Gid)
-	assert.Equal(t.T(), dirMode|os.ModeDir, attrs.Mode)
+	assert.Equal(t.T(), uint64(0), size)
+	assert.Equal(t.T(), uint32(1), nlink)
 }
 
 func (t *DirTest) TestAttributes_WithClobberedCheckFalse() {
-	attrs, err := t.in.Attributes(t.ctx, false)
+	size, _, nlink, err := t.in.Attributes(t.ctx, false)
 
 	require.NoError(t.T(), err)
-	assert.EqualValues(t.T(), uid, attrs.Uid)
-	assert.EqualValues(t.T(), gid, attrs.Gid)
-	assert.Equal(t.T(), dirMode|os.ModeDir, attrs.Mode)
+	assert.Equal(t.T(), uint64(0), size)
+	assert.Equal(t.T(), uint32(1), nlink)
 }
 
 func (t *DirTest) TestLookUpChild_NonExistent() {
@@ -380,7 +363,6 @@ func (t *DirTest) TestLookUpChild_NegativeCacheHit() {
 		dirInodeID,
 		NewDirName(NewRootName(""), dirInodeName),
 		context.Background(),
-		fuseops.InodeAttributes{},
 		false,
 		false,
 		time.Second, // non-zero TTL to enable the caching logic
@@ -1638,11 +1620,6 @@ func (t *DirTest) TestCreateChildSymlink_StandardSymlinkEnabled() {
 		dirInodeID,
 		NewDirName(NewRootName(""), dirInodeName),
 		parInodeCtx,
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
 		false, // implicitDirs
 		false, // enableNonexistentTypeCache
 		typeCacheTTL,
@@ -2439,7 +2416,6 @@ func (t *DirTest) TestMetadataPrefetcher_InitializationGuards() {
 				dirInodeID,
 				NewDirName(NewRootName(""), dirInodeName),
 				context.Background(),
-				fuseops.InodeAttributes{Mode: dirMode},
 				false, false, time.Second,
 				&t.bucket, &t.clock, &t.clock,
 				semaphore.NewWeighted(10),
