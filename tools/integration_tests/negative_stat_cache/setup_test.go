@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -55,6 +56,19 @@ type env struct {
 }
 
 var testEnv env
+
+func isImplicitDirsEnabled(flags []string) bool {
+	for _, flagSet := range flags {
+		if strings.Contains(flagSet, "implicit-dirs") {
+			return true
+		}
+	}
+	return false
+}
+
+func isHNSBucket() bool {
+	return setup.IsHierarchicalBucket(testEnv.ctx, testEnv.storageClient)
+}
 
 ////////////////////////////////////////////////////////////////////////
 // TestMain

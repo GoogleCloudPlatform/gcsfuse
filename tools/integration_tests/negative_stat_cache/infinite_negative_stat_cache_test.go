@@ -112,6 +112,82 @@ func (s *infiniteNegativeStatCacheTest) TestAlreadyExistFolder() {
 	assert.ErrorIs(s.T(), err, syscall.EEXIST)
 }
 
+func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache_ImplicitDirectory() {
+	if !isImplicitDirsEnabled(s.flags) {
+		s.T().Skip("Skipping implicit directory test as --implicit-dirs flag is not enabled.")
+	}
+
+	implicitDir := path.Join(testEnv.testDirPath, "implicit_dir")
+	targetFile := path.Join(implicitDir, "file1.txt")
+
+	// Stat of non-existent implicit dir should fail, populating negative stat cache for implicit_dir infinitely.
+	_, err := os.Stat(implicitDir)
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+
+	// Open of non-existent file in implicit dir should fail.
+	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+
+	// Create object in GCS directly under implicit_dir path.
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, s.testDir, "implicit_dir/file1.txt", "some-content", s.T())
+
+	// Calls should continue to return error due to infinite negative stat cache.
+	_, err = os.Stat(implicitDir)
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+
+	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+}
+
+func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache_ImplicitDirsDisabled() {
+	if isImplicitDirsEnabled(s.flags) || isHNSBucket() {
+		s.T().Skip("Skipping test: requires flat bucket with implicit-dirs disabled.")
+	}
+
+	targetFile := path.Join(testEnv.testDirPath, "file1.txt")
+
+	// Open of non-existent file should fail, caching file non-existence infinitely.
+	_, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+
+	// Create object in GCS directly.
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, s.testDir, "file1.txt", "some-content", s.T())
+
+	// Call to open file should continue to fail infinitely.
+	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+}
+
+func (s *infiniteNegativeStatCacheTest) TestInfiniteNegativeStatCache_HNSFolder() {
+	if !isHNSBucket() {
+		s.T().Skip("Skipping test: requires HNS bucket.")
+	}
+
+	hnsDirName := "hns_dir"
+	hnsDirPath := path.Join(testEnv.testDirPath, hnsDirName)
+	hnsDirPathOnBucket := path.Join(s.testDir, hnsDirName)
+
+	// Stat of non-existent HNS folder should fail, populating negative cache infinitely.
+	_, err := os.Stat(hnsDirPath)
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+
+	// Create folder out-of-band on HNS bucket using control client.
+	_, err = client.CreateFolderInBucket(testEnv.ctx, testEnv.storageControlClient, hnsDirPathOnBucket)
+	assert.NoError(s.T(), err)
+
+	// Stat should continue to fail infinitely due to infinite negative cache.
+	_, err = os.Stat(hnsDirPath)
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
