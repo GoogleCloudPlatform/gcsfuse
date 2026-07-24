@@ -876,6 +876,22 @@ func Test_isValidMRDConfig(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "invalid_target_pending_ranges_negative",
+			mrdConfig: MrdConfig{
+				PoolSize:            1,
+				TargetPendingRanges: -1,
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid_target_pending_bytes_negative",
+			mrdConfig: MrdConfig{
+				PoolSize:           1,
+				TargetPendingBytes: -1,
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range testCases {

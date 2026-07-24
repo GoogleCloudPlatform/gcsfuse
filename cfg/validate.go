@@ -313,6 +313,12 @@ func isValidMRDConfig(mrdConfig *MrdConfig) error {
 	if mrdConfig.PoolSize < 1 {
 		return fmt.Errorf("invalid value of mrd-pool-size: %d; should be >=1", mrdConfig.PoolSize)
 	}
+	if mrdConfig.TargetPendingRanges < 0 {
+		return fmt.Errorf("invalid value of target-pending-ranges: %d; should be >=0", mrdConfig.TargetPendingRanges)
+	}
+	if mrdConfig.TargetPendingBytes < 0 {
+		return fmt.Errorf("invalid value of target-pending-bytes: %d; should be >=0", mrdConfig.TargetPendingBytes)
+	}
 	return nil
 }
 

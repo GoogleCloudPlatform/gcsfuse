@@ -1138,7 +1138,21 @@ params:
     type: "int"
     usage: >-
       Specifies the MRD pool size to be used for zonal buckets. The value should be more than 0.
-    default: "4"
+    default: 4
+    hide-flag: true
+
+  - config-path: "mrd.target-pending-bytes"
+    flag-name: "mrd-target-pending-bytes"
+    type: "int"
+    usage: "The target threshold for pending bytes to trigger Multi-Range Downloader autoscaling."
+    default: 10485760
+    hide-flag: true
+
+  - config-path: "mrd.target-pending-ranges"
+    flag-name: "mrd-target-pending-ranges"
+    type: "int"
+    usage: "The target threshold for pending ranges to trigger Multi-Range Downloader autoscaling."
+    default: 20
     hide-flag: true
 
   - config-path: "only-dir"

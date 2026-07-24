@@ -166,6 +166,19 @@ func resolveGCSRetriesConfig(c *GcsRetriesConfig) {
 	}
 }
 
+func resolveMrdConfig(v *viper.Viper, c *MrdConfig) {
+	if !v.IsSet("mrd.target-pending-ranges") && c.TargetPendingRanges == 0 {
+		if c.TargetPendingBytes == 0 {
+			c.TargetPendingRanges = 20
+		}
+	}
+	if !v.IsSet("mrd.target-pending-bytes") && c.TargetPendingBytes == 0 {
+		if c.TargetPendingRanges == 0 || c.TargetPendingRanges == 20 {
+			c.TargetPendingBytes = 10 * 1024 * 1024 // 10MB
+		}
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	var err error
@@ -187,6 +200,6 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	resolveParallelDownloadsValue(v, &c.FileCache, c)
 	resolveFileCacheAndBufferedReadConflict(v, c)
 	resolveGCSRetriesConfig(&c.GcsRetries)
-
+	resolveMrdConfig(v, &c.Mrd)
 	return nil
 }
