@@ -206,6 +206,13 @@ func isValidWriteStreamingConfig(wc *WriteConfig) error {
 	if wc.BlockSizeMb <= 0 || wc.BlockSizeMb > float64(util.MaxMiBsInInt64) {
 		return fmt.Errorf("invalid value of write-block-size-mb; must be greater than 0 and less than or equal to %d", util.MaxMiBsInInt64)
 	}
+	// BlockSizeMb must be a multiple of 0.25 MiB (256 KiB) to align with the
+	// GCS Go SDK's ChunkSize requirements. While the SDK rounds up the
+	// ChunkSize to a multiple of 256 KiB internally, keeping them aligned
+	// for simplicity.
+	if math.Mod(wc.BlockSizeMb, 0.25) != 0 {
+		return fmt.Errorf("invalid value of write-block-size-mb; must be a multiple of 0.25")
+	}
 	if !(wc.MaxBlocksPerFile == -1 || wc.MaxBlocksPerFile >= 1) {
 		return fmt.Errorf("invalid value of write-max-blocks-per-file: %d; should be >=1 or -1 (for infinite)", wc.MaxBlocksPerFile)
 	}

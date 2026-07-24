@@ -743,6 +743,20 @@ func Test_isValidWriteStreamingConfig_ErrorScenarios(t *testing.T) {
 			GlobalMaxBlocks:       -1,
 			MaxBlocksPerFile:      -1,
 		}},
+		{"block_size_not_multiple_of_0_25_1", WriteConfig{
+			BlockSizeMb:           0.1,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       -1,
+			MaxBlocksPerFile:      -1,
+		}},
+		{"block_size_not_multiple_of_0_25_2", WriteConfig{
+			BlockSizeMb:           0.3,
+			CreateEmptyFile:       false,
+			EnableStreamingWrites: true,
+			GlobalMaxBlocks:       -1,
+			MaxBlocksPerFile:      -1,
+		}},
 		{"very_large_block_size", WriteConfig{
 			BlockSizeMb:           float64(util.MaxMiBsInInt64) + 1,
 			CreateEmptyFile:       false,

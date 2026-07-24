@@ -1279,8 +1279,9 @@ params:
     flag-name: "write-block-size-mb"
     type: "float64"
     usage: >-
-      Specifies the block size for streaming writes. The value should be more
-      than 0.
+      Specifies the block size for streaming writes. The value must be greater than
+      0 and a multiple of 0.25 MiB (256 KiB) to align with GCS upload chunk size
+      requirements.
     default: 32
     hide-flag: true
 
