@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
@@ -182,11 +183,15 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 // It creates the token-source from the provided
 // key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
-	ts, err := auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
-	if err != nil {
-		return nil, err
+	retryConfig := NewRetryConfig(storageClientConfig)
+	apiCall := func(attemptCtx context.Context) (oauth2.TokenSource, error) {
+		ts, err := auth.GetTokenSource(attemptCtx, storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
+		if err != nil {
+			return nil, err
+		}
+		return WrapTokenSource(storageClientConfig, ts), nil
 	}
-	return WrapTokenSource(storageClientConfig, ts), nil
+	return ExecuteWithCustomShouldRetry(context.Background(), retryConfig, "CreateTokenSource", "token-init", uuid.NewString(), apiCall, func(err error) bool { return true })
 }
 
 // StripScheme strips the scheme part of given url.

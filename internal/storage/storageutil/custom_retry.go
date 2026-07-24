@@ -22,6 +22,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -90,6 +91,14 @@ func determineRetryAction(err error) retryAction {
 			return retryNotFoundBucketDoesNotExist
 		}
 	}
+
+	var retErr *oauth2.RetrieveError
+	if errors.As(err, &retErr) {
+		if retErr.Response != nil && (retErr.Response.StatusCode >= 500 || retErr.Response.StatusCode == 400) {
+			return retryTransient
+		}
+	}
+
 	return noRetry
 }
 
