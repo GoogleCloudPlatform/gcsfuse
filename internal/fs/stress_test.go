@@ -138,7 +138,7 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 	// Create a file.
 	f, err := os.Create(path.Join(mntDir, "foo"))
 	AssertEq(nil, err)
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Set up a function that repeatedly truncates the file to random lengths,
 	// writing the final size to a channel.

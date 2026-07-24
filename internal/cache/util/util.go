@@ -176,7 +176,9 @@ func CalculateFileCRC32(ctx context.Context, filePath string) (uint32, error) {
 	if err != nil {
 		return 0, fmt.Errorf("error opening file: %w", err)
 	}
-	defer file.Close() // Ensure file closure
+	defer func() {
+		_ = file.Close() // Read-only file; a close error here is not actionable.
+	}()
 
 	return calculateCRC32(ctx, file)
 }

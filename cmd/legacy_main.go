@@ -311,13 +311,14 @@ func forwardedEnvVars() []string {
 	// https_proxy has precedence over http_proxy, in case both are set
 	if p, ok := os.LookupEnv("https_proxy"); ok {
 		env = append(env, fmt.Sprintf("https_proxy=%s", p))
-		fmt.Fprintf(
+		// Best-effort informational message; a write failure to stdout isn't actionable here.
+		_, _ = fmt.Fprintf(
 			os.Stdout,
 			"Added environment https_proxy: %s\n",
 			p)
 	} else if p, ok := os.LookupEnv("http_proxy"); ok {
 		env = append(env, fmt.Sprintf("http_proxy=%s", p))
-		fmt.Fprintf(
+		_, _ = fmt.Fprintf(
 			os.Stdout,
 			"Added environment http_proxy: %s\n",
 			p)
@@ -334,7 +335,7 @@ func forwardedEnvVars() []string {
 	for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "no_proxy", "GCE_METADATA_HOST", "GCE_METADATA_ROOT", "GCE_METADATA_IP", "GRPC_GO_LOG_VERBOSITY_LEVEL", "GRPC_GO_LOG_SEVERITY_LEVEL"} {
 		if envval, ok := os.LookupEnv(envvar); ok {
 			env = append(env, fmt.Sprintf("%s=%s", envvar, envval))
-			fmt.Fprintf(
+			_, _ = fmt.Fprintf(
 				os.Stdout,
 				"Added environment %s: %s\n",
 				envvar, envval)

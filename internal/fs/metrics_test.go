@@ -120,7 +120,7 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 	if params.enableFileCache || params.enableSparseFileCache {
 		cacheDir := t.TempDir()
 		t.Cleanup(func() {
-			os.RemoveAll(cacheDir)
+			_ = os.RemoveAll(cacheDir)
 		})
 		serverCfg.NewConfig.CacheDir = cfg.ResolvedPath(cacheDir)
 		serverCfg.NewConfig.FileCache = cfg.FileCacheConfig{

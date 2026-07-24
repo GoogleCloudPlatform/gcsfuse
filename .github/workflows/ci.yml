@@ -92,7 +92,6 @@ jobs:
 
   lint:
     name: Lint
-    if: github.ref != 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
     - name: checkout code
@@ -105,4 +104,5 @@ jobs:
       uses: golangci/golangci-lint-action@v8
       with:
         args: -E=unused --timeout 3m0s
-        only-new-issues: true
+        # PRs only lint changed lines; pushes to master (post-merge) lint the whole codebase.
+        only-new-issues: ${{ github.event_name == 'pull_request' }}

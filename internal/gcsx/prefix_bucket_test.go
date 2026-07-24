@@ -87,7 +87,7 @@ func (t *PrefixBucketTest) Test_NewReader() {
 		})
 
 	assert.Equal(t.T(), nil, err)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	actual, err := io.ReadAll(rc)
 	assert.NoError(t.T(), err)
@@ -112,7 +112,7 @@ func (t *PrefixBucketTest) Test_NewReaderWithReadHandle() {
 		})
 
 	assert.Equal(t.T(), nil, err)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 	actual, err := io.ReadAll(rc)
 	assert.NoError(t.T(), nil, err)
 	assert.Equal(t.T(), contents, string(actual))
@@ -136,7 +136,7 @@ func (t *PrefixBucketTest) Test_NewReaderWithNilReadHandle() {
 		})
 
 	assert.NoError(t.T(), err)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 	actual, err := io.ReadAll(rc)
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), contents, string(actual))

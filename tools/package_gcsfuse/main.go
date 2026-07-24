@@ -71,7 +71,7 @@ func run(args []string) (err error) {
 		return
 	}
 
-	defer os.RemoveAll(buildDir)
+	defer func() { _ = os.RemoveAll(buildDir) }()
 
 	// Write out .deb and .rpm files if we're building for Linux.
 	if osys == "linux" {

@@ -173,7 +173,7 @@ func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object strin
 	if err != nil {
 		return "", fmt.Errorf("Object(%q).NewReader: %w", object, err)
 	}
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	content, err := io.ReadAll(rc)
 	if err != nil {
@@ -193,7 +193,7 @@ func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string
 	if err != nil {
 		return "", fmt.Errorf("Object(%q).NewReader: %w", object, err)
 	}
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	content, err := io.ReadAll(rc)
 	if err != nil {

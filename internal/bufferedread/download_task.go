@@ -96,7 +96,11 @@ func (p *downloadTask) Execute() {
 		err = fmt.Errorf("DownloadTask.Execute: while reader-creations: %w", err)
 		return
 	}
-	defer newReader.Close()
+	defer func() {
+		if closeErr := newReader.Close(); closeErr != nil {
+			logger.Warnf("DownloadTask.Execute: error while closing reader: %v", closeErr)
+		}
+	}()
 
 	n, err = io.CopyN(p.block, newReader, int64(end-start))
 	if err != nil {

@@ -112,7 +112,7 @@ func TestMain(m *testing.M) {
 		log.Printf("Error creating storage client: %v\n", err)
 		os.Exit(1)
 	}
-	defer storageClient.Close()
+	defer func() { _ = storageClient.Close() }()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if cfg.Operations[0].GKEMountedDirectory != "" && cfg.Operations[0].TestBucket != "" {

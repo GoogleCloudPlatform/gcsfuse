@@ -82,7 +82,7 @@ func buildBinaries(dstDir, srcDir, version, arch string, buildArgs []string) (er
 		err = fmt.Errorf("TempDir: %w", err)
 		return
 	}
-	defer os.RemoveAll(gopath)
+	defer func() { _ = os.RemoveAll(gopath) }()
 
 	// Create a directory to become GOCACHE for our build below.
 	var gocache string
@@ -91,7 +91,7 @@ func buildBinaries(dstDir, srcDir, version, arch string, buildArgs []string) (er
 		err = fmt.Errorf("TempDir: %w", err)
 		return
 	}
-	defer os.RemoveAll(gocache)
+	defer func() { _ = os.RemoveAll(gocache) }()
 
 	// Make it appear as if the source directory is at the appropriate position
 	// in $GOPATH.

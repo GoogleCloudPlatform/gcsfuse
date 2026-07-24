@@ -2819,7 +2819,7 @@ write:
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			configFile := createTempConfigFile(t, tc.configContent)
-			defer os.Remove(configFile)
+			defer func() { _ = os.Remove(configFile) }()
 			var capturedMountInfo *mountInfo
 			cmd, err := newRootCmd(func(mi *mountInfo, _, _ string) error {
 				capturedMountInfo = mi

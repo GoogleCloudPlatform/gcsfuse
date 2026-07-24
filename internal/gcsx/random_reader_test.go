@@ -383,7 +383,7 @@ func (t *RandomReaderTest) PropagatesCancellation() {
 
 	go func() {
 		buf := make([]byte, 2)
-		t.rr.wrapped.ReadAt(ctx, buf, 1)
+		_, _ = t.rr.wrapped.ReadAt(ctx, buf, 1)
 		close(readReturned)
 	}()
 

@@ -198,7 +198,7 @@ func unmountAndWait(mountDir string) error {
 			}
 			return false, fmt.Errorf("could not open /proc/mounts: %w", err)
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {

@@ -70,7 +70,7 @@ func (s *InactiveTimeoutReaderTestSuite) TearDownTest() {
 	}
 
 	// Close the wrapper reader, not the potentially nil internal one
-	s.reader.Close()
+	_ = s.reader.Close()
 	s.reader = nil
 	s.mockBucket.AssertExpectations(s.T())
 }

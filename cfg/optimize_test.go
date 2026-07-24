@@ -95,7 +95,7 @@ func TestGetMachineType_InputPrecedenceOrder(t *testing.T) {
 			resetMetadataEndpoints(t)
 			// Create a test server that returns a machine type.
 			server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
+				_, _ = fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
 			})
 			defer closeTestServer(t, server)
 			// Override metadataEndpoints for testing.
@@ -122,7 +122,7 @@ func TestGetMachineType_QuotaError(t *testing.T) {
 		if retryCount < maxRetries {
 			w.WriteHeader(http.StatusTooManyRequests)
 		} else {
-			fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
+			_, _ = fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
 		}
 	})
 	defer closeTestServer(t, server)
@@ -139,7 +139,7 @@ func TestApplyOptimizations_DisableAutoConfig(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
+		_, _ = fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
@@ -162,7 +162,7 @@ func TestApplyOptimizations_MatchingMachineType(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
+		_, _ = fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
@@ -183,7 +183,7 @@ func TestApplyOptimizations_NonMatchingMachineType(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a non-matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
+		_, _ = fmt.Fprint(w, "zones/us-central1-a/machineTypes/n1-standard-1")
 	})
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
@@ -205,7 +205,7 @@ func TestApplyOptimizations_UserSetFlag(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
+		_, _ = fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
@@ -252,7 +252,7 @@ func TestApplyOptimizations_NoError(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
+		_, _ = fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
@@ -268,7 +268,7 @@ func TestApplyOptimizations_Success(t *testing.T) {
 	resetMetadataEndpoints(t)
 	// Create a test server that returns a matching machine type.
 	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
+		_, _ = fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
 	})
 	defer closeTestServer(t, server)
 	// Override metadataEndpoints for testing.
