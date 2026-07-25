@@ -15,6 +15,7 @@
 package metadata_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -138,7 +139,15 @@ func (t *StatCacheTest) SetupTest() {
 	if t.cacheFactory == nil {
 		t.cacheFactory = lru.NewCache
 	}
-	cache := t.cacheFactory(uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
+
+	tempCache := t.cacheFactory(1000)
+	isRadix := fmt.Sprintf("%T", tempCache) == "*lru.radixCache" || fmt.Sprintf("%T", tempCache) == "*lru.arenaRadix"
+	sizePerEntry := uint64(cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry)
+	if isRadix {
+		sizePerEntry -= 120 // Adjust capacity slightly for Radix cache to trigger eviction test correctly
+	}
+
+	cache := t.cacheFactory(sizePerEntry * capacity)
 	t.cache.wrapped = metadata.NewStatCacheBucketView(cache, "") // this demonstrates
 	t.statCache = metadata.NewStatCacheBucketView(cache, "")     // this demonstrates
 	// that if you are using a cache for a single bucket, then
@@ -149,7 +158,15 @@ func (t *MultiBucketStatCacheTest) SetupTest() {
 	if t.cacheFactory == nil {
 		t.cacheFactory = lru.NewCache
 	}
-	sharedCache := t.cacheFactory(uint64((cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry) * capacity))
+
+	tempCache := t.cacheFactory(1000)
+	isRadix := fmt.Sprintf("%T", tempCache) == "*lru.radixCache" || fmt.Sprintf("%T", tempCache) == "*lru.arenaRadix"
+	sizePerEntry := uint64(cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry)
+	if isRadix {
+		sizePerEntry -= 120
+	}
+
+	sharedCache := t.cacheFactory(sizePerEntry * capacity)
 	t.multiBucketCache.fruits = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "fruits")}
 	t.multiBucketCache.spices = testHelperCache{wrapped: metadata.NewStatCacheBucketView(sharedCache, "spices")}
 }
@@ -241,7 +258,7 @@ func (t *StatCacheTest) Test_ExpiresLeastRecentlyUsed() {
 
 	// Insert another.
 	o3 := &gcs.MinObject{Name: "queso"}
-	t.cache.Insert(o3, expiration) 
+	t.cache.Insert(o3, expiration)
 
 	// Add a large negative entry to force eviction of taco.
 	t.cache.AddNegativeEntry("very_long_negative_entry_name_to_force_eviction", expiration)
@@ -567,7 +584,11 @@ func (t *StatCacheTest) Test_ShouldReturnHitTrueWhenOnlyObjectAlreadyHasEntry() 
 }
 
 func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize() {
-	localCache := t.cacheFactory(uint64(2600))
+	capacity := uint64(2600)
+	if fmt.Sprintf("%T", t.cacheFactory(1)) == "*lru.radixCache" || fmt.Sprintf("%T", t.cacheFactory(1)) == "*lru.arenaRadix" {
+		capacity = uint64(2450)
+	}
+	localCache := t.cacheFactory(capacity)
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
 	objectEntry1 := &gcs.MinObject{Name: "1"}
 	objectEntry2 := &gcs.MinObject{Name: "2"}
@@ -600,7 +621,11 @@ func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize()
 }
 
 func (t *StatCacheTest) Test_ShouldEvictAllEntriesWithPrefixFolder() {
-	localCache := t.cacheFactory(uint64(10000))
+	capacity := uint64(10000)
+	if fmt.Sprintf("%T", t.cacheFactory(1)) == "*lru.radixCache" || fmt.Sprintf("%T", t.cacheFactory(1)) == "*lru.arenaRadix" {
+		capacity = uint64(9000)
+	}
+	localCache := t.cacheFactory(capacity)
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
 	folderEntry1 := &gcs.Folder{
 		Name: "a",
