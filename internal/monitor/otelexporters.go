@@ -218,7 +218,13 @@ func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string) 
 		return nil, err
 	}
 
-	exporter, err := otlploghttp.New(ctx, otlploghttp.WithEndpoint(endpoint))
+	opts := []otlploghttp.Option{otlploghttp.WithEndpoint(endpoint)}
+	// TODO: For local testing. Remove after internal testing.
+	if strings.Contains(endpoint, "localhost") || strings.Contains(endpoint, "127.0.0.1") || strings.Contains(endpoint, "0.0.0.0") || strings.Contains(endpoint, "[::1]") {
+		opts = append(opts, otlploghttp.WithInsecure())
+	}
+
+	exporter, err := otlploghttp.New(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
