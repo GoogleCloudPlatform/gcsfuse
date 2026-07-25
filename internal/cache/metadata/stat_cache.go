@@ -15,8 +15,8 @@
 package metadata
 
 import (
-	"fmt"
 	"math"
+	"reflect"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -91,10 +91,8 @@ type StatCache interface {
 // For dynamic-mount (mount for multiple buckets), pass bn as bucket-name.
 // For static-mout (mount for single bucket), pass bn as "".
 func NewStatCacheBucketView(sc lru.Cache, bn string) StatCache {
-	isRadix := false
-	if fmt.Sprintf("%T", sc) == "*lru.radixCache" || fmt.Sprintf("%T", sc) == "*lru.arenaRadix" {
-		isRadix = true
-	}
+	t := reflect.TypeOf(sc)
+	isRadix := t != nil && (t.String() == "*lru.radixCache" || t.String() == "*lru.arenaRadix")
 	return &statCacheBucketView{
 		sharedCache: sc,
 		bucketName:  bn,

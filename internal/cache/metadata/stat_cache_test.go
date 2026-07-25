@@ -15,7 +15,7 @@
 package metadata_test
 
 import (
-	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -141,7 +141,8 @@ func (t *StatCacheTest) SetupTest() {
 	}
 
 	tempCache := t.cacheFactory(1000)
-	isRadix := fmt.Sprintf("%T", tempCache) == "*lru.radixCache" || fmt.Sprintf("%T", tempCache) == "*lru.arenaRadix"
+	tcType := reflect.TypeOf(tempCache)
+	isRadix := tcType != nil && (tcType.String() == "*lru.radixCache" || tcType.String() == "*lru.arenaRadix")
 	sizePerEntry := uint64(cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry)
 	if isRadix {
 		sizePerEntry -= 120 // Adjust capacity slightly for Radix cache to trigger eviction test correctly
@@ -160,7 +161,8 @@ func (t *MultiBucketStatCacheTest) SetupTest() {
 	}
 
 	tempCache := t.cacheFactory(1000)
-	isRadix := fmt.Sprintf("%T", tempCache) == "*lru.radixCache" || fmt.Sprintf("%T", tempCache) == "*lru.arenaRadix"
+	tcType := reflect.TypeOf(tempCache)
+	isRadix := tcType != nil && (tcType.String() == "*lru.radixCache" || tcType.String() == "*lru.arenaRadix")
 	sizePerEntry := uint64(cfg.AverageSizeOfPositiveStatCacheEntry + cfg.AverageSizeOfNegativeStatCacheEntry)
 	if isRadix {
 		sizePerEntry -= 120
@@ -585,7 +587,8 @@ func (t *StatCacheTest) Test_ShouldReturnHitTrueWhenOnlyObjectAlreadyHasEntry() 
 
 func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize() {
 	capacity := uint64(2600)
-	if fmt.Sprintf("%T", t.cacheFactory(1)) == "*lru.radixCache" || fmt.Sprintf("%T", t.cacheFactory(1)) == "*lru.arenaRadix" {
+	tcType := reflect.TypeOf(t.cacheFactory(1))
+	if tcType != nil && (tcType.String() == "*lru.radixCache" || tcType.String() == "*lru.arenaRadix") {
 		capacity = uint64(2450)
 	}
 	localCache := t.cacheFactory(capacity)
@@ -622,7 +625,8 @@ func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize()
 
 func (t *StatCacheTest) Test_ShouldEvictAllEntriesWithPrefixFolder() {
 	capacity := uint64(10000)
-	if fmt.Sprintf("%T", t.cacheFactory(1)) == "*lru.radixCache" || fmt.Sprintf("%T", t.cacheFactory(1)) == "*lru.arenaRadix" {
+	tcType := reflect.TypeOf(t.cacheFactory(1))
+	if tcType != nil && (tcType.String() == "*lru.radixCache" || tcType.String() == "*lru.arenaRadix") {
 		capacity = uint64(9000)
 	}
 	localCache := t.cacheFactory(capacity)
