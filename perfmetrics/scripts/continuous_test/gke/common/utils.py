@@ -57,6 +57,11 @@ async def run_command_async(command_list, check=True, cwd=None):
   stderr_decoded = stderr.decode().strip()
 
   if check and process.returncode != 0:
+    print(f"Error executing command: {command_str}", file=sys.stderr)
+    if stdout_decoded:
+        print(f"Stdout:\n{stdout_decoded}", file=sys.stderr)
+    if stderr_decoded:
+        print(f"Stderr:\n{stderr_decoded}", file=sys.stderr)
     raise subprocess.CalledProcessError(
         process.returncode, command_str, stdout_decoded, stderr_decoded
     )
@@ -565,48 +570,52 @@ async def cleanup(project_id, zone, cluster_name, network_name, subnet_name):
 
 
 # GCSFuse Build and Deploy
-async def build_gcsfuse_image(project_id, branch, temp_dir, staging_version):
-  """Clones GCSFuse and builds the CSI driver image.
+async def clone_and_log_branch_info(branch, temp_dir):
+  """Clones GCSFuse, checks out the correct commit, and logs the info."""
+  print("Fetching GCSFuse source and commit info...")
+  
+  is_kokoro = "KOKORO_ARTIFACTS_DIR" in os.environ
+  
+  if is_kokoro:
+    # Resolve the root directory of the GCSFuse repository cloned by Kokoro
+    gcsfuse_dir = os.path.join(os.environ["KOKORO_ARTIFACTS_DIR"], "github", "gcsfuse")
+    
+    # Get the branch name
+    branch_cmd = "git branch --format='%(refname:short)' | grep -v 'HEAD' | head -n 1"
+    stdout, _, _ = await run_command_async(["bash", "-c", branch_cmd], cwd=gcsfuse_dir)
+    actual_branch = stdout.strip()
+  else:
+    gcsfuse_dir = os.path.join(temp_dir, "gcsfuse")
+    actual_branch = branch
+    await run_command_async([
+        "git", "clone", "-b", actual_branch, "https://github.com/GoogleCloudPlatform/gcsfuse.git", gcsfuse_dir
+    ])
 
-  Args:
-      branch: The git branch or tag of the GCSFuse repository to use.
-      temp_dir: A temporary directory to clone the repository into.
-  """
-  gcsfuse_dir = os.path.join(temp_dir, "gcsfuse")
-  await run_command_async([
-      "git",
-      "clone",
-      "-b",
-      branch,
-      "https://github.com/GoogleCloudPlatform/gcsfuse.git",
-      gcsfuse_dir,
-  ])
   initiator = os.environ.get("KOKORO_BUILD_INITIATOR", "")
   if initiator == "kokoro":
-    stdout, _, _ = await run_command_async(
-        [
-            "git",
-            "log",
-            "--before=yesterday 23:59:59",
-            "--max-count=1",
-            "--pretty=%H",
-        ],
-        cwd=gcsfuse_dir,
-    )
+    # If run in Kokoro via scheduler, pick the latest commit before yesterday to ensure stability
+    stdout, _, _ = await run_command_async([
+        "git", "log", "--before=yesterday 23:59:59", "--max-count=1", "--pretty=%H"
+    ], cwd=gcsfuse_dir)
   else:
-    stdout, _, _ = await run_command_async(
-        ["git", "log", "-n", "1", "--pretty=%H"], cwd=gcsfuse_dir
-    )
+    stdout, _, _ = await run_command_async([
+        "git", "log", "-n", "1", "--pretty=%H"
+    ], cwd=gcsfuse_dir)
+  
   commit_id = stdout.strip()
-  print(
-      f"Building GCSFuse CSI image at commit ID: {commit_id} (initiator:"
-      f" {initiator})"
-  )
+  print(f"GCSFuse branch: '{actual_branch}', commit ID: {commit_id} (initiator: {initiator})")
   await run_command_async(["git", "checkout", commit_id], cwd=gcsfuse_dir)
-  build_cmd = [
-      "make",
-      "build-csi",
-      f"PROJECT={project_id}",
-      f"STAGINGVERSION={staging_version}",
-  ]
-  await run_command_async(build_cmd, cwd=gcsfuse_dir)
+  return actual_branch, commit_id, gcsfuse_dir
+
+# GCSFuse Build and Deploy
+async def build_gcsfuse_image(project_id, gcsfuse_dir, staging_version):
+  """Builds the CSI driver image from the provided repository directory.
+
+  Args:
+      project_id: The Google Cloud project ID.
+      gcsfuse_dir: The path to the GCSFuse repository.
+      staging_version: The staging version for the image.
+  """
+  await run_command_async([
+      "make", "build-csi", f"PROJECT={project_id}", f"STAGINGVERSION={staging_version}"
+  ], cwd=gcsfuse_dir)

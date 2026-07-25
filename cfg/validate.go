@@ -117,11 +117,21 @@ func isValidSequentialReadSizeMB(size int64) error {
 
 func isValidFuseMaxRequestSizeKb(requestSizeKb int64) error {
 	if requestSizeKb <= 0 {
-		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; should be > 0", requestSizeKb)
+		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; must be greater than 0", requestSizeKb)
 	}
 	pageSizeKb := int64(kernelPageSize) / 1024
 	if requestSizeKb > FuseMaxPagesLimit*pageSizeKb {
 		return fmt.Errorf("invalid value for fuse-max-request-size-kb: %d; exceeds maximum allowed limit of %d", requestSizeKb, FuseMaxPagesLimit*pageSizeKb)
+	}
+	return nil
+}
+
+func isValidFuseMaxWriteSizeKb(writeSizeKb int64) error {
+	if writeSizeKb <= 0 {
+		return fmt.Errorf("invalid value for fuse-max-write-size-kb: %d; must be greater than 0", writeSizeKb)
+	}
+	if writeSizeKb > 1024 {
+		return fmt.Errorf("invalid value for fuse-max-write-size-kb: %d; exceeds maximum allowed limit of 1024 (1 MiB)", writeSizeKb)
 	}
 	return nil
 }
@@ -202,8 +212,15 @@ func isValidWriteStreamingConfig(wc *WriteConfig) error {
 		return nil
 	}
 
-	if wc.BlockSizeMb <= 0 || wc.BlockSizeMb > util.MaxMiBsInInt64 {
-		return fmt.Errorf("invalid value of write-block-size-mb; can't be less than 1 or more than %d", util.MaxMiBsInInt64)
+	if wc.BlockSizeMb <= 0 || wc.BlockSizeMb > float64(util.MaxMiBsInInt64) {
+		return fmt.Errorf("invalid value of write-block-size-mb; must be greater than 0 and less than or equal to %d", util.MaxMiBsInInt64)
+	}
+	// BlockSizeMb must be a multiple of 0.25 MiB (256 KiB) to align with the
+	// GCS Go SDK's ChunkSize requirements. While the SDK rounds up the
+	// ChunkSize to a multiple of 256 KiB internally, keeping them aligned
+	// for simplicity.
+	if math.Mod(wc.BlockSizeMb, 0.25) != 0 {
+		return fmt.Errorf("invalid value of write-block-size-mb; must be a multiple of 0.25")
 	}
 	if !(wc.MaxBlocksPerFile == -1 || wc.MaxBlocksPerFile >= 1) {
 		return fmt.Errorf("invalid value of write-max-blocks-per-file: %d; should be >=1 or -1 (for infinite)", wc.MaxBlocksPerFile)
@@ -361,6 +378,12 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 	if v.IsSet("file-system.fuse-max-request-size-kb") {
 		if err = isValidFuseMaxRequestSizeKb(config.FileSystem.FuseMaxRequestSizeKb); err != nil {
 			return fmt.Errorf("error parsing fuse-max-request-size-kb config: %w", err)
+		}
+	}
+
+	if v.IsSet("file-system.fuse-max-write-size-kb") {
+		if err = isValidFuseMaxWriteSizeKb(config.FileSystem.FuseMaxWriteSizeKb); err != nil {
+			return fmt.Errorf("error parsing fuse-max-write-size-kb config: %w", err)
 		}
 	}
 

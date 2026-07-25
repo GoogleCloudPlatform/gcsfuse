@@ -19,13 +19,15 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
+
+	"context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
-	"golang.org/x/net/context"
 )
 
 // When this custom metadata key is present in an object record, it is to be
@@ -61,7 +63,7 @@ type SymlinkInode struct {
 	name             Name
 	bucket           *gcsx.SyncerBucket
 	sourceGeneration Generation
-	attrs            fuseops.InodeAttributes
+	mtime            time.Time
 	target           string
 	metadata         map[string]string
 
@@ -85,8 +87,7 @@ func NewSymlinkInode(
 	id fuseops.InodeID,
 	name Name,
 	bucket *gcsx.SyncerBucket,
-	m *gcs.MinObject,
-	attrs fuseops.InodeAttributes) (s *SymlinkInode, err error) {
+	m *gcs.MinObject) (s *SymlinkInode, err error) {
 	// Create the inode.
 	s = &SymlinkInode{
 		id:     id,
@@ -97,15 +98,7 @@ func NewSymlinkInode(
 			Metadata: m.MetaGeneration,
 			Size:     m.Size,
 		},
-		attrs: fuseops.InodeAttributes{
-			Nlink: 1,
-			Uid:   attrs.Uid,
-			Gid:   attrs.Gid,
-			Mode:  attrs.Mode,
-			Atime: m.Updated,
-			Ctime: m.Updated,
-			Mtime: m.Updated,
-		},
+		mtime:    m.Updated,
 		metadata: m.Metadata,
 	}
 
@@ -224,8 +217,9 @@ func (s *SymlinkInode) Destroy() (err error) {
 }
 
 func (s *SymlinkInode) Attributes(
-	ctx context.Context, clobberedCheck bool) (attrs fuseops.InodeAttributes, err error) {
-	attrs = s.attrs
+	ctx context.Context, clobberedCheck bool) (size uint64, mtime time.Time, nlink uint32, err error) {
+	mtime = s.mtime
+	nlink = 1
 	return
 }
 
@@ -251,6 +245,6 @@ func (s *SymlinkInode) Source() *gcs.MinObject {
 		MetaGeneration: s.sourceGeneration.Metadata,
 		Size:           s.sourceGeneration.Size,
 		Metadata:       s.metadata,
-		Updated:        s.attrs.Mtime,
+		Updated:        s.mtime,
 	}
 }

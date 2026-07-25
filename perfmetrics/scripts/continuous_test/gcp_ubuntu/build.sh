@@ -27,13 +27,23 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
 
 # Get the branch name that was cloned by Kokoro
 branchName=$(git branch --format='%(refname:short)' | grep -v 'HEAD' | head -n 1)
-# Get the commitId. Build gcsfuse and run.
-# - Automated daily runs (initiated by Kokoro scheduler) will run on the last commit of yesterday on the master branch.
-# - Manual runs (initiated by users) will run on the latest commit of the branch (master or feature branch) provided in the manual trigger.
-if [[ "${KOKORO_BUILD_INITIATOR:-}" == "kokoro" ]]; then
-  commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+
+# Utilize Louhi custom commit checkouts if provided
+if [[ -n "${_COMMIT_HASH:-}" ]]; then
+  echo "Louhi environment variable _COMMIT_HASH detected: ${_COMMIT_HASH}"
+  echo "Checking out custom commit..."
+  git checkout "${_COMMIT_HASH}"
+  commitId="${_COMMIT_HASH}"
 else
-  commitId=$(git log -n 1 --pretty=%H)
+  echo "No _COMMIT_HASH detected. Proceeding with default branch checkout logic."
+  # Get the commitId. Build gcsfuse and run.
+  # - Automated daily runs (initiated by Kokoro scheduler) will run on the last commit of yesterday on the master branch.
+  # - Manual runs (initiated by users) will run on the latest commit of the branch (master or feature branch) provided in the manual trigger.
+  if [[ "${KOKORO_BUILD_INITIATOR:-}" == "kokoro" ]]; then
+    commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+  else
+    commitId=$(git log -n 1 --pretty=%H)
+  fi
 fi
 echo "Running tests on branch: ${branchName} at commit ID: ${commitId}"
 

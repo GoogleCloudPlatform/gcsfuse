@@ -1,0 +1,256 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package control_client_stall
+
+import (
+	"fmt"
+	"os"
+	"path"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+
+	emulator_tests "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/emulator_tests/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+)
+
+type controlClientStallBase struct {
+	port                 int
+	proxyProcessId       int
+	proxyServerLogFile   string
+	flags                []string
+	configFileName       string
+	maxMountDurationSecs int
+	testDirPath          string
+	suite.Suite
+}
+
+const maxOperationDuration = 32 * time.Second
+
+func (c *controlClientStallBase) SetupTest() {
+	c.testDirPath = setup.SetupTestDirectory(c.T().Name())
+	c.proxyServerLogFile = setup.CreateProxyServerLogFile(c.T())
+	var err error
+	c.port, c.proxyProcessId, err = emulator_tests.StartProxyServer(c.configFileName, c.proxyServerLogFile)
+	require.NoError(c.T(), err)
+
+	// Add proxy server endpoint and configure gRPC testing
+	// Copy flags to avoid mutating the original slice across suites
+	mountFlags := append([]string(nil), c.flags...)
+	mountFlags = append(mountFlags, fmt.Sprintf("--custom-endpoint=localhost:%d", c.port))
+	mountFlags = append(mountFlags, "--anonymous-access") // Required for gRPC localhost endpoint
+
+	startTime := time.Now()
+	setup.MountGCSFuseWithGivenMountFunc(mountFlags, static_mounting.MountGcsfuseWithStaticMounting)
+	mountTime := time.Since(startTime)
+	if c.maxMountDurationSecs != -1 {
+		assert.True(c.T(), mountTime < time.Duration(c.maxMountDurationSecs)*time.Second, "Mount time %v should be less than %ds", mountTime, c.maxMountDurationSecs)
+	}
+}
+
+func (c *controlClientStallBase) TearDownTest() {
+	setup.UnmountGCSFuse(setup.MntDir())
+	if c.proxyProcessId > 0 {
+		assert.NoError(c.T(), emulator_tests.KillProxyServerProcess(c.proxyProcessId))
+	}
+	setup.SaveGCSFuseLogFileInCaseOfFailure(c.T())
+	setup.SaveProxyServerLogFileInCaseOfFailure(c.proxyServerLogFile, c.T())
+}
+
+func (c *controlClientStallBase) assertCompletedWithinThreshold(elapsedTime time.Duration) {
+	assert.True(c.T(), elapsedTime < maxOperationDuration, "Elapsed time %v should be less than %v", elapsedTime, maxOperationDuration)
+}
+
+func (c *controlClientStallBase) assertDirectoryExists(folderPath string) {
+	info, err := os.Stat(folderPath)
+	assert.NoError(c.T(), err)
+	assert.True(c.T(), info.IsDir())
+}
+
+func newControlClientStallBase(flags []string, configFileName string, maxMountDurationSecs int) controlClientStallBase {
+	return controlClientStallBase{
+		flags:                flags,
+		configFileName:       configFileName,
+		maxMountDurationSecs: maxMountDurationSecs,
+	}
+}
+
+// --- Test Suites ---
+
+type createFolderStallSuite struct{ controlClientStallBase }
+
+// TestCreateFolderStallInducedShouldComplete verifies that creating a folder via
+// os.MkdirAll completes successfully even when a stall is induced,
+// proving that the experimental retry logic correctly handles the delayed gRPC response.
+func (c *createFolderStallSuite) TestCreateFolderStallInducedShouldComplete() {
+	folderPath := path.Join(c.testDirPath, "stalled_folder_for_create")
+
+	startTime := time.Now()
+	err := os.MkdirAll(folderPath, 0755)
+	elapsedTime := time.Since(startTime)
+
+	assert.NoError(c.T(), err)
+	// Ensure the operation completes under 32s (30s timeout + 2s wiggle-room) because of internal abort+retry.
+	c.assertCompletedWithinThreshold(elapsedTime)
+	c.assertDirectoryExists(folderPath)
+}
+
+type getFolderStallSuite struct{ controlClientStallBase }
+
+// TestGetFolderStallInducedShouldComplete verifies that stating a pre-created folder via
+// os.Stat completes successfully even when a stall is induced,
+// proving that the experimental retry logic correctly handles the delayed gRPC response.
+func (c *getFolderStallSuite) TestGetFolderStallInducedShouldComplete() {
+	folderPath := path.Join(c.testDirPath, "stalled_folder_for_get")
+	err := os.MkdirAll(folderPath, 0755)
+	assert.NoError(c.T(), err)
+
+	startTime := time.Now()
+	_, err = os.Stat(folderPath)
+	elapsedTime := time.Since(startTime)
+
+	assert.NoError(c.T(), err)
+	// Ensure the operation completes under 32s (30s timeout + 2s wiggle-room) because of internal abort+retry.
+	c.assertCompletedWithinThreshold(elapsedTime)
+}
+
+type deleteFolderStallSuite struct{ controlClientStallBase }
+
+// TestDeleteFolderStallInducedShouldComplete verifies that deleting a pre-created empty folder via
+// os.Remove completes successfully even when a stall is induced,
+// proving that the experimental retry logic correctly handles the delayed gRPC response.
+func (c *deleteFolderStallSuite) TestDeleteFolderStallInducedShouldComplete() {
+	folderPath := path.Join(c.testDirPath, "stalled_folder_for_delete")
+	err := os.MkdirAll(folderPath, 0755)
+	assert.NoError(c.T(), err)
+
+	startTime := time.Now()
+	err = os.Remove(folderPath)
+	elapsedTime := time.Since(startTime)
+
+	assert.NoError(c.T(), err)
+	// Ensure the operation completes under 32s (30s timeout + 2s wiggle-room) because of internal abort+retry.
+	c.assertCompletedWithinThreshold(elapsedTime)
+	// Validate the directory actually deleted
+	_, err = os.Stat(folderPath)
+	assert.True(c.T(), os.IsNotExist(err))
+}
+
+type renameFolderStallSuite struct{ controlClientStallBase }
+
+// TestRenameFolderStallInducedShouldComplete verifies that renaming a pre-created folder via
+// os.Rename completes successfully even when a stall is induced,
+// proving that the experimental retry logic correctly handles the delayed gRPC response.
+func (c *renameFolderStallSuite) TestRenameFolderStallInducedShouldComplete() {
+	c.Suite.T().Skip("TODO(b/493729540) - Requires fix in storage-testbench: https://github.com/googleapis/storage-testbench/pull/786")
+	folderPath := path.Join(c.testDirPath, "stalled_folder_for_rename")
+	err := os.MkdirAll(folderPath, 0755)
+	assert.NoError(c.T(), err)
+	destPath := path.Join(c.testDirPath, "stalled_folder_renamed")
+
+	startTime := time.Now()
+	err = os.Rename(folderPath, destPath)
+	elapsedTime := time.Since(startTime)
+
+	assert.NoError(c.T(), err)
+	// Ensure the operation completes under 32s (30s timeout + 2s wiggle-room) because of internal abort+retry.
+	c.assertCompletedWithinThreshold(elapsedTime)
+	c.assertDirectoryExists(destPath)
+}
+
+type getStorageLayoutStallSuite struct{ controlClientStallBase }
+
+// TestGetStorageLayoutStallInducedShouldComplete verifies that a GCSFuse mount
+// completes successfully even when a stall is induced in the very first GetStorageLayout call,
+// proving that the experimental retry logic correctly handles the delayed gRPC response.
+func (c *getStorageLayoutStallSuite) TestGetStorageLayoutStallInducedShouldComplete() {
+	// The stall for GetStorageLayout is actually triggered during the bucket mount
+	// phase within SetupTest() when GCSFuse queries the bucket layout to determine
+	// if Hierarchical Namespace (HNS) is enabled.
+	// The fact that this test function is executing means the mount succeeded,
+	// effectively proving that GetStorageLayout correctly timed out after 30s,
+	// retried successfully, and allowed the mount to complete!
+
+	// Just perform a basic verification to ensure the mount is functional.
+	folderPath := path.Join(c.testDirPath, "stalled_folder_for_layout")
+	err := os.MkdirAll(folderPath, 0755)
+	assert.NoError(c.T(), err)
+	c.assertDirectoryExists(folderPath)
+}
+
+func TestControlClientStall(t *testing.T) {
+	flags := []string{
+		"--client-protocol=grpc",
+		"--rename-dir-limit=0",                                // Force use of Control API for folders instead of legacy workarounds
+		"--experimental-nonrapid-folder-api-stall-retry=true", // Enable the new flag we are testing!
+		"--metadata-cache-ttl-secs=0",                         // Disable cache so calls definitely hit the backend
+	}
+
+	suites := []suite.TestingSuite{
+		&createFolderStallSuite{
+			controlClientStallBase: newControlClientStallBase(
+				flags,
+				// Artificially stall the very first CreateFolder call by 40 seconds.
+				"../configs/control_client_stall_create_40s.yaml",
+				// No check on how long mount takes.
+				-1,
+			),
+		},
+		&getFolderStallSuite{
+			controlClientStallBase: newControlClientStallBase(
+				flags,
+				// Artificially stall the very first GetFolder call by 40 seconds.
+				"../configs/control_client_stall_get_40s.yaml",
+				// No check on how long mount takes.
+				-1,
+			),
+		},
+		&deleteFolderStallSuite{
+			controlClientStallBase: newControlClientStallBase(
+				flags,
+				// Artificially stall the very first DeleteFolder call by 40 seconds.
+				"../configs/control_client_stall_delete_40s.yaml",
+				// No check on how long mount takes.
+				-1,
+			),
+		},
+		&renameFolderStallSuite{
+			controlClientStallBase: newControlClientStallBase(
+				flags,
+				// Artificially stall the very first RenameFolder call by 40 seconds.
+				"../configs/control_client_stall_rename_40s.yaml",
+				// No check on how long mount takes.
+				-1,
+			),
+		},
+		&getStorageLayoutStallSuite{
+			controlClientStallBase: newControlClientStallBase(
+				flags,
+				// Artificially stall the very first GetStorageLayout call by 60 seconds.
+				"../configs/control_client_stall_layout_60s.yaml",
+				// Ensure that the whole mount operation including a stalled GetStorageLayout call took less than 40 seconds (30 seconds first stalled-call GetStorageLayout timeout + 10 second wiggle-room for 2nd attempt and other steps for mount to go through) because of the internal abortion and retry.
+				40,
+			),
+		},
+	}
+
+	for _, s := range suites {
+		suite.Run(t, s)
+	}
+}

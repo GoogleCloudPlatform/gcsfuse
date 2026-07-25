@@ -15,6 +15,7 @@
 package inode
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path"
@@ -24,10 +25,10 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
-	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
@@ -35,10 +36,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
-
-	"context"
-
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 )
 
 type hnsDirTest struct {
@@ -111,11 +108,6 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 		dirInodeID,
 		NewDirName(NewRootName(""), dirInodeName),
 		t.parInodeCtx,
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
 		implicitDirs,
 		enableNonexistentTypeCache,
 		typeCacheTTL,
@@ -159,11 +151,6 @@ func (t *hnsDirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName str
 		1,
 		NewRootName(""),
 		nil,
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
 		false,
 		true,
 		typeCacheTTL,
@@ -178,11 +165,6 @@ func (t *hnsDirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName str
 		5,
 		NewDirName(NewRootName(""), dirInodeName),
 		parInode.Context(),
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
 		false,
 		true,
 		typeCacheTTL,
@@ -390,11 +372,6 @@ func (t *HNSDirTest) TestRenameFolderWithGivenName() {
 		7,
 		NewDirName(NewRootName(""), path.Join(dirInodeName, dirName)),
 		nil,
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
 		false,
 		true,
 		typeCacheTTL,
@@ -429,11 +406,6 @@ func (t *HNSDirTest) TestRenameFolderWithNonExistentSourceFolder() {
 		7,
 		NewDirName(NewRootName(""), path.Join(dirInodeName, dirName)),
 		nil,
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
 		false,
 		true,
 		typeCacheTTL,
@@ -839,11 +811,6 @@ func (t *NonHNSDirTest) TestDeleteChildDir_TypeCacheDeprecated() {
 				dirInodeID,
 				NewDirName(NewRootName(""), dirInodeName),
 				t.parInodeCtx,
-				fuseops.InodeAttributes{
-					Uid:  uid,
-					Gid:  gid,
-					Mode: dirMode,
-				},
 				true,  // implicitDirs
 				false, // enableNonexistentTypeCache
 				typeCacheTTL,

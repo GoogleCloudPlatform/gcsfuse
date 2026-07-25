@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"os"
 	"sync"
@@ -106,11 +107,6 @@ func createDirInode(
 		1,
 		inode.NewDirName(inode.NewRootName(""), testDirName),
 		parInodeCtx,
-		fuseops.InodeAttributes{
-			Uid:  0,
-			Gid:  0,
-			Mode: 0712,
-		},
 		false,
 		true,
 		0,
@@ -155,7 +151,6 @@ func createFileInode(
 		fuseops.InodeID(2),
 		inode.NewFileName(parent.Name(), objectName),
 		obj,
-		fuseops.InodeAttributes{},
 		bucket,
 		localFileCache,
 		contentcache.New("", clock),
@@ -580,10 +575,10 @@ func (t *fileTest) Test_ReadWithReadManager_ReadManagerInvalidatedByGenerationCh
 
 	// Now, update the object in GCS, which changes its generation.
 	in.Lock()
-	gcsSynced, err := in.Write(t.ctx, content2, 0, writeMode)
+	gcsSynced, err := in.Write(t.ctx, content2, 0, writeMode, getWriteContext())
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	gcsSynced, err = in.Sync(t.ctx)
+	gcsSynced, err = in.Sync(t.ctx, getWriteContext())
 	assert.NoError(t.T(), err)
 	assert.True(t.T(), gcsSynced)
 	in.Unlock()
@@ -623,10 +618,10 @@ func (t *fileTest) Test_Read_ReaderInvalidatedByGenerationChange() {
 
 	// Now, update the object in GCS, which changes its generation.
 	in.Lock()
-	gcsSynced, err := in.Write(t.ctx, content2, 0, writeMode)
+	gcsSynced, err := in.Write(t.ctx, content2, 0, writeMode, getWriteContext())
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	gcsSynced, err = in.Sync(t.ctx)
+	gcsSynced, err = in.Sync(t.ctx, getWriteContext())
 	assert.NoError(t.T(), err)
 	assert.True(t.T(), gcsSynced)
 	in.Unlock()
@@ -684,8 +679,9 @@ func (t *fileTest) Test_ReadWithKernelReader_Success() {
 			)
 			parent := createDirInode(&mockSyncerBucket, &t.clock)
 			// Create the file inode and file handle. Setting EnableKernelReader to true initializes fh.kernelReader.
-			in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, &cfg.Config{}, parent, objectName, expectedData, false)
-			fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
+			config := &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}
+			in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, config, parent, objectName, expectedData, false)
+			fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
 			require.NotNil(t.T(), fh.kernelReader)
 			// Create mock readers based on bucket type.
 			if tc.isZonal {
@@ -746,7 +742,7 @@ func (t *fileTest) Test_ReadWithKernelReader_NotAuthoritative() {
 			in := createFileInode(t.T(), &bucket, &t.clock, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, parent, "test_obj", originalData, false)
 			// Perform a local write to mark the inode as dirty (not authoritative).
 			in.Lock()
-			_, err := in.Write(t.ctx, []byte("dirty"), 0, writeMode)
+			_, err := in.Write(t.ctx, []byte("dirty"), 0, writeMode, getWriteContext())
 			in.Unlock()
 			require.NoError(t.T(), err)
 			expectedReadData := "dirtydata"
@@ -802,7 +798,7 @@ func (t *fileTest) Test_ReadWithKernelReader_NotAuthoritative_ReadError() {
 			in := createFileInode(t.T(), &bucket, &t.clock, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, parent, "test_obj", originalData, false)
 			// Perform a local write to mark the inode as dirty (not authoritative).
 			in.Lock()
-			_, err := in.Write(t.ctx, []byte("dirty"), 0, writeMode)
+			_, err := in.Write(t.ctx, []byte("dirty"), 0, writeMode, getWriteContext())
 			in.Unlock()
 			require.NoError(t.T(), err)
 			// Create file handle with kernel reader enabled.
@@ -1523,4 +1519,13 @@ func (t *fileTest) Test_ReadWithReadManager_WorkloadInsightVisual() {
 	// Validate the output file creation for workload insight.
 	assert.FileExists(t.T(), "test.txt")
 	require.NoError(t.T(), os.Remove("test.txt")) // Clean up the file after test.
+}
+
+func getWriteContext() *inode.WriteContext {
+	return &inode.WriteContext{
+		Config:             &cfg.Config{},
+		GlobalMaxBlocksSem: semaphore.NewWeighted(math.MaxInt64),
+		TraceHandle:        tracing.NewNoopTracer(),
+		MetricHandle:       metrics.NewNoopMetrics(),
+	}
 }

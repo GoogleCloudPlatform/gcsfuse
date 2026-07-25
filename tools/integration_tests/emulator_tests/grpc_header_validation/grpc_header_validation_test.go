@@ -117,7 +117,12 @@ func TestGRPCHeaderValidation(t *testing.T) {
 	// 2. Bucket named "test-bucket" created in the testbench
 	// 3. Run with: go test -v --integrationTest --testbucket=test-bucket -timeout=5m
 	flagsSet := [][]string{
-		{"--client-protocol=grpc"},
+		{
+			"--client-protocol=grpc",
+			// TODO: Remove --enable-hns=false after proxy server supports multiplexing
+			// HTTP and gRPC on the same port.
+			"--enable-hns=false",
+		},
 	}
 
 	for _, flags := range flagsSet {

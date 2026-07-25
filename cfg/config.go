@@ -611,6 +611,8 @@ type FileSystemConfig struct {
 
 	FuseMaxRequestSizeKb int64 `yaml:"fuse-max-request-size-kb"`
 
+	FuseMaxWriteSizeKb int64 `yaml:"fuse-max-write-size-kb"`
+
 	FuseOptions []string `yaml:"fuse-options"`
 
 	Gid int64 `yaml:"gid"`
@@ -628,6 +630,8 @@ type FileSystemConfig struct {
 	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
 
 	RenameDirLimit int64 `yaml:"rename-dir-limit"`
+
+	StrongConsistencyOnOpen bool `yaml:"strong-consistency-on-open"`
 
 	TempDir ResolvedPath `yaml:"temp-dir"`
 
@@ -680,8 +684,6 @@ type GcsRetriesConfig struct {
 	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
 
 	EnableMountRetries bool `yaml:"enable-mount-retries"`
-
-	ExperimentalNonrapidFolderApiStallRetry bool `yaml:"experimental-nonrapid-folder-api-stall-retry"`
 
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
 
@@ -813,7 +815,7 @@ type WorkloadInsightConfig struct {
 }
 
 type WriteConfig struct {
-	BlockSizeMb int64 `yaml:"block-size-mb"`
+	BlockSizeMb float64 `yaml:"block-size-mb"`
 
 	CreateEmptyFile bool `yaml:"create-empty-file"`
 
@@ -1116,12 +1118,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("experimental-nonrapid-folder-api-stall-retry", "", false, "Enables stall-retry-fix for folder APIs for non-rapid buckets.")
-
-	if err := flagSet.MarkHidden("experimental-nonrapid-folder-api-stall-retry"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("experimental-o-direct", "", false, "Experimental: Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse process.")
 
 	if err := flagSet.MarkHidden("experimental-o-direct"); err != nil {
@@ -1196,9 +1192,15 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
 
-	flagSet.IntP("fuse-max-request-size-kb", "", StorageClassRapid.DefaultFuseMaxRequestSizeKb(), "Sets the target maximum request size in KiB that FUSE can process in a single request (currently used to control read requests only). This is translated to the kernel max_pages limit based on host page size. As max_pages_limit is a global, machine-level configuration across all mounts, the host's limit is only updated if the calculated pages value is greater than the current system limit. Note that the FUSE kernel max_pages limit can be set to at most 65535 (fuse_max_max_pages), so the value of this parameter must be > 0 and translate to at most 65535 pages.  Additionally, on GKE, the system-wide setting is capped to 16 MiB (16384 KiB) by default by the CSI driver. If needed to be set beyond that on GKE, the user has to manually increase the value on the node before GCSFuse mounting begins.")
+	flagSet.IntP("fuse-max-request-size-kb", "", StorageClassRapid.DefaultFuseMaxRequestSizeKb(), "Sets the target maximum request size in KiB that FUSE can process in a single request (currently used to control read requests only). This is translated to the kernel max_pages limit based on host page size. As max_pages_limit is a global, machine-level configuration across all mounts, the host's limit is only updated if the calculated pages value is greater than the current system limit. Note that the FUSE kernel max_pages limit can be set to at most 65535 (fuse_max_max_pages), so the value of this parameter must be > 0 and translate to at most 65535 pages.  Additionally, on GKE, the system-wide setting is capped to 16 MiB (16384 KiB) by default by the CSI driver. If needed to be set beyond that on GKE, the user has to manually increase the value on the node before GCSFuse mounting begins. Requires enable-kernel-reader to be set to true, otherwise the value will be ignored. Not supported for rapid buckets for now. Setting this flag on rapid buckets will result in mount failure.")
 
 	if err := flagSet.MarkHidden("fuse-max-request-size-kb"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("fuse-max-write-size-kb", "", 1024, "Sets the target maximum write size in KiB that FUSE can process in a single write request. If fuse-max-request-size-kb is less than fuse-max-write-size-kb, we will restrict fuse-max-write-size-kb to fuse-max-request-size-kb. Right now only a maximum value of 1MB is supported.")
+
+	if err := flagSet.MarkHidden("fuse-max-write-size-kb"); err != nil {
 		return err
 	}
 
@@ -1416,6 +1418,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("strong-consistency-on-open", "", false, "When enabled, during open file, GCSFuse will check with GCS if the file has been modified since it last fetched and fail with ESTALE if the file has been clobbered (externally modified).")
+
 	flagSet.StringP("temp-dir", "", "", "Path to the temporary directory where writes are staged prior to upload to Cloud Storage. (default: system default, likely /tmp)")
 
 	flagSet.StringP("token-url", "", "", "A url for getting an access token when the key-file is absent.")
@@ -1468,7 +1472,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more than 0.")
+	flagSet.Float64P("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value must be greater than 0 and a multiple of 0.25 MiB (256 KiB) to align with GCS upload chunk size requirements.")
 
 	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
 		return err
@@ -1715,10 +1719,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("gcs-retries.experimental-nonrapid-folder-api-stall-retry", flagSet.Lookup("experimental-nonrapid-folder-api-stall-retry")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("file-system.experimental-o-direct", flagSet.Lookup("experimental-o-direct")); err != nil {
 		return err
 	}
@@ -1796,6 +1796,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.fuse-max-request-size-kb", flagSet.Lookup("fuse-max-request-size-kb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.fuse-max-write-size-kb", flagSet.Lookup("fuse-max-write-size-kb")); err != nil {
 		return err
 	}
 
@@ -2020,6 +2024,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.deprecated-stat-cache-ttl", flagSet.Lookup("stat-cache-ttl")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.strong-consistency-on-open", flagSet.Lookup("strong-consistency-on-open")); err != nil {
 		return err
 	}
 

@@ -49,7 +49,7 @@ const (
 	retryPermissionDenied
 )
 
-const errStrBucketNotExist = "bucket does not exist"
+const ErrStrBucketNotExist = "bucket does not exist"
 
 func determineRetryAction(err error) retryAction {
 	if storage.ShouldRetry(err) {
@@ -71,7 +71,7 @@ func determineRetryAction(err error) retryAction {
 		if apiErr.Code == 403 {
 			return retry403
 		}
-		if apiErr.Code == 404 && strings.Contains(strings.ToLower(apiErr.Message), errStrBucketNotExist) {
+		if apiErr.Code == 404 && strings.Contains(strings.ToLower(apiErr.Message), ErrStrBucketNotExist) {
 			return retry404BucketDoesNotExist
 		}
 	}
@@ -86,7 +86,7 @@ func determineRetryAction(err error) retryAction {
 		if status.Code() == codes.PermissionDenied {
 			return retryPermissionDenied
 		}
-		if status.Code() == codes.NotFound && strings.Contains(strings.ToLower(status.Message()), errStrBucketNotExist) {
+		if status.Code() == codes.NotFound && strings.Contains(strings.ToLower(status.Message()), ErrStrBucketNotExist) {
 			return retryNotFoundBucketDoesNotExist
 		}
 	}

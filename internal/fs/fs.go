@@ -269,6 +269,9 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		// for non-dynamic mounts, but they are idempotent, so it's safe.
 		bucketType := syncerBucket.BucketType()
 		if serverCfg.ViperConfig != nil {
+			if bucketType.IsRapid() && serverCfg.ViperConfig.IsSet("file-system.fuse-max-request-size-kb") {
+				return nil, fmt.Errorf("fuse-max-request-size-kb flag is not supported for rapid buckets")
+			}
 			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.Pirlo != gcs.PirloStateNone)
 			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.ViperConfig, &cfg.OptimizationInput{
 				BucketType: bucketTypeEnum,
@@ -416,16 +419,6 @@ func makeRootForBucket(
 		fuseops.RootInodeID,
 		inode.NewRootName(""),
 		nil, // For root buckets, there is no parent and hence no parent context.
-		fuseops.InodeAttributes{
-			Uid:  fs.uid,
-			Gid:  fs.gid,
-			Mode: fs.dirMode,
-
-			// We guarantee only that directory times be "reasonable".
-			Atime: fs.mtimeClock.Now(),
-			Ctime: fs.mtimeClock.Now(),
-			Mtime: fs.mtimeClock.Now(),
-		},
 		fs.implicitDirs,
 		fs.enableNonexistentTypeCache,
 		fs.dirTypeCacheTTL,
@@ -441,16 +434,6 @@ func makeRootForAllBuckets(fs *fileSystem) inode.DirInode {
 	return inode.NewBaseDirInode(
 		fuseops.RootInodeID,
 		inode.NewRootName(""),
-		fuseops.InodeAttributes{
-			Uid:  fs.uid,
-			Gid:  fs.gid,
-			Mode: fs.dirMode,
-
-			// We guarantee only that directory times be "reasonable".
-			Atime: fs.mtimeClock.Now(),
-			Ctime: fs.mtimeClock.Now(),
-			Mtime: fs.mtimeClock.Now(),
-		},
 		fs.bucketManager,
 		fs.metricHandle,
 		fs.newConfig.EnableTypeCacheDeprecation,
@@ -933,16 +916,6 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 		ic.FullName,
 		parInodeCtx,
 		ic.MinObject,
-		fuseops.InodeAttributes{
-			Uid:  fs.uid,
-			Gid:  fs.gid,
-			Mode: fs.dirMode,
-
-			// We guarantee only that directory times be "reasonable".
-			Atime: fs.mtimeClock.Now(),
-			Ctime: fs.mtimeClock.Now(),
-			Mtime: fs.mtimeClock.Now(),
-		},
 		fs.implicitDirs,
 		fs.enableNonexistentTypeCache,
 		fs.dirTypeCacheTTL,
@@ -976,16 +949,6 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			id,
 			ic.FullName,
 			parInodeCtx,
-			fuseops.InodeAttributes{
-				Uid:  fs.uid,
-				Gid:  fs.gid,
-				Mode: fs.dirMode,
-
-				// We guarantee only that directory times be "reasonable".
-				Atime: fs.mtimeClock.Now(),
-				Ctime: fs.mtimeClock.Now(),
-				Mtime: fs.mtimeClock.Now(),
-			},
 			fs.implicitDirs,
 			fs.enableNonexistentTypeCache,
 			fs.dirTypeCacheTTL,
@@ -1003,11 +966,7 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			ic.FullName,
 			ic.Bucket,
 			ic.MinObject,
-			fuseops.InodeAttributes{
-				Uid:  fs.uid,
-				Gid:  fs.gid,
-				Mode: fs.fileMode | os.ModeSymlink,
-			})
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -1017,11 +976,6 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			id,
 			ic.FullName,
 			ic.MinObject,
-			fuseops.InodeAttributes{
-				Uid:  fs.uid,
-				Gid:  fs.gid,
-				Mode: fs.fileMode,
-			},
 			ic.Bucket,
 			fs.localFileCache,
 			fs.contentCache,
@@ -1373,9 +1327,10 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 // LOCKS_REQUIRED(f)
 func (fs *fileSystem) promoteToGenerationBacked(f *inode.FileInode) {
 	fs.mu.Lock()
-	delete(fs.localFileInodes, f.Name())
-	if _, ok := fs.generationBackedInodes[f.Name()]; !ok {
-		fs.generationBackedInodes[f.Name()] = f
+	name := f.Name()
+	delete(fs.localFileInodes, name)
+	if _, ok := fs.generationBackedInodes[name]; !ok {
+		fs.generationBackedInodes[name] = f
 	}
 	fs.mu.Unlock()
 
@@ -1416,7 +1371,7 @@ func (fs *fileSystem) flushFile(
 	}
 
 	// Flush the inode.
-	err := f.Flush(ctx)
+	err := f.Flush(ctx, fs.getWriteContext())
 	if err != nil {
 		err = fmt.Errorf("FileInode.Sync: %w", err)
 		// If the inode was local file inode, treat it as unlinked.
@@ -1457,7 +1412,7 @@ func (fs *fileSystem) syncFile(
 	}
 
 	// Sync the inode.
-	gcsSynced, err := f.Sync(ctx)
+	gcsSynced, err := f.Sync(ctx, fs.getWriteContext())
 	if err != nil {
 		err = fmt.Errorf("FileInode.Sync: %w", err)
 		// If the inode was local file inode, treat it as unlinked.
@@ -1497,7 +1452,7 @@ func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
 func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
-	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx, openMode)
+	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx, openMode, fs.getWriteContext())
 	if err != nil {
 		return err
 	}
@@ -1609,8 +1564,26 @@ func (fs *fileSystem) getAttributes(
 	expiration time.Time,
 	err error) {
 	// Call through.
-	attr, err = in.Attributes(ctx, true)
+	size, mtime, nlink, err := in.Attributes(ctx, true)
 	if err != nil {
+		return
+	}
+
+	attr.Size = size
+	attr.Mtime, attr.Atime, attr.Ctime, attr.Crtime = mtime, mtime, mtime, mtime
+	attr.Nlink = nlink
+	attr.Uid = fs.uid
+	attr.Gid = fs.gid
+
+	switch in.(type) {
+	case inode.DirInode:
+		attr.Mode = fs.dirMode
+	case *inode.FileInode:
+		attr.Mode = fs.fileMode
+	case *inode.SymlinkInode:
+		attr.Mode = fs.fileMode | os.ModeSymlink
+	default:
+		err = fmt.Errorf("getAttributes: unknown inode type %T", in)
 		return
 	}
 
@@ -1714,13 +1687,12 @@ func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name,
 	defer child.Unlock()
 
 	// Extract the child's attributes.
-	attributes, err := child.Attributes(ctx, false)
+	attributes, expiration, err := fs.getAttributes(ctx, child)
 	if err != nil {
 		// The inode is valid, but we couldn't get attributes.
 		return nil, fmt.Errorf("coreToDirentPlus: unable to fetch attributes for %s: %w", path.Base(fullName.LocalName()), err)
 	}
 
-	expiration := time.Now().Add(fs.inodeAttributeCacheTTL)
 	entryPlus = &fuseutil.DirentPlus{
 		Dirent: fuseutil.Dirent{
 			Name:  path.Base(fullName.LocalName()),
@@ -1793,7 +1765,7 @@ func (fs *fileSystem) lookupAndFetchAttributesForLocalFileEntriesPlus(parentName
 			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: local file %q disappeared", localEntryName)
 		}
 		// Fetch attributes from the child inode.
-		attrs, err := child.Attributes(context.Background(), false)
+		attrs, expiration, err := fs.getAttributes(context.Background(), child)
 		if err != nil {
 			child.Unlock()
 			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: unable to fetch attributes for %s: %w", localEntryName, err)
@@ -1801,7 +1773,6 @@ func (fs *fileSystem) lookupAndFetchAttributesForLocalFileEntriesPlus(parentName
 		// Unlock the inode after retrieving its attributes.
 		child.Unlock()
 
-		expiration := time.Now().Add(fs.inodeAttributeCacheTTL)
 		childInodeEntry := fuseops.ChildInodeEntry{
 			Child:                child.ID(),
 			Attributes:           attrs,
@@ -1913,6 +1884,15 @@ func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Conte
 	return ctx
 }
 
+func (fs *fileSystem) getWriteContext() *inode.WriteContext {
+	return &inode.WriteContext{
+		Config:             fs.newConfig,
+		GlobalMaxBlocksSem: fs.globalMaxWriteBlocksSem,
+		TraceHandle:        fs.traceHandle,
+		MetricHandle:       fs.metricHandle,
+	}
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
@@ -1998,7 +1978,7 @@ func (fs *fileSystem) SetInodeAttributes(
 		if err != nil {
 			return
 		}
-		gcsSynced, err := file.Truncate(ctx, int64(*op.Size))
+		gcsSynced, err := file.Truncate(ctx, int64(*op.Size), fs.getWriteContext())
 		// Sync the inode if finalize during truncate is successful
 		// even if the truncate operation later resulted error.
 		if gcsSynced {
@@ -3059,6 +3039,13 @@ func (fs *fileSystem) OpenFile(
 	in.Lock()
 	defer in.Unlock()
 
+	if fs.newConfig.FileSystem.StrongConsistencyOnOpen {
+		err = in.CheckClobbered(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Get the fs lock again.
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -3229,7 +3216,7 @@ func (fs *fileSystem) WriteFile(
 		return err
 	}
 	// Serve the request.
-	gcsSynced, err = in.Write(ctx, op.Data, op.Offset, fh.OpenMode())
+	gcsSynced, err = in.Write(ctx, op.Data, op.Offset, fh.OpenMode(), fs.getWriteContext())
 	if err != nil {
 		return
 	}

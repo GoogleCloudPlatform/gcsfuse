@@ -16,7 +16,6 @@ package inode_test
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -99,13 +98,8 @@ func TestAttributes(t *testing.T) {
 		Name:     "test",
 		Metadata: metadata,
 	}
-	attrs := fuseops.InodeAttributes{
-		Uid:  1001,
-		Gid:  1002,
-		Mode: 0777 | os.ModeSymlink,
-	}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m, attrs)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -119,14 +113,12 @@ func TestAttributes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Call Attributes
-			extracted, err := s.Attributes(context.TODO(), tt.clobberedCheck)
+			size, _, nlink, err := s.Attributes(context.TODO(), tt.clobberedCheck)
 
 			// Check expected values
 			require.NoError(t, err)
-			assert.Equal(t, uint32(1), extracted.Nlink)
-			assert.Equal(t, attrs.Uid, extracted.Uid)
-			assert.Equal(t, attrs.Gid, extracted.Gid)
-			assert.Equal(t, attrs.Mode, extracted.Mode)
+			assert.Equal(t, uint32(1), nlink)
+			assert.Equal(t, uint64(0), size)
 		})
 	}
 }
@@ -140,9 +132,8 @@ func TestUpdateSize(t *testing.T) {
 		Size:           100,
 		Metadata:       map[string]string{inode.SymlinkMetadataKey: "target"},
 	}
-	attrs := fuseops.InodeAttributes{}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m, attrs)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m)
 	require.NoError(t, err)
 
 	s.UpdateSize(200)
@@ -162,9 +153,8 @@ func TestSource(t *testing.T) {
 	m := storageutil.ConvertObjToMinObject(obj)
 	m.Metadata = map[string]string{inode.StandardSymlinkMetadataKey: "true"}
 	m.Updated = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC) // Explicitly set Updated time for consistent testing.
-	attrs := fuseops.InodeAttributes{}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m, attrs)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m)
 	require.NoError(t, err)
 
 	source := s.Source()
