@@ -16,6 +16,7 @@ package inode
 
 import (
 	"fmt"
+	"sync/atomic"
 )
 
 // A helper struct for implementing lookup counts. The only value added is some
@@ -25,33 +26,30 @@ import (
 type lookupCount int64
 
 func (lc *lookupCount) IncrementLookupCount() {
-	if *lc == -1 {
+	val := atomic.LoadInt64((*int64)(lc))
+	if val == -1 {
 		panic("Inode has already been destroyed")
 	}
-
-	(*lc)++
+	atomic.AddInt64((*int64)(lc), 1)
 }
 
 func (lc *lookupCount) DecrementLookupCount(n uint64) (destroy bool) {
-	if *lc == -1 {
+	val := atomic.LoadInt64((*int64)(lc))
+	if val == -1 {
 		panic("Inode has already been destroyed")
 	}
 
-	// Make sure n is in range.
-	if n > uint64(*lc) {
+	if n > uint64(val) {
 		panic(fmt.Sprintf(
 			"n is greater than lookup count: %v vs. %v",
 			n,
-			*lc))
+			val))
 	}
 
-	// Decrement.
-	*lc -= lookupCount(n)
-
-	destroy = *lc == 0
-	return
+	newVal := atomic.AddInt64((*int64)(lc), -int64(n))
+	return newVal == 0
 }
 
 func (lc *lookupCount) Destroy() {
-	*lc = -1
+	atomic.StoreInt64((*int64)(lc), -1)
 }
