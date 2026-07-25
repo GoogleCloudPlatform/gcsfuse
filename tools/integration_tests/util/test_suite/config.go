@@ -60,6 +60,7 @@ type ConfigItem struct {
 	SecondaryFlags []string         `yaml:"secondary_flags"`
 	Compatible     map[string]bool  `yaml:"compatible"`
 	Run            string           `yaml:"run,omitempty"`
+	Skip           string           `yaml:"skip,omitempty"`
 	RunOnGKE       bool             `yaml:"run_on_gke"`
 	RunOnPirlo     RunOnPirloConfig `yaml:"run_on_pirlo"`
 	TPC            bool             `yaml:"tpc,omitempty"`
