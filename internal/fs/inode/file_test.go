@@ -454,7 +454,7 @@ func (t *FileTest) TestInitialAttributes() {
 
 	assert.Equal(t.T(), uint64(len(t.initialContents)), attrs.Size)
 	assert.Equal(t.T(), uint32(1), attrs.Nlink)
-	assert.Equal(t.T(), attrs.Mtime, t.backingObj.Updated)
+	assert.True(t.T(), attrs.Mtime.Equal(t.backingObj.UpdatedTime()))
 }
 
 func (t *FileTest) TestInitialAttributes_MtimeFromObjectMetadata_Gcsfuse() {

@@ -86,8 +86,8 @@ type MinObject struct {
 	Size            uint64
 	Generation      int64
 	MetaGeneration  int64
-	Updated         time.Time
-	Finalized       time.Time
+	Updated         int64
+	Finalized       int64
 	Metadata        map[string]string
 	ContentEncoding string
 	CRC32C          *uint32 // Missing for CMEK buckets
@@ -119,5 +119,27 @@ func (mo MinObject) HasContentEncodingGzip() bool {
 }
 
 func (mo MinObject) IsUnfinalized() bool {
-	return mo.Finalized.IsZero()
+	return mo.Finalized == 0
+}
+
+func TimeToNS(t time.Time) int64 {
+	if t.IsZero() {
+		return 0
+	}
+	return t.UnixNano()
+}
+
+func NSToTime(ns int64) time.Time {
+	if ns == 0 {
+		return time.Time{}
+	}
+	return time.Unix(0, ns).UTC()
+}
+
+func (mo MinObject) UpdatedTime() time.Time {
+	return NSToTime(mo.Updated)
+}
+
+func (mo MinObject) FinalizedTime() time.Time {
+	return NSToTime(mo.Finalized)
 }
