@@ -1,3 +1,17 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package stale_handle
 
 import (
@@ -18,12 +32,10 @@ import (
 
 type staleFileHandleOpenFile struct {
 	suite.Suite
-	flags                    []string
-	f1                       *os.File
-	fileName                 string
-	data                     string
-	isStreamingWritesEnabled bool
-	isLocal                  bool
+	flags    []string
+	f1       *os.File
+	fileName string
+	data     string
 }
 
 func (s *staleFileHandleOpenFile) SetupSuite() {
