@@ -425,7 +425,8 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	var clientOpts []option.ClientOption
 
 	// Control-client is needed for folder APIs and for getting storage-layout of the bucket.
-	if clientConfig.EnableHNS {
+	// Bypassed for HTTP storage testbenches that inject the legacy REST API path.
+	if clientConfig.EnableHNS && !strings.Contains(clientConfig.CustomEndpoint, "/storage/v1") {
 		// For control client, we don't pass billingProject to avoid setting it globally via option.WithQuotaProject.
 		// The wrapper storageControlClientWithBillingProject will manually add it to the context for supported calls.
 		clientOpts, err = createClientOptionForGRPCClient(ctx, &clientConfig, false)
@@ -442,6 +443,8 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		controlClient = NewStorageControlClient(rawStorageControlClient, &clientConfig,
 			WithBillingProject(billingProject),
 		)
+	} else if clientConfig.EnableHNS {
+		logger.Infof("Skipping storage control client creation for custom-endpoint %q.", clientConfig.CustomEndpoint)
 	}
 
 	sh = &storageClient{
