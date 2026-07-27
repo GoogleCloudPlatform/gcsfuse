@@ -203,54 +203,42 @@ func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string
 	return string(content), nil
 }
 
-// NewWriter is a wrapper over storage.NewWriter which
-// extends support to zonal buckets.
-func NewWriter(ctx context.Context, o *storage.ObjectHandle, client *storage.Client) (wc *storage.Writer, err error) {
-	wc = o.NewWriter(ctx)
-	wc.FinalizeOnClose = true
+// WriterOptions contains optional parameters for creating objects on GCS.
+type WriterOptions struct {
+	StorageClass     string
+	UseAppendableAPI bool
+	FinalizeOnClose  *bool
+}
 
-	// Changes specific to zonal bucket
-	var attrs *storage.BucketAttrs
-	attrs, err = getBucketHandle(client, o.BucketName()).Attrs(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get attributes for bucket %q: %w", o.BucketName(), err)
-	}
-	if attrs.StorageClass == "RAPID" {
-		if setup.IsZonalBucketRun() {
-			// Zonal bucket writers require append-flag to be set.
-			wc.Append = true
-			// Zonal buckets with rapid appends should not finalize on close.
-			wc.FinalizeOnClose = false
-		} else {
-			return nil, fmt.Errorf("found zonal bucket %q in non-zonal e2e test run (--zonal=false)", o.BucketName())
-		}
+// NewWriterWithOptions creates a storage.Writer configured with the given WriterOptions.
+func NewWriterWithOptions(ctx context.Context, o *storage.ObjectHandle, opts WriterOptions) *storage.Writer {
+	wc := o.NewWriter(ctx)
+
+	// Set FinalizeOnClose: true by default for non-zonal runs (including Pirlo uploads),
+	// but false for zonal bucket runs (unless explicitly specified in opts).
+	wc.FinalizeOnClose = !setup.IsZonalBucketRun()
+	if opts.FinalizeOnClose != nil {
+		wc.FinalizeOnClose = *opts.FinalizeOnClose
 	}
 
-	return
+	wc.Append = opts.UseAppendableAPI || setup.IsZonalBucketRun()
+
+	if opts.StorageClass != "" {
+		wc.ObjectAttrs.StorageClass = opts.StorageClass
+	} else if wc.Append {
+		wc.ObjectAttrs.StorageClass = "RAPID"
+	}
+
+	return wc
 }
 
 func WriteToObject(ctx context.Context, client *storage.Client, object, content string, precondition storage.Conditions) error {
-	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
-
-	o := getBucketHandle(client, bucket).Object(object)
+	var preconditions *storage.Conditions
 	if !reflect.DeepEqual(precondition, storage.Conditions{}) {
-		o = o.If(precondition)
+		preconditions = &precondition
 	}
 
-	// Upload an object with storage.Writer.
-	wc, err := NewWriter(ctx, o, client)
-	if err != nil {
-		return fmt.Errorf("Failed to open writer for object %q: %w", object, err)
-	}
-	if _, err := io.WriteString(wc, content); err != nil {
-		return fmt.Errorf("io.WriteString failed for object %q: %w", object, err)
-	}
-	if err := wc.Close(); err != nil {
-		return fmt.Errorf("Writer.Close failed for object %q: %w", object, err)
-	}
-	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
-
-	return nil
+	return CreateObjectWithOptions(ctx, client, object, []byte(content), preconditions, WriterOptions{})
 }
 
 // CreateObjectOnGCS creates an object with given name and content on GCS.
@@ -259,31 +247,22 @@ func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, cont
 }
 
 func CreateFinalizedObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
-	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
-	o := getBucketHandle(client, bucket).Object(object)
-
-	// Upload an object with storage.Writer with finalizeOnClose=true
-	wc := o.NewWriter(ctx)
-	wc.Append = true
-	wc.FinalizeOnClose = true
-	if _, err := io.WriteString(wc, content); err != nil {
-		return fmt.Errorf("io.WriteString failed for object %q: %w", object, err)
-	}
-	if err := wc.Close(); err != nil {
-		return fmt.Errorf("Writer.Close failed for object %q: %w", object, err)
-	}
-	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
-	return nil
+	finalizeOnClose := true
+	return CreateObjectWithOptions(ctx, client, object, []byte(content), nil, WriterOptions{
+		UseAppendableAPI: true,
+		FinalizeOnClose:  &finalizeOnClose,
+	})
 }
 
-// CreateObjectWithAPI creates an object on GCS with the given content, allowing the choice of whether to use the appendable API.
-func CreateObjectWithAPI(ctx context.Context, client *storage.Client, object string, content []byte, useAppendableAPI bool) error {
+// CreateObjectWithOptions creates an object on GCS with custom content, optional preconditions, and WriterOptions.
+func CreateObjectWithOptions(ctx context.Context, client *storage.Client, object string, content []byte, preconditions *storage.Conditions, opts WriterOptions) error {
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
 	o := getBucketHandle(client, bucket).Object(object)
+	if preconditions != nil && !reflect.DeepEqual(*preconditions, storage.Conditions{}) {
+		o = o.If(*preconditions)
+	}
 
-	wc := o.NewWriter(ctx)
-	wc.Append = useAppendableAPI
-	wc.FinalizeOnClose = true
+	wc := NewWriterWithOptions(ctx, o, opts)
 
 	if _, err := wc.Write(content); err != nil {
 		return fmt.Errorf("wc.Write failed for object %q: %w", object, err)
@@ -291,6 +270,7 @@ func CreateObjectWithAPI(ctx context.Context, client *storage.Client, object str
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("wc.Close failed for object %q: %w", object, err)
 	}
+	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
 	return nil
 }
 
@@ -399,10 +379,7 @@ func UploadGcsObjectWithPreconditions(ctx context.Context, client *storage.Clien
 	if preconditions != nil {
 		obj = obj.If(*preconditions)
 	}
-	w, err := NewWriter(ctx, obj, client)
-	if err != nil {
-		return fmt.Errorf("failed to open writer for GCS object gs://%s/%s: %w", bucketName, objectName, err)
-	}
+	w := NewWriterWithOptions(ctx, obj, WriterOptions{})
 	defer func() {
 		if err := w.Close(); err != nil {
 			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
@@ -523,10 +500,7 @@ func NewWriterWithPreconditionsSet(ctx context.Context, client *storage.Client, 
 	}
 
 	// Upload an object with storage.Writer.
-	wc, err := NewWriter(ctx, o, client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open writer for object %q: %w", o.ObjectName(), err)
-	}
+	wc := NewWriterWithOptions(ctx, o, WriterOptions{})
 	return wc, nil
 }
 
@@ -563,10 +537,7 @@ func uploadGcsObjectWithPreconditionsWithoutIntermediateDelays(ctx context.Conte
 	if preconditions != nil {
 		obj = obj.If(*preconditions)
 	}
-	w, err := NewWriter(ctx, obj, client)
-	if err != nil {
-		return fmt.Errorf("failed to open writer for GCS object gs://%s/%s: %w", bucketName, objectName, err)
-	}
+	w := NewWriterWithOptions(ctx, obj, WriterOptions{})
 	defer func() {
 		if err := w.Close(); err != nil {
 			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
