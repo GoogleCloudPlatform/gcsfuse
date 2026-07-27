@@ -60,13 +60,11 @@ func (s *staleFileHandleOpenFile) TearDownTest() {
 
 func (s *staleFileHandleOpenFile) TestOpenFileWhenClobbered() {
 	defer func() { _ = s.f1.Close() }()
-
 	// 1. Get old inode ID.
 	fi1, err := os.Stat(s.f1.Name())
 	require.NoError(s.T(), err)
 	stat1 := fi1.Sys().(*syscall.Stat_t)
 	oldInodeId := stat1.Ino
-
 	// 2. Clobber the file on GCS.
 	err = WriteToObject(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
 	assert.NoError(s.T(), err)
@@ -81,10 +79,8 @@ func (s *staleFileHandleOpenFile) TestOpenFileWhenClobbered() {
 	require.NoError(s.T(), err)
 	stat2 := fi2.Sys().(*syscall.Stat_t)
 	newInodeId := stat2.Ino
-
 	// 5. Verify they are different.
 	assert.NotEqual(s.T(), oldInodeId, newInodeId)
-
 	// 6. Verify we can write to the new fd.
 	_, err = fh2.Write([]byte("chips"))
 	assert.NoError(s.T(), err)
