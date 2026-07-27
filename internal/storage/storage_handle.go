@@ -23,7 +23,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -218,9 +217,9 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// Direct-path verification is fatal for regional. Todo(b/503624405): Make it fatal for all after making the dummy-stat reliable.
 	if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
 		logger.Warnf("DirectPath verification failed with error: %v", verifyErr)
-		if !isbucketRapid {
+		/*	if !isbucketRapid {
 			return nil, verifyErr
-		}
+		}*/
 	} else {
 		logger.Infof("DirectPath verification succeeded, continuing with DirectPath.")
 	}
@@ -462,10 +461,12 @@ func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, buck
 	}
 
 	if sh.clientConfig.ClientProtocol == cfg.GRPC {
+		logger.Infof("Creating grpc client")
 		return sh.createNonBidiGRPCClientWithHttpFallback(ctx, bucketName, billingProject)
 	}
 
 	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 {
+		logger.Infof("Creating http client")
 		if sh.httpClient == nil {
 			sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
 		}

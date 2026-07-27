@@ -16,11 +16,18 @@ package storageutil
 
 import (
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptrace"
+	"os"
+	"os/exec"
+	"os/user"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -98,6 +105,86 @@ type StorageClientConfig struct {
 	WriteConfig *cfg.WriteConfig
 }
 
+const (
+	metadataPath = ".secureConnect"
+	metadataFile = "context_aware_metadata.json"
+)
+
+type secureConnectSource struct {
+	metadata secureConnectMetadata
+
+	// Cache the cert to avoid executing helper command repeatedly.
+	cachedCertMutex sync.Mutex
+	cachedCert      *tls.Certificate
+}
+
+type secureConnectMetadata struct {
+	Cmd []string `json:"cert_provider_command"`
+}
+
+func newSecureConnectSource(configFilePath string) (*secureConnectSource, error) {
+	if configFilePath == "" {
+		u, err := user.Current()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current user: %w", err)
+		}
+		configFilePath = filepath.Join(u.HomeDir, metadataPath, metadataFile)
+	}
+
+	file, err := os.ReadFile(configFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil // Return nil, nil if config doesn't exist (not supported)
+		}
+		return nil, err
+	}
+
+	var metadata secureConnectMetadata
+	if err := json.Unmarshal(file, &metadata); err != nil {
+		return nil, fmt.Errorf("cert: could not parse JSON in %q: %w", configFilePath, err)
+	}
+	if len(metadata.Cmd) == 0 {
+		return nil, fmt.Errorf("cert: empty cert_provider_command in %q", configFilePath)
+	}
+	return &secureConnectSource{
+		metadata: metadata,
+	}, nil
+}
+
+func (s *secureConnectSource) getClientCertificate(info *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+	s.cachedCertMutex.Lock()
+	defer s.cachedCertMutex.Unlock()
+	if s.cachedCert != nil && !isCertificateExpired(s.cachedCert) {
+		return s.cachedCert, nil
+	}
+	// Expand OS environment variables in the cert provider command such as "$HOME".
+	for i := 0; i < len(s.metadata.Cmd); i++ {
+		s.metadata.Cmd[i] = os.ExpandEnv(s.metadata.Cmd[i])
+	}
+	command := s.metadata.Cmd
+	data, err := exec.Command(command[0], command[1:]...).Output()
+	if err != nil {
+		return nil, err
+	}
+	cert, err := tls.X509KeyPair(data, data)
+	if err != nil {
+		return nil, err
+	}
+	s.cachedCert = &cert
+	return &cert, nil
+}
+
+func isCertificateExpired(cert *tls.Certificate) bool {
+	if len(cert.Certificate) == 0 {
+		return true
+	}
+	parsed, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return true
+	}
+	return time.Now().After(parsed.NotAfter)
+}
+
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
 	dialer := net.Dialer{}
 	if storageClientConfig.LocalSocketAddress != "" {
@@ -107,6 +194,19 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 	}
 	if storageClientConfig.EnableHTTPDNSCache {
 		dialer.Resolver = dns.NewCachingResolver(nil, dns.MinCacheTTL(1*time.Minute))
+	}
+
+	var tlsClientConfig *tls.Config
+	if strings.ToLower(os.Getenv("GOOGLE_API_USE_CLIENT_CERTIFICATE")) == "true" {
+		scSource, err := newSecureConnectSource("")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create SecureConnect source: %w", err)
+		}
+		if scSource != nil {
+			tlsClientConfig = &tls.Config{
+				GetClientCertificate: scSource.getClientCertificate,
+			}
+		}
 	}
 
 	var transport *http.Transport
@@ -121,6 +221,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 			TLSNextProto: make(
 				map[string]func(string, *tls.Conn) http.RoundTripper,
 			),
+			TLSClientConfig: tlsClientConfig,
 		}
 	} else {
 		// For http2, change in MaxConnsPerHost doesn't affect the performance.
@@ -130,6 +231,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 			DisableKeepAlives: true,
 			MaxConnsPerHost:   storageClientConfig.MaxConnsPerHost,
 			ForceAttemptHTTP2: true,
+			TLSClientConfig:   tlsClientConfig,
 		}
 	}
 
