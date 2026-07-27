@@ -21,15 +21,19 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"sync"
+	"syscall"
 	"testing"
 
+	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -537,6 +541,115 @@ func TestShouldRetryOnMount(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result := ShouldRetryOnMount(tc.err)
 
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestShouldRetryOnOAuthOrMDSError(t *testing.T) {
+	testCases := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name: "oauth2.RetrieveError 503",
+			err: &oauth2.RetrieveError{
+				Response: &http.Response{StatusCode: http.StatusServiceUnavailable},
+			},
+			expected: true,
+		},
+		{
+			name: "oauth2.RetrieveError 429",
+			err: &oauth2.RetrieveError{
+				Response: &http.Response{StatusCode: http.StatusTooManyRequests},
+			},
+			expected: true,
+		},
+		{
+			name: "oauth2.RetrieveError 401 permanent",
+			err: &oauth2.RetrieveError{
+				Response: &http.Response{StatusCode: http.StatusUnauthorized},
+			},
+			expected: false,
+		},
+		{
+			name: "oauth2.RetrieveError 400 permanent",
+			err: &oauth2.RetrieveError{
+				Response: &http.Response{StatusCode: http.StatusBadRequest},
+			},
+			expected: false,
+		},
+		{
+			name:     "googleapi.Error 500",
+			err:      &googleapi.Error{Code: 500},
+			expected: true,
+		},
+		{
+			name:     "googleapi.Error 403 permanent",
+			err:      &googleapi.Error{Code: 403},
+			expected: false,
+		},
+		{
+			name:     "MDS connection refused syscall error",
+			err:      fmt.Errorf("Get http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token: dial tcp 169.254.169.254:80: connect: %w", syscall.ECONNREFUSED),
+			expected: true,
+		},
+		{
+			name:     "MDS connection reset syscall error",
+			err:      fmt.Errorf("fetching token from metadata server failed: %w", syscall.ECONNRESET),
+			expected: true,
+		},
+		{
+			name:     "MDS connection timeout syscall error",
+			err:      fmt.Errorf("fetching token from metadata server timed out: %w", syscall.ETIMEDOUT),
+			expected: true,
+		},
+		{
+			name:     "MDS broken pipe syscall error",
+			err:      fmt.Errorf("writing to metadata server failed: %w", syscall.EPIPE),
+			expected: true,
+		},
+		{
+			name:     "EOF error",
+			err:      io.EOF,
+			expected: true,
+		},
+		{
+			name:     "unexpected EOF error",
+			err:      io.ErrUnexpectedEOF,
+			expected: true,
+		},
+		{
+			name:     "metadata.Error 500",
+			err:      &metadata.Error{Code: 500, Message: "Internal Server Error"},
+			expected: true,
+		},
+		{
+			name:     "metadata.Error 429",
+			err:      &metadata.Error{Code: 429, Message: "Too Many Requests"},
+			expected: true,
+		},
+		{
+			name:     "metadata.Error 404 permanent",
+			err:      &metadata.Error{Code: 404, Message: "Not Found"},
+			expected: false,
+		},
+		{
+			name:     "net.DNSError fast-start resolution failure",
+			err:      &net.DNSError{Err: "no such host", Name: "metadata.google.internal", IsNotFound: true},
+			expected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := ShouldRetryOnOAuthOrMDSError(tc.err)
 			assert.Equal(t, tc.expected, result)
 		})
 	}

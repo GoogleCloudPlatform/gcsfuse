@@ -17,15 +17,28 @@ package storageutil
 import (
 	"context"
 	"errors"
+	"io"
+	"net"
+	"net/http"
 	"strings"
+	"syscall"
 
+	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+var retryableSyscalls = []error{
+	syscall.ECONNREFUSED,
+	syscall.ECONNRESET,
+	syscall.ETIMEDOUT,
+	syscall.EPIPE,
+}
 
 // retryAction defines the classification of a retry decision.
 type retryAction int
@@ -148,4 +161,71 @@ func ShouldRetryWithMonitoringAndRetryContext(
 // In addition to standard transient errors, it retries HTTP 403/404 and gRPC PermissionDenied/NotFound errors.
 func ShouldRetryOnMount(err error) bool {
 	return determineRetryAction(err) != noRetry
+}
+
+// ShouldRetryOnOAuthOrMDSError classifies token fetch errors during mount completion and runtime
+// into retryable failure scenarios (transient STS/OAuth2 endpoint errors and transient MDS/network errors).
+func ShouldRetryOnOAuthOrMDSError(err error) bool {
+	// 1. Transient STS / OAuth2 Token Endpoint Errors -> Retry
+	if isTransientSTSOrOAuthAPIError(err) {
+		return true
+	}
+
+	// 2. Transient Metadata Server (MDS) & Network Socket Errors -> Retry
+	if isTransientMDSOrNetworkError(err) {
+		return true
+	}
+
+	return false
+}
+
+// extractHTTPStatusCode pulls the HTTP status code from known GCP/OAuth error types.
+func extractHTTPStatusCode(err error) (int, bool) {
+	var retrieveErr *oauth2.RetrieveError
+	if errors.As(err, &retrieveErr) && retrieveErr.Response != nil {
+		return retrieveErr.Response.StatusCode, true
+	}
+
+	var apiErr *googleapi.Error
+	if errors.As(err, &apiErr) {
+		return apiErr.Code, true
+	}
+
+	var metaErr *metadata.Error
+	if errors.As(err, &metaErr) {
+		return metaErr.Code, true
+	}
+
+	return 0, false
+}
+
+func isTransientHTTPStatus(code int) bool {
+	return code == http.StatusTooManyRequests || (code >= 500 && code <= 599)
+}
+
+func isTransientSTSOrOAuthAPIError(err error) bool {
+	if code, ok := extractHTTPStatusCode(err); ok {
+		return isTransientHTTPStatus(code)
+	}
+	return false
+}
+
+func isTransientMDSOrNetworkError(err error) bool {
+	for _, sysErr := range retryableSyscalls {
+		if errors.Is(err, sysErr) {
+			return true
+		}
+	}
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return true
+	}
+	return false
 }
