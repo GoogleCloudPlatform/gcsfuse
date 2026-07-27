@@ -443,7 +443,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		controlClient = NewStorageControlClient(rawStorageControlClient, &clientConfig,
 			WithBillingProject(billingProject),
 		)
-	} else {
+	} else if clientConfig.EnableHNS {
 		logger.Infof("Skipping storage control client creation for custom-endpoint %q.", clientConfig.CustomEndpoint)
 	}
 
