@@ -408,6 +408,12 @@ func (f *FileInode) ensureContent(ctx context.Context, size int64) (err error) {
 			return
 		}
 
+		// Optimization: For size == 0 (truncate to 0), bypass GCS download entirely
+		// and initialize an empty local temp file.
+		if size == 0 {
+			return f.CreateEmptyTempFile(ctx)
+		}
+
 		rc, err := f.openReader(ctx, size)
 		if err != nil {
 			err = fmt.Errorf("openReader Error: %w", err)
