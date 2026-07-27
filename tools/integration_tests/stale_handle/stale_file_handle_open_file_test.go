@@ -22,11 +22,11 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -35,14 +35,12 @@ type staleFileHandleOpenFile struct {
 	flags    []string
 	f1       *os.File
 	fileName string
-	data     string
 }
 
 func (s *staleFileHandleOpenFile) SetupSuite() {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
 	setup.SetMntDir(mountDir)
 	testEnv.testDirPath = SetupTestDirectory(testEnv.ctx, testEnv.storageClient, testDirName)
-	s.data = setup.GenerateRandomString(5 * util.MiB)
 }
 
 func (s *staleFileHandleOpenFile) TearDownSuite() {
@@ -65,7 +63,7 @@ func (s *staleFileHandleOpenFile) TestOpenFileWhenClobbered() {
 
 	// 1. Get old inode ID.
 	fi1, err := os.Stat(s.f1.Name())
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	stat1 := fi1.Sys().(*syscall.Stat_t)
 	oldInodeId := stat1.Ino
 
@@ -75,12 +73,12 @@ func (s *staleFileHandleOpenFile) TestOpenFileWhenClobbered() {
 
 	// 3. Open the file again. It should succeed (VFS retry).
 	fh2, err := os.OpenFile(path.Join(testEnv.testDirPath, s.fileName), os.O_RDWR|syscall.O_DIRECT, 0)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	defer operations.CloseFileShouldNotThrowError(s.T(), fh2)
 
 	// 4. Get new inode ID.
 	fi2, err := fh2.Stat()
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	stat2 := fi2.Sys().(*syscall.Stat_t)
 	newInodeId := stat2.Ino
 
