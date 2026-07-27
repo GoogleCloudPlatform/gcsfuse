@@ -1270,7 +1270,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 		truncatedSize = int64(initOffset)
 	}
 
-	appendableOffset := getAppendableWriterOffset(openMode, latestGcsObj)
+	appendableOffset := getAppendableWriterOffset(initOffset, latestGcsObj)
 
 	if f.bwh == nil {
 		f.bwh, err = bufferedwrites.NewBWHandler(&bufferedwrites.CreateBWHandlerRequest{
@@ -1330,7 +1330,12 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, initOffse
 	return false
 }
 
-func getAppendableWriterOffset(openMode util.OpenMode, obj *gcs.Object) int64 {
+// AppendableWriter can be created under the following scenarios :
+// Object is unfinalized is a basic assumption.
+// 1. when the open  mode is append
+// 2. When the open mode is r+ and write offset > size
+// 3  When upward truncation happens.
+func getAppendableWriterOffset(initOffset uint64, obj *gcs.Object) int64 {
 
 	// Appendable writer is created for unfinalzied objects only.
 	if !obj.IsUnfinalized() {
@@ -1338,7 +1343,7 @@ func getAppendableWriterOffset(openMode util.OpenMode, obj *gcs.Object) int64 {
 	}
 
 	// For unfinalized object, if the open mode is r+ or appends, then the same generation appends can continue
-	if openMode.IsAppend() || (openMode.AccessMode() == util.ReadWrite && !openMode.IsTruncate()) {
+	if initOffset >= obj.Size {
 		return int64(obj.Size)
 	}
 
