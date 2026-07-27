@@ -126,7 +126,7 @@ func (s *BaseSymlinkSuite) createGCSSymlinkObject(linkName, target string) {
 	fullLinkPath := path.Join(TestDirName, linkName)
 	bucketName, objectName := setup.GetBucketAndObjectBasedOnTypeOfMount(fullLinkPath)
 	objHandle := testEnv.storageClient.Bucket(bucketName).Object(objectName)
-	w := client.NewWriterWithOptions(testEnv.ctx, objHandle, client.WriterOptions{})
+	w := client.NewWriterWithOptions(testEnv.ctx, objHandle)
 
 	var content []byte
 	if s.isStandardSymlink {

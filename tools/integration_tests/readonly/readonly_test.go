@@ -74,7 +74,7 @@ func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.
 		filePath := path.Join(dirPath, file.filePath)
 		// Create a storage writer for the destination object
 		object := bucketHandle.Object(filePath)
-		writer := client.NewWriterWithOptions(ctx, object, client.WriterOptions{})
+		writer := client.NewWriterWithOptions(ctx, object)
 
 		// Write the text to the object
 		if _, writeErr := writer.Write([]byte(file.fileContent + "\n")); writeErr != nil {
