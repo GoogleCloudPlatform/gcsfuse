@@ -224,9 +224,9 @@ func NewWriterWithOptions(ctx context.Context, o *storage.ObjectHandle, opts Wri
 	wc.Append = opts.UseAppendableAPI || setup.IsZonalBucketRun()
 
 	if opts.StorageClass != "" {
-		wc.ObjectAttrs.StorageClass = opts.StorageClass
+		wc.StorageClass = opts.StorageClass
 	} else if wc.Append {
-		wc.ObjectAttrs.StorageClass = "RAPID"
+		wc.StorageClass = "RAPID"
 	}
 
 	return wc
@@ -264,8 +264,9 @@ func CreateObjectWithOptions(ctx context.Context, client *storage.Client, object
 
 	wc := NewWriterWithOptions(ctx, o, opts)
 
-	if _, err := wc.Write(content); err != nil {
-		return fmt.Errorf("wc.Write failed for object %q: %w", object, err)
+	if _, writeErr := wc.Write(content); writeErr != nil {
+		closeErr := wc.Close()
+		return fmt.Errorf("wc.Write failed for object %q: %w", object, errors.Join(writeErr, closeErr))
 	}
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("wc.Close failed for object %q: %w", object, err)

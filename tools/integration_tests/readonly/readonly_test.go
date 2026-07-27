@@ -17,6 +17,7 @@ package readonly_test
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"path"
@@ -76,8 +77,11 @@ func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.
 		writer := client.NewWriterWithOptions(ctx, object, client.WriterOptions{})
 
 		// Write the text to the object
-		if _, err := writer.Write([]byte(file.fileContent + "\n")); err != nil {
+		if _, writeErr := writer.Write([]byte(file.fileContent + "\n")); writeErr != nil {
+			closeErr := writer.Close()
+			err := errors.Join(writeErr, closeErr)
 			log.Printf("Error writing to object %s: %v\n", file.filePath, err)
+			return err
 		}
 		if err := writer.Close(); err != nil {
 			log.Printf("Error in closing writer: %v", err)
