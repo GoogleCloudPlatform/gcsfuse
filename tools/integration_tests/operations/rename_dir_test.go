@@ -22,41 +22,58 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/parallel"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestRenameDirToNonEmptyDestDirectory(t *testing.T) {
+type RenameDirSuite struct {
+	suite.Suite
+	runCfg parallel.RunConfiguration
+}
+
+func (s *RenameDirSuite) TestRenameDirToNonEmptyDestDirectory() {
 	// Set up the test directory.
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	testDir := setup.SetupTestDirectoryWithMntDir(s.runCfg.MntDir, DirForOperationTests+"-"+setup.GenerateRandomString(5))
 	// Create source directory.
 	srcDirPath := path.Join(testDir, "srcDir")
 	err := os.Mkdir(srcDirPath, 0700)
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
 	// Create destination directory and put a file in it.
 	destDirPath := path.Join(testDir, "destDir")
 	err = os.Mkdir(destDirPath, 0700)
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
 	destFilePath := path.Join(destDirPath, "file.txt")
-	operations.CreateFileWithContent(destFilePath, setup.FilePermission_0600, Content, t)
+	operations.CreateFileWithContent(destFilePath, setup.FilePermission_0600, Content, s.T())
 	// Attempt to rename the source directory to the destination directory.
 	err = os.Rename(srcDirPath, destDirPath)
 	// Assert that an error occurred (because destination is not empty).
-	assert.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "file exists") || strings.Contains(err.Error(), "directory not empty") || strings.Contains(err.Error(), "not empty"), "Error message should mention file exists or not empty, but got: %v", err)
+	assert.Error(s.T(), err)
+	assert.True(s.T(), strings.Contains(err.Error(), "file exists") || strings.Contains(err.Error(), "directory not empty") || strings.Contains(err.Error(), "not empty"), "Error message should mention file exists or not empty, but got: %v", err)
 
 	// Perform operations on source and destination to ensure they are healthy.
 	// Context: https://b.corp.google.com/issues/504921217
 	_, err = os.Stat(srcDirPath)
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
 	_, err = os.Stat(destDirPath)
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
 
 	// Delete both directories successfully
 	err = os.Remove(destFilePath)
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
 	err = os.Remove(destDirPath)
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
 	err = os.Remove(srcDirPath)
-	assert.NoError(t, err)
+	assert.NoError(s.T(), err)
+}
+
+func TestRenameDir(t *testing.T) {
+	s := new(RenameDirSuite)
+	s.runCfg = parallel.RunConfiguration{
+		MntDir:     setup.MntDir(),
+		TestBucket: setup.TestBucket(),
+		OnlyDir:    setup.OnlyDirMounted(),
+	}
+	suite.Run(t, s)
 }

@@ -32,7 +32,7 @@ func MountGcsfuseWithDynamicMountingWithConfig(cfg *test_suite.TestConfig, flags
 
 	flags = append(flags, defaultArg...)
 
-	err = mounting.MountGcsfuse(setup.BinFile(), flags)
+	err = mounting.MountGcsfuseWithEnv(setup.BinFile(), flags, cfg.Env)
 
 	return err
 }

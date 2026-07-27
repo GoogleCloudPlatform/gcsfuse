@@ -27,8 +27,12 @@ import (
 )
 
 func MountGcsfuseWithOnlyDirWithConfigFile(config *test_suite.TestConfig, flags []string) (err error) {
+	onlyDir := config.OnlyDir
+	if onlyDir == "" {
+		onlyDir = setup.OnlyDirMounted()
+	}
 	defaultArg := []string{"--only-dir",
-		setup.OnlyDirMounted(),
+		onlyDir,
 		"--log-severity=trace",
 		"--log-file=" + config.LogFile,
 		config.TestBucket,
@@ -36,7 +40,7 @@ func MountGcsfuseWithOnlyDirWithConfigFile(config *test_suite.TestConfig, flags 
 
 	flags = append(flags, defaultArg...)
 
-	err = mounting.MountGcsfuse(setup.BinFile(), flags)
+	err = mounting.MountGcsfuseWithEnv(setup.BinFile(), flags, config.Env)
 
 	return err
 }

@@ -51,7 +51,7 @@ func MountGcsfuseWithStaticMountingWithConfigFile(config *test_suite.TestConfig,
 		flags = append(flags, defaultArg[i])
 	}
 
-	err = mounting.MountGcsfuse(setup.BinFile(), flags)
+	err = mounting.MountGcsfuseWithEnv(setup.BinFile(), flags, config.Env)
 	return err
 }
 

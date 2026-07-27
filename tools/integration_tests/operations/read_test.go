@@ -20,40 +20,57 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/parallel"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestReadAfterWrite(t *testing.T) {
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
+type ReadSuite struct {
+	suite.Suite
+	runCfg parallel.RunConfiguration
+}
+
+func (s *ReadSuite) TestReadAfterWrite() {
+	testDir := setup.SetupTestDirectoryWithMntDir(s.runCfg.MntDir, DirForOperationTests+"-"+setup.GenerateRandomString(5))
 
 	tmpDir, err := os.MkdirTemp(testDir, "tmpDir")
 	if err != nil {
-		t.Errorf("Mkdir at %q: %v", testDir, err)
+		s.T().Errorf("Mkdir at %q: %v", testDir, err)
 		return
 	}
 	for range 10 {
 		tmpFile, err := os.CreateTemp(tmpDir, tempFileName)
 		if err != nil {
-			t.Errorf("Create file at %q: %v", tmpDir, err)
+			s.T().Errorf("Create file at %q: %v", tmpDir, err)
 			return
 		}
 
 		// Closing file at the end
-		operations.CloseFileShouldNotThrowError(t, tmpFile)
+		operations.CloseFileShouldNotThrowError(s.T(), tmpFile)
 
 		fileName := tmpFile.Name()
 
 		err = operations.WriteFileInAppendMode(fileName, "line 1\n")
 		if err != nil {
-			t.Errorf("AppendString: %v", err)
+			s.T().Errorf("AppendString: %v", err)
 		}
 
 		content, err := operations.ReadFile(fileName)
 		if err != nil {
-			t.Errorf("ReadAll: %v", err)
+			s.T().Errorf("ReadAll: %v", err)
 		}
 		if got, want := string(content), "line 1\n"; got != want {
-			t.Errorf("File content %q not match %q", got, want)
+			s.T().Errorf("File content %q not match %q", got, want)
 		}
 	}
+}
+
+func TestRead(t *testing.T) {
+	s := new(ReadSuite)
+	s.runCfg = parallel.RunConfiguration{
+		MntDir:     setup.MntDir(),
+		TestBucket: setup.TestBucket(),
+		OnlyDir:    setup.OnlyDirMounted(),
+	}
+	suite.Run(t, s)
 }

@@ -127,7 +127,7 @@ func CreateManagedFoldersInBucket(ctx context.Context, client *control.StorageCo
 }
 
 func CreateFolderInBucket(ctx context.Context, client *control.StorageControlClient, folderPath string) (*controlpb.Folder, error) {
-	bucket, rootFolder := setup.GetBucketAndObjectBasedOnTypeOfMount("")
+	bucket, rootFolder := setup.GetBucketAndObjectBasedOnTypeOfMountWithContext(ctx, "")
 	req := &controlpb.CreateFolderRequest{
 		Parent:   fmt.Sprintf(storage.FullBucketPathHNS, bucket),
 		FolderId: path.Join(rootFolder, folderPath),
@@ -139,19 +139,32 @@ func CreateFolderInBucket(ctx context.Context, client *control.StorageControlCli
 }
 
 func DeleteFolderInBucket(ctx context.Context, client *control.StorageControlClient, folderPath string) error {
-	bucket, rootFolder := setup.GetBucketAndObjectBasedOnTypeOfMount("")
+	bucket, rootFolder := setup.GetBucketAndObjectBasedOnTypeOfMountWithContext(ctx, "")
+	return DeleteFolderInBucketExplicit(ctx, client, bucket, path.Join(rootFolder, folderPath))
+}
+
+// DeleteFolderInBucketExplicit deletes a folder in bucket using explicit bucket and full folder path.
+func DeleteFolderInBucketExplicit(ctx context.Context, client *control.StorageControlClient, bucket, fullFolderPath string) error {
 	req := &controlpb.DeleteFolderRequest{
-		Name: fmt.Sprintf("projects/_/buckets/%s/folders/%s", bucket, path.Join(rootFolder, folderPath)),
+		Name: fmt.Sprintf("projects/_/buckets/%s/folders/%s", bucket, fullFolderPath),
 	}
 	return client.DeleteFolder(ctx, req)
 }
 
+
+// Deprecated: Use DeleteDirOnGCSExplicit instead.
 func DeleteDirOnGCS(ctx context.Context, storageClient *gcsstorage.Client, relativeDirPath string) {
-	bucket, rootFolder := setup.GetBucketAndObjectBasedOnTypeOfMount("")
+	bucket, rootFolder := setup.GetBucketAndObjectBasedOnTypeOfMountWithContext(ctx, "")
 	gcsObjName := path.Join(rootFolder, relativeDirPath) + "/"
+	DeleteDirOnGCSExplicit(ctx, storageClient, bucket, gcsObjName)
+}
+
+// DeleteDirOnGCSExplicit deletes a directory on GCS using explicit bucket and object name.
+func DeleteDirOnGCSExplicit(ctx context.Context, storageClient *gcsstorage.Client, bucket, gcsObjName string) {
 	_ = getBucketHandle(storageClient, bucket).Object(gcsObjName).Delete(ctx)
 	if controlClient, err := CreateControlClient(ctx); err == nil && controlClient != nil {
-		_ = DeleteFolderInBucket(ctx, controlClient, relativeDirPath)
+		_ = DeleteFolderInBucketExplicit(ctx, controlClient, bucket, strings.TrimSuffix(gcsObjName, "/"))
 		controlClient.Close()
 	}
 }
+

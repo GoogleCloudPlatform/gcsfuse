@@ -163,7 +163,7 @@ func getTokenSrc(path string) (tokenSrc oauth2.TokenSource, err error) {
 
 // ReadObjectFromGCS downloads the object from GCS and returns the data.
 func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object string) (string, error) {
-	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMountWithContext(ctx, object)
 
 	if client == nil {
 		return "", fmt.Errorf("client is nil")
@@ -186,7 +186,7 @@ func ReadObjectFromGCS(ctx context.Context, client *storage.Client, object strin
 // ReadChunkFromGCS downloads the object chunk from GCS and returns the data.
 func ReadChunkFromGCS(ctx context.Context, client *storage.Client, object string,
 	offset, size int64) (string, error) {
-	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMountWithContext(ctx, object)
 
 	// Create storage reader to read from GCS.
 	rc, err := getBucketHandle(client, bucket).Object(object).NewRangeReader(ctx, offset, size)
@@ -229,9 +229,13 @@ func NewWriter(ctx context.Context, o *storage.ObjectHandle, client *storage.Cli
 	return
 }
 
+// Deprecated: Use WriteToObjectExplicit instead.
 func WriteToObject(ctx context.Context, client *storage.Client, object, content string, precondition storage.Conditions) error {
-	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMountWithContext(ctx, object)
+	return WriteToObjectExplicit(ctx, client, bucket, object, content, precondition)
+}
 
+func WriteToObjectExplicit(ctx context.Context, client *storage.Client, bucket, object, content string, precondition storage.Conditions) error {
 	o := getBucketHandle(client, bucket).Object(object)
 	if !reflect.DeepEqual(precondition, storage.Conditions{}) {
 		o = o.If(precondition)
@@ -253,13 +257,18 @@ func WriteToObject(ctx context.Context, client *storage.Client, object, content 
 	return nil
 }
 
-// CreateObjectOnGCS creates an object with given name and content on GCS.
+// Deprecated: Use CreateObjectOnGCSExplicit instead.
 func CreateObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
 	return WriteToObject(ctx, client, object, content, storage.Conditions{DoesNotExist: true})
 }
 
+func CreateObjectOnGCSExplicit(ctx context.Context, client *storage.Client, bucket, object, content string) error {
+	return WriteToObjectExplicit(ctx, client, bucket, object, content, storage.Conditions{DoesNotExist: true})
+}
+
+
 func CreateFinalizedObjectOnGCS(ctx context.Context, client *storage.Client, object, content string) error {
-	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMountWithContext(ctx, object)
 	o := getBucketHandle(client, bucket).Object(object)
 
 	// Upload an object with storage.Writer with finalizeOnClose=true
@@ -278,7 +287,7 @@ func CreateFinalizedObjectOnGCS(ctx context.Context, client *storage.Client, obj
 
 // CreateObjectWithAPI creates an object on GCS with the given content, allowing the choice of whether to use the appendable API.
 func CreateObjectWithAPI(ctx context.Context, client *storage.Client, object string, content []byte, useAppendableAPI bool) error {
-	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMountWithContext(ctx, object)
 	o := getBucketHandle(client, bucket).Object(object)
 
 	wc := o.NewWriter(ctx)
@@ -315,7 +324,7 @@ func CreateStorageClientWithCancel(ctx *context.Context, storageClient **storage
 }
 
 func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName string) error {
-	bucket, _ := setup.GetBucketAndObjectBasedOnTypeOfMount("")
+	bucket, _ := setup.GetBucketAndObjectBasedOnTypeOfMountWithContext(ctx, "")
 
 	// Get handle to the object
 	object := getBucketHandle(client, bucket).Object(objectName)
@@ -332,7 +341,7 @@ func DeleteObjectOnGCS(ctx context.Context, client *storage.Client, objectName s
 // It concurrently iterates through objects with the given prefix and deletes them using multiple goroutines,
 // leveraging the number of CPU cores for optimal performance.
 func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, prefix string) error {
-	bucket, _ := setup.GetBucketAndObjectBasedOnTypeOfMount("")
+	bucket, _ := setup.GetBucketAndObjectBasedOnTypeOfMountWithContext(ctx, "")
 
 	// Get an object iterator
 	query := &storage.Query{Prefix: prefix}
@@ -381,9 +390,13 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 	return errors.Join(errs...)
 }
 
+// Deprecated: Use StatObjectExplicit instead.
 func StatObject(ctx context.Context, client *storage.Client, object string) (*storage.ObjectAttrs, error) {
-	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMountWithContext(ctx, object)
+	return StatObjectExplicit(ctx, client, bucket, object)
+}
 
+func StatObjectExplicit(ctx context.Context, client *storage.Client, bucket, object string) (*storage.ObjectAttrs, error) {
 	attrs, err := getBucketHandle(client, bucket).Object(object).Attrs(ctx)
 	if err != nil {
 		return nil, err
@@ -515,7 +528,7 @@ func DeleteBucket(ctx context.Context, client *storage.Client, bucketName string
 }
 
 func NewWriterWithPreconditionsSet(ctx context.Context, client *storage.Client, object string, precondition storage.Conditions) (*storage.Writer, error) {
-	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMountWithContext(ctx, object)
 
 	o := getBucketHandle(client, bucket).Object(object)
 	if !reflect.DeepEqual(precondition, storage.Conditions{}) {
@@ -531,7 +544,7 @@ func NewWriterWithPreconditionsSet(ctx context.Context, client *storage.Client, 
 }
 
 func AppendableWriter(ctx context.Context, client *storage.Client, object string, gen int64) (*storage.Writer, error) {
-	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
+	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMountWithContext(ctx, object)
 	obj := getBucketHandle(client, bucket).Object(object)
 
 	tw, _, err := obj.Generation(gen).NewWriterFromAppendableObject(ctx, &storage.AppendableWriterOpts{})

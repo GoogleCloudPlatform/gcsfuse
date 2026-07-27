@@ -132,6 +132,7 @@ func CreateFinalizedObjectInGCSTestDir(ctx context.Context, storageClient *stora
 	}
 }
 
+// Deprecated: Use SetupFileInTestDirectoryExplicit instead.
 func SetupFileInTestDirectory(ctx context.Context, storageClient *storage.Client,
 	testDirName, testFileName string, size int64, t *testing.T) {
 	randomData, err := operations.GenerateRandomData(size)
@@ -142,6 +143,22 @@ func SetupFileInTestDirectory(ctx context.Context, storageClient *storage.Client
 	// Setup file with content in test directory.
 	CreateObjectInGCSTestDir(ctx, storageClient, testDirName, testFileName, randomDataString, t)
 }
+
+// SetupFileInTestDirectoryExplicit sets up a file with random content in test directory on GCS using explicit bucket and object name.
+func SetupFileInTestDirectoryExplicit(ctx context.Context, storageClient *storage.Client,
+	bucket, objectName string, size int64, t *testing.T) {
+	randomData, err := operations.GenerateRandomData(size)
+	if err != nil {
+		t.Errorf("operations.GenerateRandomData: %v", err)
+	}
+	randomDataString := string(randomData)
+
+	err = CreateObjectOnGCSExplicit(ctx, storageClient, bucket, objectName, randomDataString)
+	if err != nil {
+		t.Fatalf("Create Object %s on GCS: %v.", objectName, err)
+	}
+}
+
 
 func SetupTestDirectory(ctx context.Context, storageClient *storage.Client, testDirName string) string {
 	testDirPath := path.Join(setup.MntDir(), testDirName)

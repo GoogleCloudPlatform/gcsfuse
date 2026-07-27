@@ -22,14 +22,22 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/parallel"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
+
+type MoveFileSuite struct {
+	suite.Suite
+	runCfg parallel.RunConfiguration
+}
 
 // Create below directory and file.
 // Test               -- Directory
 // Test/move.txt      -- File
-func createSrcDirectoryAndFile(dirPath string, filePath string, t *testing.T) {
+func (s *MoveFileSuite) createSrcDirectoryAndFile(dirPath string, filePath string) {
+	t := s.T()
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
 		t.Errorf("Mkdir at %q: %v", dirPath, err)
@@ -50,7 +58,8 @@ func createSrcDirectoryAndFile(dirPath string, filePath string, t *testing.T) {
 	}
 }
 
-func checkIfFileMoveOperationSucceeded(srcFilePath string, destDirPath string, t *testing.T) {
+func (s *MoveFileSuite) checkIfFileMoveOperationSucceeded(srcFilePath string, destDirPath string) {
+	t := s.T()
 	// Move file from Test/move.txt to destination.
 	err := operations.Move(srcFilePath, destDirPath)
 	if err != nil {
@@ -70,43 +79,44 @@ func checkIfFileMoveOperationSucceeded(srcFilePath string, destDirPath string, t
 }
 
 // Move file from Test/move.txt to Test/a/move.txt
-func TestMoveFileWithinSameDirectory(t *testing.T) {
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
+func (s *MoveFileSuite) TestMoveFileWithinSameDirectory() {
+	testDir := setup.SetupTestDirectoryWithMntDir(s.runCfg.MntDir, DirForOperationTests+"-"+setup.GenerateRandomString(5))
 	dirPath := path.Join(testDir, "Test")
 	filePath := path.Join(dirPath, MoveFile)
 
-	createSrcDirectoryAndFile(dirPath, filePath, t)
+	s.createSrcDirectoryAndFile(dirPath, filePath)
 
 	destDirPath := path.Join(dirPath, "a")
 	err := os.Mkdir(destDirPath, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Mkdir at %q: %v", destDirPath, err)
+		s.T().Errorf("Mkdir at %q: %v", destDirPath, err)
 	}
 
-	checkIfFileMoveOperationSucceeded(filePath, destDirPath, t)
+	s.checkIfFileMoveOperationSucceeded(filePath, destDirPath)
 }
 
 // Move file from Test/move.txt to Test1/move.txt
-func TestMoveFileWithinDifferentDirectory(t *testing.T) {
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
+func (s *MoveFileSuite) TestMoveFileWithinDifferentDirectory() {
+	testDir := setup.SetupTestDirectoryWithMntDir(s.runCfg.MntDir, DirForOperationTests+"-"+setup.GenerateRandomString(5))
 	dirPath := path.Join(testDir, "Test")
 	filePath := path.Join(dirPath, MoveFile)
 
-	createSrcDirectoryAndFile(dirPath, filePath, t)
+	s.createSrcDirectoryAndFile(dirPath, filePath)
 
 	destDirPath := path.Join(testDir, "Test2")
 	err := os.Mkdir(destDirPath, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Mkdir at %q: %v", destDirPath, err)
+		s.T().Errorf("Mkdir at %q: %v", destDirPath, err)
 	}
 
-	checkIfFileMoveOperationSucceeded(filePath, destDirPath, t)
+	s.checkIfFileMoveOperationSucceeded(filePath, destDirPath)
 }
 
 // Rename file from Test/move1.txt to Test/move2.txt
-func TestMoveFileWithDestFileExist(t *testing.T) {
+func (s *MoveFileSuite) TestMoveFileWithDestFileExist() {
+	t := s.T()
 	// Set up the test directory.
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
+	testDir := setup.SetupTestDirectoryWithMntDir(s.runCfg.MntDir, DirForOperationTests+"-"+setup.GenerateRandomString(5))
 	// Define source and destination file names.
 	srcFilePath := path.Join(testDir, "move1.txt")
 	destFilePath := path.Join(testDir, "move2.txt")
@@ -124,4 +134,14 @@ func TestMoveFileWithDestFileExist(t *testing.T) {
 	_, err = os.Stat(srcFilePath)
 	assert.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "no such file or directory"))
+}
+
+func TestMoveFile(t *testing.T) {
+	s := new(MoveFileSuite)
+	s.runCfg = parallel.RunConfiguration{
+		MntDir:     setup.MntDir(),
+		TestBucket: setup.TestBucket(),
+		OnlyDir:    setup.OnlyDirMounted(),
+	}
+	suite.Run(t, s)
 }

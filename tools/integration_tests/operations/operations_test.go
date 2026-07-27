@@ -23,16 +23,12 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/dynamic_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/only_dir_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/persistent_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
 
 const DirForOperationTests = "dirForOperationsTest"
+const tempFileName = "tmpFile"
 const MoveFile = "move.txt"
 const MoveFileContent = "This is from move file in Test directory.\n"
 const SrcCopyDirectory = "srcCopyDir"
@@ -103,7 +99,7 @@ func TestMain(m *testing.M) {
 	}
 
 	ctx = context.Background()
-	bucketType := setup.TestEnvironment(ctx, &cfg.Operations[0])
+	_ = setup.TestEnvironment(ctx, &cfg.Operations[0])
 
 	// 2. Create storage client before running tests.
 	var err error
@@ -124,32 +120,7 @@ func TestMain(m *testing.M) {
 
 	// Run tests for testBucket
 	// 5. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.Operations[0], bucketType, "")
 	setup.SetUpTestDirForTestBucket(&cfg.Operations[0])
 
-	if setup.TestOnTPCEndPoint() {
-		os.Exit(static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m))
-	}
-
-	successCode := static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
-
-	if successCode == 0 {
-		successCode = only_dir_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, onlyDirMounted, m)
-	}
-
-	if successCode == 0 {
-		successCode = persistent_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
-	}
-
-	if successCode == 0 {
-		successCode = dynamic_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
-	}
-
-	if successCode == 0 {
-		// Test for admin permission on test bucket.
-		log.Printf("Running cred tests...")
-		successCode = creds_tests.RunTestsForDifferentAuthMethods(ctx, &cfg.Operations[0], storageClient, flags, "objectAdmin", m)
-	}
-
-	os.Exit(successCode)
+	os.Exit(m.Run())
 }

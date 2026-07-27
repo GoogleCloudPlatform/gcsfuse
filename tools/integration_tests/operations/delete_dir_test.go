@@ -22,97 +22,116 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/parallel"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestDeleteEmptyExplicitDir(t *testing.T) {
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
+type DeleteDirSuite struct {
+	suite.Suite
+	runCfg parallel.RunConfiguration
+}
+
+func (s *DeleteDirSuite) TestDeleteEmptyExplicitDir() {
+	testDir := setup.SetupTestDirectoryWithMntDir(s.runCfg.MntDir, DirForOperationTests+"-"+setup.GenerateRandomString(5))
 
 	dirPath := path.Join(testDir, EmptyExplicitDirectoryForDeleteTest)
-	operations.CreateDirectoryWithNFiles(0, dirPath, "", t)
+	operations.CreateDirectoryWithNFiles(0, dirPath, "", s.T())
 
 	err := os.RemoveAll(dirPath)
 	if err != nil {
-		t.Errorf("Error in deleting empty explicit directory.")
+		s.T().Errorf("Error in deleting empty explicit directory.")
 	}
 
 	dir, err := os.Stat(dirPath)
 	if err == nil && dir.Name() == EmptyExplicitDirectoryForDeleteTest && dir.IsDir() {
-		t.Errorf("Directory is not deleted.")
+		s.T().Errorf("Directory is not deleted.")
 	}
 }
 
-func TestDeleteNonEmptyExplicitDir(t *testing.T) {
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
+func (s *DeleteDirSuite) TestDeleteNonEmptyExplicitDir() {
+	testDir := setup.SetupTestDirectoryWithMntDir(s.runCfg.MntDir, DirForOperationTests+"-"+setup.GenerateRandomString(5))
 
 	dirPath := path.Join(testDir, NonEmptyExplicitDirectoryForDeleteTest)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInNonEmptyExplicitDirectoryForDeleteTest, dirPath, PrefixFilesInNonEmptyExplicitDirectoryForDeleteTest, t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInNonEmptyExplicitDirectoryForDeleteTest, dirPath, PrefixFilesInNonEmptyExplicitDirectoryForDeleteTest, s.T())
 
 	subDirPath := path.Join(dirPath, NonEmptyExplicitSubDirectoryForDeleteTest)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInNonEmptyExplicitSubDirectoryForDeleteTest, subDirPath, PrefixFilesInNonEmptyExplicitSubDirectoryForDeleteTest, t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInNonEmptyExplicitSubDirectoryForDeleteTest, subDirPath, PrefixFilesInNonEmptyExplicitSubDirectoryForDeleteTest, s.T())
 
 	err := os.RemoveAll(dirPath)
 	if err != nil {
-		t.Errorf("Error in deleting empty explicit directory.")
+		s.T().Errorf("Error in deleting empty explicit directory.")
 	}
 
 	dir, err := os.Stat(dirPath)
 	if err == nil && dir.Name() == NonEmptyExplicitDirectoryForDeleteTest && dir.IsDir() {
-		t.Errorf("Directory is not deleted.")
+		s.T().Errorf("Directory is not deleted.")
 	}
 }
 
-func TestRmDirAlreadyDeletedExplicitDirReturnsENOENT(t *testing.T) {
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
+func (s *DeleteDirSuite) TestRmDirAlreadyDeletedExplicitDirReturnsENOENT() {
+	testDir := setup.SetupTestDirectoryWithMntDir(s.runCfg.MntDir, DirForOperationTests+"-"+setup.GenerateRandomString(5))
 	dirPath := path.Join(testDir, "explicit_dir_double_delete")
-	operations.CreateDirectoryWithNFiles(0, dirPath, "", t)
+	operations.CreateDirectoryWithNFiles(0, dirPath, "", s.T())
 	// Delete explicit directory first time.
 	err := os.Remove(dirPath)
 	if err != nil {
-		t.Fatalf("Error in deleting empty explicit directory: %v", err)
+		s.T().Fatalf("Error in deleting empty explicit directory: %v", err)
 	}
 
 	// Delete it again via RmDir, which must return os.ErrNotExist (ENOENT).
 	err = os.Remove(dirPath)
 
 	if err == nil {
-		t.Errorf("Expected ENOENT error when deleting non-existent explicit directory, got nil")
+		s.T().Errorf("Expected ENOENT error when deleting non-existent explicit directory, got nil")
 	}
 	if !os.IsNotExist(err) {
-		t.Errorf("Expected os.ErrNotExist (ENOENT) error when deleting non-existent explicit directory, got: %v", err)
+		s.T().Errorf("Expected os.ErrNotExist (ENOENT) error when deleting non-existent explicit directory, got: %v", err)
 	}
 }
 
-func TestRmDirNonExistentDirReturnsENOENT(t *testing.T) {
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
+func (s *DeleteDirSuite) TestRmDirNonExistentDirReturnsENOENT() {
+	testDir := setup.SetupTestDirectoryWithMntDir(s.runCfg.MntDir, DirForOperationTests+"-"+setup.GenerateRandomString(5))
 	dirPath := path.Join(testDir, "non_existent_dir_rmdir_enoent")
 
 	err := os.Remove(dirPath)
 
 	if err == nil {
-		t.Errorf("Expected ENOENT error when calling RmDir on non-existent path, got nil")
+		s.T().Errorf("Expected ENOENT error when calling RmDir on non-existent path, got nil")
 	}
 	if !os.IsNotExist(err) {
-		t.Errorf("Expected os.ErrNotExist (ENOENT) error when calling RmDir on non-existent path, got: %v", err)
+		s.T().Errorf("Expected os.ErrNotExist (ENOENT) error when calling RmDir on non-existent path, got: %v", err)
 	}
 }
 
-func TestRmDirOutOfBandDeletedExplicitDirReturnsENOENT(t *testing.T) {
-	testDir := setup.SetupTestDirectory(DirForOperationTests)
+func (s *DeleteDirSuite) TestRmDirOutOfBandDeletedExplicitDirReturnsENOENT() {
+	testDirName := DirForOperationTests + "-" + setup.GenerateRandomString(5)
+	testDir := setup.SetupTestDirectoryWithMntDir(s.runCfg.MntDir, testDirName)
 	dirName := "oob_deleted_explicit_dir"
 	dirPath := path.Join(testDir, dirName)
-	operations.CreateDirectoryWithNFiles(0, dirPath, "", t)
+	operations.CreateDirectoryWithNFiles(0, dirPath, "", s.T())
 	if _, err := os.Stat(dirPath); err != nil {
-		t.Fatalf("Error statting explicit directory: %v", err)
+		s.T().Fatalf("Error statting explicit directory: %v", err)
 	}
-	client.DeleteDirOnGCS(ctx, storageClient, path.Join(DirForOperationTests, dirName))
+	gcsObjName := setup.GCSObjectName(s.runCfg.OnlyDir, path.Join(testDirName, dirName) + "/")
+	client.DeleteDirOnGCSExplicit(s.T().Context(), storageClient, s.runCfg.TestBucket, gcsObjName)
 
 	err := os.Remove(dirPath)
 
 	if err == nil {
-		t.Errorf("Expected ENOENT error when deleting out-of-band deleted explicit directory, got nil")
+		s.T().Errorf("Expected ENOENT error when deleting out-of-band deleted explicit directory, got nil")
 	}
 	if !os.IsNotExist(err) {
-		t.Errorf("Expected os.ErrNotExist (ENOENT) error, got: %v", err)
+		s.T().Errorf("Expected os.ErrNotExist (ENOENT) error, got: %v", err)
 	}
+}
+
+func TestDeleteDir(t *testing.T) {
+	s := new(DeleteDirSuite)
+	s.runCfg = parallel.RunConfiguration{
+		MntDir:     setup.MntDir(),
+		TestBucket: setup.TestBucket(),
+		OnlyDir:    setup.OnlyDirMounted(),
+	}
+	suite.Run(t, s)
 }

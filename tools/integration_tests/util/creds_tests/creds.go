@@ -32,6 +32,7 @@ import (
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/parallel"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
@@ -212,4 +213,32 @@ func RunTestsForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestCo
 	}
 
 	return successCode
+}
+
+// BuildCredsExecutionPlan creates credentials, applies IAM permissions, registers cleanup, and builds parallel execution plan.
+func BuildCredsExecutionPlan(
+	ctx context.Context,
+	t *testing.T,
+	storageClient *storage.Client,
+	pkgConfigs []test_suite.TestConfig,
+	permission string,
+	filterMounts []setup.MountType,
+	filterAuthModes []setup.AuthMode,
+) parallel.RunConfigurations {
+	if len(pkgConfigs) == 0 {
+		t.Fatalf("No configuration provided for creds tests in config.")
+	}
+
+	serviceAccount, keyFilePath := CreateCredentials(ctx)
+	t.Cleanup(func() {
+		if err := os.Remove(keyFilePath); err != nil {
+			log.Printf("Failed to delete temp credentials file %s: %v", keyFilePath, err)
+		}
+	})
+	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, pkgConfigs[0].TestBucket)
+	t.Cleanup(func() {
+		RevokePermission(ctx, storageClient, serviceAccount, permission, pkgConfigs[0].TestBucket)
+	})
+
+	return parallel.BuildExecutionPlan(ctx, t, pkgConfigs, filterMounts, filterAuthModes, keyFilePath)
 }
