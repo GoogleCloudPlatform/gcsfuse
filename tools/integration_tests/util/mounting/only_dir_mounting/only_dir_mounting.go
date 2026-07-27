@@ -27,8 +27,18 @@ import (
 )
 
 func MountGcsfuseWithOnlyDirWithConfigFile(config *test_suite.TestConfig, flags []string) (err error) {
+	if config.LogFile == "" {
+		return fmt.Errorf("config.LogFile is required")
+	}
+
+	flags = mounting.FilterLogFileFlags(flags)
+
+	onlyDir := config.OnlyDir
+	if onlyDir == "" {
+		onlyDir = setup.OnlyDirMounted()
+	}
 	defaultArg := []string{"--only-dir",
-		setup.OnlyDirMounted(),
+		onlyDir,
 		"--log-severity=trace",
 		"--log-file=" + config.LogFile,
 		config.TestBucket,
@@ -36,9 +46,7 @@ func MountGcsfuseWithOnlyDirWithConfigFile(config *test_suite.TestConfig, flags 
 
 	flags = append(flags, defaultArg...)
 
-	err = mounting.MountGcsfuse(setup.BinFile(), flags)
-
-	return err
+	return mounting.MountGcsfuseWithEnv(setup.BinFile(), flags, config.Env, config.LogFile)
 }
 
 func mountGcsFuseForFlagsAndExecuteTests(config *test_suite.TestConfig, flags [][]string, m *testing.M) (successCode int) {

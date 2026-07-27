@@ -20,33 +20,66 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
+// FilterLogFileFlags removes any existing --log-file or log_file flags from the flags slice.
+func FilterLogFileFlags(flags []string) []string {
+	var filtered []string
+	for _, flag := range flags {
+		if strings.HasPrefix(flag, "--log-file=") || strings.HasPrefix(flag, "log_file=") {
+			continue
+		}
+		filtered = append(filtered, flag)
+	}
+	return filtered
+}
+
 func MountGcsfuse(binaryFile string, flags []string) error {
+	return MountGcsfuseWithEnv(binaryFile, flags, nil, setup.LogFile())
+}
+
+func MountGcsfuseWithEnv(binaryFile string, flags []string, env map[string]string, logFile string) error {
+	if binaryFile == "" {
+		binaryFile = setup.BinFile()
+	}
+	if logFile == "" {
+		return fmt.Errorf("logFile is required")
+	}
+
 	mountCmd := exec.Command(
 		binaryFile,
 		flags...,
 	)
+	if len(env) > 0 {
+		mountCmd.Env = os.Environ()
+		for k, v := range env {
+			mountCmd.Env = append(mountCmd.Env, fmt.Sprintf("%s=%s", k, v))
+		}
+	}
 
-	// Adding mount command in LogFile
-	err := os.MkdirAll(path.Dir(setup.LogFile()), 0777)
+	err := os.MkdirAll(path.Dir(logFile), 0777)
 	if err != nil {
 		fmt.Println("error creating directory: ", err)
 		return err
 	}
-	file, err := os.OpenFile(setup.LogFile(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println("Could not open logfile: ", err.Error())
+		return err
 	}
-	// Closing file at the end.
-	defer operations.CloseFile(file)
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("error closing logfile %s: %v", logFile, err)
+		}
+	}()
 
 	_, err = file.WriteString(mountCmd.String() + "\n")
 	if err != nil {
 		fmt.Println("Could not write cmd to logFile: ", err.Error())
+		return err
 	}
 
 	output, err := mountCmd.CombinedOutput()

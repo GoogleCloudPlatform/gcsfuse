@@ -26,15 +26,19 @@ import (
 )
 
 func MountGcsfuseWithDynamicMountingWithConfig(cfg *test_suite.TestConfig, flags []string) (err error) {
+	if cfg.LogFile == "" {
+		return fmt.Errorf("cfg.LogFile is required")
+	}
+
+	flags = mounting.FilterLogFileFlags(flags)
+
 	defaultArg := []string{"--log-severity=trace",
 		"--log-file=" + cfg.LogFile,
 		cfg.GCSFuseMountedDirectory}
 
 	flags = append(flags, defaultArg...)
 
-	err = mounting.MountGcsfuse(setup.BinFile(), flags)
-
-	return err
+	return mounting.MountGcsfuseWithEnv(setup.BinFile(), flags, cfg.Env, cfg.LogFile)
 }
 
 func runTestsOnGivenMountedTestBucket(cfg *test_suite.TestConfig, flags [][]string, rootMntDir string, m *testing.M) (successCode int) {

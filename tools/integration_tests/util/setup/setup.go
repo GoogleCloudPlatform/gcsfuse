@@ -50,6 +50,26 @@ var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC 
 var gcsfusePreBuiltDir = flag.String("gcsfuse_prebuilt_dir", "", "Path to the pre-built GCSFuse directory containing bin/gcsfuse and sbin/mount.gcsfuse.")
 var configFile = flag.String("config-file", "", "Common GCSFuse config file to run tests with.")
 
+// MountType defines the type of mounting to use for the tests.
+type MountType string
+
+const (
+	StaticMount     MountType = "StaticMount"
+	OnlyDirMount    MountType = "OnlyDirMount"
+	PersistentMount MountType = "PersistentMount"
+	DynamicMount    MountType = "DynamicMount"
+)
+
+// AuthMode defines the authentication mode to use for the tests.
+type AuthMode string
+
+const (
+	DefaultAuth      AuthMode = "Default"
+	EnvVar           AuthMode = "EnvVar"
+	KeyFileOnly      AuthMode = "KeyFileOnly"
+	EnvVarAndKeyFile AuthMode = "EnvVarAndKeyFile"
+)
+
 const (
 	FilePermission_0600               = 0600
 	DirPermission_0755                = 0755
@@ -492,6 +512,18 @@ func SetupTestDirectory(testDirName string) string {
 	return testDirPath
 }
 
+// SetupTestDirectoryWithMntDir creates a test directory hierarchy in the specified mounted directory,
+// cleaning up any content present.
+func SetupTestDirectoryWithMntDir(mntDir, testDirName string) string {
+	testDirPath := path.Join(mntDir, testDirName)
+	err := os.MkdirAll(testDirPath, DirPermission_0755)
+	if err != nil && !strings.Contains(err.Error(), "file exists") {
+		log.Printf("Error while setting up directory %s for testing: %v", testDirPath, err)
+	}
+	CleanUpDir(testDirPath)
+	return testDirPath
+}
+
 // SetupTestDirectoryRecursive recursively creates a testDirectory in the mounted directory and cleans up
 // any content present in it.
 func SetupTestDirectoryRecursive(testDirName string) string {
@@ -694,7 +726,36 @@ func separateBucketAndObjectName(bucket, object string) (string, string) {
 	return bucket, object
 }
 
-func GetBucketAndObjectBasedOnTypeOfMount(object string) (string, string) {
+func GetBucketAndObjectBasedOnTypeOfMountWithContext(ctx context.Context, object string) (string, string) {
+	return GetBucketAndObjectBasedOnTypeOfMountAndDir(object, "")
+}
+
+// GCSObjectName returns the full object path, prepending onlyDir if it is set.
+// It preserves trailing slashes.
+func GCSObjectName(onlyDir, object string) string {
+	if onlyDir != "" {
+		var suffix string
+		if strings.HasSuffix(object, "/") {
+			suffix = "/"
+		}
+		return path.Join(onlyDir, object) + suffix
+	}
+	return object
+}
+
+// GetSuiteMntDir returns the mounted directory path that should be used by test suites.
+// For DynamicMount, this includes the bucket name subdirectory.
+func GetSuiteMntDir(mntDir, bucket string, mountType MountType) string {
+	if mountType == DynamicMount {
+		return path.Join(mntDir, bucket)
+	}
+	return mntDir
+}
+
+
+// GetBucketAndObjectBasedOnTypeOfMountAndDir returns bucket and object name based on mount type and explicit onlyDir.
+// If onlyDir is empty, it falls back to the global OnlyDirMounted().
+func GetBucketAndObjectBasedOnTypeOfMountAndDir(object string, onlyDir string) (string, string) {
 	bucket := TestBucket()
 	if strings.Contains(TestBucket(), "/") {
 		// This case arises when we run tests on mounted directory and pass
@@ -704,14 +765,24 @@ func GetBucketAndObjectBasedOnTypeOfMount(object string) (string, string) {
 	if dynamicBucketMounted != "" {
 		bucket = dynamicBucketMounted
 	}
-	if OnlyDirMounted() != "" {
+
+	prefix := onlyDir
+	if prefix == "" {
+		prefix = OnlyDirMounted()
+	}
+
+	if prefix != "" {
 		var suffix string
 		if strings.HasSuffix(object, "/") {
 			suffix = "/"
 		}
-		object = path.Join(OnlyDirMounted(), object) + suffix
+		object = path.Join(prefix, object) + suffix
 	}
 	return bucket, object
+}
+
+func GetBucketAndObjectBasedOnTypeOfMount(object string) (string, string) {
+	return GetBucketAndObjectBasedOnTypeOfMountWithContext(context.Background(), object)
 }
 
 func MountGCSFuseWithGivenMountFunc(flags []string, mountFunc func([]string) error) {

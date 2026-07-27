@@ -36,6 +36,12 @@ func MountGcsfuseWithStaticMounting(flags []string) (err error) {
 }
 
 func MountGcsfuseWithStaticMountingWithConfigFile(config *test_suite.TestConfig, flags []string) (err error) {
+	if config.LogFile == "" {
+		return fmt.Errorf("config.LogFile is required")
+	}
+
+	flags = mounting.FilterLogFileFlags(flags)
+
 	var defaultArg []string
 	if setup.TestOnTPCEndPoint() {
 		defaultArg = append(defaultArg,
@@ -51,8 +57,7 @@ func MountGcsfuseWithStaticMountingWithConfigFile(config *test_suite.TestConfig,
 		flags = append(flags, defaultArg[i])
 	}
 
-	err = mounting.MountGcsfuse(setup.BinFile(), flags)
-	return err
+	return mounting.MountGcsfuseWithEnv(setup.BinFile(), flags, config.Env, config.LogFile)
 }
 
 func executeTestsForStaticMounting(config *test_suite.TestConfig, flagsSet [][]string, m *testing.M) (successCode int) {

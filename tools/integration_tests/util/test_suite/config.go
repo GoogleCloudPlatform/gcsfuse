@@ -40,6 +40,7 @@ type TestConfig struct {
 	LogFile                          string
 	Configs                          []ConfigItem `yaml:"configs"`
 	OnlyDir                          string       `yaml:"only_dir,omitempty"`
+	Env                              map[string]string
 }
 
 // PirloZoneConfig defines whether to run in the same or different zone for Pirlo.
