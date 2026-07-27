@@ -1436,7 +1436,7 @@ func (fs *fileSystem) syncFile(
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
 func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
-	err := fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, f, openMode)
+	err := fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, f, openMode, 0)
 	if err != nil {
 		return err
 	}
@@ -1451,8 +1451,9 @@ func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
-func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
-	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx, openMode, fs.getWriteContext())
+// initOffset is the offset at which the first Write operation was recieved.
+func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode, openMode util.OpenMode, initOffset uint64) error {
+	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx, openMode, initOffset, fs.getWriteContext())
 	if err != nil {
 		return err
 	}
@@ -1463,6 +1464,7 @@ func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.
 		// 2. In case of non zonal bucket it's no-op as we don't have pending buffers to upload.
 		err = fs.syncFile(ctx, f)
 		if err != nil {
+			logger.Debugf("Error while syncing at intiialized stage")
 			return err
 		}
 	}
@@ -1974,7 +1976,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	// Truncate files.
 	if isFile && op.Size != nil {
 		// Initialize BWH if eligible and Sync file inode.
-		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file, util.NewOpenMode(util.WriteOnly, 0))
+		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file, util.NewOpenMode(util.WriteOnly, util.O_TRUNC), uint64(*op.Size))
 		if err != nil {
 			return
 		}
@@ -3200,7 +3202,7 @@ func (fs *fileSystem) WriteFile(
 	var gcsSynced bool
 	in.Lock()
 	defer in.Unlock()
-	if err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode()); err != nil {
+	if err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode(), uint64(op.Offset)); err != nil {
 		// A FileClobberedError on write indicates the file was modified in GCS,
 		// making the kernel's dentry stale. By invalidating the cache
 		// entry, we ensure the filesystem corrects the inconsistency caused by this

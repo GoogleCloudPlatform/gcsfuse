@@ -343,13 +343,18 @@ func (f *FileInode) CheckClobbered(ctx context.Context) (err error) {
 }
 
 // Open a reader for the generation of object we care about.
-func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
+func (f *FileInode) openReader(ctx context.Context, size int64) (io.ReadCloser, error) {
+	var byteRange *gcs.ByteRange
+	if size != -1 {
+		byteRange = &gcs.ByteRange{Start: 0, Limit: uint64(size)}
+	}
 	rc, err := f.bucket.NewReaderWithReadHandle(
 		ctx,
 		&gcs.ReadObjectRequest{
 			Name:           f.src.Name,
 			Generation:     f.src.Generation,
 			ReadCompressed: f.src.HasContentEncodingGzip(),
+			Range:          byteRange,
 		})
 	// If the object with requested generation doesn't exist in GCS, it indicates
 	// a file clobbering scenario. This likely occurred because the file was
@@ -370,7 +375,7 @@ func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 // Ensure that content exists and is not stale
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) ensureContent(ctx context.Context) (err error) {
+func (f *FileInode) ensureContent(ctx context.Context, size int64) (err error) {
 	if f.localFileCache {
 		// Fetch content from the cache after validating generation numbers again
 		// Generation validation first occurs at inode creation/destruction
@@ -382,7 +387,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 			}
 		}
 
-		rc, err := f.openReader(ctx)
+		rc, err := f.openReader(ctx, size)
 		if err != nil {
 			err = fmt.Errorf("openReader Error: %w", err)
 			return err
@@ -403,7 +408,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 			return
 		}
 
-		rc, err := f.openReader(ctx)
+		rc, err := f.openReader(ctx, size)
 		if err != nil {
 			err = fmt.Errorf("openReader Error: %w", err)
 			return err
@@ -666,7 +671,7 @@ func (f *FileInode) Read(
 	}
 
 	// Make sure f.content != nil.
-	err = f.ensureContent(ctx)
+	err = f.ensureContent(ctx, -1)
 	if err != nil {
 		err = fmt.Errorf("ensureContent: %w", err)
 		return
@@ -754,7 +759,7 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.WriteFileStaged, f.src.Name, &bytes, &err)
 	defer finishSpan()
 	// Make sure f.content != nil.
-	err = f.ensureContent(ctx)
+	err = f.ensureContent(ctx, -1)
 	if err != nil {
 		err = fmt.Errorf("ensureContent: %w", err)
 		return
@@ -1168,7 +1173,7 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) truncateUsingTempFile(ctx context.Context, size int64) error {
 	// Make sure f.content != nil.
-	err := f.ensureContent(ctx)
+	err := f.ensureContent(ctx, size)
 	if err != nil {
 		return fmt.Errorf("ensureContent: %w", err)
 	}
@@ -1193,7 +1198,7 @@ func (f *FileInode) Truncate(
 // Ensures cache content on read if content cache enabled
 func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 	if f.localFileCache {
-		err = f.ensureContent(ctx)
+		err = f.ensureContent(ctx, -1)
 	}
 
 	return
@@ -1220,7 +1225,7 @@ func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 
 // Initializes Buffered Write Handler if the file inode is eligible and returns
 // initialized as true when the new instance of buffered writer handler is created.
-func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, openMode util.OpenMode, writeCtx *WriteContext) (bool, error) {
+func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, openMode util.OpenMode, initOffset uint64, writeCtx *WriteContext) (bool, error) {
 	// bwh already initialized, do nothing.
 	if f.bwh != nil {
 		return false, nil
@@ -1235,7 +1240,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	var latestGcsObj *gcs.Object
 	var err error
 	if !f.local {
-		if f.bucket.BucketType().RapidWritesEnabled() && openMode.IsAppend() {
+		if f.bucket.BucketType().RapidWritesEnabled() && (!openMode.IsTruncate() || openMode.IsAppend()) {
 			// In case of rapid appends, we will rely on kernel's latest view of the object
 			// instead of reaching out to the server for latest metadata. This is done to avoid
 			// forceful overwrites of local and latest object metadata with possibly stale server
@@ -1245,16 +1250,27 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			// For regional buckets or overwrites for rapid buckets, call StatObject() to fetch extended
 			// attributes missing from the cached MinObject, which is required by the CreateObject request
 			// to create the new object generation.
+			// For w/w+ modes, the write call requires a new generation to be created and hence, we need to make the stat request.
 			latestGcsObj, err = f.fetchLatestGcsObject(ctx)
+			logger.Debugf("(anushkadhn) Size returned as part of stat call : %w", latestGcsObj.Size)
 		}
 		if err != nil {
 			return false, err
 		}
 	}
 
-	if !f.areBufferedWritesSupported(openMode, latestGcsObj, writeCtx) {
+	if !f.areBufferedWritesSupported(openMode, initOffset, latestGcsObj, writeCtx) {
 		return false, nil
 	}
+	// At this point, the truncate call to size 0 has already failed, because it is recieved as a write at offset 0 for a non-zero object.  We need to avoid that somehow.
+	// How is that possible?
+
+	var truncatedSize int64 = -1
+	if latestGcsObj != nil && initOffset > latestGcsObj.Size {
+		truncatedSize = int64(initOffset)
+	}
+
+	appendableOffset := getAppendableWriterOffset(openMode, latestGcsObj)
 
 	if f.bwh == nil {
 		f.bwh, err = bufferedwrites.NewBWHandler(&bufferedwrites.CreateBWHandlerRequest{
@@ -1267,6 +1283,8 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			ChunkRetryDeadlineSecs:   writeCtx.Config.GcsRetries.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: writeCtx.Config.GcsRetries.ChunkTransferTimeoutSecs,
 			TraceHandle:              writeCtx.TraceHandle,
+			TruncatedSize:            truncatedSize,
+			AppendableWriterOffset:   appendableOffset,
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			logger.Tracef("File %s will use legacy staged writes because concurrent streaming write "+
@@ -1286,7 +1304,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	return false, nil
 }
 
-func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.Object, writeCtx *WriteContext) bool {
+func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, initOffset uint64, obj *gcs.Object, writeCtx *WriteContext) bool {
 	// For new files and existing files of size 0, buffered writes are always supported.
 	if f.local || obj.Size == 0 {
 		return true
@@ -1294,7 +1312,36 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 	if writeCtx.Config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().RapidWritesEnabled() && obj.Finalized.IsZero() {
 		return true
 	}
+
+	// BWH will be supported for truncates to size 0
+	if openMode.IsTruncate() && initOffset == 0 {
+		return true
+	}
+
+	// If the object is unfinalized and the write comes in append fashion, we should support it.
+	// If the open mode is r,  then the write call itself wouldnt come.
+	// If the open mode is r+, then appends shiuld be supported.
+	// If the open mode is w/w+ , but write comes at non-zero size even that should be supported
+	if initOffset >= obj.Size && obj.IsUnfinalized() {
+		return true
+	}
 	logger.Tracef("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)
 	recordStreamingWriteFallbackMetric(writeCtx.MetricHandle, openMode, metrics.WriteFallbackReasonExistingFileAttr)
 	return false
+}
+
+func getAppendableWriterOffset(openMode util.OpenMode, obj *gcs.Object) int64 {
+
+	// Appendable writer is created for unfinalzied objects only.
+	if !obj.IsUnfinalized() {
+		return -1
+	}
+
+	// For unfinalized object, if the open mode is r+ or appends, then the same generation appends can continue
+	if openMode.IsAppend() || (openMode.AccessMode() == util.ReadWrite && !openMode.IsTruncate()) {
+		return int64(obj.Size)
+	}
+
+	// For writes done in w/w+ modes, we get a proceeding call with truncate to 0, this takes care of new object generation creation.
+	return -1
 }

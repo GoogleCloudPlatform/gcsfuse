@@ -15,11 +15,15 @@
 package inode
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"math"
 	"testing"
 	"time"
+
+	storagev2 "cloud.google.com/go/storage"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
@@ -353,7 +357,7 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_
 
 	// Call Method
 	// We do NOT expect StatObject to be called.
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.ReadWrite, util.O_APPEND), writeCtx)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.ReadWrite, util.O_APPEND), 0, writeCtx)
 
 	// Assertions
 	require.NoError(t.T(), err)
@@ -379,7 +383,7 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_
 		Return(&gcs.MinObject{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, &gcs.ExtendedObjectAttributes{}, nil)
 
 	// Call Method
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0), writeCtx)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0), 0, writeCtx)
 
 	// Assertions
 	require.NoError(t.T(), err)
@@ -404,10 +408,67 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_RegionalBuck
 		Return(&gcs.MinObject{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, &gcs.ExtendedObjectAttributes{}, nil)
 
 	// Call Method
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0), writeCtx)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0), 0, writeCtx)
 
 	// Assertions
 	require.NoError(t.T(), err)
 	assert.True(t.T(), initialized)
 	t.bucket.AssertExpectations(t.T())
 }
+
+func (t *FileMockBucketTest) TestOpenReader_RangedDownloadWhenSizeSpecified() {
+	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
+		Return(&gcs.Object{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, nil)
+	t.createLockedInode(fileName, emptyGCSFile)
+	expectedRange := &gcs.ByteRange{Start: 0, Limit: 100}
+
+	t.bucket.On("NewReaderWithReadHandle", t.ctx, mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
+		return req.Range != nil && req.Range.Start == expectedRange.Start && req.Range.Limit == expectedRange.Limit
+	})).Return(nil, nil).Once()
+
+	rc, err := t.in.openReader(t.ctx, 100)
+	require.NoError(t.T(), err)
+	assert.Nil(t.T(), rc)
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *FileMockBucketTest) TestOpenReader_FullDownloadWhenSizeMinusOne() {
+	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
+		Return(&gcs.Object{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, nil)
+	t.createLockedInode(fileName, emptyGCSFile)
+
+	t.bucket.On("NewReaderWithReadHandle", t.ctx, mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
+		return req.Range == nil
+	})).Return(nil, nil).Once()
+
+	rc, err := t.in.openReader(t.ctx, -1)
+	require.NoError(t.T(), err)
+	assert.Nil(t.T(), rc)
+	t.bucket.AssertExpectations(t.T())
+}
+
+type mockStorageReader struct {
+	io.ReadCloser
+}
+
+func (m *mockStorageReader) ReadHandle() storagev2.ReadHandle {
+	return storagev2.ReadHandle{}
+}
+
+func (t *FileMockBucketTest) TestTruncateUsingTempFile_IssuesRangedDownload() {
+	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
+		Return(&gcs.Object{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, nil)
+	t.createLockedInode(fileName, emptyGCSFile)
+	t.in.content = nil // Force content to nil so ensureContent fetches from GCS
+
+	expectedRange := &gcs.ByteRange{Start: 0, Limit: 50}
+	mockReader := &mockStorageReader{ReadCloser: io.NopCloser(bytes.NewReader(make([]byte, 50)))}
+	t.bucket.On("NewReaderWithReadHandle", t.ctx, mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
+		return req.Range != nil && req.Range.Start == expectedRange.Start && req.Range.Limit == expectedRange.Limit
+	})).Return(mockReader, nil).Once()
+
+	err := t.in.truncateUsingTempFile(t.ctx, 50)
+	require.NoError(t.T(), err)
+	t.bucket.AssertExpectations(t.T())
+}
+

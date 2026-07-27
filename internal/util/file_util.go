@@ -25,6 +25,7 @@ const (
 const (
 	O_APPEND int = 1 << iota // O_APPEND
 	O_DIRECT                 // O_DIRECT
+	O_TRUNC
 )
 
 // OpenMode represents the file open mode.
@@ -66,6 +67,10 @@ func (om OpenMode) IsDirect() bool {
 	return om.fileFlags&O_DIRECT != 0
 }
 
+func (om OpenMode) IsTruncate() bool {
+	return om.fileFlags&O_TRUNC != 0
+}
+
 // OpenFlagAttributes provides an abstraction for the open flags received from
 // the FUSE kernel. This interface is necessary because the concrete type for open
 // flags in `jacobsa/fuse` (e.g., in `fuseops.OpenFileOp` and `fuseops.CreateFileOp`)
@@ -79,6 +84,7 @@ type OpenFlagAttributes interface {
 	IsReadWrite() bool
 	IsAppend() bool
 	IsDirect() bool
+	IsTruncate() bool
 }
 
 // Function to obtain the mutually exclusive access mode based on the flags passed.
@@ -100,6 +106,9 @@ func getFileFlags(flags OpenFlagAttributes) int {
 	}
 	if flags.IsDirect() {
 		fileFlags |= O_DIRECT
+	}
+	if flags.IsTruncate() {
+		fileFlags |= O_TRUNC
 	}
 	return fileFlags
 }

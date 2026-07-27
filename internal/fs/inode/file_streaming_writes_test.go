@@ -70,7 +70,7 @@ type FileStreamingWritesZonalBucketTest struct {
 
 func (t *FileStreamingWritesCommon) createBufferedWriteHandler() {
 	// Initialize BWH for local inode created above.
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, t.writeCtx)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, 0, t.writeCtx)
 	require.NoError(t.T(), err)
 	assert.True(t.T(), initialized)
 	assert.NotNil(t.T(), t.in.bwh)
@@ -183,7 +183,7 @@ func (t *FileStreamingWritesCommon) TestflushUsingBufferedWriteHandlerOnZeroSize
 	require.NoError(t.T(), err)
 	assert.Nil(t.T(), t.in.bwh)
 
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, t.writeCtx)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, 0, t.writeCtx)
 
 	require.NoError(t.T(), err)
 	assert.True(t.T(), initialized)
@@ -199,7 +199,7 @@ func (t *FileStreamingWritesCommon) TestflushUsingBufferedWriteHandlerOnNonZeroS
 	require.NoError(t.T(), err)
 	assert.Nil(t.T(), t.in.bwh)
 
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, t.writeCtx)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, 0, t.writeCtx)
 
 	require.NoError(t.T(), err)
 	assert.False(t.T(), initialized)

@@ -101,6 +101,8 @@ type CreateBWHandlerRequest struct {
 	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
 	TraceHandle              tracing.TraceHandle
+	TruncatedSize            int64
+	AppendableWriterOffset   int64
 }
 
 // NewBWHandler creates the bufferedWriteHandler struct.
@@ -110,7 +112,8 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 		return
 	}
 	var size int64
-	if req.Object != nil {
+	// size should be non-zero only when appends happen!
+	if req.Object != nil && req.AppendableWriterOffset != -1 {
 		size = int64(req.Object.Size)
 	}
 
@@ -127,10 +130,11 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 			ChunkRetryDeadlineSecs:   req.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
 			TraceHandle:              req.TraceHandle,
+			AppendableWriterOffset:   req.AppendableWriterOffset,
 		}),
 		totalSize:     size,
 		mtime:         time.Now(),
-		truncatedSize: -1,
+		truncatedSize: req.TruncatedSize,
 	}
 	return
 }

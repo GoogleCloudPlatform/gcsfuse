@@ -178,7 +178,7 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 
 func (t *FileTest) createBufferedWriteHandler(shouldInitialize bool, openMode util.OpenMode) {
 	// Initialize BWH for local inode created above.
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, openMode, t.writeCtx)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, openMode, 0, t.writeCtx)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), shouldInitialize, initialized)
 	if shouldInitialize {
@@ -322,7 +322,7 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 		t.createInode()
 		t.writeCtx.Config.Write.EnableRapidAppends = true
 
-		isSupported := t.in.areBufferedWritesSupported(tc.openMode, object, t.writeCtx)
+		isSupported := t.in.areBufferedWritesSupported(tc.openMode, 0, object, t.writeCtx)
 
 		assert.Equal(t.T(), tc.supported, isSupported)
 	}
@@ -1524,7 +1524,7 @@ func (t *FileTest) TestOpenReader_ThrowsFileClobberedError() {
 		[]byte("burrito"))
 	assert.Nil(t.T(), err)
 
-	_, err = t.in.openReader(t.ctx)
+	_, err = t.in.openReader(t.ctx, -1)
 
 	// assert error is not nil.
 	var fcErr *gcsfuse_errors.FileClobberedError
@@ -1839,7 +1839,7 @@ func (t *FileTest) TestInitBufferedWriteHandlerIfEligibleShouldNotCreateBWHNonEm
 	// Enabling buffered writes.
 	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, t.writeCtx)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, 0, t.writeCtx)
 
 	assert.NoError(t.T(), err)
 	assert.Nil(t.T(), t.in.bwh)
@@ -1944,7 +1944,7 @@ func (t *FileTest) TestInitBufferedWriteHandlerWithInvalidConfigWhenStreamingWri
 	t.createInodeWithLocalParam("test", true)
 	t.writeCtx.Config = &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: true}}
 
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, t.writeCtx)
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, 0, t.writeCtx)
 
 	assert.True(t.T(), strings.Contains(err.Error(), "invalid configuration"))
 	assert.False(t.T(), initialized)

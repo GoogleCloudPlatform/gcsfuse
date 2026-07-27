@@ -61,6 +61,7 @@ type UploadHandler struct {
 	blockSize            int64
 
 	traceHandle tracing.TraceHandle
+	useAppendableWriterAtOffset int64
 }
 
 type CreateUploadHandlerRequest struct {
@@ -73,6 +74,7 @@ type CreateUploadHandlerRequest struct {
 	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
 	TraceHandle              tracing.TraceHandle
+	AppendableWriterOffset int64
 }
 
 // newUploadHandler creates the UploadHandler struct.
@@ -88,6 +90,7 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 		chunkRetryDeadline:   req.ChunkRetryDeadlineSecs,
 		chunkTransferTimeout: req.ChunkTransferTimeoutSecs,
 		traceHandle:          req.TraceHandle,
+		useAppendableWriterAtOffset:  req.AppendableWriterOffset,
 	}
 	return uh
 }
@@ -114,11 +117,15 @@ func (uh *UploadHandler) createObjectWriter(ctx context.Context) (err error) {
 	// We need a new context here, since the first writeFile() call will be complete
 	// (and context will be cancelled) by the time complete upload is done.
 	ctx, uh.cancelFunc = context.WithCancel(uh.traceHandle.PropagateTraceContext(context.Background(), ctx))
-	if uh.bucket.BucketType().RapidWritesEnabled() && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
+	// if uh.bucket.BucketType().RapidWritesEnabled() && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
+	// Appendable writer at offset = object size can only be used at writes in a mode and writes done in
+	//  r+ mode with offset >= size (0 padding will be taken care of, server side writer creation can only happen
+	// at the object size, but using this field we can externally control the new generation creation)
+	if uh.useAppendableWriterAtOffset != -1 {
 		chunkWriterReq := gcs.CreateObjectChunkWriterRequest{
 			CreateObjectRequest: *req,
 			ChunkSize:           int(uh.blockSize),
-			Offset:              int64(uh.obj.Size),
+			Offset:              uh.useAppendableWriterAtOffset,
 		}
 		uh.writer, err = uh.bucket.CreateAppendableObjectWriter(ctx, &chunkWriterReq)
 	} else {
