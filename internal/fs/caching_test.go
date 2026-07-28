@@ -395,7 +395,7 @@ func (t *CachingWithImplicitDirsTest) SymlinksWork() {
 	AssertEq(nil, err)
 
 	ExpectEq("bar", fi.Name())
-	ExpectEq(0, fi.Size())
+	ExpectEq(len("foo"), fi.Size())
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 
 	// Stat the target via the link.

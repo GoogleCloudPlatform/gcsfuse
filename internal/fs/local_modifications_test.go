@@ -2404,12 +2404,13 @@ func (t *SymlinkTest) CreateLink() {
 	AssertEq(nil, err)
 	ExpectEq("foo", target)
 
-	// Stat the link.
+	// Stat the link. Per POSIX the size of a symlink is the length of its
+	// target, not the size of the backing object (which is zero here).
 	fi, err = os.Lstat(symlinkName)
 	AssertEq(nil, err)
 
 	ExpectEq("bar", fi.Name())
-	ExpectEq(0, fi.Size())
+	ExpectEq(len("foo"), fi.Size())
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 
 	// Read the parent directory.
@@ -2419,7 +2420,7 @@ func (t *SymlinkTest) CreateLink() {
 
 	fi = entries[0]
 	ExpectEq("bar", fi.Name())
-	ExpectEq(0, fi.Size())
+	ExpectEq(len("foo"), fi.Size())
 	ExpectEq(filePerms|os.ModeSymlink, fi.Mode())
 
 	// Stat the target via the link.
@@ -2429,6 +2430,31 @@ func (t *SymlinkTest) CreateLink() {
 	ExpectEq("bar", fi.Name())
 	ExpectEq(len(contents), fi.Size())
 	ExpectEq(filePerms, fi.Mode())
+}
+
+func (t *SymlinkTest) LinkSizeIsTargetLength() {
+	// stat(2) requires st_size of a symlink to be the length of the pathname it
+	// contains, without a terminating null byte. The object backing a legacy
+	// symlink is empty, so the size must come from the target instead.
+	testCases := []struct {
+		name   string
+		target string
+	}{
+		{"relative", "foo"},
+		{"absolute", "/some/fairly/long/target/path"},
+		{"multi_byte", "/tmp/ünïcödé"},
+	}
+
+	for _, tc := range testCases {
+		symlinkName := path.Join(mntDir, tc.name)
+		err := os.Symlink(tc.target, symlinkName)
+		AssertEq(nil, err, "target: %q", tc.target)
+
+		fi, err := os.Lstat(symlinkName)
+		AssertEq(nil, err, "target: %q", tc.target)
+
+		ExpectEq(len(tc.target), fi.Size(), "target: %q", tc.target)
+	}
 }
 
 func (t *SymlinkTest) CreateLink_Exists() {

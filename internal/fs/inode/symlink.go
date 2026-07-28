@@ -232,6 +232,10 @@ func (s *SymlinkInode) Destroy() (err error) {
 
 func (s *SymlinkInode) Attributes(
 	ctx context.Context, clobberedCheck bool) (size uint64, mtime time.Time, nlink uint32, err error) {
+	// POSIX requires st_size of a symlink to be the length of the target path,
+	// excluding the terminating null byte. It is not the size of the backing GCS
+	// object, which is zero for legacy symlinks that keep the target in metadata.
+	size = uint64(len(s.target))
 	mtime = s.mtime
 	nlink = 1
 	return
