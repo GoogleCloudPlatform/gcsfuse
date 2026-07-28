@@ -142,7 +142,12 @@ func (e entry) Size() uint64 {
 	size := uint64(util.UnsafeSizeOf(&e) + util.NestedSizeOfGcsMinObject(e.m))
 	if e.m != nil {
 		if e.isRadix {
-			size += 475 // Deduced radix cache overhead (Map's 515 minus ~40 bytes saved per entry per benchmark)
+			// Deduced radix cache overhead.
+			// At a representative scale of 1,000,000 entries, memory benchmarks
+			// (see internal/cache/lru/lru_memory_test.go) show MapLRU adds ~136 bytes/entry
+			// and RadixLRU adds ~94 bytes/entry (saving ~42 bytes).
+			// Subtracting this savings from the map overhead of 515 gives us roughly 475 bytes.
+			size += 475
 		} else {
 			size += 515
 		}
