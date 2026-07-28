@@ -85,7 +85,7 @@ func runWriteMaxRequestSize16MiBTest(t *testing.T) {
 }
 
 func TestWriteMaxRequestSize16MiB(t *testing.T) {
-	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		runWriteMaxRequestSize16MiBTest(t)
 		return
 	}

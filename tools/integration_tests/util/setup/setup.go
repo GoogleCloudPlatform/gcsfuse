@@ -144,9 +144,6 @@ func TestOnTPCEndPoint() bool {
 }
 
 func MountedDirectory() string {
-	if *mountedDirectory == "" {
-		*mountedDirectory = os.Getenv("MOUNTED_DIR")
-	}
 	return *mountedDirectory
 }
 
