@@ -309,52 +309,49 @@ func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Han
 
 	if f.otelLoggingEnabled {
 		otelHandler := otelslog.NewHandler("gcsfuse")
-		return &multiHandler{handlers: []slog.Handler{localHandler, otelHandler}}
+		return &dualHandler{local: localHandler, otel: otelHandler}
 	}
 	return localHandler
 }
 
-// multiHandler dispatches logs to multiple slog.Handlers.
-type multiHandler struct {
-	handlers []slog.Handler
+// dualHandler dispatches logs to a local handler and an OpenTelemetry handler.
+type dualHandler struct {
+	local slog.Handler
+	otel  slog.Handler
 }
 
-func (m *multiHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	for _, h := range m.handlers {
-		if h.Enabled(ctx, level) {
-			return true
-		}
-	}
-	return false
+func (d *dualHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return d.local.Enabled(ctx, level) || d.otel.Enabled(ctx, level)
 }
 
-func (m *multiHandler) Handle(ctx context.Context, r slog.Record) error {
-	var errs []error
-	for _, h := range m.handlers {
-		if h.Enabled(ctx, r.Level) {
-			if err := h.Handle(ctx, r); err != nil {
-				errs = append(errs, err)
-			}
-		}
+func (d *dualHandler) Handle(ctx context.Context, r slog.Record) error {
+	var err1, err2 error
+	if d.local.Enabled(ctx, r.Level) {
+		err1 = d.local.Handle(ctx, r)
 	}
-	if len(errs) > 0 {
-		return fmt.Errorf("multiple handler errors: %v", errs)
+	if d.otel.Enabled(ctx, r.Level) {
+		err2 = d.otel.Handle(ctx, r)
 	}
-	return nil
+
+	if err1 != nil && err2 != nil {
+		return fmt.Errorf("local err: %v, otel err: %v", err1, err2)
+	}
+	if err1 != nil {
+		return err1
+	}
+	return err2
 }
 
-func (m *multiHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	var newHandlers []slog.Handler
-	for _, h := range m.handlers {
-		newHandlers = append(newHandlers, h.WithAttrs(attrs))
+func (d *dualHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &dualHandler{
+		local: d.local.WithAttrs(attrs),
+		otel:  d.otel.WithAttrs(attrs),
 	}
-	return &multiHandler{handlers: newHandlers}
 }
 
-func (m *multiHandler) WithGroup(name string) slog.Handler {
-	var newHandlers []slog.Handler
-	for _, h := range m.handlers {
-		newHandlers = append(newHandlers, h.WithGroup(name))
+func (d *dualHandler) WithGroup(name string) slog.Handler {
+	return &dualHandler{
+		local: d.local.WithGroup(name),
+		otel:  d.otel.WithGroup(name),
 	}
-	return &multiHandler{handlers: newHandlers}
 }

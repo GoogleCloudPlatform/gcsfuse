@@ -229,7 +229,11 @@ func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string) 
 		return nil, err
 	}
 
-	processor := log.NewBatchProcessor(exporter)
+	processor := log.NewBatchProcessor(
+		exporter,
+		log.WithExportMaxBatchSize(2000),
+		log.WithExportInterval(5*time.Second),
+	)
 	provider := log.NewLoggerProvider(
 		log.WithProcessor(processor),
 		log.WithResource(res),
