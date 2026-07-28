@@ -72,7 +72,7 @@ func startMockServer() error {
 
 func stopMockServer() {
 	if mockServer != nil {
-		mockServer.Close()
+		_ = mockServer.Close()
 	}
 }
 
@@ -110,6 +110,10 @@ func (p *OTelLogsTestBase) TearDownSuite() {
 }
 
 func (p *OTelLogsTestBase) SetupTest() {
+	logMu.Lock()
+	logRecords = nil
+	logMu.Unlock()
+
 	testName := strings.ReplaceAll(p.T().Name(), "/", "_")
 	gcsDir := path.Join(testDirName, testName)
 	testEnv.testDirPath = client.SetupTestDirectory(testEnv.ctx, testEnv.storageClient, gcsDir)
@@ -146,7 +150,7 @@ logging:
 	if err := os.WriteFile(configFileForGCSFuse, []byte(configContent), 0644); err != nil {
 		log.Fatalf("Failed to write config file: %v", err)
 	}
-	defer os.Remove(configFileForGCSFuse)
+	defer func() { _ = os.Remove(configFileForGCSFuse) }()
 
 	configFile := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(configFile.OtelLogs) == 0 {
@@ -162,7 +166,7 @@ logging:
 	if err != nil {
 		log.Fatalf("client.CreateStorageClient: %v", err)
 	}
-	defer testEnv.storageClient.Close()
+	defer func() { _ = testEnv.storageClient.Close() }()
 
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))

@@ -382,7 +382,6 @@ func logGCSFuseMountInformation(mountInfo *mountInfo) {
 func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	newConfig := mountInfo.config
 
-
 	var logExporterShutdownFn common.ShutdownFn
 	if newConfig.Foreground {
 		err = logger.InitLogFile(newConfig.Logging, fsName(bucketName))
@@ -393,7 +392,8 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			// Set up OTel log exporter early in the foreground (daemon) process to ensure
 			// startup configs and mount flags are captured. This is intentionally skipped
 			// in the ephemeral parent process to avoid double-initialization overhead.
-			logExporterShutdownFn, err = monitor.SetupOTelLogExporter(context.Background(), newConfig.Logging.OtelLoggingEndpoint, logger.MountInstanceID(fsName(bucketName)))
+			ctx := context.Background()
+			logExporterShutdownFn, err = monitor.SetupOTelLogExporter(ctx, newConfig.Logging.OtelLoggingEndpoint, logger.MountInstanceID(fsName(bucketName)))
 			if err != nil {
 				logger.Errorf("Failed to setup OTel log exporter: %v", err)
 			}
