@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,6 +47,8 @@ type Param struct {
 	HideFlag           bool                      `yaml:"hide-flag"`
 	HideShorthand      bool                      `yaml:"hide-shorthand"`
 	Optimizations      *shared.OptimizationRules `yaml:"optimizations,omitempty"`
+	ProtoType          string                    `yaml:"-"`
+	ProtoFieldName     string                    `yaml:"-"`
 }
 
 // ParamsYAML mirrors the params.yaml file itself.
@@ -67,7 +69,52 @@ func parseParamsYAMLStr(paramsYAMLStr string) (paramsYAML ParamsYAML, err error)
 	if err = validateMachineTypeGroups(paramsYAML.MachineTypeGroups); err != nil {
 		return ParamsYAML{}, err
 	}
+	if err = populateProtoMetadata(paramsYAML.Params); err != nil {
+		return ParamsYAML{}, err
+	}
 	return paramsYAML, nil
+}
+
+var highRiskTextTypes = map[string]bool{
+	"string":       true,
+	"resolvedPath": true,
+	"[]string":     true,
+}
+
+// populateProtoMetadata maps YAML types to Protobuf types, converting strings to booleans for telemetry privacy.
+func populateProtoMetadata(params []Param) error {
+	// Assign proto type and field name
+	for i := range params {
+		param := &params[i]
+		fieldName := param.FlagName
+		if param.ConfigPath != "" {
+			segments := strings.Split(param.ConfigPath, ".")
+			fieldName = segments[len(segments)-1]
+		}
+		if highRiskTextTypes[param.Type] {
+			param.ProtoType = "bool"
+			param.ProtoFieldName = fmt.Sprintf("is_%s_set", strings.ReplaceAll(fieldName, "-", "_"))
+		} else {
+			param.ProtoFieldName = strings.ReplaceAll(fieldName, "-", "_")
+			switch param.Type {
+			case "bool":
+				param.ProtoType = "bool"
+			case "int", "octal":
+				param.ProtoType = "int32"
+			case "duration":
+				param.ProtoType = "int64" // Mapped as nanoseconds
+			case "float64":
+				param.ProtoType = "double"
+			case "protocol", "directPathStrategy", "logSeverity":
+				param.ProtoType = "int32" // Mapped to enums
+			case "[]int":
+				param.ProtoType = "repeated int32"
+			default:
+				return fmt.Errorf("unknown configuration type [%s] declared for parameter [%s]", param.Type, param.FlagName)
+			}
+		}
+	}
+	return nil
 }
 
 func parseParamsYAML() (ParamsYAML, error) {

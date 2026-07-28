@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -116,7 +116,12 @@ func main() {
 		panic(err)
 	}
 
-	td, err := constructTypeTemplateData(paramsYAML.Params)
+	existingTags, err := parseExistingProtoTags(path.Join(*outDir, "config.proto"))
+	if err != nil {
+		panic(fmt.Errorf("failed to parse existing config.proto: %v", err))
+	}
+
+	td, err := constructTypeTemplateData(paramsYAML.Params, existingTags)
 	if err != nil {
 		panic(err)
 	}
@@ -137,9 +142,15 @@ func main() {
 	// Create a map from given machine type to all the machine type groups that it belongs to.
 	machineTypeToGroupMap := invertMachineTypeGroups(paramsYAML.MachineTypeGroups)
 
-	for _, rootFileName := range []string{"config", "config_test"} {
-		generatedFilePath := path.Join(*outDir, rootFileName+".go")
-		templateFilePath := path.Join(*templateDir, rootFileName+".tpl")
+	outputFiles := []struct{ template, output string }{
+		{"config", "config.go"},
+		{"config_test", "config_test.go"},
+		{"config_proto", "config.proto"},
+	}
+
+	for _, file := range outputFiles {
+		generatedFilePath := path.Join(*outDir, file.output)
+		templateFilePath := path.Join(*templateDir, file.template+".tpl")
 		err = write(templateData{
 			FlagTemplateData:      fd,
 			TypeTemplateData:      td,
