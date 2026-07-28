@@ -23,7 +23,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -284,10 +283,19 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 			return nil, fmt.Errorf("failed to get client auth options and token: %w", err)
 		}
 		clientOpts = append(clientOpts, authOpts...)
+	} else {
+		tokenSrc, err = storageutil.CreateTokenSource(clientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("while fetching tokenSource: %w", err)
+		}
 	}
 
 	if clientConfig.ClientProtocol == cfg.HTTPWithMtls {
 		clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
+		// When googleLibAuth is enabled, clientOpts already has tokenSrc.
+		if !clientConfig.EnableGoogleLibAuth && tokenSrc != nil {
+			clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+		}
 	}
 
 	// Add WithHttpClient option.
