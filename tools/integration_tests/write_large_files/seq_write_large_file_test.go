@@ -16,7 +16,6 @@ package write_large_files
 
 import (
 	"path"
-	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -32,16 +31,16 @@ const (
 
 var FiveHundredMBFile = "fiveHundredMBFile" + setup.GenerateRandomString(5) + ".txt"
 
-func TestWriteLargeFileSequentially(t *testing.T) {
+func (s *WriteLargeFilesTestSuite) TestWriteLargeFileSequentially() {
 	seqWriteDir := setup.SetupTestDirectory(DirForSeqWrite)
 	mountedDirFilePath := path.Join(seqWriteDir, FiveHundredMBFile)
 	localFilePath := path.Join(TmpDir, setup.GenerateRandomString(5))
-	t.Cleanup(func() { operations.RemoveFile(localFilePath) })
+	s.T().Cleanup(func() { operations.RemoveFile(localFilePath) })
 
 	// Write sequentially to local and mounted directory file.
-	operations.WriteFilesSequentially(t, []string{localFilePath, mountedDirFilePath}, FiveHundredMB, ChunkSize)
+	operations.WriteFilesSequentially(s.T(), []string{localFilePath, mountedDirFilePath}, FiveHundredMB, ChunkSize)
 
 	identical, err := operations.AreFilesIdentical(mountedDirFilePath, localFilePath)
-	require.NoError(t, err)
-	assert.True(t, identical)
+	require.NoError(s.T(), err)
+	assert.True(s.T(), identical)
 }

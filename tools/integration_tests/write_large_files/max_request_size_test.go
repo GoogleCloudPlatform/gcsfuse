@@ -17,6 +17,7 @@ package write_large_files
 import (
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -33,19 +34,23 @@ const (
 	oneMiBInBytes     = "1048576"
 )
 
-func TestWriteMaxRequestSize16MiB(t *testing.T) {
-	logContent, err := os.ReadFile(setup.LogFile())
-	require.NoError(t, err, "Failed to read log file")
-	if !strings.Contains(string(logContent), "--fuse-max-request-size-kb=16384") {
-		t.Skip("Skipping TestWriteMaxRequestSize16MiB: --fuse-max-request-size-kb=16384 is not set in the mount config")
+func isKernelMaxPagesSupported(requiredBytes int) bool {
+	requiredPages := requiredBytes / os.Getpagesize()
+	maxPagesData, err := os.ReadFile("/proc/sys/fs/fuse/max_pages_limit")
+	if err != nil {
+		return false
 	}
+	limit, err := strconv.Atoi(strings.TrimSpace(string(maxPagesData)))
+	return err == nil && limit >= requiredPages
+}
 
+func runWriteMaxRequestSize16MiBTest(t *testing.T) {
 	// Setup test directory and target file.
 	writeDir := setup.SetupTestDirectory("dirForMaxRequestSizeWrite")
 	filePath := path.Join(writeDir, "16MiB_write_test_"+setup.GenerateRandomString(5)+".txt")
 
 	// Truncate the log file right before writing so only our write operations are logged.
-	err = os.Truncate(setup.LogFile(), 0)
+	err := os.Truncate(setup.LogFile(), 0)
 	require.NoError(t, err, "Failed to truncate log file")
 
 	// Generate 16 MiB of random data (memory-aligned to os.Getpagesize() for O_DIRECT write).
@@ -65,7 +70,7 @@ func TestWriteMaxRequestSize16MiB(t *testing.T) {
 	require.NoError(t, err, "Failed to close file")
 
 	// Read log content after write.
-	logContent, err = os.ReadFile(setup.LogFile())
+	logContent, err := os.ReadFile(setup.LogFile())
 	require.NoError(t, err, "Failed to read log file after write")
 
 	lines := strings.Split(string(logContent), "\n")
@@ -77,4 +82,28 @@ func TestWriteMaxRequestSize16MiB(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 16, writeRequestCount, "Expected exactly 16 write requests of 1 MiB each for 16 MiB write, got %d", writeRequestCount)
+}
+
+func TestWriteMaxRequestSize16MiB(t *testing.T) {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		runWriteMaxRequestSize16MiBTest(t)
+		return
+	}
+
+	if !isKernelMaxPagesSupported(sixteenMiB) {
+		t.Skip("Skipping TestWriteMaxRequestSize16MiB: kernel /proc/sys/fs/fuse/max_pages_limit does not support 16 MiB request size")
+	}
+
+	flagsSet := setup.BuildFlagSets(testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, flags := range flagsSet {
+		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
+			mustMountGCSFuseAndSetupTestDir(flags, testEnv.ctx, testEnv.storageClient)
+			t.Cleanup(func() {
+				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+				setup.UnmountGCSFuse(testEnv.rootDir)
+			})
+
+			runWriteMaxRequestSize16MiBTest(t)
+		})
+	}
 }
