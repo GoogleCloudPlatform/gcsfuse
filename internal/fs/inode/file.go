@@ -778,6 +778,7 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	// For appendable objects, preconditions are checked when starting the stream.
 	// Once the stream is started, subsequent block uploads, flushes, or syncs receive gcs.NotFoundError if the backing object was deleted on GCS.
 	// For non-appendable objects, preconditions are checked when the stream ends, returning gcs.PreconditionError.
+	err = f.bwh.Write(ctx, data, offset)
 	var preconditionErr *gcs.PreconditionError
 	var notFoundErr *gcs.NotFoundError
 	if errors.As(err, &preconditionErr) || errors.As(err, &notFoundErr) {
