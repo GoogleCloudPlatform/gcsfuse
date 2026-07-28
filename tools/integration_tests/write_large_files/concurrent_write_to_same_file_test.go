@@ -27,12 +27,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func TestWriteToSameFileConcurrently(t *testing.T) {
+func (s *WriteLargeFilesTestSuite) TestWriteToSameFileConcurrently() {
 	// Setup Test directory and files to write to.
 	seqWriteDir := setup.SetupTestDirectory(DirForSeqWrite)
 	mountedDirFilePath := path.Join(seqWriteDir, setup.GenerateRandomString(5))
 	localFilePath := path.Join(TmpDir, setup.GenerateRandomString(5))
-	t.Cleanup(func() { operations.RemoveFile(localFilePath) })
+	s.T().Cleanup(func() { operations.RemoveFile(localFilePath) })
 	// We will have x numbers of concurrent writers trying to write to the same file.
 	// Every thread will start at offset = writer_index * (fileSize/thread_count).
 	var eG errgroup.Group
@@ -42,17 +42,17 @@ func TestWriteToSameFileConcurrently(t *testing.T) {
 	for i := range concurrentWriterCount {
 		offset := i * chunkSize
 		eG.Go(func() error {
-			writeToFileSequentially(t, []string{localFilePath, mountedDirFilePath}, offset, offset+chunkSize)
+			writeToFileSequentially(s.T(), []string{localFilePath, mountedDirFilePath}, offset, offset+chunkSize)
 			return nil
 		})
 	}
 
 	// Wait on threads to end.
 	err := eG.Wait()
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	identical, err := operations.AreFilesIdentical(mountedDirFilePath, localFilePath)
-	require.NoError(t, err)
-	assert.True(t, identical)
+	require.NoError(s.T(), err)
+	assert.True(s.T(), identical)
 }
 
 func writeToFileSequentially(t *testing.T, filePaths []string, startOffset int, endOffset int) {
