@@ -47,7 +47,26 @@ func newProxyTokenSource(
 				return dialer.DialContext(ctx, u.Scheme, u.Path)
 			},
 		}
-		endpoint = "http://unix?" + u.RawQuery
+		if u.Fragment != "" {
+			relURL, err := url.Parse(u.Fragment)
+			if err != nil {
+				return nil, fmt.Errorf("parsing fragment %q: %w", u.Fragment, err)
+			}
+			targetURL := url.URL{
+				Scheme:   "http",
+				Host:     "unix",
+				Path:     relURL.Path,
+				RawQuery: relURL.RawQuery,
+			}
+			endpoint = targetURL.String()
+		} else {
+			targetURL := url.URL{
+				Scheme:   "http",
+				Host:     "unix",
+				RawQuery: u.RawQuery,
+			}
+			endpoint = targetURL.String()
+		}
 	}
 
 	ts = proxyTokenSource{

@@ -17,8 +17,11 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,15 +29,23 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func Test_NewTokenSourceFromURL_Success(t *testing.T) {
-	// Create fake token server.
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func tokenHandler(accessToken string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		token := oauth2.Token{
-			AccessToken: "test-access-token",
+			AccessToken: accessToken,
 			TokenType:   "Bearer",
 		}
-		require.NoError(t, json.NewEncoder(w).Encode(token))
-	}))
+		_ = json.NewEncoder(w).Encode(token)
+	}
+}
+
+func startFakeTCPTokenServer(accessToken string) *httptest.Server {
+	return httptest.NewServer(tokenHandler(accessToken))
+}
+
+func Test_NewTokenSourceFromURL_Success(t *testing.T) {
+	accessToken := "test-access-token"
+	server := startFakeTCPTokenServer(accessToken)
 	defer server.Close()
 
 	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false)
@@ -44,7 +55,7 @@ func Test_NewTokenSourceFromURL_Success(t *testing.T) {
 	// Fetch token
 	token, err := ts.Token()
 	assert.NoError(t, err)
-	assert.Equal(t, "test-access-token", token.AccessToken)
+	assert.Equal(t, accessToken, token.AccessToken)
 }
 
 func Test_NewTokenSourceFromURL_InvalidURL(t *testing.T) {
@@ -85,4 +96,80 @@ func TestProxyTokenSource_TokenFetch_InvalidJSON(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "decode body")
 	assert.Nil(t, token)
+}
+
+func startFakeUDSTokenServer(t *testing.T, listener net.Listener, expectedPath, expectedQuery, accessToken string) *http.Server {
+	server := &http.Server{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, expectedPath, r.URL.Path)
+			assert.Equal(t, expectedQuery, r.URL.RawQuery)
+			assert.Equal(t, "unix", r.Host)
+			tokenHandler(accessToken)(w, r)
+		}),
+	}
+	go func() {
+		_ = server.Serve(listener)
+	}()
+	return server
+}
+
+func Test_NewTokenSourceFromURL_UnixSocket_WithFragment_Success(t *testing.T) {
+	// Create a temp file for the socket.
+	tmpFile, err := os.CreateTemp("", "gcsfuse-uds-test-*.sock")
+	require.NoError(t, err)
+	socketPath := tmpFile.Name()
+	require.NoError(t, tmpFile.Close())
+	require.NoError(t, os.Remove(socketPath)) // remove it so net.Listen can create it
+	defer os.Remove(socketPath)
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	expectedPath := "/computeMetadata/v1/instance/service-accounts/default/token"
+	expectedQuery := "foo=bar&baz=qux"
+	accessToken := "uds-access-token"
+
+	server := startFakeUDSTokenServer(t, listener, expectedPath, expectedQuery, accessToken)
+	defer server.Close()
+
+	// unix:///path/to/socket#/http_path?query
+	tokenURL := fmt.Sprintf("unix://%s#%s?%s", socketPath, expectedPath, expectedQuery)
+	ts, err := NewTokenSourceFromURL(context.Background(), tokenURL, false)
+	require.NoError(t, err)
+	require.NotNil(t, ts)
+
+	token, err := ts.Token()
+	assert.NoError(t, err)
+	assert.Equal(t, accessToken, token.AccessToken)
+}
+
+func Test_NewTokenSourceFromURL_UnixSocket_BackwardCompatibility_Success(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "gcsfuse-uds-test-*.sock")
+	require.NoError(t, err)
+	socketPath := tmpFile.Name()
+	require.NoError(t, tmpFile.Close())
+	require.NoError(t, os.Remove(socketPath))
+	defer os.Remove(socketPath)
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer listener.Close()
+
+	expectedPath := "/"
+	expectedQuery := "foo=bar"
+	accessToken := "uds-access-token-compat"
+
+	server := startFakeUDSTokenServer(t, listener, expectedPath, expectedQuery, accessToken)
+	defer server.Close()
+
+	// unix:///path/to/socket?query (old way, but with query)
+	tokenURL := fmt.Sprintf("unix://%s?%s", socketPath, expectedQuery)
+	ts, err := NewTokenSourceFromURL(context.Background(), tokenURL, false)
+	require.NoError(t, err)
+	require.NotNil(t, ts)
+
+	token, err := ts.Token()
+	assert.NoError(t, err)
+	assert.Equal(t, accessToken, token.AccessToken)
 }
