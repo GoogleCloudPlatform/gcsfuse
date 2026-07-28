@@ -95,7 +95,7 @@ operations:
     only_dir: "${ONLY_DIR}"
     configs:
       - flags:
-          - "--client-protocol=httpwithmtls"
+          - "--client-protocol=httpmtls"
         compatible:
           flat: true
           hns: true
@@ -1195,7 +1195,7 @@ mounting:
           zonal: true
         run_on_gke: false
       - flags:
-          - "--client-protocol=httpwithmtls"
+          - "--client-protocol=httpmtls"
         compatible:
           flat: true
           hns: true

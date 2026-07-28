@@ -419,9 +419,9 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithAnonymousAcces
 	assert.NotNil(testSuite.T(), storageClient)
 }
 
-func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithHTTPWithMtls_LibAuthTrue() {
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithHTTPMtls_LibAuthTrue() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.ClientProtocol = cfg.HTTPWithMtls
+	sc.ClientProtocol = cfg.HTTPMtls
 	sc.EnableGoogleLibAuth = true
 
 	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
@@ -430,9 +430,9 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithHTTPWithMtls_L
 	assert.NotNil(testSuite.T(), storageClient)
 }
 
-func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithHTTPWithMtls_LibAuthFalse_ValidKey() {
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithHTTPMtls_LibAuthFalse_ValidKey() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.ClientProtocol = cfg.HTTPWithMtls
+	sc.ClientProtocol = cfg.HTTPMtls
 	sc.EnableGoogleLibAuth = false
 
 	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
@@ -441,9 +441,9 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithHTTPWithMtls_L
 	assert.NotNil(testSuite.T(), storageClient)
 }
 
-func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithHTTPWithMtls_LibAuthFalse_InvalidKey() {
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithHTTPMtls_LibAuthFalse_InvalidKey() {
 	sc := storageutil.GetDefaultStorageClientConfig("non-existent-key.json")
-	sc.ClientProtocol = cfg.HTTPWithMtls
+	sc.ClientProtocol = cfg.HTTPMtls
 	sc.EnableGoogleLibAuth = false
 
 	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)

@@ -290,7 +290,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		}
 	}
 
-	if clientConfig.ClientProtocol == cfg.HTTPWithMtls {
+	if clientConfig.ClientProtocol == cfg.HTTPMtls {
 		clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
 		// When googleLibAuth is enabled, clientOpts already has tokenSrc.
 		if !clientConfig.EnableGoogleLibAuth && tokenSrc != nil {
@@ -299,7 +299,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 
 	// Add WithHttpClient option.
-	if clientConfig.ClientProtocol != cfg.HTTPWithMtls {
+	if clientConfig.ClientProtocol != cfg.HTTPMtls {
 		var httpClient *http.Client
 		httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc)
 		if err != nil {
@@ -481,7 +481,7 @@ func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, buck
 		return sh.createNonBidiGRPCClientWithHttpFallback(ctx, bucketName, billingProject)
 	}
 
-	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 || sh.clientConfig.ClientProtocol == cfg.HTTPWithMtls {
+	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 || sh.clientConfig.ClientProtocol == cfg.HTTPMtls {
 		if sh.httpClient == nil {
 			sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
 		}
