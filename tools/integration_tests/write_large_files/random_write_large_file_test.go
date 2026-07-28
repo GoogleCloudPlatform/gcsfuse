@@ -17,7 +17,6 @@ package write_large_files
 import (
 	rand2 "math/rand"
 	"path"
-	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -32,14 +31,14 @@ const (
 	MaxFileOffset            = 500 * OneMiB
 )
 
-func TestWriteLargeFileRandomly(t *testing.T) {
+func (s *WriteLargeFilesTestSuite) TestWriteLargeFileRandomly() {
 	// Setup Test directory and files to write to.
 	randomWriteDir := setup.SetupTestDirectory(DirForRandomWrite)
 	mountedDirFilePath := path.Join(randomWriteDir, FiveHundredMBFile)
 	localFilePath := path.Join(TmpDir, setup.GenerateRandomString(5))
-	t.Cleanup(func() { operations.RemoveFile(localFilePath) })
+	s.T().Cleanup(func() { operations.RemoveFile(localFilePath) })
 	// Open local file and mounted directory file for writing.
-	filesToWrite := operations.OpenFiles(t, []string{localFilePath, mountedDirFilePath})
+	filesToWrite := operations.OpenFiles(s.T(), []string{localFilePath, mountedDirFilePath})
 
 	for range NumberOfRandomWriteCalls {
 		offset := rand2.Int63n(MaxFileOffset - ChunkSize)
@@ -47,11 +46,11 @@ func TestWriteLargeFileRandomly(t *testing.T) {
 		offset = offset - offset%(4*util.KiB)
 		// Write chunk of random data to both local and mounted directory file.
 		err := operations.WriteChunkOfRandomBytesToFiles(filesToWrite, ChunkSize, offset)
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 	}
 
-	operations.CloseFiles(t, filesToWrite)
+	operations.CloseFiles(s.T(), filesToWrite)
 	identical, err := operations.AreFilesIdentical(mountedDirFilePath, localFilePath)
-	require.NoError(t, err)
-	assert.True(t, identical)
+	require.NoError(s.T(), err)
+	assert.True(s.T(), identical)
 }

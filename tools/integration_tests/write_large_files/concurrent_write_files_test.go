@@ -16,7 +16,6 @@ package write_large_files
 
 import (
 	"path"
-	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -29,7 +28,7 @@ const (
 	DirForConcurrentWrite = "dirForConcurrentWrite"
 )
 
-func TestWriteMultipleFilesConcurrently(t *testing.T) {
+func (s *WriteLargeFilesTestSuite) TestWriteMultipleFilesConcurrently() {
 	concurrentWriteDir := setup.SetupTestDirectory(DirForConcurrentWrite)
 	var FileOne = "fileOne" + setup.GenerateRandomString(5) + ".txt"
 	var FileTwo = "fileTwo" + setup.GenerateRandomString(5) + ".txt"
@@ -41,18 +40,18 @@ func TestWriteMultipleFilesConcurrently(t *testing.T) {
 	for i := range files {
 		// Copy the current value of i into a local variable to avoid data races.
 		fileIndex := i
+		localFilePath := path.Join(TmpDir, setup.GenerateRandomString(5))
+		s.T().Cleanup(func() { operations.RemoveFile(localFilePath) })
 
 		// Thread to write the current file.
 		eG.Go(func() error {
 			mountedDirFilePath := path.Join(concurrentWriteDir, files[fileIndex])
-			localFilePath := path.Join(TmpDir, setup.GenerateRandomString(5))
-			t.Cleanup(func() { operations.RemoveFile(localFilePath) })
 
-			operations.WriteFilesSequentially(t, []string{localFilePath, mountedDirFilePath}, FiveHundredMB, ChunkSize)
+			operations.WriteFilesSequentially(s.T(), []string{localFilePath, mountedDirFilePath}, FiveHundredMB, ChunkSize)
 
 			identical, err := operations.AreFilesIdentical(mountedDirFilePath, localFilePath)
-			require.NoError(t, err)
-			assert.True(t, identical)
+			require.NoError(s.T(), err)
+			assert.True(s.T(), identical)
 			return nil
 		})
 	}
