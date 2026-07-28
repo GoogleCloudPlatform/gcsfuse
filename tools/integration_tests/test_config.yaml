@@ -95,6 +95,13 @@ operations:
     only_dir: "${ONLY_DIR}"
     configs:
       - flags:
+          - "--client-protocol=httpwithmtls"
+        compatible:
+          flat: true
+          hns: true
+          zonal: false
+        run_on_gke: false
+      - flags:
           - "--metadata-cache-ttl-secs=0,--enable-streaming-writes=false,--client-protocol=http1"
           - "--kernel-list-cache-ttl-secs=-1,--implicit-dirs,--enable-metadata-prefetch,--client-protocol=http1"
           - "--experimental-enable-json-read,--enable-atomic-rename-object,--client-protocol=http1"
@@ -1186,6 +1193,13 @@ mounting:
           flat: true
           hns: true
           zonal: true
+        run_on_gke: false
+      - flags:
+          - "--client-protocol=httpwithmtls"
+        compatible:
+          flat: true
+          hns: true
+          zonal: false
         run_on_gke: false
       - flags:
           - "--experimental-enable-pirlo,--client-protocol=http1"

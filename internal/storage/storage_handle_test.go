@@ -419,6 +419,16 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithAnonymousAcces
 	assert.NotNil(testSuite.T(), storageClient)
 }
 
+func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithHTTPWithMtls() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.ClientProtocol = cfg.HTTPWithMtls
+
+	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), storageClient)
+}
+
 func (testSuite *StorageHandleTest) TestCreateGRPCClientWithSocketAddress() {
 	// Start a local server to inspect incoming connections.
 	server := &fakeStorageControlServer{}

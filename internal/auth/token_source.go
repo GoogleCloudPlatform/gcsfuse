@@ -22,6 +22,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"golang.org/x/oauth2"
 )
@@ -33,21 +34,61 @@ func newProxyTokenSource(
 	endpoint string,
 	reuseTokenFromUrl bool,
 ) (ts oauth2.TokenSource, err error) {
+	var socketPath string
+	var httpPath string
+	var isUDS bool
+
 	u, err := url.Parse(endpoint)
-	if err != nil {
-		err = fmt.Errorf("newProxyTokenSource cannot parse endpoint %s: %w", endpoint, err)
-		return nil, err
+	if err != nil || u.Scheme == "" {
+		// Try UDS path fallback
+		if strings.HasPrefix(endpoint, "/") || strings.HasPrefix(endpoint, "./") || strings.HasPrefix(endpoint, "../") {
+			isUDS = true
+			socketPath = endpoint
+			httpPath = "/"
+			err = nil // clear error
+		} else {
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse token-url: %w", err)
+			}
+			return nil, fmt.Errorf("invalid token-url: %s (missing scheme)", endpoint)
+		}
+	} else if u.Scheme == "unix" || u.Scheme == "http+unix" || u.Scheme == "uds" || u.Scheme == "http+uds" {
+		isUDS = true
+		socketPath = u.Path
+		httpPath = "/"
+		if strings.Contains(u.Path, ":") {
+			parts := strings.SplitN(u.Path, ":", 2)
+			socketPath = parts[0]
+			httpPath = parts[1]
+		}
+		if u.RawQuery != "" {
+			if strings.Contains(httpPath, "?") {
+				httpPath += "&" + u.RawQuery
+			} else {
+				httpPath += "?" + u.RawQuery
+			}
+		}
 	}
 
 	client := &http.Client{}
-	if u.Scheme == "unix" {
+	if isUDS {
+		parsedHttpPath, err := url.Parse(httpPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse HTTP path %q: %w", httpPath, err)
+		}
 		client.Transport = &http.Transport{
 			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 				dialer := net.Dialer{}
-				return dialer.DialContext(ctx, u.Scheme, u.Path)
+				return dialer.DialContext(ctx, "unix", socketPath)
 			},
 		}
-		endpoint = "http://unix?" + u.RawQuery
+		newUrl := url.URL{
+			Scheme:   "http",
+			Host:     "unix",
+			Path:     parsedHttpPath.Path,
+			RawQuery: parsedHttpPath.RawQuery,
+		}
+		endpoint = newUrl.String()
 	}
 
 	ts = proxyTokenSource{

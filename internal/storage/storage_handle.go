@@ -286,15 +286,20 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		clientOpts = append(clientOpts, authOpts...)
 	}
 
-	// Add WithHttpClient option.
-	var httpClient *http.Client
-	httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc)
-	if err != nil {
-		err = fmt.Errorf("while creating http endpoint: %w", err)
-		return
+	if clientConfig.ClientProtocol == cfg.HTTPWithMtls {
+		clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
 	}
 
-	clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
+	// Add WithHttpClient option.
+	if clientConfig.ClientProtocol != cfg.HTTPWithMtls {
+		var httpClient *http.Client
+		httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc)
+		if err != nil {
+			err = fmt.Errorf("while creating http endpoint: %w", err)
+			return
+		}
+		clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
+	}
 
 	// Create client with JSON read flow, if EnableJasonRead flag is set.
 	if clientConfig.ExperimentalEnableJsonRead {
@@ -468,7 +473,7 @@ func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, buck
 		return sh.createNonBidiGRPCClientWithHttpFallback(ctx, bucketName, billingProject)
 	}
 
-	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 {
+	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 || sh.clientConfig.ClientProtocol == cfg.HTTPWithMtls {
 		if sh.httpClient == nil {
 			sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
 		}

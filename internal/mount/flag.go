@@ -28,6 +28,8 @@ const (
 	HTTP2 ClientProtocol = "http2"
 	// Deprecated: Use the constant from cfg package
 	GRPC ClientProtocol = "grpc"
+	// Deprecated: Use the constant from cfg package
+	HTTPWithMtls ClientProtocol = "httpwithmtls"
 
 	// DefaultStatOrTypeCacheTTL is the default value used for
 	// stat-cache-ttl or type-cache-ttl if they have not been set
@@ -44,7 +46,7 @@ const (
 
 func (cp ClientProtocol) IsValid() bool {
 	switch cp {
-	case HTTP1, HTTP2, GRPC:
+	case HTTP1, HTTP2, GRPC, HTTPWithMtls:
 		return true
 	}
 	return false
