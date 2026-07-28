@@ -481,6 +481,8 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		if err != nil {
 			logger.Errorf("Failed to setup OTel log exporter: %v", err)
 		}
+		// Re-initialize the default logger to pick up the newly set global LoggerProvider.
+		logger.UpdateDefaultLogger(newConfig.Logging.Format, fsName(bucketName))
 	}
 
 	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn, logExporterShutdownFn)

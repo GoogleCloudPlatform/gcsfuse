@@ -89,3 +89,47 @@ func TestPermissionAwareExporter_ExportOtherError(t *testing.T) {
 	assert.Error(t, err)
 	assert.False(t, exporter.disabled.Load())
 }
+
+func TestSetupOTelLogExporter(t *testing.T) {
+	tests := []struct {
+		name      string
+		endpoint  string
+		mountID   string
+		expectErr bool
+	}{
+		{
+			name:      "Localhost insecure",
+			endpoint:  "localhost:4318",
+			mountID:   "mount-1",
+			expectErr: false,
+		},
+		{
+			name:      "Normal endpoint",
+			endpoint:  "otel-collector.default:4318",
+			mountID:   "mount-2",
+			expectErr: false,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			ctx := context.Background()
+
+			// Act
+			shutdown, err := SetupOTelLogExporter(ctx, tc.endpoint, tc.mountID)
+
+			// Assert
+			if tc.expectErr {
+				assert.Error(t, err)
+				assert.Nil(t, shutdown)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, shutdown)
+
+				// Clean up
+				err = shutdown(ctx)
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

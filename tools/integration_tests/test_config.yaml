@@ -2046,3 +2046,14 @@ concurrent_operations:
             different_zone: false
         run: TestConcurrentListing
         run_on_gke: true
+
+otel_logs:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - flags:
+          - ""
+        compatible:
+          flat: true
+          hns: true
+        run: "TestOTelLogsTestSuite"
