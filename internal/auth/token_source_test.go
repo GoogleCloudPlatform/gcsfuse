@@ -98,10 +98,10 @@ func TestProxyTokenSource_TokenFetch_InvalidJSON(t *testing.T) {
 	assert.Nil(t, token)
 }
 
-func startFakeUDSTokenServer(t *testing.T, listener net.Listener, expectedPath, expectedQuery, accessToken string) *http.Server {
+func startFakeUDSTokenServer(t *testing.T, listener net.Listener, expectedEscapedPath, expectedQuery, accessToken string) *http.Server {
 	server := &http.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, expectedPath, r.URL.Path)
+			assert.Equal(t, expectedEscapedPath, r.URL.EscapedPath())
 			assert.Equal(t, expectedQuery, r.URL.RawQuery)
 			assert.Equal(t, "unix", r.Host)
 			tokenHandler(accessToken)(w, r)
@@ -120,21 +120,51 @@ func Test_NewTokenSourceFromURL_UnixSocket_WithFragment_Success(t *testing.T) {
 	socketPath := tmpFile.Name()
 	require.NoError(t, tmpFile.Close())
 	require.NoError(t, os.Remove(socketPath)) // remove it so net.Listen can create it
-	defer os.Remove(socketPath)
+	defer func() { _ = os.Remove(socketPath) }()
 
 	listener, err := net.Listen("unix", socketPath)
 	require.NoError(t, err)
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 
-	expectedPath := "/computeMetadata/v1/instance/service-accounts/default/token"
+	expectedEscapedPath := "/computeMetadata/v1/instance/service-accounts/default/token"
 	expectedQuery := "foo=bar&baz=qux"
 	accessToken := "uds-access-token"
 
-	server := startFakeUDSTokenServer(t, listener, expectedPath, expectedQuery, accessToken)
-	defer server.Close()
+	server := startFakeUDSTokenServer(t, listener, expectedEscapedPath, expectedQuery, accessToken)
+	defer func() { _ = server.Close() }()
 
 	// unix:///path/to/socket#/http_path?query
-	tokenURL := fmt.Sprintf("unix://%s#%s?%s", socketPath, expectedPath, expectedQuery)
+	tokenURL := fmt.Sprintf("unix://%s#%s?%s", socketPath, expectedEscapedPath, expectedQuery)
+	ts, err := NewTokenSourceFromURL(context.Background(), tokenURL, false)
+	require.NoError(t, err)
+	require.NotNil(t, ts)
+
+	token, err := ts.Token()
+	assert.NoError(t, err)
+	assert.Equal(t, accessToken, token.AccessToken)
+}
+
+func Test_NewTokenSourceFromURL_UnixSocket_WithFragment_EscapedChars_Success(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "gcsfuse-uds-test-*.sock")
+	require.NoError(t, err)
+	socketPath := tmpFile.Name()
+	require.NoError(t, tmpFile.Close())
+	require.NoError(t, os.Remove(socketPath))
+	defer func() { _ = os.Remove(socketPath) }()
+
+	listener, err := net.Listen("unix", socketPath)
+	require.NoError(t, err)
+	defer func() { _ = listener.Close() }()
+
+	// Path contains escaped slash (%2F) and query contains escaped space (%20)
+	expectedEscapedPath := "/computeMetadata%2Fv1%2Finstance%2Fservice-accounts%2Fdefault%2Ftoken"
+	expectedQuery := "foo=bar%20baz"
+	accessToken := "uds-access-token-escaped"
+
+	server := startFakeUDSTokenServer(t, listener, expectedEscapedPath, expectedQuery, accessToken)
+	defer func() { _ = server.Close() }()
+
+	tokenURL := fmt.Sprintf("unix://%s#%s?%s", socketPath, expectedEscapedPath, expectedQuery)
 	ts, err := NewTokenSourceFromURL(context.Background(), tokenURL, false)
 	require.NoError(t, err)
 	require.NotNil(t, ts)
@@ -150,18 +180,18 @@ func Test_NewTokenSourceFromURL_UnixSocket_BackwardCompatibility_Success(t *test
 	socketPath := tmpFile.Name()
 	require.NoError(t, tmpFile.Close())
 	require.NoError(t, os.Remove(socketPath))
-	defer os.Remove(socketPath)
+	defer func() { _ = os.Remove(socketPath) }()
 
 	listener, err := net.Listen("unix", socketPath)
 	require.NoError(t, err)
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 
-	expectedPath := "/"
+	expectedEscapedPath := "/"
 	expectedQuery := "foo=bar"
 	accessToken := "uds-access-token-compat"
 
-	server := startFakeUDSTokenServer(t, listener, expectedPath, expectedQuery, accessToken)
-	defer server.Close()
+	server := startFakeUDSTokenServer(t, listener, expectedEscapedPath, expectedQuery, accessToken)
+	defer func() { _ = server.Close() }()
 
 	// unix:///path/to/socket?query (old way, but with query)
 	tokenURL := fmt.Sprintf("unix://%s?%s", socketPath, expectedQuery)

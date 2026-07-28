@@ -47,15 +47,16 @@ func newProxyTokenSource(
 				return dialer.DialContext(ctx, u.Scheme, u.Path)
 			},
 		}
-		if u.Fragment != "" {
-			relURL, err := url.Parse(u.Fragment)
+		if escapedFragment := u.EscapedFragment(); escapedFragment != "" {
+			relURL, err := url.Parse(escapedFragment)
 			if err != nil {
-				return nil, fmt.Errorf("parsing fragment %q: %w", u.Fragment, err)
+				return nil, fmt.Errorf("parsing fragment %q: %w", escapedFragment, err)
 			}
 			targetURL := url.URL{
 				Scheme:   "http",
 				Host:     "unix",
 				Path:     relURL.Path,
+				RawPath:  relURL.RawPath,
 				RawQuery: relURL.RawQuery,
 			}
 			endpoint = targetURL.String()
