@@ -172,13 +172,13 @@ func TestMain(m *testing.M) {
 		cfg.ReadCache[0].Configs[3].Run = "TestRangeReadWithParallelDownloadsTest"
 
 		cfg.ReadCache[0].Configs[4].Flags = []string{
-			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --implicit-dirs --enable-kernel-reader=false",
-			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --enable-kernel-reader=false",
-			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --implicit-dirs --client-protocol=grpc --enable-kernel-reader=false",
-			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestLocalModificationTest --log-file=/gcsfuse-tmp/TestLocalModificationTest.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestLocalModificationBase --log-file=/gcsfuse-tmp/TestLocalModificationBase.log --log-severity=TRACE --implicit-dirs --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestLocalModificationBase --log-file=/gcsfuse-tmp/TestLocalModificationBase.log --log-severity=TRACE --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestLocalModificationBase --log-file=/gcsfuse-tmp/TestLocalModificationBase.log --log-severity=TRACE --implicit-dirs --client-protocol=grpc --enable-kernel-reader=false",
+			"--file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=true --cache-dir=/gcsfuse-tmp/TestLocalModificationBase --log-file=/gcsfuse-tmp/TestLocalModificationBase.log --log-severity=TRACE --client-protocol=grpc --enable-kernel-reader=false",
 		}
 		cfg.ReadCache[0].Configs[4].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.ReadCache[0].Configs[4].Run = "TestLocalModificationTest"
+		cfg.ReadCache[0].Configs[4].Run = "TestLocalModificationBase"
 
 		cfg.ReadCache[0].Configs[5].Flags = []string{
 			"--stat-cache-ttl=0s --file-cache-max-size-mb=9 --file-cache-enable-parallel-downloads=false --cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest --log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log --log-severity=TRACE --implicit-dirs --enable-kernel-reader=false",

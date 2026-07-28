@@ -95,9 +95,21 @@ func TestMain(m *testing.M) {
 	// Save mount and root directory variables.
 	mountDir, rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
 
-	flags := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, "")
-	// Test for viewer permission on test bucket.
-	successCode := creds_tests.RunTestsForDifferentAuthMethods(testEnv.ctx, testEnv.cfg, testEnv.storageClient, flags, "objectViewer", m)
+	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials(testEnv.ctx)
+	defer func() {
+		if err := os.Remove(localKeyFilePath); err != nil {
+			log.Printf("Failed to delete temp credentials file %s: %v", localKeyFilePath, err)
+		}
+	}()
+	creds_tests.ApplyPermissionToServiceAccount(testEnv.ctx, testEnv.storageClient, serviceAccount, "objectViewer", testEnv.cfg.TestBucket)
+	defer creds_tests.RevokePermission(testEnv.ctx, testEnv.storageClient, serviceAccount, "objectViewer", testEnv.cfg.TestBucket)
+
+	err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", localKeyFilePath)
+	if err != nil {
+		log.Fatalf("Error in setting environment variable: %v", err)
+	}
+
+	successCode := m.Run()
 
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, testDirName))
 	os.Exit(successCode)

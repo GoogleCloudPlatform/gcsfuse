@@ -17,7 +17,6 @@ package implicit_dir_test
 import (
 	"os"
 	"path"
-	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -25,7 +24,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRenameSymlinkToImplicitDir(t *testing.T) {
+func (s *implicitDirTestSuite) TestRenameSymlinkToImplicitDir() {
+	t := s.T()
 	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
 	implicitDirName := "implicit_dir"
 	// Create an object that defines an implicit directory. This creates `implicit_dir/`.

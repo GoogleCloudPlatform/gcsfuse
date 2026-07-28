@@ -23,14 +23,42 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/dynamic_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/only_dir_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/persistent_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
+
+type operationsTestSuite struct {
+	suite.Suite
+}
+
+func runOperationsSuite(t *testing.T, runSuiteFunc func()) {
+	if operationsConfig.GKEMountedDirectory != "" && operationsConfig.TestBucket != "" {
+		runSuiteFunc()
+		return
+	}
+
+	flagsSet := setup.BuildFlagSets(*operationsConfig, bucketType, t.Name())
+	for _, flags := range flagsSet {
+		log.Printf("Running %s with flags: %s", t.Name(), flags)
+		err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(operationsConfig, flags)
+		require.NoError(t, err, "Mount failed")
+
+		runSuiteFunc()
+
+		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+		setup.UnmountGCSFuseWithConfig(operationsConfig)
+	}
+}
+
+func TestOperationsBase(t *testing.T) {
+	runOperationsSuite(t, func() {
+		suite.Run(t, new(operationsTestSuite))
+		suite.Run(t, &writeOperationsTest{isRapidWritesEnabled: false})
+	})
+}
 
 const DirForOperationTests = "dirForOperationsTest"
 const MoveFile = "move.txt"
@@ -89,8 +117,10 @@ const Content = "line 1\nline 2\n"
 const onlyDirMounted = "OnlyDirMountOperations"
 
 var (
-	storageClient *storage.Client
-	ctx           context.Context
+	storageClient    *storage.Client
+	ctx              context.Context
+	operationsConfig *test_suite.TestConfig
+	bucketType       string
 )
 
 func TestMain(m *testing.M) {
@@ -103,7 +133,8 @@ func TestMain(m *testing.M) {
 	}
 
 	ctx = context.Background()
-	bucketType := setup.TestEnvironment(ctx, &cfg.Operations[0])
+	operationsConfig = &cfg.Operations[0]
+	bucketType = setup.TestEnvironment(ctx, operationsConfig)
 
 	// 2. Create storage client before running tests.
 	var err error
@@ -115,41 +146,13 @@ func TestMain(m *testing.M) {
 	defer storageClient.Close()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	if cfg.Operations[0].GKEMountedDirectory != "" && cfg.Operations[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.Operations[0].GKEMountedDirectory, m))
+	if operationsConfig.GKEMountedDirectory != "" && operationsConfig.TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(operationsConfig.GKEMountedDirectory, m))
 	}
 
 	// 4. Override GKE specific paths with GCSFuse paths if running in GCE environment.
-	setup.OverrideFilePathsInFlagSet(&cfg.Operations[0], setup.TestDir())
+	setup.OverrideFilePathsInFlagSet(operationsConfig, setup.TestDir())
+	setup.SetUpTestDirForTestBucket(operationsConfig)
 
-	// Run tests for testBucket
-	// 5. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.Operations[0], bucketType, "")
-	setup.SetUpTestDirForTestBucket(&cfg.Operations[0])
-
-	if setup.TestOnTPCEndPoint() {
-		os.Exit(static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m))
-	}
-
-	successCode := static_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
-
-	if successCode == 0 {
-		successCode = only_dir_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, onlyDirMounted, m)
-	}
-
-	if successCode == 0 {
-		successCode = persistent_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
-	}
-
-	if successCode == 0 {
-		successCode = dynamic_mounting.RunTestsWithConfigFile(&cfg.Operations[0], flags, m)
-	}
-
-	if successCode == 0 {
-		// Test for admin permission on test bucket.
-		log.Printf("Running cred tests...")
-		successCode = creds_tests.RunTestsForDifferentAuthMethods(ctx, &cfg.Operations[0], storageClient, flags, "objectAdmin", m)
-	}
-
-	os.Exit(successCode)
+	os.Exit(m.Run())
 }

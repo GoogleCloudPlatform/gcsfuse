@@ -52,28 +52,28 @@ func createFile(filePath string, t *testing.T) {
 }
 
 // Remove testBucket/A.txt
-func TestDeleteFileFromBucket(t *testing.T) {
+func (s *operationsTestSuite) TestDeleteFileFromBucket() {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
 	filePath := path.Join(testDir, FileNameInTestBucket)
 
-	createFile(filePath, t)
+	createFile(filePath, s.T())
 
-	checkIfFileDeletionSucceeded(filePath, t)
+	checkIfFileDeletionSucceeded(filePath, s.T())
 }
 
 // Remove testBucket/A/a.txt
-func TestDeleteFileFromBucketDirectory(t *testing.T) {
+func (s *operationsTestSuite) TestDeleteFileFromBucketDirectory() {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
 	dirPath := path.Join(testDir, DirNameInTestBucket)
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Error in creating directory: %v", err)
+		s.T().Errorf("Error in creating directory: %v", err)
 	}
 
 	filePath := path.Join(dirPath, FileNameInDirectoryTestBucket)
-	createFile(filePath, t)
+	createFile(filePath, s.T())
 
-	checkIfFileDeletionSucceeded(filePath, t)
+	checkIfFileDeletionSucceeded(filePath, s.T())
 }
