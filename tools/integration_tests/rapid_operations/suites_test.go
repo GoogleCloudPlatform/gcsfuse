@@ -88,8 +88,9 @@ func (t *BaseSuite) SetupTest() {
 	if testEnv.cfg.GKEMountedDirectory != "" {
 		// GKE Mode: Already mounted
 		t.primaryMount.mntDir = testEnv.cfg.GKEMountedDirectory
-		t.primaryMount.testDirPath = path.Join(t.primaryMount.mntDir, testDirName)
 		t.primaryMount.logFilePath = testEnv.cfg.LogFile // Might be empty, but that's fine for GKE
+		setup.SetMntDir(t.primaryMount.mntDir)
+		t.primaryMount.testDirPath = setup.SetupTestDirectory(testDirName)
 
 		if len(t.secondaryFlags) > 0 {
 			t.secondaryMount.mntDir = testEnv.cfg.GKEMountedDirectorySecondary
