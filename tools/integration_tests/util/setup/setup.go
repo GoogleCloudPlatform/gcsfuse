@@ -43,8 +43,11 @@ import (
 var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
 var isZonalBucketRun = flag.Bool("zonal", false, "Boolean flag to indicate if test-run should use a zonal bucket.")
 var isPirloBucketRun = flag.Bool("pirlo", false, "Boolean flag to indicate if test-run is for a Pirlo bucket.")
-var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
-var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
+
+// Note: testBucket and mountedDirectory can also be set via BUCKET_NAME and MOUNTED_DIR
+// environment variables respectively. However, command-line flags take precedence.
+var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test. Can also be set via BUCKET_NAME env var.")
+var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test. Can also be set via MOUNTED_DIR env var.")
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
 var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
@@ -145,6 +148,9 @@ func TestOnTPCEndPoint() bool {
 }
 
 func MountedDirectory() string {
+	if *mountedDirectory == "" {
+		*mountedDirectory = os.Getenv("MOUNTED_DIR")
+	}
 	return *mountedDirectory
 }
 
@@ -692,6 +698,9 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, testName string
 func SetGlobalVars(cfg *test_suite.TestConfig) {
 	if cfg.TestBucket == "" {
 		cfg.TestBucket = TestBucket()
+	}
+	if cfg.GKEMountedDirectory == "" {
+		cfg.GKEMountedDirectory = MountedDirectory()
 	}
 	// TODO: clean global variables after test migration to config file completes.
 	testBucket = &cfg.TestBucket
