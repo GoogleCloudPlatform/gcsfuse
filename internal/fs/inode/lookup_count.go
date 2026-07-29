@@ -26,28 +26,35 @@ import (
 type lookupCount int64
 
 func (lc *lookupCount) IncrementLookupCount() {
-	val := atomic.LoadInt64((*int64)(lc))
-	if val == -1 {
-		panic("Inode has already been destroyed")
+	for {
+		val := atomic.LoadInt64((*int64)(lc))
+		if val == -1 {
+			panic("Inode has already been destroyed")
+		}
+		if atomic.CompareAndSwapInt64((*int64)(lc), val, val+1) {
+			return
+		}
 	}
-	atomic.AddInt64((*int64)(lc), 1)
 }
 
 func (lc *lookupCount) DecrementLookupCount(n uint64) (destroy bool) {
-	val := atomic.LoadInt64((*int64)(lc))
-	if val == -1 {
-		panic("Inode has already been destroyed")
-	}
+	for {
+		val := atomic.LoadInt64((*int64)(lc))
+		if val == -1 {
+			panic("Inode has already been destroyed")
+		}
 
-	if n > uint64(val) {
-		panic(fmt.Sprintf(
-			"n is greater than lookup count: %v vs. %v",
-			n,
-			val))
-	}
+		if n > uint64(val) {
+			panic(fmt.Sprintf(
+				"n is greater than lookup count: %v vs. %v",
+				n,
+				val))
+		}
 
-	newVal := atomic.AddInt64((*int64)(lc), -int64(n))
-	return newVal == 0
+		if atomic.CompareAndSwapInt64((*int64)(lc), val, val-int64(n)) {
+			return (val - int64(n)) == 0
+		}
+	}
 }
 
 func (lc *lookupCount) Destroy() {
