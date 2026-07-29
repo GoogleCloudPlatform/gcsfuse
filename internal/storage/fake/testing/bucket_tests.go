@@ -506,8 +506,8 @@ func (t *bucketTest) assertOnObjectAttributes(expectedMinObj *gcs.MinObject, exp
 	ExpectThat(expectedMinObj.Size, Equals(o.Size))
 	ExpectThat(expectedMinObj.Generation, Equals(o.Generation))
 	ExpectThat(expectedMinObj.MetaGeneration, Equals(o.MetaGeneration))
-	ExpectThat(expectedMinObj.Updated, DeepEquals(o.Updated))
-	ExpectThat(expectedMinObj.Finalized, DeepEquals(o.Finalized))
+	ExpectTrue(expectedMinObj.UpdatedTime().Equal(o.Updated))
+	ExpectTrue(expectedMinObj.FinalizedTime().Equal(o.Finalized))
 	ExpectThat(expectedMinObj.Metadata, DeepEquals(o.Metadata))
 	ExpectThat(expectedMinObj.ContentEncoding, Equals(o.ContentEncoding))
 	ExpectThat(expectedMinObj.CRC32C, Equals(o.CRC32C))
@@ -1376,7 +1376,14 @@ func (t *copyTest) DestinationDoesntExist() {
 	AssertNe(nil, statMinObj)
 	AssertNe(nil, statExtObjAttr)
 	statObj := storageutil.ConvertMinObjectAndExtendedObjectAttributesToObject(statMinObj, statExtObjAttr)
-	ExpectThat(statObj, Pointee(DeepEquals(*dst)))
+	expectedDst := *dst
+	if expectedDst.Updated.Equal(statObj.Updated) {
+		expectedDst.Updated = statObj.Updated
+	}
+	if expectedDst.Finalized.Equal(statObj.Finalized) {
+		expectedDst.Finalized = statObj.Finalized
+	}
+	ExpectThat(statObj, Pointee(DeepEquals(expectedDst)))
 }
 
 func (t *copyTest) DestinationExists() {
@@ -1467,7 +1474,14 @@ func (t *copyTest) DestinationExists() {
 	AssertNe(nil, statMinObj)
 	AssertNe(nil, statExtObjAttr)
 	statObj := storageutil.ConvertMinObjectAndExtendedObjectAttributesToObject(statMinObj, statExtObjAttr)
-	ExpectThat(statObj, Pointee(DeepEquals(*dst)))
+	expectedDst := *dst
+	if expectedDst.Updated.Equal(statObj.Updated) {
+		expectedDst.Updated = statObj.Updated
+	}
+	if expectedDst.Finalized.Equal(statObj.Finalized) {
+		expectedDst.Finalized = statObj.Finalized
+	}
+	ExpectThat(statObj, Pointee(DeepEquals(expectedDst)))
 }
 
 func (t *copyTest) DestinationIsSameName() {
@@ -1541,7 +1555,14 @@ func (t *copyTest) DestinationIsSameName() {
 	AssertNe(nil, statMinObj)
 	AssertNe(nil, statExtObjAttr)
 	statObj := storageutil.ConvertMinObjectAndExtendedObjectAttributesToObject(statMinObj, statExtObjAttr)
-	ExpectThat(statObj, Pointee(DeepEquals(*dst)))
+	expectedDst := *dst
+	if expectedDst.Updated.Equal(statObj.Updated) {
+		expectedDst.Updated = statObj.Updated
+	}
+	if expectedDst.Finalized.Equal(statObj.Finalized) {
+		expectedDst.Finalized = statObj.Finalized
+	}
+	ExpectThat(statObj, Pointee(DeepEquals(expectedDst)))
 }
 
 func (t *copyTest) InterestingNames() {
@@ -3490,8 +3511,8 @@ func (t *statTest) StatAfterCreating() {
 	ExpectEq(orig.Generation, m.Generation)
 	ExpectEq(len("taco"), m.Size)
 	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(m.Updated, timeutil.TimeEq(orig.Updated))
-	ExpectThat(m.Finalized, timeutil.TimeEq(time.Time{}))
+	ExpectTrue(m.UpdatedTime().Equal(orig.Updated))
+	ExpectTrue(m.FinalizedTime().Equal(time.Time{}))
 }
 
 func (t *statTest) StatAfterOverwriting() {
@@ -3527,8 +3548,8 @@ func (t *statTest) StatAfterOverwriting() {
 	ExpectEq(o2.Generation, m.Generation)
 	ExpectEq(len("burrito"), m.Size)
 	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(m.Updated, timeutil.TimeEq(o2.Updated))
-	ExpectThat(m.Finalized, timeutil.TimeEq(time.Time{}))
+	ExpectTrue(m.UpdatedTime().Equal(o2.Updated))
+	ExpectTrue(m.FinalizedTime().Equal(time.Time{}))
 }
 
 func (t *statTest) StatAfterUpdating() {
@@ -3581,8 +3602,8 @@ func (t *statTest) StatAfterUpdating() {
 	ExpectEq(o2.MetaGeneration, m.MetaGeneration)
 	ExpectEq(len("taco"), m.Size)
 	ExpectThat(e.Deleted, timeutil.TimeEq(time.Time{}))
-	ExpectThat(m.Updated, timeutil.TimeEq(o2.Updated))
-	ExpectThat(m.Finalized, timeutil.TimeEq(time.Time{}))
+	ExpectTrue(m.UpdatedTime().Equal(o2.Updated))
+	ExpectTrue(m.FinalizedTime().Equal(time.Time{}))
 }
 
 ////////////////////////////////////////////////////////////////////////

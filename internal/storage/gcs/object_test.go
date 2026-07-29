@@ -40,7 +40,7 @@ func TestHasContentEncodingGzipNegative(t *testing.T) {
 }
 
 func TestIsFinalized(t *testing.T) {
-	mo := MinObject{Finalized: time.Date(2025, time.June, 19, 18, 23, 30, 0, time.UTC)}
+	mo := MinObject{Finalized: TimeToNS(time.Date(2025, time.June, 19, 18, 23, 30, 0, time.UTC))}
 
 	assert.False(t, mo.IsUnfinalized())
 }

@@ -152,7 +152,7 @@ func TestSource(t *testing.T) {
 	require.NoError(t, err)
 	m := storageutil.ConvertObjToMinObject(obj)
 	m.Metadata = map[string]string{inode.StandardSymlinkMetadataKey: "true"}
-	m.Updated = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC) // Explicitly set Updated time for consistent testing.
+	m.Updated = gcs.TimeToNS(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)) // Explicitly set Updated time for consistent testing.
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
 	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m)
 	require.NoError(t, err)
@@ -164,5 +164,5 @@ func TestSource(t *testing.T) {
 	assert.Equal(t, m.MetaGeneration, source.MetaGeneration)
 	assert.Equal(t, m.Size, source.Size)
 	assert.Equal(t, m.Metadata, source.Metadata)
-	assert.Equal(t, 0, m.Updated.Compare(source.Updated))
+	assert.Equal(t, m.Updated, source.Updated)
 }

@@ -311,7 +311,7 @@ func (t *FileMockBucketTest) TestAttributes_NoChangeInAttributes() {
 		Size:           initialSize,
 		Generation:     initialGeneration,
 		MetaGeneration: initialMetaGeneration,
-		Updated:        initialTime,
+		Updated:        gcs.TimeToNS(initialTime),
 	}
 	f := t.createGCSBackedFileInode(backingObj)
 	defer f.Unlock()
@@ -322,7 +322,7 @@ func (t *FileMockBucketTest) TestAttributes_NoChangeInAttributes() {
 		Generation:     initialGeneration,
 		MetaGeneration: initialMetaGeneration,
 		Size:           initialSize, // Size is not greater
-		Updated:        t.clock.Now(),
+		Updated:        gcs.TimeToNS(t.clock.Now()),
 	}
 	statReq := &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: false, ReturnExtendedObjectAttributes: false}
 	t.bucket.On("StatObject", t.ctx, statReq).Return(updatedMinObject, &gcs.ExtendedObjectAttributes{}, nil).Once()
@@ -333,9 +333,9 @@ func (t *FileMockBucketTest) TestAttributes_NoChangeInAttributes() {
 	t.bucket.AssertExpectations(t.T())
 	// Attributes should NOT be updated because the size hasn't increased.
 	assert.Equal(t.T(), initialSize, size)
-	assert.Equal(t.T(), initialTime, mtime)
+	assert.True(t.T(), initialTime.Equal(mtime))
 	assert.Equal(t.T(), initialSize, f.Source().Size)
-	assert.Equal(t.T(), initialTime, f.Source().Updated)
+	assert.Equal(t.T(), gcs.TimeToNS(initialTime), f.Source().Updated)
 }
 
 func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_DoesNotFetchMetadataFromGCS_ForAppends() {

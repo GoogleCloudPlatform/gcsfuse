@@ -90,7 +90,7 @@ func (t *fileCacheReaderTest) SetupTest() {
 		Name:       testObject,
 		Size:       17,
 		Generation: 1234,
-		Finalized:  time.Date(2025, time.June, 27, 07, 22, 30, 0, time.UTC),
+		Finalized:  gcs.TimeToNS(time.Date(2025, time.June, 27, 07, 22, 30, 0, time.UTC)),
 	}
 	t.unfinalized_object = &gcs.MinObject{
 		Name:       testObject_unfinalized,

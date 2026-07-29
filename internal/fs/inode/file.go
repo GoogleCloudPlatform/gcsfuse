@@ -66,7 +66,7 @@ func parseMtime(m *gcs.MinObject) time.Time {
 	if m == nil {
 		return time.Time{}
 	}
-	mtime := m.Updated
+	mtime := m.UpdatedTime()
 
 	if strTimestamp, ok := m.Metadata["goog-reserved-file-mtime"]; ok {
 		if timestamp, err := strconv.ParseInt(strTimestamp, 0, 64); err == nil {
