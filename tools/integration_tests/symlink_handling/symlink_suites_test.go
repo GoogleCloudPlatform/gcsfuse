@@ -126,8 +126,7 @@ func (s *BaseSymlinkSuite) createGCSSymlinkObject(linkName, target string) {
 	fullLinkPath := path.Join(TestDirName, linkName)
 	bucketName, objectName := setup.GetBucketAndObjectBasedOnTypeOfMount(fullLinkPath)
 	objHandle := testEnv.storageClient.Bucket(bucketName).Object(objectName)
-	w, err := client.NewWriter(testEnv.ctx, objHandle, testEnv.storageClient)
-	s.Require().NoError(err)
+	w := client.NewWriterWithOptions(testEnv.ctx, objHandle)
 
 	var content []byte
 	if s.isStandardSymlink {
@@ -138,7 +137,7 @@ func (s *BaseSymlinkSuite) createGCSSymlinkObject(linkName, target string) {
 		content = []byte("") // Legacy symlinks have empty content
 	}
 
-	_, err = w.Write(content)
+	_, err := w.Write(content)
 	s.Require().NoError(err)
 	s.Require().NoError(w.Close())
 	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)

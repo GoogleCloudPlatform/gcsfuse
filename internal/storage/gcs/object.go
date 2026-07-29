@@ -94,6 +94,37 @@ type MinObject struct {
 	CRC32C          *uint32 // Missing for CMEK buckets
 }
 
+func (mo MinObject) UpdatedTime() time.Time {
+	return NSToTime(mo.Updated)
+}
+
+func (mo MinObject) FinalizedTime() time.Time {
+	return NSToTime(mo.Finalized)
+}
+
+// String implements the fmt.Stringer interface to provide a human-readable
+// representation of the MinObject in logs, converting the int64
+// timestamps back into readable time formats.
+func (mo MinObject) String() string {
+	crc := "<nil>"
+	if mo.CRC32C != nil {
+		crc = fmt.Sprintf("0x%08x", *mo.CRC32C)
+	}
+
+	return fmt.Sprintf(
+		"MinObject{Name: %q, Size: %d, Generation: %d, MetaGeneration: %d, Updated: %s, Finalized: %s, Metadata: %v, ContentEncoding: %q, CRC32C: %s}",
+		mo.Name,
+		mo.Size,
+		mo.Generation,
+		mo.MetaGeneration,
+		mo.UpdatedTime().Format(time.RFC3339Nano),
+		mo.FinalizedTime().Format(time.RFC3339Nano),
+		mo.Metadata,
+		mo.ContentEncoding,
+		crc,
+	)
+}
+
 // ExtendedObjectAttributes contains the missing attributes of Object which are not present in MinObject.
 type ExtendedObjectAttributes struct {
 	ContentType        string
@@ -135,35 +166,4 @@ func NSToTime(ns int64) time.Time {
 		return time.Time{}
 	}
 	return time.Unix(0, ns).UTC()
-}
-
-func (mo MinObject) UpdatedTime() time.Time {
-	return NSToTime(mo.Updated)
-}
-
-func (mo MinObject) FinalizedTime() time.Time {
-	return NSToTime(mo.Finalized)
-}
-
-// String implements the fmt.Stringer interface to provide a human-readable
-// representation of the MinObject in logs, converting the int64
-// timestamps back into readable time formats.
-func (mo MinObject) String() string {
-	crc := "<nil>"
-	if mo.CRC32C != nil {
-		crc = fmt.Sprintf("0x%08x", *mo.CRC32C)
-	}
-
-	return fmt.Sprintf(
-		"MinObject{Name: %q, Size: %d, Generation: %d, MetaGeneration: %d, Updated: %s, Finalized: %s, Metadata: %v, ContentEncoding: %q, CRC32C: %s}",
-		mo.Name,
-		mo.Size,
-		mo.Generation,
-		mo.MetaGeneration,
-		mo.UpdatedTime().Format(time.RFC3339Nano),
-		mo.FinalizedTime().Format(time.RFC3339Nano),
-		mo.Metadata,
-		mo.ContentEncoding,
-		crc,
-	)
 }

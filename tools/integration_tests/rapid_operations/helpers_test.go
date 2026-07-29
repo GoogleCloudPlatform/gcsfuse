@@ -34,8 +34,10 @@ func (t *BaseSuite) createGCSFile(useAppendableAPI bool, fileSize int64) (filePa
 	content, err := operations.GenerateRandomData(fileSize)
 	require.NoError(t.T(), err)
 
-	// Create file directly in GCS using Go SDK with the chosen API.
-	err = client.CreateObjectWithAPI(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName), content, useAppendableAPI)
+	err = client.CreateObjectWithOptions(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName), content, nil,
+		client.WithAppendableAPI(useAppendableAPI),
+		client.WithFinalizeOnClose(true),
+	)
 	require.NoError(t.T(), err)
 	return filePath, content
 }
