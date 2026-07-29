@@ -281,7 +281,7 @@ func TestParsingError(t *testing.T) {
 		{
 			name:   "Protocol",
 			args:   []string{"--protocolParam=pqr"},
-			errMsg: "invalid protocol value: pqr. It can only accept values in the list: [http1 http2 grpc]",
+			errMsg: "invalid protocol value: pqr. It can only accept values in the list: [http1 http2 grpc httpmtls]",
 		},
 		{
 			name:   "DirectPathStrategy",

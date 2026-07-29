@@ -23,7 +23,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -283,17 +282,31 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 			return nil, fmt.Errorf("failed to get client auth options and token: %w", err)
 		}
 		clientOpts = append(clientOpts, authOpts...)
+	} else {
+		tokenSrc, err = storageutil.CreateTokenSource(clientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("while fetching tokenSource: %w", err)
+		}
+	}
+
+	if clientConfig.ClientProtocol == cfg.HTTPMtls {
+		clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
+		// When googleLibAuth is enabled, clientOpts already has tokenSrc.
+		if !clientConfig.EnableGoogleLibAuth && tokenSrc != nil {
+			clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+		}
 	}
 
 	// Add WithHttpClient option.
-	var httpClient *http.Client
-	httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc)
-	if err != nil {
-		err = fmt.Errorf("while creating http endpoint: %w", err)
-		return
+	if clientConfig.ClientProtocol != cfg.HTTPMtls {
+		var httpClient *http.Client
+		httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc)
+		if err != nil {
+			err = fmt.Errorf("while creating http endpoint: %w", err)
+			return
+		}
+		clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 	}
-
-	clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 
 	// Create client with JSON read flow, if EnableJasonRead flag is set.
 	if clientConfig.ExperimentalEnableJsonRead {
@@ -467,7 +480,7 @@ func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, buck
 		return sh.createNonBidiGRPCClientWithHttpFallback(ctx, bucketName, billingProject)
 	}
 
-	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 {
+	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 || sh.clientConfig.ClientProtocol == cfg.HTTPMtls {
 		if sh.httpClient == nil {
 			sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
 		}

@@ -642,7 +642,8 @@ params:
     type: "protocol"
     usage: >-
       The protocol used for communicating with the GCS backend.
-      Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2) or 'grpc'.
+      Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2), 'grpc', or 'httpmtls'.
+      'httpmtls' delegates connection creation to the SDK (enabling mTLS) and uses HTTP/2 by default, falling back to HTTP/1.1 if the server doesn't support it.
     default: "http1"
 
   - config-path: "gcs-connection.custom-endpoint"
