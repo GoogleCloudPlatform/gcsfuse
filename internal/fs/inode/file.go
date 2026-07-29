@@ -774,18 +774,9 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 	bytes := int64(len(data))
 	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.WriteFileStreaming, f.src.Name, &bytes, &err)
 	defer finishSpan()
-	// Preconditions are checked when the object becomes visible in the namespace.
-	// For appendable objects, preconditions are checked when starting the stream.
-	// Once the stream is started, subsequent block uploads, flushes, or syncs receive gcs.NotFoundError if the backing object was deleted on GCS.
-	// For non-appendable objects, preconditions are checked when the stream ends, returning gcs.PreconditionError.
 	err = f.bwh.Write(ctx, data, offset)
-	var preconditionErr *gcs.PreconditionError
-	var notFoundErr *gcs.NotFoundError
-	if errors.As(err, &preconditionErr) || errors.As(err, &notFoundErr) {
-		return false, &gcsfuse_errors.FileClobberedError{
-			Err:        fmt.Errorf("f.bwh.Write(): %w", err),
-			ObjectName: f.src.Name,
-		}
+	if clobberedErr := f.wrapFileClobberedError(err, "f.bwh.Write()"); clobberedErr != nil {
+		return false, clobberedErr
 	}
 	// Fall back to temp file for Out-Of-Order Writes.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
@@ -810,15 +801,8 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) flushUsingBufferedWriteHandler(ctx context.Context) error {
 	obj, err := f.bwh.Flush(ctx)
-	// For appendable streams, if the backing object was deleted on GCS after stream start,
-	// bwh.Flush() returns gcs.NotFoundError instead of gcs.PreconditionError.
-	var preconditionErr *gcs.PreconditionError
-	var notFoundErr *gcs.NotFoundError
-	if errors.As(err, &preconditionErr) || errors.As(err, &notFoundErr) {
-		return &gcsfuse_errors.FileClobberedError{
-			Err:        fmt.Errorf("f.bwh.Flush(): %w", err),
-			ObjectName: f.src.Name,
-		}
+	if clobberedErr := f.wrapFileClobberedError(err, "f.bwh.Flush()"); clobberedErr != nil {
+		return clobberedErr
 	}
 	if err != nil {
 		return fmt.Errorf("f.bwh.Flush(): %w", err)
@@ -837,15 +821,8 @@ func (f *FileInode) SyncPendingBufferedWrites(ctx context.Context) (gcsSynced bo
 		return
 	}
 	minObj, err := f.bwh.Sync(ctx)
-	// For appendable streams, if the backing object was deleted on GCS after stream start,
-	// bwh.Sync() returns gcs.NotFoundError instead of gcs.PreconditionError.
-	var preconditionErr *gcs.PreconditionError
-	var notFoundErr *gcs.NotFoundError
-	if errors.As(err, &preconditionErr) || errors.As(err, &notFoundErr) {
-		err = &gcsfuse_errors.FileClobberedError{
-			Err:        fmt.Errorf("f.bwh.Sync(ctx): %w", err),
-			ObjectName: f.src.Name,
-		}
+	if clobberedErr := f.wrapFileClobberedError(err, "f.bwh.Sync(ctx)"); clobberedErr != nil {
+		err = clobberedErr
 		return
 	}
 	if err != nil {
@@ -858,6 +835,26 @@ func (f *FileInode) SyncPendingBufferedWrites(ctx context.Context) (gcsSynced bo
 	// If we flushed out object, we need to update our state.
 	f.updateInodeStateAfterSync(minObj)
 	return
+}
+
+// wrapFileClobberedError wraps err as a FileClobberedError if it is a gcs.PreconditionError
+// or a gcs.NotFoundError.
+//
+// Preconditions are checked when the object becomes visible in the namespace. For appendable
+// objects, the object becomes visible when starting the stream, so preconditions are checked at
+// stream start; subsequent block uploads, flushes, or syncs receive gcs.NotFoundError if the
+// backing object was deleted on GCS. For non-appendable objects, the object becomes visible
+// when the stream ends, so preconditions are checked at stream end, returning gcs.PreconditionError.
+func (f *FileInode) wrapFileClobberedError(err error, op string) error {
+	var preconditionErr *gcs.PreconditionError
+	var notFoundErr *gcs.NotFoundError
+	if errors.As(err, &preconditionErr) || errors.As(err, &notFoundErr) {
+		return &gcsfuse_errors.FileClobberedError{
+			Err:        fmt.Errorf("%s: %w", op, err),
+			ObjectName: f.src.Name,
+		}
+	}
+	return nil
 }
 
 // Set the mtime for this file. May involve a round trip to GCS.
@@ -1048,15 +1045,8 @@ func (f *FileInode) syncUsingContent(ctx context.Context, writeCtx *WriteContext
 	// the latest object fetched from gcs which has all the properties populated.
 	newObj, err := f.bucket.SyncObject(ctx, f.Name().GcsObjectName(), latestGcsObj, f.content)
 
-	// If the backing object on GCS gets deleted while copying an appendable object
-	// or for ComposeObjects if the backing file is deleted, SyncObject returns gcs.NotFoundError.
-	var preconditionErr *gcs.PreconditionError
-	var notFoundErr *gcs.NotFoundError
-	if errors.As(err, &preconditionErr) || errors.As(err, &notFoundErr) {
-		return &gcsfuse_errors.FileClobberedError{
-			Err:        fmt.Errorf("SyncObject: %w", err),
-			ObjectName: f.src.Name,
-		}
+	if clobberedErr := f.wrapFileClobberedError(err, "SyncObject"); clobberedErr != nil {
+		return clobberedErr
 	}
 
 	// Propagate other errors.
