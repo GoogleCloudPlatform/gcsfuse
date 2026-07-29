@@ -167,8 +167,8 @@ func RunTestsForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestCo
 			log.Printf("Failed to delete temp credentials file %s: %v", localKeyFilePath, err)
 		}
 	}()
-	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
-	defer RevokePermission(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
+	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, setup.TestBucket())
+	defer RevokePermission(ctx, storageClient, serviceAccount, permission, setup.TestBucket())
 
 	// Without –key-file flag and GOOGLE_APPLICATION_CREDENTIALS
 	// This case will not get covered as gcsfuse internally authenticates from a metadata server on GCE VM.

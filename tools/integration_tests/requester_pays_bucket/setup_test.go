@@ -148,8 +148,8 @@ func TestMain(m *testing.M) {
 
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as RequesterPaysBucket tests validates content from the bucket.
-	if cfg.RequesterPaysBucket[0].GKEMountedDirectory != "" && cfg.RequesterPaysBucket[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.RequesterPaysBucket[0].GKEMountedDirectory, m))
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
 	}
 
 	// Run tests for testBucket

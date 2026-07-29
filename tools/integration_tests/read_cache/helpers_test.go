@@ -111,7 +111,7 @@ func validate(expected *Expected, logEntry *read_logs.StructuredReadLogEntry, is
 }
 
 func getCachedFilePath(fileName string) string {
-	bucketName := testEnv.cfg.TestBucket
+	bucketName := setup.TestBucket()
 	if setup.DynamicBucketMounted() != "" {
 		bucketName = setup.DynamicBucketMounted()
 	}

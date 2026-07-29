@@ -107,8 +107,8 @@ func TestMain(m *testing.M) {
 	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
 
 	// To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
 	}
 
 	// Run tests for testBucket

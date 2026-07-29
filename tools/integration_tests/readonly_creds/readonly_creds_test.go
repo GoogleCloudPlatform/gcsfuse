@@ -78,7 +78,7 @@ func TestMain(m *testing.M) {
 	}()
 
 	// 3. Skip for GKE or mounted directory tests.
-	if cfg.ReadonlyCreds[0].GKEMountedDirectory != "" {
+	if setup.MountedDirectory() != "" {
 		log.Print("These tests will not run for mountedDirectory flag.")
 		os.Exit(0)
 	}
@@ -99,6 +99,6 @@ func TestMain(m *testing.M) {
 	// Test for viewer permission on test bucket.
 	successCode := creds_tests.RunTestsForDifferentAuthMethods(testEnv.ctx, testEnv.cfg, testEnv.storageClient, flags, "objectViewer", m)
 
-	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, testDirName))
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
 }

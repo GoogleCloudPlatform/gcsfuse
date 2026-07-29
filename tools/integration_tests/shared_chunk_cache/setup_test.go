@@ -70,7 +70,7 @@ func TestMain(m *testing.M) {
 	}()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		// For GKE, we expect both directories to be mounted if it's a dual mount test.
 		// If using config, GKEMountedDirectorySecondary should be set.
 		testEnv.cfg.GCSFuseMountedDirectory = testEnv.cfg.GKEMountedDirectory

@@ -225,8 +225,8 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as Gzip tests validates content from the bucket.
-	if cfg.Gzip[0].GKEMountedDirectory != "" && cfg.Gzip[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.Gzip[0].GKEMountedDirectory, m))
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
 	}
 
 	// Run tests for testBucket.

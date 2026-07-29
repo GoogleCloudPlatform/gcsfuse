@@ -68,7 +68,7 @@ var (
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
 	// In case of GKE, the mount directory is not created by the test.
-	if testEnv.cfg.GKEMountedDirectory != "" {
+	if setup.MountedDirectory() != "" {
 		setup.SetMntDir(testEnv.cfg.GKEMountedDirectory)
 	}
 	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, kTestDirName)
@@ -147,9 +147,9 @@ func TestMain(m *testing.M) {
 	defer testEnv.storageClient.Close()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		mountDir = testEnv.cfg.GKEMountedDirectory
-		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
+		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
 	}
 
 	// Run tests for testBucket

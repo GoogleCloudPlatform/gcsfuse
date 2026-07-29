@@ -691,7 +691,7 @@ func (s *concurrentListingTest) Test_StatWithNewFileWrite() {
 
 func TestConcurrentListing(t *testing.T) {
 	// Run tests for mounted directory if the flag is set.
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		ts := &concurrentListingTest{
 			ctx:           context.Background(),
 			storageClient: testEnv.storageClient,

@@ -146,9 +146,9 @@ func TestMain(m *testing.M) {
 	defer testEnv.storageClient.Close()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		mountDir = testEnv.cfg.GKEMountedDirectory
-		os.Exit(setup.RunTestsForMountedDirectory(mountDir, m))
+		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
 	}
 
 	// Run tests for testBucket

@@ -62,7 +62,7 @@ type SharedChunkCacheTestSuite struct{ BaseSuite }
 ////////////////////////////////////////////////////////////////////////
 
 func (t *BaseSuite) SetupTest() {
-	if testEnv.cfg.GKEMountedDirectory != "" {
+	if setup.MountedDirectory() != "" {
 		t.sharedCacheDir = path.Join(GKETempDir, "shared-cache", "gcsfuse-shared-chunk-cache")
 		// Clean up cache directory before each test to ensure clean state
 		operations.RemoveDir(t.sharedCacheDir)
@@ -105,7 +105,7 @@ func (t *BaseSuite) TearDownTest() {
 		}
 	}
 
-	if testEnv.cfg.GKEMountedDirectory != "" {
+	if setup.MountedDirectory() != "" {
 		// GKE Mode: Just cleanup files
 		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
 	} else {

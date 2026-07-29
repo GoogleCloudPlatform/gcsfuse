@@ -38,7 +38,7 @@ func tearDownMountTest(t *testing.T, err error) {
 ////////////////////////////////////////////////////////////////////////
 
 func TestMountFails(t *testing.T) {
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		t.Fatalf("This test is not valid for mounted-directory tests.")
 	}
 

@@ -145,6 +145,9 @@ func TestOnTPCEndPoint() bool {
 }
 
 func MountedDirectory() string {
+	if *mountedDirectory == "" {
+		*mountedDirectory = os.Getenv("MOUNTED_DIR")
+	}
 	return *mountedDirectory
 }
 
@@ -407,7 +410,7 @@ func IgnoreTestIfPresubmitFlagIsSet(b *testing.B) {
 func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
 	ParseSetUpFlags()
 
-	if TestBucket() == "" && *mountedDirectory == "" {
+	if TestBucket() == "" && MountedDirectory() == "" {
 		log.Print("--testbucket or --mountedDirectory must be specified")
 		os.Exit(1)
 	}
@@ -642,7 +645,7 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, testName string
 	// parse flags. Just return a single
 	// set of empty flags to run only one test case
 	// for a single `go test` command.
-	if cfg.GKEMountedDirectory != "" {
+	if MountedDirectory() != "" {
 		return [][]string{{""}}
 	}
 
@@ -728,7 +731,7 @@ func GetBucketAndObjectBasedOnTypeOfMount(object string) (string, string) {
 }
 
 func MountGCSFuseWithGivenMountFunc(flags []string, mountFunc func([]string) error) {
-	if *mountedDirectory == "" {
+	if MountedDirectory() == "" {
 		// Mount GCSFuse only when tests are not running on mounted directory.
 		if err := mountFunc(flags); err != nil {
 			LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
@@ -737,7 +740,7 @@ func MountGCSFuseWithGivenMountFunc(flags []string, mountFunc func([]string) err
 }
 
 func MountGCSFuseWithGivenMountWithConfigFunc(config *test_suite.TestConfig, flags []string, mountFunc func(*test_suite.TestConfig, []string) error) {
-	if config.GKEMountedDirectory == "" {
+	if MountedDirectory() == "" {
 		// Mount GCSFuse only when tests are not running on mounted directory.
 		if err := mountFunc(config, flags); err != nil {
 			LogAndExit(fmt.Sprintf("Failed to mount GCSFuse: %v", err))
@@ -748,7 +751,7 @@ func MountGCSFuseWithGivenMountWithConfigFunc(config *test_suite.TestConfig, fla
 // MayMountGCSFuseWithGivenMountWithConfigFunc is similar to MountGCSFuseWithGivenMountWithConfigFunc,
 // except that it returns error on failure, instead of panic'ing.
 func MayMountGCSFuseWithGivenMountWithConfigFunc(config *test_suite.TestConfig, flags []string, mountFunc func(*test_suite.TestConfig, []string) error) error {
-	if config.GKEMountedDirectory == "" {
+	if MountedDirectory() == "" {
 		// Mount GCSFuse only when tests are not running on mounted directory.
 		if err := mountFunc(config, flags); err != nil {
 			return fmt.Errorf("Failed to mount GCSFuse: %w", err)
@@ -760,7 +763,7 @@ func MayMountGCSFuseWithGivenMountWithConfigFunc(config *test_suite.TestConfig, 
 func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
 	UnmountGCSFuse(rootDir)
 	// delete log file created
-	if *mountedDirectory == "" {
+	if MountedDirectory() == "" {
 		err := os.Remove(LogFile())
 		if err != nil {
 			LogAndExit(fmt.Sprintf("Error in deleting log file: %v", err))
@@ -770,7 +773,7 @@ func UnmountGCSFuseAndDeleteLogFile(rootDir string) {
 
 func UnmountGCSFuse(rootDir string) {
 	SetMntDir(rootDir)
-	if *mountedDirectory == "" {
+	if MountedDirectory() == "" {
 		// Unmount GCSFuse only when tests are not running on mounted directory.
 		err := UnMount(mntDir)
 		if err != nil {
@@ -780,7 +783,7 @@ func UnmountGCSFuse(rootDir string) {
 }
 
 func UnmountGCSFuseWithConfig(cfg *test_suite.TestConfig) {
-	if cfg.GKEMountedDirectory == "" {
+	if MountedDirectory() == "" {
 		// Unmount GCSFuse only when tests are not running on mounted directory.
 		err := UnMount(cfg.GCSFuseMountedDirectory)
 		if err != nil {
@@ -898,7 +901,7 @@ func SetUpLogFilePath(testName string, flags []string, GKETempDir string, OldGKE
 		parsedLogFileName = "gcsfuse-tmp.log"
 	}
 
-	if cfg != nil && cfg.GKEMountedDirectory != "" { // GKE path
+	if MountedDirectory() != "" { // GKE path
 		logFilePath = path.Join(GKETempDir, parsedLogFileName)
 		if ConfigFile() == "" {
 			// TODO: clean this up when GKE test migration completes.

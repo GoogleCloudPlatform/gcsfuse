@@ -149,7 +149,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// Skip for GKE or mounted directory tests.
-	if cfg.MountTimeout[0].GKEMountedDirectory != "" {
+	if setup.MountedDirectory() != "" {
 		log.Print("These tests will not run for mountedDirectory flag.")
 		os.Exit(0)
 	}

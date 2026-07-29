@@ -277,7 +277,7 @@ func (s *concurrentReadTest) Test_MultiThreadedWritePlusRead() {
 
 func TestConcurrentRead(t *testing.T) {
 	// Run tests for mounted directory if the flag is set.
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		ts := &concurrentReadTest{
 			ctx:           context.Background(),
 			storageClient: testEnv.storageClient,

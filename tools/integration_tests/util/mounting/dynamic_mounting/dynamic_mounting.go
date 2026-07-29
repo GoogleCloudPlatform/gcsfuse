@@ -44,7 +44,7 @@ func runTestsOnGivenMountedTestBucket(cfg *test_suite.TestConfig, flags [][]stri
 		}
 
 		// Changing mntDir to path of bucket mounted in mntDir for testing.
-		mntDirOfTestBucket := path.Join(cfg.GCSFuseMountedDirectory, cfg.TestBucket)
+		mntDirOfTestBucket := path.Join(cfg.GCSFuseMountedDirectory, setup.TestBucket())
 		cfg.GCSFuseMountedDirectory = mntDirOfTestBucket
 		// TODO: clean up MntDir.
 		setup.SetMntDir(mntDirOfTestBucket)

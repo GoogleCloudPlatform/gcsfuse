@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// 2. Not running mounted directory tests.
-	if cfg.ReleaseVersion[0].GKEMountedDirectory != "" {
+	if setup.MountedDirectory() != "" {
 		log.Print("These tests will not run for mountedDirectory flag.")
 		os.Exit(0)
 	}

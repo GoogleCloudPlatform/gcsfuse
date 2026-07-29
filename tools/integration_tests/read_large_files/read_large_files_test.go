@@ -65,8 +65,8 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as ReadLargeFiles tests validates content from the bucket.
-	if cfg.ReadLargeFiles[0].GKEMountedDirectory != "" && cfg.ReadLargeFiles[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.ReadLargeFiles[0].GKEMountedDirectory, m))
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
 	}
 
 	setup.SetUpTestDirForTestBucket(&cfg.ReadLargeFiles[0])

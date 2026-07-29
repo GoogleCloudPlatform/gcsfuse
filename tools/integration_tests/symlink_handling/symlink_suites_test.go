@@ -51,7 +51,7 @@ type LegacySymlinksTestSuite struct{ BaseSymlinkSuite }
 ////////////////////////////////////////////////////////////////////////
 
 func (s *BaseSymlinkSuite) SetupTest() {
-	if testEnv.cfg.GKEMountedDirectory != "" {
+	if setup.MountedDirectory() != "" {
 		s.mntDir = testEnv.cfg.GKEMountedDirectory
 		s.testDirPath = path.Join(s.mntDir, TestDirName)
 	} else {

@@ -86,7 +86,7 @@ type StatAndListTestSuite struct{ BaseSuite }
 ////////////////////////////////////////////////////////////////////////
 
 func (t *BaseSuite) SetupTest() {
-	if testEnv.cfg.GKEMountedDirectory != "" {
+	if setup.MountedDirectory() != "" {
 		// GKE Mode: Already mounted
 		t.primaryMount.mntDir = testEnv.cfg.GKEMountedDirectory
 		t.primaryMount.testDirPath = path.Join(t.primaryMount.mntDir, testDirName)
@@ -121,7 +121,7 @@ func (t *BaseSuite) TearDownTest() {
 		}
 	}
 
-	if testEnv.cfg.GKEMountedDirectory != "" {
+	if setup.MountedDirectory() != "" {
 		// GKE Mode: Just cleanup files
 		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
 	} else {

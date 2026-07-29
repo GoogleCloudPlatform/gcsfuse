@@ -75,9 +75,9 @@ func TestMain(m *testing.M) {
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as stale handle tests validates content from the bucket.
 	// Note: These tests by default can only be run for non streaming mounts.
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		mountDir, rootDir = testEnv.cfg.GKEMountedDirectory, testEnv.cfg.GKEMountedDirectory
-		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
+		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
 	}
 
 	// Run tests for testBucket

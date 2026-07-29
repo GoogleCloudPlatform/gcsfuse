@@ -29,7 +29,7 @@ import (
 
 func TestWritesWithDifferentConfig(t *testing.T) {
 	// Do not run this test with mounted directory flag.
-	if testEnv.cfg.GKEMountedDirectory != "" {
+	if setup.MountedDirectory() != "" {
 		t.SkipNow()
 	}
 	// Create a separate mountDir for these tests so it doesn't interfere with the other tests.

@@ -99,7 +99,7 @@ func TestFiniteNegativeStatCacheTest(t *testing.T) {
 	ts := &finiteNegativeStatCacheTest{}
 
 	// Run tests for mounted directory if the flag is set.
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		suite.Run(t, ts)
 		return
 	}

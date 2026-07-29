@@ -125,8 +125,8 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set.
-	if cfg.ReadOnly[0].GKEMountedDirectory != "" && cfg.ReadOnly[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.ReadOnly[0].GKEMountedDirectory, m))
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
 	}
 
 	setup.SetUpTestDirForTestBucket(&cfg.ReadOnly[0])

@@ -179,7 +179,7 @@ func (s *SequentialReadSuite) TestReadSpanningTwoBlocks() {
 func TestSequentialReadSuite(t *testing.T) {
 	ts := &SequentialReadSuite{}
 
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		suite.Run(t, ts)
 		return
 	}

@@ -104,7 +104,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// 3. these tests won't run with mountedDirectory.
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		log.Printf("These tests will not run with mounted directory..")
 		return
 	}
@@ -123,7 +123,7 @@ func TestMain(m *testing.M) {
 	if successCode == 0 {
 		log.Println("Running dynamic mounting tests...")
 		// Save mount directory variable to have path of bucket to run tests.
-		testEnv.mountDir = path.Join(testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.TestBucket)
+		testEnv.mountDir = path.Join(testEnv.cfg.GCSFuseMountedDirectory, setup.TestBucket())
 		testEnv.mountFunc = dynamic_mounting.MountGcsfuseWithDynamicMountingWithConfig
 		successCode = m.Run()
 	}
@@ -134,10 +134,10 @@ func TestMain(m *testing.M) {
 		testEnv.mountDir = testEnv.rootDir
 		testEnv.mountFunc = only_dir_mounting.MountGcsfuseWithOnlyDirWithConfigFile
 		successCode = m.Run()
-		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, setup.OnlyDirMounted(), TestDirForManagedFolderTest))
+		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), setup.OnlyDirMounted(), TestDirForManagedFolderTest))
 	}
 
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, TestDirForManagedFolderTest))
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), TestDirForManagedFolderTest))
 	os.Exit(successCode)
 }

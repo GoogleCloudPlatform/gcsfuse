@@ -58,8 +58,8 @@ func RunTestsForExplicitAndImplicitDir(config *test_suite.TestConfig, flags [][]
 		return 0
 	}
 
-	if config.GKEMountedDirectory != "" && config.TestBucket != "" {
-		successCode := setup.RunTestsForMountedDirectory(config.GKEMountedDirectory, m)
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		successCode := setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m)
 		return successCode
 	}
 

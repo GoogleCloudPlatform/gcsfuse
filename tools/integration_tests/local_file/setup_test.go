@@ -60,8 +60,8 @@ func TestMain(m *testing.M) {
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as LocalFile tests validates content from the bucket.
-	if cfg.LocalFile[0].GKEMountedDirectory != "" && cfg.LocalFile[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.LocalFile[0].GKEMountedDirectory, m))
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
 	}
 
 	// Run tests for testBucket.

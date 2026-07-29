@@ -87,7 +87,7 @@ func (p *PromTestBase) TearDownTest() {
 
 func mountGCSFuseAndSetupTestDir(flags []string, ctx context.Context, storageClient *storage.Client) {
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, flags, mountFunc)
-	if testEnv.cfg.GKEMountedDirectory != "" {
+	if setup.MountedDirectory() != "" {
 		setup.SetMntDir(testEnv.cfg.GKEMountedDirectory)
 	}
 	testEnv.testDirPath = client.SetupTestDirectory(ctx, storageClient, testDirName)
@@ -182,8 +182,8 @@ func TestMain(m *testing.M) {
 	}
 	defer testEnv.storageClient.Close()
 
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
 	}
 
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)

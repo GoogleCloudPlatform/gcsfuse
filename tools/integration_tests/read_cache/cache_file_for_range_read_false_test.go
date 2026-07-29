@@ -166,7 +166,7 @@ func (s *cacheFileForRangeReadFalseTest) TestReadIsTreatedNonSequentialAfterFile
 func (s *cacheFileForRangeReadFalseTest) runTests(t *testing.T) {
 	t.Helper()
 	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		suite.Run(t, s)
 		return
 	}

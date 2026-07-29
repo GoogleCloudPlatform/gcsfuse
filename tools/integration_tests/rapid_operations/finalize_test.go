@@ -34,7 +34,7 @@ func (t *FinalizeRapidWritesTestSuite) TestFileClosedInFinalizedState() {
 	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
 	defer t.deleteUnfinalizedObject()
 	initialContent := "test content"
-	bucket := testEnv.storageClient.Bucket(testEnv.cfg.TestBucket)
+	bucket := testEnv.storageClient.Bucket(setup.TestBucket())
 	objHandle := bucket.Object(path.Join(testDirName, t.fileName))
 
 	operations.CreateFileWithContent(filePath, operations.FilePermission_0600, initialContent, t.T())
@@ -52,7 +52,7 @@ func (t *FinalizeRapidWritesTestSuite) TestFileClosedInUnfinalizedState() {
 	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
 	defer t.deleteUnfinalizedObject()
 	initialContent := "test content"
-	bucket := testEnv.storageClient.Bucket(testEnv.cfg.TestBucket)
+	bucket := testEnv.storageClient.Bucket(setup.TestBucket())
 	objHandle := bucket.Object(path.Join(testDirName, t.fileName))
 
 	operations.CreateFileWithContent(filePath, operations.FilePermission_0600, initialContent, t.T())

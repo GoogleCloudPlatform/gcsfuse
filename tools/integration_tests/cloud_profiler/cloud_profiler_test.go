@@ -105,10 +105,10 @@ func TestMain(m *testing.M) {
 	}()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	if cfg.CloudProfiler[0].GKEMountedDirectory != "" {
+	if setup.MountedDirectory() != "" {
 		testVersionName = setup.ExtractServiceVersionFromFlags(cfg.CloudProfiler[0].Configs[0].Flags)
 		testServiceName = setup.CloudProfilerServiceNameFromFlags(cfg.CloudProfiler[0].Configs[0].Flags)
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.CloudProfiler[0].GKEMountedDirectory, m))
+		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
 	}
 
 	logger.Infof("Enabling cloud profiler with Service Name: %s and version: %s", testServiceName, testVersionName)

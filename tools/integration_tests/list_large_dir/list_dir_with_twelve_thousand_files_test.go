@@ -227,7 +227,7 @@ func testdataCreateExplicitDir(t *testing.T, ctx context.Context, storageClient 
 func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs bool) string {
 	t.Helper()
 
-	testDirPathOnBucket := path.Join(testEnv.cfg.TestBucket, t.Name())
+	testDirPathOnBucket := path.Join(setup.TestBucket(), t.Name())
 	testDirPath := path.Join(setup.MntDir(), t.Name())
 
 	err := os.MkdirAll(testDirPath, 0755)
@@ -294,7 +294,7 @@ func (t *listLargeDir) TestListDirectoryWithTwelveThousandFilesAndHundredExplici
 
 func (ts *listLargeDir) runTests(t *testing.T) {
 	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		suite.Run(t, ts)
 		return
 	}

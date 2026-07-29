@@ -186,7 +186,7 @@ func (s *RandomReadFallbackSuite) TestRandomThenSequential_SwitchesBackToBuffere
 func TestInsufficientPoolCreationSuite(t *testing.T) {
 	ts := &InsufficientPoolCreationSuite{}
 
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		suite.Run(t, ts)
 		return
 	}
@@ -201,7 +201,7 @@ func TestInsufficientPoolCreationSuite(t *testing.T) {
 func TestRandomReadFallbackSuite(t *testing.T) {
 	ts := &RandomReadFallbackSuite{}
 
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		suite.Run(t, ts)
 		return
 	}

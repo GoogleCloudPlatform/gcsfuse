@@ -93,7 +93,7 @@ func setupLogFileAndCacheDir(testName string) {
 	var logFilePath string
 	testEnv.cacheDirPath = path.Join(setup.TestDir(), GKETempDir, testName)
 	logFilePath = path.Join(setup.TestDir(), GKETempDir, testName) + ".log"
-	if testEnv.cfg.GKEMountedDirectory != "" {
+	if setup.MountedDirectory() != "" {
 		testEnv.cacheDirPath = path.Join(GKETempDir, testName)
 		mountDir = testEnv.cfg.GKEMountedDirectory
 		logFilePath = path.Join(GKETempDir, testName) + ".log"
@@ -342,8 +342,8 @@ func TestMain(m *testing.M) {
 	defer testEnv.storageClient.Close()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
 	}
 
 	// Run tests for testBucket

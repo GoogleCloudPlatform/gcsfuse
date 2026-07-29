@@ -115,8 +115,8 @@ func TestMain(m *testing.M) {
 	defer storageClient.Close()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
-	if cfg.Operations[0].GKEMountedDirectory != "" && cfg.Operations[0].TestBucket != "" {
-		os.Exit(setup.RunTestsForMountedDirectory(cfg.Operations[0].GKEMountedDirectory, m))
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
+		os.Exit(setup.RunTestsForMountedDirectory(setup.MountedDirectory(), m))
 	}
 
 	// 4. Override GKE specific paths with GCSFuse paths if running in GCE environment.

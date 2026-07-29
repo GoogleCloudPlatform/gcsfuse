@@ -131,7 +131,7 @@ func TestNotifierTest(t *testing.T) {
 	ts := &notifierTest{ctx: context.Background(), storageClient: testEnv.storageClient}
 
 	// Run tests for mounted directory if the flag is set.
-	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		suite.Run(t, ts)
 		return
 	}
