@@ -197,9 +197,8 @@ func (c *getStorageLayoutStallSuite) TestGetStorageLayoutStallInducedShouldCompl
 func TestControlClientStall(t *testing.T) {
 	flags := []string{
 		"--client-protocol=grpc",
-		"--rename-dir-limit=0",                                // Force use of Control API for folders instead of legacy workarounds
-		"--experimental-nonrapid-folder-api-stall-retry=true", // Enable the new flag we are testing!
-		"--metadata-cache-ttl-secs=0",                         // Disable cache so calls definitely hit the backend
+		"--rename-dir-limit=0",        // Force use of Control API for folders instead of legacy workarounds
+		"--metadata-cache-ttl-secs=0", // Disable cache so calls definitely hit the backend
 	}
 
 	suites := []suite.TestingSuite{

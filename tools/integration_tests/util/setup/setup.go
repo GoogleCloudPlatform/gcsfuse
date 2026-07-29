@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -559,15 +560,15 @@ func ResolveIsHierarchicalBucket(ctx context.Context, testBucket string, storage
 func TestEnvironment(ctx context.Context, cfg *test_suite.TestConfig) string {
 	// TODO: clean up SetGlobalVars after migration completes.
 	SetGlobalVars(cfg)
-	bucketType, err := BucketType(ctx, cfg.TestBucket)
+	bType, err := bucketType(ctx, cfg.TestBucket)
 	if err != nil {
-		log.Fatalf("BucketType failed: %v", err)
+		log.Fatalf("bucketType failed: %v", err)
 	}
-	if bucketType == ZonalBucket {
+	if bType == ZonalBucket {
 		SetIsZonalBucketRun(true)
 	}
 
-	return bucketType
+	return bType
 }
 
 const FlatBucket = "flat"
@@ -576,7 +577,7 @@ const ZonalBucket = "zonal"
 const FlatPirloBucket = "flat_pirlo"
 const HNSPirloBucket = "hns_pirlo"
 
-func BucketType(ctx context.Context, testBucket string) (bucketType string, err error) {
+func bucketType(ctx context.Context, testBucket string) (bType string, err error) {
 	// For only-dir mounts bucket name is passed as <test_bucket>/<only_dir> by GKE.
 	testBucket = strings.Split(testBucket, "/")[0]
 	ctx, cancel := context.WithCancel(ctx)
@@ -633,10 +634,10 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 
 // BuildFlagSets dynamically builds a list of flag sets based on bucket compatibility.
 // bucketType should be "flat", "hns", "zonal", "flat_pirlo", or "hns_pirlo".
-// The run parameter filters flag sets based on the 'Run' field in the test
-// configuration, which typically corresponds to a specific test name. If run is
+// The testName parameter filters flag sets based on the 'Run' field in the test
+// configuration, which typically corresponds to a specific test name. If testName is
 // an empty string, all flag sets for the package are returned.
-func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][]string {
+func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, testName string) [][]string {
 	// In case of mounted-directory, no need to
 	// parse flags. Just return a single
 	// set of empty flags to run only one test case
@@ -648,29 +649,41 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][
 	var dynamicFlags [][]string
 
 	// 1. Iterate through each defined test configuration (e.g., HTTP, gRPC).
-	for _, testCase := range cfg.Configs {
+	for _, testConfig := range cfg.Configs {
 		// 2. Check if the current test case is compatible with the bucket type.
 		// For Pirlo runs, evaluate the RunOnPirlo struct. Otherwise, check the standard Compatible map.
-		isCompatible := false
+		isBucketCompatible := false
 		switch bucketType {
 		case FlatPirloBucket:
-			isCompatible = testCase.RunOnPirlo.Flat.SameZone || testCase.RunOnPirlo.Flat.DifferentZone
+			isBucketCompatible = testConfig.RunOnPirlo.Flat.SameZone || testConfig.RunOnPirlo.Flat.DifferentZone
 		case HNSPirloBucket:
-			isCompatible = testCase.RunOnPirlo.Hns.SameZone || testCase.RunOnPirlo.Hns.DifferentZone
+			isBucketCompatible = testConfig.RunOnPirlo.Hns.SameZone || testConfig.RunOnPirlo.Hns.DifferentZone
 		default:
 			var ok bool
-			isCompatible, ok = testCase.Compatible[bucketType]
+			isBucketCompatible, ok = testConfig.Compatible[bucketType]
 			if !ok {
-				isCompatible = false
+				isBucketCompatible = false
 			}
 		}
-		tpcRun := (TestOnTPCEndPoint() == testCase.TPC)
-		if isCompatible && tpcRun && (run == "" || run == testCase.Run) {
-			// 3. If compatible, process its flags and add them to the result.
-			for _, flagString := range testCase.Flags {
-				flagString = strings.ReplaceAll(flagString, ",", " ")
-				dynamicFlags = append(dynamicFlags, strings.Fields(flagString))
-			}
+		isTPCCompatible := (TestOnTPCEndPoint() == testConfig.TPC)
+		if !isBucketCompatible || !isTPCCompatible {
+			continue
+		}
+
+		// The skip field is intended for function-level test suites where testName is specified (e.g. t.Name()).
+		// Package-level test executions (where testName is empty) do not support skip in test_config.yaml.
+		if testName == "" && len(testConfig.Skip) > 0 {
+			log.Fatalf("Invalid configuration: skip field is not supported when testName is empty in test_config.yaml")
+		}
+
+		if slices.Contains(testConfig.Skip, testName) || (testConfig.Run != "" && testName != testConfig.Run) {
+			continue
+		}
+
+		// Process flags and add them to the result.
+		for _, flagString := range testConfig.Flags {
+			flagString = strings.ReplaceAll(flagString, ",", " ")
+			dynamicFlags = append(dynamicFlags, strings.Fields(flagString))
 		}
 	}
 	return dynamicFlags

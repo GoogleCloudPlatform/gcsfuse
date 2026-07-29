@@ -23,7 +23,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -58,10 +57,9 @@ const (
 	zonalLocationType = "zone"
 
 	// DirectPath detection parameters - used for fast-fail detection during client creation
-	directPathDetectionMaxAttempts      = 5
-	directPathDetectionTimeout          = 15 * time.Second
-	directPathDetectionMaxBackoff       = 5 * time.Second
-	directPathDetectionMaxRetryDuration = 1 * time.Minute
+	directPathDetectionMaxAttempts = 5
+	directPathDetectionTimeout     = 15 * time.Second
+	directPathDetectionMaxBackoff  = 5 * time.Second
 
 	// nonExistentObjectName is the object name used for bucket existence/access check when HNS feature is disabled by providing "--enable-hns:false". E.g. Using Regional Endpoints which do not support GRPC protocol.
 	nonExistentObjectName = "gcsfuse-nonexistent-object-check"
@@ -244,7 +242,7 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 		RetryMultiplier:  clientConfig.RetryMultiplier,
 		MaxRetryAttempts: directPathDetectionMaxAttempts,
 	}
-	retryConfig := storageutil.NewCustomRetryConfig(dpClientConfig, directPathDetectionTimeout, directPathDetectionMaxRetryDuration)
+	retryConfig := storageutil.NewCustomRetryConfig(dpClientConfig, directPathDetectionTimeout)
 
 	apiCall := func(attemptCtx context.Context) (*storage.ObjectAttrs, error) {
 		return bucketHandle.Object(testObject).Attrs(attemptCtx)
@@ -284,17 +282,31 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 			return nil, fmt.Errorf("failed to get client auth options and token: %w", err)
 		}
 		clientOpts = append(clientOpts, authOpts...)
+	} else {
+		tokenSrc, err = storageutil.CreateTokenSource(clientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("while fetching tokenSource: %w", err)
+		}
+	}
+
+	if clientConfig.ClientProtocol == cfg.HTTPMtls {
+		clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
+		// When googleLibAuth is enabled, clientOpts already has tokenSrc.
+		if !clientConfig.EnableGoogleLibAuth && tokenSrc != nil {
+			clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+		}
 	}
 
 	// Add WithHttpClient option.
-	var httpClient *http.Client
-	httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc)
-	if err != nil {
-		err = fmt.Errorf("while creating http endpoint: %w", err)
-		return
+	if clientConfig.ClientProtocol != cfg.HTTPMtls {
+		var httpClient *http.Client
+		httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc)
+		if err != nil {
+			err = fmt.Errorf("while creating http endpoint: %w", err)
+			return
+		}
+		clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 	}
-
-	clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 
 	// Create client with JSON read flow, if EnableJasonRead flag is set.
 	if clientConfig.ExperimentalEnableJsonRead {
@@ -425,7 +437,8 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	var clientOpts []option.ClientOption
 
 	// Control-client is needed for folder APIs and for getting storage-layout of the bucket.
-	if clientConfig.EnableHNS {
+	// Bypassed for HTTP storage testbenches that inject the legacy REST API path.
+	if clientConfig.EnableHNS && !strings.Contains(clientConfig.CustomEndpoint, "/storage/v1") {
 		// For control client, we don't pass billingProject to avoid setting it globally via option.WithQuotaProject.
 		// The wrapper storageControlClientWithBillingProject will manually add it to the context for supported calls.
 		clientOpts, err = createClientOptionForGRPCClient(ctx, &clientConfig, false)
@@ -442,6 +455,8 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		controlClient = NewStorageControlClient(rawStorageControlClient, &clientConfig,
 			WithBillingProject(billingProject),
 		)
+	} else if clientConfig.EnableHNS {
+		logger.Infof("Skipping storage control client creation for custom-endpoint %q.", clientConfig.CustomEndpoint)
 	}
 
 	sh = &storageClient{
@@ -465,7 +480,7 @@ func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, buck
 		return sh.createNonBidiGRPCClientWithHttpFallback(ctx, bucketName, billingProject)
 	}
 
-	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 {
+	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 || sh.clientConfig.ClientProtocol == cfg.HTTPMtls {
 		if sh.httpClient == nil {
 			sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
 		}
