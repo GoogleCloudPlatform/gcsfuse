@@ -91,9 +91,17 @@ func (t *BaseSuite) SetupTest() {
 		t.primaryMount.testDirPath = path.Join(t.primaryMount.mntDir, testDirName)
 		t.primaryMount.logFilePath = testEnv.cfg.LogFile // Might be empty, but that's fine for GKE
 
+		err := os.MkdirAll(t.primaryMount.testDirPath, setup.DirPermission_0755)
+		require.NoError(t.T(), err, "Failed to create test directory in primary mount")
+		setup.CleanUpDir(t.primaryMount.testDirPath)
+
 		if len(t.secondaryFlags) > 0 {
 			t.secondaryMount.mntDir = testEnv.cfg.GKEMountedDirectorySecondary
 			t.secondaryMount.testDirPath = path.Join(t.secondaryMount.mntDir, testDirName)
+
+			err = os.MkdirAll(t.secondaryMount.testDirPath, setup.DirPermission_0755)
+			require.NoError(t.T(), err, "Failed to create test directory in secondary mount")
+			setup.CleanUpDir(t.secondaryMount.testDirPath)
 		}
 	} else {
 		// GCE Mode: Mount it
