@@ -221,6 +221,16 @@ func TestValidateCliFlag(t *testing.T) {
 			args:    []string{"--fuse-max-write-size-kb=2048"},
 			wantErr: true,
 		},
+		{
+			name:    "valid grpc-path-strategy direct-path-with-grpc-fallback",
+			args:    []string{"--grpc-path-strategy=direct-path-with-grpc-fallback"},
+			wantErr: false,
+		},
+		{
+			name:    "invalid grpc-path-strategy",
+			args:    []string{"--grpc-path-strategy=invalid-strategy"},
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range testCases {

@@ -1206,7 +1206,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
 
-	flagSet.StringP("grpc-path-strategy", "", "direct-path-with-fallback", "Strategy for DirectPath connectivity when client-protocol=grpc. Options: 'direct-path-only' (fail if unavailable), 'direct-path-with-fallback' (always fallback to HTTP/1 when direct path is not available).")
+	flagSet.StringP("grpc-path-strategy", "", "direct-path-with-fallback", "Strategy for DirectPath connectivity when client-protocol=grpc. Options: 'direct-path-only' (fail if unavailable), 'direct-path-with-fallback' (always fallback to HTTP/1 when direct path is not available), 'direct-path-with-grpc-fallback' (fallback to standard gRPC cloud path when direct path is not available).")
 
 	if err := flagSet.MarkHidden("grpc-path-strategy"); err != nil {
 		return err

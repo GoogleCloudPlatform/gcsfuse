@@ -68,16 +68,18 @@ const (
 	DirectPathOnly DirectPathStrategy = "direct-path-only"
 	// DirectPathWithFallback falls back to HTTP/1 if DirectPath is unavailable.
 	DirectPathWithFallback DirectPathStrategy = "direct-path-with-fallback"
+	// DirectPathWithGrpcFallback falls back to standard gRPC cloud path if DirectPath is unavailable.
+	DirectPathWithGrpcFallback DirectPathStrategy = "direct-path-with-grpc-fallback"
 )
 
 func (d *DirectPathStrategy) UnmarshalText(text []byte) error {
 	strategy := DirectPathStrategy(strings.ToLower(string(text)))
 	switch strategy {
-	case DirectPathOnly, DirectPathWithFallback:
+	case DirectPathOnly, DirectPathWithFallback, DirectPathWithGrpcFallback:
 		*d = strategy
 		return nil
 	default:
-		validValues := []string{string(DirectPathOnly), string(DirectPathWithFallback)}
+		validValues := []string{string(DirectPathOnly), string(DirectPathWithFallback), string(DirectPathWithGrpcFallback)}
 		return fmt.Errorf("invalid direct-path strategy value: %s. It can only accept values in the list: %v", string(text), validValues)
 	}
 }

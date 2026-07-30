@@ -1048,3 +1048,126 @@ func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_AccessCheck_Exhausts
 	assert.ErrorContains(testSuite.T(), err, "bucket access check failed")
 	assert.Equal(testSuite.T(), testMaxRetryAttempts, *attempts, "expected max retry attempts to be exhausted")
 }
+
+func (testSuite *StorageHandleTest) TestIsDirectPathFailure() {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "generic error (not DP)",
+			err:      fmt.Errorf("some error"),
+			expected: false,
+		},
+		{
+			name:     "NewGRPCClient error (not DP)",
+			err:      fmt.Errorf("NewGRPCClient: some config error"),
+			expected: false,
+		},
+		{
+			name:     "DirectPath verification failed error (is DP)",
+			err:      fmt.Errorf("%s %q: some network error", directPathVerificationErrorPrefix, "my-bucket"),
+			expected: true,
+		},
+		{
+			name:     "wrapped DirectPath verification failed error (is DP)",
+			err:      fmt.Errorf("wrapped: %w", fmt.Errorf("%s %q: timeout", directPathVerificationErrorPrefix, "my-bucket")),
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		testSuite.Run(tc.name, func() {
+			actual := isDirectPathFailure(tc.err)
+
+			assert.Equal(testSuite.T(), tc.expected, actual)
+		})
+	}
+}
+
+func (testSuite *StorageHandleTest) TestGetClient_GrpcPathStrategies() {
+	tests := []struct {
+		name             string
+		strategy         cfg.DirectPathStrategy
+		expectHttpClient bool
+		expectGrpcClient bool
+		expectErr        bool
+	}{
+		{
+			name:             "DirectPathOnly - fails on DP verification",
+			strategy:         cfg.DirectPathOnly,
+			expectHttpClient: false,
+			expectGrpcClient: false,
+			expectErr:        true,
+		},
+		{
+			name:             "DirectPathWithFallback - falls back to HTTP on DP verification failure",
+			strategy:         cfg.DirectPathWithFallback,
+			expectHttpClient: true,
+			expectGrpcClient: false,
+			expectErr:        false,
+		},
+		{
+			name:             "DirectPathWithGrpcFallback - uses standard gRPC directly (no verification)",
+			strategy:         cfg.DirectPathWithGrpcFallback,
+			expectHttpClient: false,
+			expectGrpcClient: true,
+			expectErr:        false,
+		},
+	}
+
+	for _, tc := range tests {
+		testSuite.Run(tc.name, func() {
+			// Create a storageClient without pre-populated clients.
+			// Point custom endpoint to a non-listening address to force DP verification failure.
+			sh := &storageClient{
+				clientConfig: storageutil.StorageClientConfig{
+					ClientProtocol:     cfg.GRPC,
+					GrpcPathStrategy:   tc.strategy,
+					CustomEndpoint:     "http://localhost:54321", // Non-listening port
+					AnonymousAccess:    true,                     // Avoid auth issues
+					EnableMountRetries: false,
+				},
+			}
+
+			client, err := sh.getClient(testSuite.ctx, false, "some-bucket", "")
+
+			if tc.expectErr {
+				assert.Error(testSuite.T(), err)
+				assert.Nil(testSuite.T(), client)
+			} else {
+				assert.NoError(testSuite.T(), err)
+				assert.NotNil(testSuite.T(), client)
+			}
+
+			if tc.expectHttpClient {
+				assert.NotNil(testSuite.T(), sh.httpClient)
+				assert.Equal(testSuite.T(), sh.httpClient, client)
+				assert.Nil(testSuite.T(), sh.grpcClient)
+			} else {
+				assert.Nil(testSuite.T(), sh.httpClient)
+			}
+
+			if tc.expectGrpcClient {
+				assert.NotNil(testSuite.T(), sh.grpcClient)
+				assert.Equal(testSuite.T(), sh.grpcClient, client)
+			} else if !tc.expectErr {
+				assert.Nil(testSuite.T(), sh.grpcClient)
+			}
+
+			// Clean up if clients were created
+			if sh.httpClient != nil {
+				_ = sh.httpClient.Close()
+			}
+			if sh.grpcClient != nil {
+				_ = sh.grpcClient.Close()
+			}
+		})
+	}
+}
