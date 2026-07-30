@@ -273,7 +273,7 @@ func (f *FileInode) checkInvariants() {
 // | Other GCS Stat Error                         | N/A          | Other     | (nil, false, <GCS Error>)                   |
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, includeExtendedObjectAttributes bool) (o *gcs.Object, b bool, err error) {
+func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, includeExtendedObjectAttributes bool) (o *gcs.Object, b bool, isNotFound bool, err error) {
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
 	req := &gcs.StatObjectRequest{
@@ -297,6 +297,7 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 		}
 
 		b = true
+		isNotFound = true
 		return
 	}
 
@@ -312,16 +313,16 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 	switch cmp {
 	case 0:
 		// Generations and size match: Not clobbered. Return the fetched object.
-		return o, false, nil
+		return o, false, false, nil
 	case 2:
 		// The latest GCS object has greater size at the same generation. Return
 		// the fetched object. We also return isClobbered true to indicate the
 		// remote size change.
-		return o, true, nil
+		return o, true, false, nil
 	default: // -1 (GCS is older) or 1 (GCS has different gen/metagen)
 		// GCS object is older, or generation/metageneration mismatch: Clobbered.
 		// Return nil for the object as it's not the version we might want to use.
-		return nil, true, nil
+		return nil, true, false, nil
 	}
 }
 
@@ -329,9 +330,15 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) CheckClobbered(ctx context.Context) (err error) {
-	_, clobbered, err := f.clobbered(ctx, true, false)
+	_, clobbered, isNotFound, err := f.clobbered(ctx, true, false)
 	if err != nil {
 		return err
+	}
+	if isNotFound {
+		return &gcsfuse_errors.FileNotFoundError{
+			Err:        errors.New("file was not found on GCS"),
+			ObjectName: f.name.GcsObjectName(),
+		}
 	}
 	if clobbered {
 		return &gcsfuse_errors.FileClobberedError{
@@ -615,7 +622,7 @@ func (f *FileInode) Attributes(
 		// unlinked.
 		var clobbered bool
 		var o *gcs.Object
-		o, clobbered, err = f.clobbered(ctx, false, false)
+		o, clobbered, _, err = f.clobbered(ctx, false, false)
 		if err != nil {
 			err = fmt.Errorf("clobbered: %w", err)
 			return
@@ -956,7 +963,7 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 	// properties and using that when object is synced below. StatObject by
 	// default sets the projection to full, which fetches all the object
 	// properties.
-	latestGcsObj, isClobbered, err := f.clobbered(ctx, true, true)
+	latestGcsObj, isClobbered, _, err := f.clobbered(ctx, true, true)
 	if err != nil {
 		return nil, err
 	}

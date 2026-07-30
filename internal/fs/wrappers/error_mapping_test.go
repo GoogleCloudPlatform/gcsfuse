@@ -101,3 +101,14 @@ func (testSuite *ErrorMapping) TestFileClobberedError() {
 
 	assert.Equal(testSuite.T(), syscall.ESTALE, gotErrno)
 }
+
+func (testSuite *ErrorMapping) TestFileNotFoundError() {
+	notFoundErr := &gcsfuse_errors.FileNotFoundError{
+		Err:        fmt.Errorf("some error"),
+		ObjectName: "foo.txt",
+	}
+
+	gotErrno := errno(notFoundErr)
+
+	assert.Equal(testSuite.T(), syscall.ENOENT, gotErrno)
+}

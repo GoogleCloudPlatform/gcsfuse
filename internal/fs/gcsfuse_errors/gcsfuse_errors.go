@@ -32,3 +32,18 @@ func (fce *FileClobberedError) Error() string {
 func (fce *FileClobberedError) Unwrap() error {
 	return fce.Err
 }
+
+// FileNotFoundError represents a scenario where a file was not found on GCS
+// when we expected it to exist.
+type FileNotFoundError struct {
+	Err        error
+	ObjectName string
+}
+
+func (fnfe *FileNotFoundError) Error() string {
+	return fmt.Sprintf("The file %q was not found on GCS: %v", fnfe.ObjectName, fnfe.Err)
+}
+
+func (fnfe *FileNotFoundError) Unwrap() error {
+	return fnfe.Err
+}
