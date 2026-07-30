@@ -16,7 +16,6 @@ package rapid_operations
 
 import (
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -26,10 +25,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func (t *FinalizeRapidWritesTestSuite) TestFileClosedInFinalizedState() {
-	if !t.isFinalizeEnabled {
-		t.T().Skip("Skipping test since finalize-file-for-rapid is false")
-	}
+func (t *FinalizeRapidWritesEnabledSuite) TestFileClosedInFinalizedState() {
 	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
 	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
 	defer t.deleteUnfinalizedObject()
@@ -44,10 +40,7 @@ func (t *FinalizeRapidWritesTestSuite) TestFileClosedInFinalizedState() {
 	assert.False(t.T(), attrs.Finalized.IsZero(), "Finalized field should not be zero for a finalized object")
 }
 
-func (t *FinalizeRapidWritesTestSuite) TestFileClosedInUnfinalizedState() {
-	if t.isFinalizeEnabled {
-		t.T().Skip("Skipping test since finalize-file-for-rapid is true")
-	}
+func (t *FinalizeRapidWritesDisabledSuite) TestFileClosedInUnfinalizedState() {
 	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
 	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
 	defer t.deleteUnfinalizedObject()
@@ -66,11 +59,18 @@ func (t *FinalizeRapidWritesTestSuite) TestFileClosedInUnfinalizedState() {
 // Test Runner
 ////////////////////////////////////////////////////////////////////////
 
-func TestFinalizeRapidWritesTestSuite(t *testing.T) {
-	RunTests(t, "TestFinalizeRapidWritesTestSuite", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
-		return &FinalizeRapidWritesTestSuite{
-			BaseSuite:         BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags},
-			isFinalizeEnabled: strings.Contains(strings.Join(primaryFlags, " "), "finalize-file-for-rapid=true"),
+func TestFinalizeRapidWritesEnabledSuite(t *testing.T) {
+	RunTests(t, "TestFinalizeRapidWritesEnabledSuite", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
+		return &FinalizeRapidWritesEnabledSuite{
+			BaseSuite: BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags},
+		}
+	})
+}
+
+func TestFinalizeRapidWritesDisabledSuite(t *testing.T) {
+	RunTests(t, "TestFinalizeRapidWritesDisabledSuite", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
+		return &FinalizeRapidWritesDisabledSuite{
+			BaseSuite: BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags},
 		}
 	})
 }
