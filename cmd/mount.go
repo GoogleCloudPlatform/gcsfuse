@@ -19,6 +19,8 @@ import (
 	"os"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
@@ -26,7 +28,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/spf13/viper"
-	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"

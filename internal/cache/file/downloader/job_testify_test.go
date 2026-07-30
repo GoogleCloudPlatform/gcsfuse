@@ -24,10 +24,11 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"

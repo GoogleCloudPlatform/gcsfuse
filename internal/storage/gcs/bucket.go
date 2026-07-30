@@ -17,8 +17,9 @@ package gcs
 import (
 	"io"
 
+	"context"
+
 	"cloud.google.com/go/storage"
-	"golang.org/x/net/context"
 )
 
 type PirloState int

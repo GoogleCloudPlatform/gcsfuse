@@ -34,6 +34,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"golang.org/x/sys/unix"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
@@ -50,7 +52,6 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
 	"github.com/spf13/viper"
-	"golang.org/x/net/context"
 )
 
 const (
