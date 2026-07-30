@@ -336,7 +336,7 @@ func (f *FileInode) CheckClobbered(ctx context.Context) (err error) {
 	}
 	if isNotFound {
 		return &gcsfuse_errors.FileNotFoundError{
-			Err:        errors.New("file was not found on GCS"),
+			Err:        errors.New("object does not exist"),
 			ObjectName: f.name.GcsObjectName(),
 		}
 	}

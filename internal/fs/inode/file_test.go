@@ -445,7 +445,7 @@ func (t *FileTest) TestCheckClobbered_Deleted() {
 
 	var fnfErr *gcsfuse_errors.FileNotFoundError
 	assert.True(t.T(), errors.As(err, &fnfErr), "expected FileNotFoundError but got %v", err)
-	assert.Contains(t.T(), err.Error(), "file was not found on GCS")
+	assert.Contains(t.T(), err.Error(), "object does not exist")
 }
 
 func (t *FileTest) TestInitialAttributes() {
