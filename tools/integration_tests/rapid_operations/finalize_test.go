@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func (t *FinalizeRapidWritesTestSuite) TestFileClosedInFinalizedState() {
+func (t *FinalizeRapidWritesEnabledSuite) TestFileClosedInFinalizedState() {
 	if !t.isFinalizeEnabled {
 		t.T().Skip("Skipping test since finalize-file-for-rapid is false")
 	}
@@ -44,7 +44,7 @@ func (t *FinalizeRapidWritesTestSuite) TestFileClosedInFinalizedState() {
 	assert.False(t.T(), attrs.Finalized.IsZero(), "Finalized field should not be zero for a finalized object")
 }
 
-func (t *FinalizeRapidWritesTestSuite) TestFileClosedInUnfinalizedState() {
+func (t *FinalizeRapidWritesDisabledSuite) TestFileClosedInUnfinalizedState() {
 	if t.isFinalizeEnabled {
 		t.T().Skip("Skipping test since finalize-file-for-rapid is true")
 	}
@@ -66,9 +66,18 @@ func (t *FinalizeRapidWritesTestSuite) TestFileClosedInUnfinalizedState() {
 // Test Runner
 ////////////////////////////////////////////////////////////////////////
 
-func TestFinalizeRapidWritesTestSuite(t *testing.T) {
-	RunTests(t, "TestFinalizeRapidWritesTestSuite", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
-		return &FinalizeRapidWritesTestSuite{
+func TestFinalizeRapidWritesEnabledSuite(t *testing.T) {
+	RunTests(t, "TestFinalizeRapidWritesEnabledSuite", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
+		return &FinalizeRapidWritesEnabledSuite{
+			BaseSuite:         BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags},
+			isFinalizeEnabled: strings.Contains(strings.Join(primaryFlags, " "), "finalize-file-for-rapid=true"),
+		}
+	})
+}
+
+func TestFinalizeRapidWritesDisabledSuite(t *testing.T) {
+	RunTests(t, "TestFinalizeRapidWritesDisabledSuite", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
+		return &FinalizeRapidWritesDisabledSuite{
 			BaseSuite:         BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags},
 			isFinalizeEnabled: strings.Contains(strings.Join(primaryFlags, " "), "finalize-file-for-rapid=true"),
 		}

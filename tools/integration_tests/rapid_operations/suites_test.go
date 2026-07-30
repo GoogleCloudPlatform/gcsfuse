@@ -72,8 +72,14 @@ type SingleMountAppendsTestSuite struct{ BaseSuite }
 // DualMountAppendsTestSuite groups general dual-mount tests for append behavior.
 type DualMountAppendsTestSuite struct{ BaseSuite }
 
-// FinalizeRapidWritesTestSuite groups tests for verifying transition to finalized state.
-type FinalizeRapidWritesTestSuite struct {
+// FinalizeRapidWritesEnabledSuite groups tests for verifying transition to finalized state when enabled.
+type FinalizeRapidWritesEnabledSuite struct {
+	BaseSuite
+	isFinalizeEnabled bool
+}
+
+// FinalizeRapidWritesDisabledSuite groups tests for verifying transition to finalized state when disabled.
+type FinalizeRapidWritesDisabledSuite struct {
 	BaseSuite
 	isFinalizeEnabled bool
 }
@@ -89,22 +95,24 @@ func (t *BaseSuite) SetupTest() {
 	if testEnv.cfg.GKEMountedDirectory != "" {
 		// GKE Mode: Already mounted
 		t.primaryMount.mntDir = testEnv.cfg.GKEMountedDirectory
-		t.primaryMount.testDirPath = path.Join(t.primaryMount.mntDir, testDirName)
 		t.primaryMount.logFilePath = testEnv.cfg.LogFile // Might be empty, but that's fine for GKE
+		setup.SetMntDir(t.primaryMount.mntDir)
+		t.primaryMount.testDirPath = setup.SetupTestDirectory(testDirName)
 
 		if len(t.secondaryFlags) > 0 {
 			t.secondaryMount.mntDir = testEnv.cfg.GKEMountedDirectorySecondary
-			t.secondaryMount.testDirPath = path.Join(t.secondaryMount.mntDir, testDirName)
+			setup.SetMntDir(t.secondaryMount.mntDir)
+			t.secondaryMount.testDirPath = setup.SetupTestDirectory(testDirName)
 		}
 	} else {
 		// GCE Mode: Mount it
 		t.primaryMount.setupTestDir(testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.LogFile)
-		t.mountGcsfuse(t.primaryMount, "primary", t.primaryFlags)
+		t.mountGcsfuse(&t.primaryMount, "primary", t.primaryFlags)
 
 		if len(t.secondaryFlags) > 0 {
 			secondaryLog := path.Join(path.Dir(testEnv.cfg.LogFile), "gcsfuse_secondary.log")
 			t.secondaryMount.setupTestDir(testEnv.cfg.GCSFuseMountedDirectorySecondary, secondaryLog)
-			t.mountGcsfuse(t.secondaryMount, "secondary", t.secondaryFlags)
+			t.mountGcsfuse(&t.secondaryMount, "secondary", t.secondaryFlags)
 		}
 	}
 }
@@ -126,9 +134,9 @@ func (t *BaseSuite) TearDownTest() {
 		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
 	} else {
 		// GCE Mode: Unmount and clean up
-		t.unmountAndCleanupMount(t.primaryMount, "primary")
+		t.unmountAndCleanupMount(&t.primaryMount)
 		if len(t.secondaryFlags) > 0 {
-			t.unmountAndCleanupMount(t.secondaryMount, "secondary")
+			t.unmountAndCleanupMount(&t.secondaryMount)
 		}
 	}
 }
@@ -144,7 +152,7 @@ func (mnt *mountPoint) setupTestDir(mountDir, logFile string) {
 	mnt.testDirPath = path.Join(mountDir, testDirName)
 }
 
-func (t *BaseSuite) mountGcsfuse(mnt mountPoint, mountType string, flags []string) {
+func (t *BaseSuite) mountGcsfuse(mnt *mountPoint, mountType string, flags []string) {
 	setup.SetMntDir(mnt.mntDir)
 	setup.SetLogFile(mnt.logFilePath)
 	err := static_mounting.MountGcsfuseWithStaticMounting(flags)
@@ -153,7 +161,7 @@ func (t *BaseSuite) mountGcsfuse(mnt mountPoint, mountType string, flags []strin
 	log.Printf("Running tests with %s mount flags %v", mountType, flags)
 }
 
-func (t *BaseSuite) unmountAndCleanupMount(m mountPoint, name string) {
+func (t *BaseSuite) unmountAndCleanupMount(m *mountPoint) {
 	setup.UnmountGCSFuse(m.mntDir)
 	// Cleaning up the intermediate generated test files.
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
