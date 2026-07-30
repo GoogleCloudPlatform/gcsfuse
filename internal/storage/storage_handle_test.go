@@ -1139,7 +1139,6 @@ func (testSuite *StorageHandleTest) TestGetClient_GrpcPathStrategy_DirectPathWit
 	assert.NotNil(testSuite.T(), sh.httpClient)
 	assert.Equal(testSuite.T(), sh.httpClient, client)
 	assert.Nil(testSuite.T(), sh.grpcClient)
-
 	if sh.httpClient != nil {
 		_ = sh.httpClient.Close()
 	}
@@ -1155,7 +1154,6 @@ func (testSuite *StorageHandleTest) TestGetClient_GrpcPathStrategy_DirectPathWit
 	assert.NotNil(testSuite.T(), sh.grpcClient)
 	assert.Equal(testSuite.T(), sh.grpcClient, client)
 	assert.Nil(testSuite.T(), sh.httpClient)
-
 	if sh.grpcClient != nil {
 		_ = sh.grpcClient.Close()
 	}
