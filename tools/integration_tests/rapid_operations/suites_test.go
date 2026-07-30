@@ -72,10 +72,16 @@ type SingleMountAppendsTestSuite struct{ BaseSuite }
 type DualMountAppendsTestSuite struct{ BaseSuite }
 
 // FinalizeRapidWritesEnabledSuite groups tests for verifying transition to finalized state when enabled.
-type FinalizeRapidWritesEnabledSuite struct{ BaseSuite }
+type FinalizeRapidWritesEnabledSuite struct {
+	BaseSuite
+	isFinalizeEnabled bool
+}
 
 // FinalizeRapidWritesDisabledSuite groups tests for verifying transition to finalized state when disabled.
-type FinalizeRapidWritesDisabledSuite struct{ BaseSuite }
+type FinalizeRapidWritesDisabledSuite struct {
+	BaseSuite
+	isFinalizeEnabled bool
+}
 
 // StatAndListTestSuite groups tests for checking new file discovery.
 type StatAndListTestSuite struct{ BaseSuite }
