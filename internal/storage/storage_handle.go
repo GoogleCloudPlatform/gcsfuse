@@ -56,16 +56,19 @@ const (
 
 	zonalLocationType = "zone"
 
-	// DirectPath detection parameters - used for fast-fail detection during client creation
-	directPathDetectionMaxAttempts = 5
-	directPathDetectionTimeout     = 15 * time.Second
-	directPathDetectionMaxBackoff  = 5 * time.Second
-
 	// nonExistentObjectName is the object name used for bucket existence/access check when HNS feature is disabled by providing "--enable-hns:false". E.g. Using Regional Endpoints which do not support GRPC protocol.
 	nonExistentObjectName = "gcsfuse-nonexistent-object-check"
 
 	// directPathVerificationErrorPrefix is the prefix used for errors returned when DirectPath verification fails.
 	directPathVerificationErrorPrefix = "DirectPath verification failed for bucket"
+)
+
+// Keeping these as variables instead of constants to overwrite the values in unit tests.
+var (
+	// DirectPath detection parameters - used for fast-fail detection during client creation
+	directPathDetectionMaxAttempts = 5
+	directPathDetectionTimeout     = 15 * time.Second
+	directPathDetectionMaxBackoff  = 5 * time.Second
 )
 
 type StorageHandle interface {
