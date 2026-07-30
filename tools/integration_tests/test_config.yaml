@@ -1191,7 +1191,7 @@ mounting:
           flat: true
           hns: true
           zonal: false
-        run_on_gke: true
+        run_on_gke: false
       - flags:
           - "--experimental-enable-pirlo,--client-protocol=http1"
         run_on_pirlo:
