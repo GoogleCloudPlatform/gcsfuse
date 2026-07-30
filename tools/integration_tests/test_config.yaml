@@ -1649,6 +1649,22 @@ rapid_operations:
         run_on_gke: true
       - run: TestFinalizeRapidWritesEnabledSuite
         flags:
+          - "--finalize-file-for-rapid=true"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: true
+      - run: TestFinalizeRapidWritesDisabledSuite
+        flags:
+          - "--finalize-file-for-rapid=false"
+        compatible:
+          flat: false
+          hns: false
+          zonal: true
+        run_on_gke: true
+      - run: TestFinalizeRapidWritesEnabledSuite
+        flags:
           - "--experimental-enable-pirlo,--enable-rapid-writes=true,--finalize-file-for-rapid=true"
         run_on_pirlo:
           flat:
