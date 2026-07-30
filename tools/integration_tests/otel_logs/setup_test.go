@@ -141,12 +141,20 @@ func TestMain(m *testing.M) {
 	defer stopMockServer()
 
 	// Create a temp config file for gcsfuse
-	configFileForGCSFuse = path.Join(os.TempDir(), "otel_config.yaml")
+	tempFile, err := os.CreateTemp("", "otel_config_*.yaml")
+	if err != nil {
+		log.Fatalf("Failed to create temp config file: %v", err)
+	}
+	configFileForGCSFuse = tempFile.Name()
+	_, port, err := net.SplitHostPort(mockServerURL)
+	if err != nil {
+		log.Fatalf("Failed to parse mock server URL: %v", err)
+	}
 	configContent := fmt.Sprintf(`
 logging:
   enable-otel-logging: true
   otel-logging-endpoint: "localhost:%s"
-`, strings.Split(mockServerURL, ":")[1])
+`, port)
 	if err := os.WriteFile(configFileForGCSFuse, []byte(configContent), 0644); err != nil {
 		log.Fatalf("Failed to write config file: %v", err)
 	}
@@ -161,7 +169,6 @@ logging:
 	testEnv.ctx = context.Background()
 	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
 
-	var err error
 	testEnv.storageClient, err = client.CreateStorageClient(testEnv.ctx)
 	if err != nil {
 		log.Fatalf("client.CreateStorageClient: %v", err)

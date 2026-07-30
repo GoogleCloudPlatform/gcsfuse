@@ -19,6 +19,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/sdk/metric"
@@ -116,7 +117,7 @@ func TestSetupOTelLogExporter(t *testing.T) {
 			ctx := context.Background()
 
 			// Act
-			shutdown, err := SetupOTelLogExporter(ctx, tc.endpoint, tc.mountID)
+			shutdown, err := SetupOTelLogExporter(ctx, tc.endpoint, tc.mountID, cfg.GcsAuthConfig{}, "")
 
 			// Assert
 			if tc.expectErr {

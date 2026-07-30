@@ -715,6 +715,8 @@ type LoggingConfig struct {
 
 	OtelLoggingEndpoint string `yaml:"otel-logging-endpoint"`
 
+	OtelLoggingProjectId string `yaml:"otel-logging-project-id"`
+
 	Severity LogSeverity `yaml:"severity"`
 
 	WireLog ResolvedPath `yaml:"wire-log"`
@@ -1323,6 +1325,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("otel-logging-endpoint", "", "telemetry.googleapis.com", "The OTLP HTTP endpoint for OpenTelemetry logs.")
 
 	if err := flagSet.MarkHidden("otel-logging-endpoint"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("otel-logging-project-id", "", "", "Specify the GCP project id to which OTel logs will be exported. When unset, a project id will be inferred as per the default credential detection process.")
+
+	if err := flagSet.MarkHidden("otel-logging-project-id"); err != nil {
 		return err
 	}
 
@@ -1948,6 +1956,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("logging.otel-logging-endpoint", flagSet.Lookup("otel-logging-endpoint")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.otel-logging-project-id", flagSet.Lookup("otel-logging-project-id")); err != nil {
 		return err
 	}
 

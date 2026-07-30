@@ -91,8 +91,17 @@ func GetTokenSource(
 	tokenUrl string,
 	reuseTokenFromUrl bool,
 ) (tokenSrc oauth2.TokenSource, err error) {
-	// Create the oauth2 token source.
-	const scope = storagev1.DevstorageFullControlScope
+	return GetTokenSourceWithScope(ctx, keyFile, tokenUrl, reuseTokenFromUrl, storagev1.DevstorageFullControlScope)
+}
+
+// GetTokenSourceWithScope generates the token-source for a specific scope.
+func GetTokenSourceWithScope(
+	ctx context.Context,
+	keyFile string,
+	tokenUrl string,
+	reuseTokenFromUrl bool,
+	scope string,
+) (tokenSrc oauth2.TokenSource, err error) {
 	var method string
 
 	if keyFile != "" {

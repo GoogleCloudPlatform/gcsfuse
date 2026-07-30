@@ -18,17 +18,25 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync/atomic"
 	"time"
 
+	"cloud.google.com/go/compute/metadata"
+
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+
 	cloudmetric "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/exemplar"
@@ -210,18 +218,74 @@ func getResource(ctx context.Context, mountID string) (*resource.Resource, error
 	)
 }
 
+func getProjectID(ctx context.Context, authConfig cfg.GcsAuthConfig, configuredProjectID string) string {
+	if configuredProjectID != "" {
+		return configuredProjectID
+	}
+
+	if authConfig.KeyFile != "" {
+		contents, err := os.ReadFile(string(authConfig.KeyFile))
+		if err != nil {
+			logger.Errorf("Failed to read key file for project ID: %v", err)
+		} else {
+			creds, err := google.CredentialsFromJSON(ctx, contents)
+			if err != nil {
+				logger.Errorf("Failed to parse key file for project ID: %v", err)
+			} else if creds.ProjectID != "" {
+				return creds.ProjectID
+			}
+		}
+	} else if authConfig.TokenUrl == "" {
+		creds, err := google.FindDefaultCredentials(ctx)
+		if err == nil && creds.ProjectID != "" {
+			return creds.ProjectID
+		}
+	}
+
+	if envProj := os.Getenv("GOOGLE_CLOUD_PROJECT"); envProj != "" {
+		return envProj
+	}
+
+	if metadata.OnGCE() {
+		if proj, err := metadata.ProjectID(); err == nil && proj != "" {
+			return proj
+		}
+	}
+	return ""
+}
+
 // SetupOTelLogExporter initializes the OpenTelemetry Log provider.
-func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string) (common.ShutdownFn, error) {
+func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string, authConfig cfg.GcsAuthConfig, configuredProjectID string) (common.ShutdownFn, error) {
+	projectID := getProjectID(ctx, authConfig, configuredProjectID)
 	res, err := getResource(ctx, mountID)
 	if err != nil {
 		logger.Errorf("Error while fetching resource for logs: %v", err)
 		return nil, err
 	}
 
+	if projectID != "" {
+		projRes, _ := resource.New(ctx, resource.WithAttributes(attribute.String("gcp.project_id", projectID)))
+		res, err = resource.Merge(res, projRes)
+		if err != nil {
+			logger.Errorf("Error merging project ID into resource: %v", err)
+		}
+	}
+
 	opts := []otlploghttp.Option{otlploghttp.WithEndpoint(endpoint)}
 	// For local testing and e2e test.
 	if strings.Contains(endpoint, "localhost") || strings.Contains(endpoint, "127.0.0.1") || strings.Contains(endpoint, "0.0.0.0") || strings.Contains(endpoint, "[::1]") {
 		opts = append(opts, otlploghttp.WithInsecure())
+	}
+
+	// Use authenticated client for GCP endpoints.
+	if strings.Contains(endpoint, "googleapis.com") {
+		ts, err := auth.GetTokenSourceWithScope(ctx, string(authConfig.KeyFile), authConfig.TokenUrl, authConfig.ReuseTokenFromUrl, "https://www.googleapis.com/auth/logging.write")
+		if err != nil {
+			logger.Errorf("Error getting GCP authenticated token source for logs: %v", err)
+			return nil, err
+		}
+		client := oauth2.NewClient(ctx, ts)
+		opts = append(opts, otlploghttp.WithHTTPClient(client))
 	}
 
 	exporter, err := otlploghttp.New(ctx, opts...)

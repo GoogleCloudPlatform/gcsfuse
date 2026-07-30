@@ -903,6 +903,13 @@ params:
     default: "telemetry.googleapis.com"
     hide-flag: true
 
+  - config-path: "logging.otel-logging-project-id"
+    flag-name: "otel-logging-project-id"
+    type: "string"
+    usage: "Specify the GCP project id to which OTel logs will be exported. When unset, a project id will be inferred as per the default credential detection process."
+    default: ""
+    hide-flag: true
+
   - config-path: "logging.severity"
     flag-name: "log-severity"
     type: "logSeverity"
