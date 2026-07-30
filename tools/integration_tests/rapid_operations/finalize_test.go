@@ -16,6 +16,7 @@ package rapid_operations
 
 import (
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -26,6 +27,9 @@ import (
 )
 
 func (t *FinalizeRapidWritesEnabledSuite) TestFileClosedInFinalizedState() {
+	if !t.isFinalizeEnabled {
+		t.T().Skip("Skipping test since finalize-file-for-rapid is false")
+	}
 	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
 	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
 	defer t.deleteUnfinalizedObject()
@@ -41,6 +45,9 @@ func (t *FinalizeRapidWritesEnabledSuite) TestFileClosedInFinalizedState() {
 }
 
 func (t *FinalizeRapidWritesDisabledSuite) TestFileClosedInUnfinalizedState() {
+	if t.isFinalizeEnabled {
+		t.T().Skip("Skipping test since finalize-file-for-rapid is true")
+	}
 	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
 	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
 	defer t.deleteUnfinalizedObject()
@@ -62,7 +69,8 @@ func (t *FinalizeRapidWritesDisabledSuite) TestFileClosedInUnfinalizedState() {
 func TestFinalizeRapidWritesEnabledSuite(t *testing.T) {
 	RunTests(t, "TestFinalizeRapidWritesEnabledSuite", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
 		return &FinalizeRapidWritesEnabledSuite{
-			BaseSuite: BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags},
+			BaseSuite:         BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags},
+			isFinalizeEnabled: strings.Contains(strings.Join(primaryFlags, " "), "finalize-file-for-rapid=true"),
 		}
 	})
 }
@@ -70,7 +78,8 @@ func TestFinalizeRapidWritesEnabledSuite(t *testing.T) {
 func TestFinalizeRapidWritesDisabledSuite(t *testing.T) {
 	RunTests(t, "TestFinalizeRapidWritesDisabledSuite", func(primaryFlags, secondaryFlags []string) suite.TestingSuite {
 		return &FinalizeRapidWritesDisabledSuite{
-			BaseSuite: BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags},
+			BaseSuite:         BaseSuite{primaryFlags: primaryFlags, secondaryFlags: secondaryFlags},
+			isFinalizeEnabled: strings.Contains(strings.Join(primaryFlags, " "), "finalize-file-for-rapid=true"),
 		}
 	})
 }
