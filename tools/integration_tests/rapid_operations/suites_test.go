@@ -71,11 +71,11 @@ type SingleMountAppendsTestSuite struct{ BaseSuite }
 // DualMountAppendsTestSuite groups general dual-mount tests for append behavior.
 type DualMountAppendsTestSuite struct{ BaseSuite }
 
-// FinalizeRapidWritesTestSuite groups tests for verifying transition to finalized state.
-type FinalizeRapidWritesTestSuite struct {
-	BaseSuite
-	isFinalizeEnabled bool
-}
+// FinalizeRapidWritesEnabledSuite groups tests for verifying transition to finalized state when enabled.
+type FinalizeRapidWritesEnabledSuite struct{ BaseSuite }
+
+// FinalizeRapidWritesDisabledSuite groups tests for verifying transition to finalized state when disabled.
+type FinalizeRapidWritesDisabledSuite struct{ BaseSuite }
 
 // StatAndListTestSuite groups tests for checking new file discovery.
 type StatAndListTestSuite struct{ BaseSuite }

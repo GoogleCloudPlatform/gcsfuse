@@ -1868,18 +1868,19 @@ rapid_operations:
             same_zone: true
             different_zone: false
         run_on_gke: true
-      - run: TestFinalizeRapidWritesTestSuite
-        flags:
-          - "--finalize-file-for-rapid=true"
-          - "--finalize-file-for-rapid=false"
-        compatible:
-          flat: false
-          hns: false
-          zonal: true
-        run_on_gke: true
-      - run: TestFinalizeRapidWritesTestSuite
+      - run: TestFinalizeRapidWritesEnabledSuite
         flags:
           - "--experimental-enable-pirlo,--enable-rapid-writes=true,--finalize-file-for-rapid=true"
+        run_on_pirlo:
+          flat:
+            same_zone: true
+            different_zone: false
+          hns:
+            same_zone: true
+            different_zone: false
+        run_on_gke: true
+      - run: TestFinalizeRapidWritesDisabledSuite
+        flags:
           - "--experimental-enable-pirlo,--enable-rapid-writes=true,--finalize-file-for-rapid=false"
         run_on_pirlo:
           flat:
