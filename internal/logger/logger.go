@@ -97,13 +97,13 @@ func InitLogFile(newLogConfig cfg.LoggingConfig, fsName string) error {
 	}
 
 	defaultLoggerFactory = &loggerFactory{
-		file:               f,
-		sysWriter:          sysWriter,
-		fileWriter:         fileWriter,
-		format:             newLogConfig.Format,
-		level:              string(newLogConfig.Severity),
-		logRotate:          newLogConfig.LogRotate,
-		otelLoggingEnabled: newLogConfig.OtelLoggingEnabled,
+		file:              f,
+		sysWriter:         sysWriter,
+		fileWriter:        fileWriter,
+		format:            newLogConfig.Format,
+		level:             string(newLogConfig.Severity),
+		logRotate:         newLogConfig.LogRotate,
+		enableOtelLogging: newLogConfig.EnableOtelLogging,
 	}
 	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(string(newLogConfig.Severity), fsName)
 
@@ -261,13 +261,13 @@ func SetOutput(w io.Writer) {
 
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
-	file               *os.File
-	sysWriter          *syslog.Writer
-	format             string
-	level              string
-	logRotate          cfg.LogRotateLoggingConfig
-	fileWriter         *lumberjack.Logger
-	otelLoggingEnabled bool
+	file              *os.File
+	sysWriter         *syslog.Writer
+	format            string
+	level             string
+	logRotate         cfg.LogRotateLoggingConfig
+	fileWriter        *lumberjack.Logger
+	enableOtelLogging bool
 }
 
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
@@ -307,7 +307,7 @@ func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Han
 		localHandler = f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
 	}
 
-	if f.otelLoggingEnabled {
+	if f.enableOtelLogging {
 		otelHandler := otelslog.NewHandler("gcsfuse")
 		return &dualHandler{local: localHandler, otel: otelHandler}
 	}

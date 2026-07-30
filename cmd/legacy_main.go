@@ -388,7 +388,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
-		if newConfig.Logging.OtelLoggingEnabled {
+		if newConfig.Logging.EnableOtelLogging {
 			// Set up OTel log exporter early in the foreground (daemon) process to ensure
 			// startup configs and mount flags are captured. This is intentionally skipped
 			// in the ephemeral parent process to avoid double-initialization overhead.

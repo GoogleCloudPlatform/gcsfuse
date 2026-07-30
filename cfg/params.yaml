@@ -854,6 +854,13 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "logging.enable-otel-logging"
+    flag-name: "enable-otel-logging"
+    type: "bool"
+    usage: "Enable OpenTelemetry log exporting."
+    default: "false"
+    hide-flag: true
+
   - config-path: "logging.file-path"
     flag-name: "log-file"
     type: "resolvedPath"
@@ -889,17 +896,12 @@ params:
     usage: "The maximum size in megabytes that a log file can reach before it is rotated."
     default: "512"
 
-  - config-path: "logging.otel-logging-enabled"
-    flag-name: "otel-logging-enabled"
-    type: "bool"
-    usage: "Enable OpenTelemetry log exporting."
-    default: "false"
-
   - config-path: "logging.otel-logging-endpoint"
     flag-name: "otel-logging-endpoint"
     type: "string"
     usage: "The OTLP HTTP endpoint for OpenTelemetry logs."
-    default: ""
+    default: "telemetry.googleapis.com"
+    hide-flag: true
 
   - config-path: "logging.severity"
     flag-name: "log-severity"

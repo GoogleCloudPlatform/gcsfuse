@@ -337,7 +337,7 @@ func TestInitLogFile(t *testing.T) {
 			BackupFileCount: backupFileCount,
 			Compress:        true,
 		},
-		OtelLoggingEnabled: true,
+		EnableOtelLogging: true,
 	}
 
 	err := InitLogFile(newLogConfig, testFsName)
@@ -354,7 +354,7 @@ func TestInitLogFile(t *testing.T) {
 	assert.Equal(t, fileSize, defaultLoggerFactory.logRotate.MaxFileSizeMb)
 	assert.Equal(t, backupFileCount, defaultLoggerFactory.logRotate.BackupFileCount)
 	assert.True(t, defaultLoggerFactory.logRotate.Compress)
-	assert.True(t, defaultLoggerFactory.otelLoggingEnabled)
+	assert.True(t, defaultLoggerFactory.enableOtelLogging)
 }
 
 func TestUpdateDefaultLogger(t *testing.T) {

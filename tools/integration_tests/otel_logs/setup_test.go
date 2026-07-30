@@ -144,7 +144,7 @@ func TestMain(m *testing.M) {
 	configFileForGCSFuse = path.Join(os.TempDir(), "otel_config.yaml")
 	configContent := fmt.Sprintf(`
 logging:
-  otel-logging-enabled: true
+  enable-otel-logging: true
   otel-logging-endpoint: "localhost:%s"
 `, strings.Split(mockServerURL, ":")[1])
 	if err := os.WriteFile(configFileForGCSFuse, []byte(configContent), 0644); err != nil {

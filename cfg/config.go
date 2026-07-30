@@ -705,13 +705,13 @@ type LogRotateLoggingConfig struct {
 }
 
 type LoggingConfig struct {
+	EnableOtelLogging bool `yaml:"enable-otel-logging"`
+
 	FilePath ResolvedPath `yaml:"file-path"`
 
 	Format string `yaml:"format"`
 
 	LogRotate LogRotateLoggingConfig `yaml:"log-rotate"`
-
-	OtelLoggingEnabled bool `yaml:"otel-logging-enabled"`
 
 	OtelLoggingEndpoint string `yaml:"otel-logging-endpoint"`
 
@@ -1040,6 +1040,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil. This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.")
 
+	flagSet.BoolP("enable-otel-logging", "", false, "Enable OpenTelemetry log exporting.")
+
+	if err := flagSet.MarkHidden("enable-otel-logging"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-rapid-appends", "", true, "Enables support for appends to unfinalized object using streaming writes")
 
 	flagSet.BoolP("enable-rapid-writes", "", false, "For pirlo, toggles between using STANDARD class and RAPID class for writes.")
@@ -1314,9 +1320,11 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
 
-	flagSet.BoolP("otel-logging-enabled", "", false, "Enable OpenTelemetry log exporting.")
+	flagSet.StringP("otel-logging-endpoint", "", "telemetry.googleapis.com", "The OTLP HTTP endpoint for OpenTelemetry logs.")
 
-	flagSet.StringP("otel-logging-endpoint", "", "", "The OTLP HTTP endpoint for OpenTelemetry logs.")
+	if err := flagSet.MarkHidden("otel-logging-endpoint"); err != nil {
+		return err
+	}
 
 	flagSet.StringP("profile", "", "", "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing")
 
@@ -1655,6 +1663,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("logging.enable-otel-logging", flagSet.Lookup("enable-otel-logging")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("write.enable-rapid-appends", flagSet.Lookup("enable-rapid-appends")); err != nil {
 		return err
 	}
@@ -1932,10 +1944,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("only-dir", flagSet.Lookup("only-dir")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("logging.otel-logging-enabled", flagSet.Lookup("otel-logging-enabled")); err != nil {
 		return err
 	}
 
