@@ -73,8 +73,9 @@ type StorageClientConfig struct {
 	AnonymousAccess            bool
 
 	/** Grpc client parameters. */
-	GrpcConnPoolSize int
-	GrpcPathStrategy cfg.DirectPathStrategy
+	GrpcConnPoolSize        int
+	GrpcPathStrategy        cfg.DirectPathStrategy
+	EnableGrpcReadChecksums bool
 
 	// Enabling new API flow for HNS bucket.
 	EnableHNS bool

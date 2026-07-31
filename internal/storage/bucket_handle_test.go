@@ -198,6 +198,29 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithValidGen
 	assert.Equal(testSuite.T(), ContentInTestObject, string(buf[:]))
 }
 
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethod_GrpcChecksumsFlag() {
+	for _, disableChecksums := range []bool{true, false} {
+		createBucketHandle(testSuite, &controlpb.StorageLayout{})
+		testSuite.bucketHandle.disableGrpcReadChecksums = disableChecksums
+
+		rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
+			&gcs.ReadObjectRequest{
+				Name: TestObjectName,
+				Range: &gcs.ByteRange{
+					Start: uint64(0),
+					Limit: uint64(len(ContentInTestObject)),
+				},
+			})
+
+		require.NoError(testSuite.T(), err)
+		buf := make([]byte, len(ContentInTestObject))
+		_, err = rc.Read(buf)
+		require.NoError(testSuite.T(), err)
+		assert.Equal(testSuite.T(), ContentInTestObject, string(buf[:]))
+		rc.Close()
+	}
+}
+
 func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithInvalidGeneration() {
 	createBucketHandle(testSuite, &controlpb.StorageLayout{})
 	var notFoundErr *gcs.NotFoundError

@@ -549,13 +549,16 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		)
 	}
 
+	disableGrpcReadChecksums := !sh.clientConfig.EnableGrpcReadChecksums && (bucketType.IsRapid() || sh.clientConfig.ClientProtocol == cfg.GRPC)
+
 	bh = &bucketHandle{
-		bucket:         storageBucketHandle,
-		bucketName:     bucketName,
-		controlClient:  controlClient,
-		bucketType:     bucketType,
-		billingProject: billingProject,
-		writeConfig:    sh.clientConfig.WriteConfig,
+		bucket:                   storageBucketHandle,
+		bucketName:               bucketName,
+		controlClient:            controlClient,
+		bucketType:               bucketType,
+		billingProject:           billingProject,
+		writeConfig:              sh.clientConfig.WriteConfig,
+		disableGrpcReadChecksums: disableGrpcReadChecksums,
 	}
 
 	return

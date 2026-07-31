@@ -653,6 +653,13 @@ params:
       To specify a custom storage endpoint, ensure it supports the same resources as the default storage.googleapis.com:443 and includes the port number.
     default: ""
 
+  - config-path: "gcs-connection.enable-grpc-read-checksums"
+    flag-name: "enable-grpc-read-checksums"
+    type: "bool"
+    usage: "Enables chunk-level CRC32C checksum validation for gRPC read operations. Disabled by default to optimize CPU utilization."
+    default: false
+    hide-flag: true
+
   - config-path: "gcs-connection.enable-http-dns-cache"
     flag-name: "enable-http-dns-cache"
     type: "bool"
