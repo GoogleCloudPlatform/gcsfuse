@@ -66,12 +66,8 @@ while (( $# >= 1 )); do
         --release-version)
             RELEASE_VERSION="$2"
             shift 2
-            # Regex breakdown:
-            # ^      : Start of string
-            # [0-9]+ : One or more digits
-            #  \.     : A literal dot
-            # $      : End of string
-            RE="^[0-9]+\.[0-9]+\.[0-9]+$"
+            # Allow SemVer (X.Y.Z), nightly_YYYYMMDD, dev_YYYYMMDD, or general version strings
+            RE="^[a-zA-Z0-9_.-]+$"
             if [[ ! $RELEASE_VERSION =~ $RE ]]; then
                 log_error "--release-version value '$RELEASE_VERSION' is incorrectly formatted."
                 usage 1
