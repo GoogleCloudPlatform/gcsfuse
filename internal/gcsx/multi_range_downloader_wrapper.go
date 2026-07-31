@@ -233,10 +233,14 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) ensureMultiRangeDownloader(ctx co
 			}
 			ctx = traceHandle.PropagateTraceContext(context.Background(), ctx)
 			mrd, err = mrdWrapper.bucket.NewMultiRangeDownloader(ctx, &gcs.MultiRangeDownloaderRequest{
-				Name:           mrdWrapper.object.Name,
-				Generation:     mrdWrapper.object.Generation,
-				ReadCompressed: mrdWrapper.object.HasContentEncodingGzip(),
-				ReadHandle:     handle,
+				Name:                mrdWrapper.object.Name,
+				Generation:          mrdWrapper.object.Generation,
+				ReadCompressed:      mrdWrapper.object.HasContentEncodingGzip(),
+				ReadHandle:          handle,
+				MinConnections:      int(mrdWrapper.config.Mrd.MinConnections),
+				MaxConnections:      int(mrdWrapper.config.Mrd.MaxConnections),
+				TargetPendingRanges: int(mrdWrapper.config.Mrd.TargetPendingRanges),
+				TargetPendingBytes:  int(mrdWrapper.config.Mrd.TargetPendingBytes),
 			})
 			if err != nil {
 				var notFoundError *gcs.NotFoundError

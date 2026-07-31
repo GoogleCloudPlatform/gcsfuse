@@ -401,6 +401,33 @@ func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_FileClobbered() {
 	assert.Nil(t.T(), t.mrdWrapper.Wrapped)
 }
 
+func (t *mrdWrapperTest) Test_EnsureMultiRangeDownloader_PassesAutoscalingParams() {
+	t.mrdWrapper.config = &cfg.Config{
+		Mrd: cfg.MrdConfig{
+			MinConnections:      2,
+			MaxConnections:      10,
+			TargetPendingRanges: 1,
+			TargetPendingBytes:  1024,
+		},
+	}
+	t.mrdWrapper.Wrapped = nil
+
+	// Capture the request passed to NewMultiRangeDownloader and verify params
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.MatchedBy(func(req *gcs.MultiRangeDownloaderRequest) bool {
+		return req.MinConnections == 2 &&
+			req.MaxConnections == 10 &&
+			req.TargetPendingRanges == 1 &&
+			req.TargetPendingBytes == 1024
+	})).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond), nil).Once()
+
+	t.mrdWrapper.mu.RLock()
+	defer t.mrdWrapper.mu.RUnlock()
+	err := t.mrdWrapper.ensureMultiRangeDownloader(context.Background(), tracing.NewNoopTracer(), false)
+
+	assert.NoError(t.T(), err)
+	t.mockBucket.AssertExpectations(t.T())
+}
+
 // mrdWrapperCacheTest inherits from mrdWrapperTest and adds cache functionality.
 type mrdWrapperCacheTest struct {
 	mrdWrapperTest
