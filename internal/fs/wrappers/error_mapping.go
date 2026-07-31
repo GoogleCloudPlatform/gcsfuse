@@ -46,6 +46,11 @@ func errno(err error) error {
 		return syscall.ESTALE
 	}
 
+	var fileNotFoundErr *gcsfuse_errors.FileNotFoundError
+	if errors.As(err, &fileNotFoundErr) {
+		return syscall.ENOENT
+	}
+
 	// Use existing em errno
 	var errno syscall.Errno
 	if errors.As(err, &errno) {

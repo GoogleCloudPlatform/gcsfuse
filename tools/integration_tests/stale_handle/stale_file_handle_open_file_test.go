@@ -86,6 +86,19 @@ func (s *staleFileHandleOpenFile) TestOpenFileWhenClobbered() {
 	assert.NoError(s.T(), err)
 }
 
+func (s *staleFileHandleOpenFile) TestOpenFileWhenDeleted() {
+	defer func() { _ = s.f1.Close() }()
+	// 1. Delete the file on GCS.
+	err := DeleteObjectOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, s.fileName))
+	assert.NoError(s.T(), err)
+
+	// 2. Open the file again. It should fail with ENOENT.
+	_, err = os.OpenFile(path.Join(testEnv.testDirPath, s.fileName), os.O_RDWR|syscall.O_DIRECT, 0)
+
+	assert.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err), "expected ENOENT but got: %v", err)
+}
+
 func TestStaleHandleOpenFileWhenClobbered(t *testing.T) {
 	if setup.AreBothMountedDirectoryAndTestBucketFlagsSet() {
 		suite.Run(t, new(staleFileHandleOpenFile))

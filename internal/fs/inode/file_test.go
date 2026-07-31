@@ -443,9 +443,9 @@ func (t *FileTest) TestCheckClobbered_Deleted() {
 
 	err = t.in.CheckClobbered(t.ctx)
 
-	var fcErr *gcsfuse_errors.FileClobberedError
-	assert.True(t.T(), errors.As(err, &fcErr), "expected FileClobberedError but got %v", err)
-	assert.Contains(t.T(), err.Error(), "generation/metageneration mismatch")
+	var fnfErr *gcsfuse_errors.FileNotFoundError
+	assert.True(t.T(), errors.As(err, &fnfErr), "expected FileNotFoundError but got %v", err)
+	assert.Contains(t.T(), err.Error(), "object does not exist")
 }
 
 func (t *FileTest) TestInitialAttributes() {
