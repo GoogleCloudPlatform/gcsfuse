@@ -15,10 +15,7 @@
 package metadata
 
 import (
-	"fmt"
 	"math"
-	"runtime"
-	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -344,7 +341,6 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 	result, e := sc.lookUpInternal(key, now)
 
 	if result == lookupMiss {
-		logger.Infof("MetadataCache: sharedCacheLookup miss for key %q, entryStatus: %s, lookupDetail: %s, caller: %s", key, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr, getBriefStack())
 		sc.metricHandle.MetadataCacheReadCount(1, false, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr)
 		return false, nil
 	}
@@ -361,43 +357,12 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 	}
 
 	if result == lookupExpired {
-		logger.Infof("MetadataCache: sharedCacheLookup expired for key %q, entryStatus: %s, lookupDetail: %s, caller: %s", key, entryStatus, metrics.LookupDetailTtlExpiredAttr, getBriefStack())
 		sc.metricHandle.MetadataCacheReadCount(1, false, entryStatus, metrics.LookupDetailTtlExpiredAttr)
 		return false, nil
 	}
 
-	logger.Infof("MetadataCache: sharedCacheLookup hit for key %q, entryStatus: %s, lookupDetail: %s, caller: %s", key, entryStatus, metrics.LookupDetailFoundAttr, getBriefStack())
 	sc.metricHandle.MetadataCacheReadCount(1, true, entryStatus, metrics.LookupDetailFoundAttr)
 	return true, e
-}
-
-func getBriefStack() string {
-	var pcs [16]uintptr
-	n := runtime.Callers(3, pcs[:])
-	frames := runtime.CallersFrames(pcs[:n])
-	var sb strings.Builder
-	for {
-		frame, more := frames.Next()
-		if sb.Len() > 0 {
-			sb.WriteString(" -> ")
-		}
-
-		file := frame.File
-		if idx := strings.LastIndex(file, "/"); idx != -1 {
-			file = file[idx+1:]
-		}
-
-		funcName := frame.Function
-		if idx := strings.LastIndex(funcName, "/"); idx != -1 {
-			funcName = funcName[idx+1:]
-		}
-
-		sb.WriteString(fmt.Sprintf("%s (%s:%d)", funcName, file, frame.Line))
-		if !more {
-			break
-		}
-	}
-	return sb.String()
 }
 
 func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time) {
