@@ -26,7 +26,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/benchmarks/internal/format"

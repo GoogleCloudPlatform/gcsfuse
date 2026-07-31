@@ -15,8 +15,9 @@
 package storageutil
 
 import (
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"golang.org/x/net/context"
 )
 
 // Repeatedly call bucket.ListObjects until there is nothing further to list,

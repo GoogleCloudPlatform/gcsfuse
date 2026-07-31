@@ -20,10 +20,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"context"
+
 	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"golang.org/x/net/context"
 )
 
 // Wrap the supplied bucket in a layer that prints debug messages.

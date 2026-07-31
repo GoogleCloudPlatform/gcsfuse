@@ -19,9 +19,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"

@@ -24,10 +24,11 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	. "github.com/jacobsa/oglematchers"

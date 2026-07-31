@@ -22,8 +22,9 @@ import (
 	"maps"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"golang.org/x/net/context"
 )
 
 // Create an objectCreator that accepts a source object and the contents that

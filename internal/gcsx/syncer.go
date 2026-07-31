@@ -19,8 +19,9 @@ import (
 	"io"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"golang.org/x/net/context"
 )
 
 // Syncer is safe for concurrent access.

@@ -22,12 +22,13 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
-	"golang.org/x/net/context"
 )
 
 func TestComposeObjectCreator(t *testing.T) { RunTests(t) }

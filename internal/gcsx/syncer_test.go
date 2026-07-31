@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -28,7 +30,6 @@ import (
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 )
 
 func TestSyncer(t *testing.T) { RunTests(t) }

@@ -17,7 +17,7 @@ package ratelimit
 import (
 	"io"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // Create a reader that limits the bandwidth of reads made from r according to

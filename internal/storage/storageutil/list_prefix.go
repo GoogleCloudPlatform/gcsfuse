@@ -17,8 +17,9 @@ package storageutil
 import (
 	"fmt"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"golang.org/x/net/context"
 )
 
 // List objects in the supplied bucket whose name starts with the given prefix.

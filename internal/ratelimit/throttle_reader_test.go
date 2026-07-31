@@ -19,9 +19,10 @@ import (
 	"io"
 	"testing"
 
+	"context"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/net/context"
 )
 
 ////////////////////////////////////////////////////////////////////////
