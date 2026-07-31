@@ -264,16 +264,16 @@ func (f *FileInode) checkInvariants() {
 //
 // Return Values (object *gcs.Object, isClobbered bool, err error):
 //
-// | Condition                                    | oGen.Compare | GCS Error | Returns (*gcs.Object, bool, error)          |
-// |----------------------------------------------|--------------|-----------|---------------------------------------------|
-// | Generations Match                            | 0            | nil       | (latestObject, false, nil)                  |
-// | GCS Object Size Greater at same generation   | 2            | nil       | (latestObject, true, nil)                   |
-// | GCS Object Older/Divergent                   | -1 or 1      | nil       | (nil, true, nil)                            |
-// | Object Not Found                             | N/A          | NotFound  | (nil, true(false if local), nil)            |
-// | Other GCS Stat Error                         | N/A          | Other     | (nil, false, <GCS Error>)                   |
+// | Condition                                    | oGen.Compare | GCS Error | Returns (*gcs.Object, bool(isClobbered), bool(notFound), error) |
+// |----------------------------------------------|--------------|-----------|-----------------------------------------------------------------|
+// | Generations Match                            | 0            | nil       | (latestObject, false, false, nil)                               |
+// | GCS Object Size Greater at same generation   | 2            | nil       | (latestObject, true, false, nil)                                |
+// | GCS Object Older/Divergent                   | -1 or 1      | nil       | (nil, true, false, nil)                                         |
+// | Object Not Found                             | N/A          | NotFound  | (nil, true(false if local), true (false is local) nil)          |
+// | Other GCS Stat Error                         | N/A          | Other     | (nil, false, false, <GCS Error>)                                |
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, includeExtendedObjectAttributes bool) (o *gcs.Object, b bool, isNotFound bool, err error) {
+func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, includeExtendedObjectAttributes bool) (o *gcs.Object, isClobbered bool, isNotFound bool, err error) {
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
 	req := &gcs.StatObjectRequest{
@@ -296,7 +296,7 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 			return
 		}
 
-		b = true
+		isClobbered = true
 		isNotFound = true
 		return
 	}
