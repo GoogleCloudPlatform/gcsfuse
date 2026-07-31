@@ -544,7 +544,7 @@ func (t *StatCacheTest) Test_ShouldReturnHitTrueWhenOnlyObjectAlreadyHasEntry() 
 }
 
 func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize() {
-	localCache := lru.NewCache(uint64(2800))
+	localCache := lru.NewCache(uint64(2700))
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket", metrics.NewNoopMetrics())
 	objectEntry1 := &gcs.MinObject{Name: "1"}
 	objectEntry2 := &gcs.MinObject{Name: "2"}
@@ -834,4 +834,3 @@ func (t *StatCacheTest) Test_Metrics_InsertDoesNotIncrementReadCount() {
 	// Assert: Insertion operations must not record read count metrics
 	assert.Equal(t.T(), 0, len(mockMetrics.readCounts))
 }
-

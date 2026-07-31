@@ -50,6 +50,36 @@ func (p *PromTest) TestFsOpsErrorMetrics() {
 	assertNonZeroHistogramMetric(p.T(), "fs_ops_latency", "fs_op", "LookUpInode", prometheusPort)
 }
 
+func (p *PromTest) TestMetadataCacheReadCountMetrics() {
+	prometheusPort := p.prometheusPort
+	// Stat non-existent file -> miss not_found
+	nonExistentFile := path.Join(testEnv.testDirPath, "non_existent_meta_cache_file.txt")
+	_, err := os.Stat(nonExistentFile)
+	require.Error(p.T(), err)
+	assertNonZeroCountMetricWithLabels(p.T(), "metadata_cache_read_count", map[string]string{
+		"cache_hit":     "false",
+		"lookup_detail": "not_found",
+	}, prometheusPort)
+
+	// Stat non-existent file second time -> hit negative found
+	_, err = os.Stat(nonExistentFile)
+	require.Error(p.T(), err)
+	assertNonZeroCountMetricWithLabels(p.T(), "metadata_cache_read_count", map[string]string{
+		"cache_hit":     "true",
+		"entry_status":  "negative",
+		"lookup_detail": "found",
+	}, prometheusPort)
+
+	// Stat existent file -> hit positive found
+	_, err = os.Stat(path.Join(testEnv.testDirPath, "hello.txt"))
+	require.NoError(p.T(), err)
+	assertNonZeroCountMetricWithLabels(p.T(), "metadata_cache_read_count", map[string]string{
+		"cache_hit":     "true",
+		"entry_status":  "positive",
+		"lookup_detail": "found",
+	}, prometheusPort)
+}
+
 func (p *PromTest) TestListMetrics() {
 	prometheusPort := p.prometheusPort
 	_, err := os.ReadDir(testEnv.testDirPath)

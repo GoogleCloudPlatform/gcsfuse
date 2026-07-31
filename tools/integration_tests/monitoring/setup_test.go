@@ -141,6 +141,34 @@ func assertNonZeroCountMetric(t *testing.T, metricName, labelName, labelValue st
 	require.Fail(t, fmt.Sprintf("Metric %s with label %s=%s not found or zero", metricName, labelName, labelValue))
 }
 
+func assertNonZeroCountMetricWithLabels(t *testing.T, metricName string, expectedLabels map[string]string, prometheusPort int) {
+	t.Helper()
+	mf, err := parsePromFormat(t, prometheusPort)
+	require.NoError(t, err)
+	for k, v := range mf {
+		if k != metricName || *v.Type != promclient.MetricType_COUNTER {
+			continue
+		}
+		for _, m := range v.Metric {
+			matched := true
+			labelMap := make(map[string]string)
+			for _, l := range m.Label {
+				labelMap[*l.Name] = *l.Value
+			}
+			for expK, expV := range expectedLabels {
+				if labelMap[expK] != expV {
+					matched = false
+					break
+				}
+			}
+			if matched && *m.Counter.Value > 0 {
+				return
+			}
+		}
+	}
+	require.Fail(t, fmt.Sprintf("Metric %s with labels %v not found or zero", metricName, expectedLabels))
+}
+
 func assertNonZeroHistogramMetric(t *testing.T, metricName, labelName, labelValue string, prometheusPort int) {
 	t.Helper()
 	mf, err := parsePromFormat(t, prometheusPort)
