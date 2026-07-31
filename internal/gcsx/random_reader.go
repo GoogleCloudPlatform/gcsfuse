@@ -537,6 +537,7 @@ func (rr *randomReader) startRead(ctx context.Context, start int64, end int64, r
 	//  - The file content was modified leading to different generation number.
 	var notFoundError *gcs.NotFoundError
 	if errors.As(err, &notFoundError) {
+		cancel()
 		err = &gcsfuse_errors.FileClobberedError{
 			Err:        fmt.Errorf("NewReader: %w", err),
 			ObjectName: rr.object.Name,
@@ -545,6 +546,7 @@ func (rr *randomReader) startRead(ctx context.Context, start int64, end int64, r
 	}
 
 	if err != nil {
+		cancel()
 		err = fmt.Errorf("NewReaderWithReadHandle: %w", err)
 		return
 	}

@@ -171,9 +171,10 @@ func (t *ThrottleTest) TestIntegration() {
 		var wg sync.WaitGroup
 		var totalProcessed uint64
 
-		ctx, _ := context.WithDeadline(
+		ctx, cancel := context.WithDeadline(
 			context.Background(),
 			time.Now().Add(perCaseDuration))
+		defer cancel()
 
 		for i := 0; i < tc.numActors; i++ {
 			wg.Add(1)

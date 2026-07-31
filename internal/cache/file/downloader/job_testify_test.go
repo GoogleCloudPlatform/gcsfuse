@@ -83,7 +83,9 @@ func (t *JobTestifyTest) initReadCacheTestifyTest(objectName string, objectConte
 }
 
 func (t *JobTestifyTest) SetupTest() {
-	t.ctx, _ = context.WithCancel(context.Background())
+	var cancel context.CancelFunc
+	t.ctx, cancel = context.WithCancel(context.Background())
+	t.T().Cleanup(cancel)
 	t.mockBucket = new(storage.TestifyMockBucket)
 }
 
