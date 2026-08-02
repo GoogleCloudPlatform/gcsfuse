@@ -337,7 +337,7 @@ func TestInitLogFile(t *testing.T) {
 			BackupFileCount: backupFileCount,
 			Compress:        true,
 		},
-		EnableOtelLogging: true,
+		ExperimentalEnableOtelLogging: true,
 	}
 
 	err := InitLogFile(newLogConfig, testFsName)

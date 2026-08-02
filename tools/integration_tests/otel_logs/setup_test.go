@@ -145,6 +145,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Failed to create temp config file: %v", err)
 	}
+	tempFile.Close()
 	configFileForGCSFuse = tempFile.Name()
 	_, port, err := net.SplitHostPort(mockServerURL)
 	if err != nil {
@@ -152,8 +153,8 @@ func TestMain(m *testing.M) {
 	}
 	configContent := fmt.Sprintf(`
 logging:
-  enable-otel-logging: true
-  otel-logging-endpoint: "localhost:%s"
+  experimental-enable-otel-logging: true
+  experimental-otel-logging-endpoint: "localhost:%s"
 `, port)
 	if err := os.WriteFile(configFileForGCSFuse, []byte(configContent), 0644); err != nil {
 		log.Fatalf("Failed to write config file: %v", err)

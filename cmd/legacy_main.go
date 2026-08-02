@@ -388,13 +388,12 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
-		if newConfig.Logging.EnableOtelLogging {
+		if newConfig.Logging.ExperimentalEnableOtelLogging {
 			// Set up OTel log exporter early in the foreground (daemon) process to ensure
 			// startup configs and mount flags are captured. This is intentionally skipped
 			// in the ephemeral parent process to avoid double-initialization overhead.
-			ctx := context.Background()
 			// TODO: Update mount-id to use directory name as well in only dir mounting.
-			logExporterShutdownFn, err = monitor.SetupOTelLogExporter(ctx, newConfig.Logging.OtelLoggingEndpoint, logger.MountInstanceID(fsName(bucketName)), newConfig.GcsAuth, newConfig.Logging.OtelLoggingProjectId)
+			logExporterShutdownFn, err = monitor.SetupOTelLogExporter(context.Background(), newConfig.Logging.ExperimentalOtelLoggingEndpoint, logger.MountInstanceID(fsName(bucketName)), newConfig.GcsAuth, newConfig.Logging.ExperimentalOtelLoggingProjectId)
 			if err != nil {
 				logger.Errorf("Failed to setup OTel log exporter: %v", err)
 			}

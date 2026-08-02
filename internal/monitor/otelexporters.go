@@ -36,7 +36,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/exemplar"
@@ -247,7 +246,7 @@ func getProjectID(ctx context.Context, authConfig cfg.GcsAuthConfig, configuredP
 	}
 
 	if metadata.OnGCE() {
-		if proj, err := metadata.ProjectID(); err == nil && proj != "" {
+		if proj, err := metadata.ProjectIDWithContext(ctx); err == nil && proj != "" {
 			return proj
 		}
 	}
@@ -264,7 +263,10 @@ func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string, 
 	}
 
 	if projectID != "" {
-		projRes, _ := resource.New(ctx, resource.WithAttributes(attribute.String("gcp.project_id", projectID)))
+		projRes, _ := resource.New(ctx,
+			resource.WithSchemaURL(semconv.SchemaURL),
+			resource.WithAttributes(semconv.CloudAccountIDKey.String(projectID)),
+		)
 		res, err = resource.Merge(res, projRes)
 		if err != nil {
 			logger.Errorf("Error merging project ID into resource: %v", err)
@@ -285,6 +287,7 @@ func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string, 
 			return nil, err
 		}
 		client := oauth2.NewClient(ctx, ts)
+		client.Timeout = 30 * time.Second
 		opts = append(opts, otlploghttp.WithHTTPClient(client))
 	}
 
@@ -296,7 +299,9 @@ func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string, 
 	processor := log.NewBatchProcessor(
 		exporter,
 		log.WithExportMaxBatchSize(2000),
+		log.WithMaxQueueSize(8192),
 		log.WithExportInterval(5*time.Second),
+		log.WithExportTimeout(10*time.Second),
 	)
 	provider := log.NewLoggerProvider(
 		log.WithProcessor(processor),

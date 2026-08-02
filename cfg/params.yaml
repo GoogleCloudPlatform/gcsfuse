@@ -854,8 +854,8 @@ params:
     default: false
     hide-flag: true
 
-  - config-path: "logging.enable-otel-logging"
-    flag-name: "enable-otel-logging"
+  - config-path: "logging.experimental-enable-otel-logging"
+    flag-name: "experimental-enable-otel-logging"
     type: "bool"
     usage: "Enable OpenTelemetry log exporting."
     default: "false"
@@ -896,15 +896,15 @@ params:
     usage: "The maximum size in megabytes that a log file can reach before it is rotated."
     default: "512"
 
-  - config-path: "logging.otel-logging-endpoint"
-    flag-name: "otel-logging-endpoint"
+  - config-path: "logging.experimental-otel-logging-endpoint"
+    flag-name: "experimental-otel-logging-endpoint"
     type: "string"
     usage: "The OTLP HTTP endpoint for OpenTelemetry logs."
     default: "telemetry.googleapis.com"
     hide-flag: true
 
-  - config-path: "logging.otel-logging-project-id"
-    flag-name: "otel-logging-project-id"
+  - config-path: "logging.experimental-otel-logging-project-id"
+    flag-name: "experimental-otel-logging-project-id"
     type: "string"
     usage: "Specify the GCP project id to which OTel logs will be exported. When unset, a project id will be inferred as per the default credential detection process."
     default: ""

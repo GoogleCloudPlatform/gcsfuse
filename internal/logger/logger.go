@@ -103,7 +103,7 @@ func InitLogFile(newLogConfig cfg.LoggingConfig, fsName string) error {
 		format:            newLogConfig.Format,
 		level:             string(newLogConfig.Severity),
 		logRotate:         newLogConfig.LogRotate,
-		enableOtelLogging: newLogConfig.EnableOtelLogging,
+		enableOtelLogging: newLogConfig.ExperimentalEnableOtelLogging,
 	}
 	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(string(newLogConfig.Severity), fsName)
 
@@ -309,22 +309,30 @@ func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Han
 
 	if f.enableOtelLogging {
 		otelHandler := otelslog.NewHandler("gcsfuse")
-		return &dualHandler{local: localHandler, otel: otelHandler}
+		return &dualHandler{local: localHandler, otel: otelHandler, levelVar: levelVar}
 	}
 	return localHandler
 }
 
 // dualHandler dispatches logs to a local handler and an OpenTelemetry handler.
 type dualHandler struct {
-	local slog.Handler
-	otel  slog.Handler
+	local    slog.Handler
+	otel     slog.Handler
+	levelVar *slog.LevelVar
 }
 
 func (d *dualHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	if level < d.levelVar.Level() {
+		return false
+	}
 	return d.local.Enabled(ctx, level) || d.otel.Enabled(ctx, level)
 }
 
 func (d *dualHandler) Handle(ctx context.Context, r slog.Record) error {
+	if r.Level < d.levelVar.Level() {
+		return nil
+	}
+
 	var err1, err2 error
 	if d.local.Enabled(ctx, r.Level) {
 		err1 = d.local.Handle(ctx, r)
@@ -344,14 +352,16 @@ func (d *dualHandler) Handle(ctx context.Context, r slog.Record) error {
 
 func (d *dualHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	return &dualHandler{
-		local: d.local.WithAttrs(attrs),
-		otel:  d.otel.WithAttrs(attrs),
+		local:    d.local.WithAttrs(attrs),
+		otel:     d.otel.WithAttrs(attrs),
+		levelVar: d.levelVar,
 	}
 }
 
 func (d *dualHandler) WithGroup(name string) slog.Handler {
 	return &dualHandler{
-		local: d.local.WithGroup(name),
-		otel:  d.otel.WithGroup(name),
+		local:    d.local.WithGroup(name),
+		otel:     d.otel.WithGroup(name),
+		levelVar: d.levelVar,
 	}
 }

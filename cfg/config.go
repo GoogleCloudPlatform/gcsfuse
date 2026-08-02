@@ -705,7 +705,7 @@ type LogRotateLoggingConfig struct {
 }
 
 type LoggingConfig struct {
-	EnableOtelLogging bool `yaml:"enable-otel-logging"`
+	ExperimentalEnableOtelLogging bool `yaml:"experimental-enable-otel-logging"`
 
 	FilePath ResolvedPath `yaml:"file-path"`
 
@@ -713,9 +713,9 @@ type LoggingConfig struct {
 
 	LogRotate LogRotateLoggingConfig `yaml:"log-rotate"`
 
-	OtelLoggingEndpoint string `yaml:"otel-logging-endpoint"`
+	ExperimentalOtelLoggingEndpoint string `yaml:"experimental-otel-logging-endpoint"`
 
-	OtelLoggingProjectId string `yaml:"otel-logging-project-id"`
+	ExperimentalOtelLoggingProjectId string `yaml:"experimental-otel-logging-project-id"`
 
 	Severity LogSeverity `yaml:"severity"`
 
@@ -1042,9 +1042,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil. This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.")
 
-	flagSet.BoolP("enable-otel-logging", "", false, "Enable OpenTelemetry log exporting.")
-
-	if err := flagSet.MarkHidden("enable-otel-logging"); err != nil {
+	flagSet.BoolP("experimental-enable-otel-logging", "", false, "Enable OpenTelemetry log exporting.")
+	if err := flagSet.MarkHidden("experimental-enable-otel-logging"); err != nil {
 		return err
 	}
 
@@ -1322,15 +1321,13 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
 
-	flagSet.StringP("otel-logging-endpoint", "", "telemetry.googleapis.com", "The OTLP HTTP endpoint for OpenTelemetry logs.")
-
-	if err := flagSet.MarkHidden("otel-logging-endpoint"); err != nil {
+	flagSet.StringP("experimental-otel-logging-endpoint", "", "telemetry.googleapis.com", "The OTLP HTTP endpoint for OpenTelemetry logs.")
+	if err := flagSet.MarkHidden("experimental-otel-logging-endpoint"); err != nil {
 		return err
 	}
 
-	flagSet.StringP("otel-logging-project-id", "", "", "Specify the GCP project id to which OTel logs will be exported. When unset, a project id will be inferred as per the default credential detection process.")
-
-	if err := flagSet.MarkHidden("otel-logging-project-id"); err != nil {
+	flagSet.StringP("experimental-otel-logging-project-id", "", "", "Specify the GCP project id to which OTel logs will be exported. When unset, a project id will be inferred as per the default credential detection process.")
+	if err := flagSet.MarkHidden("experimental-otel-logging-project-id"); err != nil {
 		return err
 	}
 
@@ -1671,7 +1668,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("logging.enable-otel-logging", flagSet.Lookup("enable-otel-logging")); err != nil {
+	if err := v.BindPFlag("logging.experimental-enable-otel-logging", flagSet.Lookup("experimental-enable-otel-logging")); err != nil {
 		return err
 	}
 
@@ -1955,11 +1952,11 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("logging.otel-logging-endpoint", flagSet.Lookup("otel-logging-endpoint")); err != nil {
+	if err := v.BindPFlag("logging.experimental-otel-logging-endpoint", flagSet.Lookup("experimental-otel-logging-endpoint")); err != nil {
 		return err
 	}
 
-	if err := v.BindPFlag("logging.otel-logging-project-id", flagSet.Lookup("otel-logging-project-id")); err != nil {
+	if err := v.BindPFlag("logging.experimental-otel-logging-project-id", flagSet.Lookup("experimental-otel-logging-project-id")); err != nil {
 		return err
 	}
 
