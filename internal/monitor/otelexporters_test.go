@@ -17,6 +17,8 @@ package monitor
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -49,35 +51,40 @@ func (m *mockExporter) Shutdown(ctx context.Context) error {
 }
 
 func TestPermissionAwareExporter_ExportSuccess(t *testing.T) {
+	// Arrange
 	mock := &mockExporter{}
 	exporter := &permissionAwareExporter{Exporter: mock}
 
+	// Act
 	err := exporter.Export(context.Background(), &metricdata.ResourceMetrics{})
 
+	// Assert
 	assert.NoError(t, err)
 	assert.False(t, exporter.disabled.Load())
 }
 
 func TestPermissionAwareExporter_ExportPermissionDenied(t *testing.T) {
+	// Arrange
 	mock := &mockExporter{
 		exportFunc: func(ctx context.Context, rm *metricdata.ResourceMetrics) error {
 			return status.Error(codes.PermissionDenied, "permission denied")
 		},
 	}
 	exporter := &permissionAwareExporter{Exporter: mock}
-	// First call fails and disables
-	err := exporter.Export(context.Background(), &metricdata.ResourceMetrics{})
-	require.Error(t, err)
-	require.Equal(t, codes.PermissionDenied, status.Code(err))
+
+	// Act
+	err1 := exporter.Export(context.Background(), &metricdata.ResourceMetrics{})
+	err2 := exporter.Export(context.Background(), &metricdata.ResourceMetrics{})
+
+	// Assert
+	require.Error(t, err1)
+	require.Equal(t, codes.PermissionDenied, status.Code(err1))
 	require.True(t, exporter.disabled.Load())
-
-	// Second call should be skipped (return nil)
-	err = exporter.Export(context.Background(), &metricdata.ResourceMetrics{})
-
-	assert.NoError(t, err)
+	assert.NoError(t, err2)
 }
 
 func TestPermissionAwareExporter_ExportOtherError(t *testing.T) {
+	// Arrange
 	mock := &mockExporter{
 		exportFunc: func(ctx context.Context, rm *metricdata.ResourceMetrics) error {
 			return errors.New("some other error")
@@ -85,8 +92,10 @@ func TestPermissionAwareExporter_ExportOtherError(t *testing.T) {
 	}
 	exporter := &permissionAwareExporter{Exporter: mock}
 
+	// Act
 	err := exporter.Export(context.Background(), &metricdata.ResourceMetrics{})
 
+	// Assert
 	assert.Error(t, err)
 	assert.False(t, exporter.disabled.Load())
 }
@@ -131,6 +140,81 @@ func TestSetupOTelLogExporter(t *testing.T) {
 				err = shutdown(ctx)
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestGetProjectID(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup a temporary directory for key files
+	tmpDir := t.TempDir()
+	validKeyFile := filepath.Join(tmpDir, "valid_key.json")
+	err := os.WriteFile(validKeyFile, []byte(`{"project_id": "file-project-id"}`), 0644)
+	require.NoError(t, err)
+
+	invalidKeyFile := filepath.Join(tmpDir, "invalid_key.json")
+	err = os.WriteFile(invalidKeyFile, []byte(`{"no_project_id": true}`), 0644)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name                string
+		configuredProjectID string
+		authConfig          cfg.GcsAuthConfig
+		envProjectID        string
+		expected            string
+	}{
+		{
+			name:                "configured project ID takes precedence",
+			configuredProjectID: "config-project-id",
+			authConfig:          cfg.GcsAuthConfig{KeyFile: cfg.ResolvedPath(validKeyFile)},
+			envProjectID:        "env-project-id",
+			expected:            "config-project-id",
+		},
+		{
+			name:                "key file project ID takes precedence over env",
+			configuredProjectID: "",
+			authConfig:          cfg.GcsAuthConfig{KeyFile: cfg.ResolvedPath(validKeyFile)},
+			envProjectID:        "env-project-id",
+			expected:            "file-project-id",
+		},
+		{
+			name:                "falls back to env var when key file is invalid",
+			configuredProjectID: "",
+			authConfig:          cfg.GcsAuthConfig{KeyFile: cfg.ResolvedPath(invalidKeyFile)},
+			envProjectID:        "env-project-id",
+			expected:            "env-project-id",
+		},
+		{
+			name:                "falls back to env var when key file does not exist",
+			configuredProjectID: "",
+			authConfig:          cfg.GcsAuthConfig{KeyFile: cfg.ResolvedPath("nonexistent.json")},
+			envProjectID:        "env-project-id",
+			expected:            "env-project-id",
+		},
+		{
+			name:                "falls back to env var when no auth config provided",
+			configuredProjectID: "",
+			authConfig:          cfg.GcsAuthConfig{TokenUrl: "some-url"}, // TokenUrl prevents default credentials
+			envProjectID:        "env-project-id",
+			expected:            "env-project-id",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			if tc.envProjectID != "" {
+				t.Setenv("GOOGLE_CLOUD_PROJECT", tc.envProjectID)
+			} else {
+				os.Unsetenv("GOOGLE_CLOUD_PROJECT")
+			}
+
+			// Act
+			actual := getProjectID(ctx, tc.authConfig, tc.configuredProjectID)
+
+			// Assert
+			assert.Equal(t, tc.expected, actual)
 		})
 	}
 }

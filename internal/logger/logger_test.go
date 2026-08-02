@@ -624,7 +624,7 @@ func TestDualHandler_Enabled(t *testing.T) {
 			// Arrange
 			local := &mockHandler{enabled: tc.localEnabled}
 			otel := &mockHandler{enabled: tc.otelEnabled}
-			dh := &dualHandler{local: local, otel: otel}
+			dh := &dualHandler{local: local, otel: otel, levelVar: new(slog.LevelVar)}
 			ctx := context.Background()
 
 			// Act
@@ -661,7 +661,7 @@ func TestDualHandler_Handle(t *testing.T) {
 			// Arrange
 			local := &mockHandler{enabled: tc.localEnabled, err: tc.localErr}
 			otel := &mockHandler{enabled: tc.otelEnabled, err: tc.otelErr}
-			dh := &dualHandler{local: local, otel: otel}
+			dh := &dualHandler{local: local, otel: otel, levelVar: new(slog.LevelVar)}
 			ctx := context.Background()
 			record := slog.Record{Level: slog.LevelInfo}
 
@@ -686,7 +686,7 @@ func TestDualHandler_WithAttrs(t *testing.T) {
 	// Arrange
 	local := &mockHandler{}
 	otel := &mockHandler{}
-	dh := &dualHandler{local: local, otel: otel}
+	dh := &dualHandler{local: local, otel: otel, levelVar: new(slog.LevelVar)}
 	attrs := []slog.Attr{slog.String("key", "value")}
 
 	// Act
@@ -701,7 +701,7 @@ func TestDualHandler_WithGroup(t *testing.T) {
 	// Arrange
 	local := &mockHandler{}
 	otel := &mockHandler{}
-	dh := &dualHandler{local: local, otel: otel}
+	dh := &dualHandler{local: local, otel: otel, levelVar: new(slog.LevelVar)}
 	groupName := "mygroup"
 
 	// Act

@@ -145,7 +145,9 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Failed to create temp config file: %v", err)
 	}
-	tempFile.Close()
+	if err := tempFile.Close(); err != nil {
+		log.Fatalf("Failed to close temp config file: %v", err)
+	}
 	configFileForGCSFuse = tempFile.Name()
 	_, port, err := net.SplitHostPort(mockServerURL)
 	if err != nil {

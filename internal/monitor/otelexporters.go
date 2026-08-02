@@ -16,6 +16,7 @@ package monitor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -227,11 +228,13 @@ func getProjectID(ctx context.Context, authConfig cfg.GcsAuthConfig, configuredP
 		if err != nil {
 			logger.Errorf("Failed to read key file for project ID: %v", err)
 		} else {
-			creds, err := google.CredentialsFromJSON(ctx, contents)
-			if err != nil {
+			var config struct {
+				ProjectID string `json:"project_id"`
+			}
+			if err := json.Unmarshal(contents, &config); err != nil {
 				logger.Errorf("Failed to parse key file for project ID: %v", err)
-			} else if creds.ProjectID != "" {
-				return creds.ProjectID
+			} else if config.ProjectID != "" {
+				return config.ProjectID
 			}
 		}
 	} else if authConfig.TokenUrl == "" {

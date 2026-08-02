@@ -707,15 +707,15 @@ type LogRotateLoggingConfig struct {
 type LoggingConfig struct {
 	ExperimentalEnableOtelLogging bool `yaml:"experimental-enable-otel-logging"`
 
+	ExperimentalOtelLoggingEndpoint string `yaml:"experimental-otel-logging-endpoint"`
+
+	ExperimentalOtelLoggingProjectId string `yaml:"experimental-otel-logging-project-id"`
+
 	FilePath ResolvedPath `yaml:"file-path"`
 
 	Format string `yaml:"format"`
 
 	LogRotate LogRotateLoggingConfig `yaml:"log-rotate"`
-
-	ExperimentalOtelLoggingEndpoint string `yaml:"experimental-otel-logging-endpoint"`
-
-	ExperimentalOtelLoggingProjectId string `yaml:"experimental-otel-logging-project-id"`
 
 	Severity LogSeverity `yaml:"severity"`
 
@@ -1042,11 +1042,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil. This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.")
 
-	flagSet.BoolP("experimental-enable-otel-logging", "", false, "Enable OpenTelemetry log exporting.")
-	if err := flagSet.MarkHidden("experimental-enable-otel-logging"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("enable-rapid-appends", "", true, "Enables support for appends to unfinalized object using streaming writes")
 
 	flagSet.BoolP("enable-rapid-writes", "", false, "For pirlo, toggles between using STANDARD class and RAPID class for writes.")
@@ -1097,6 +1092,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("experimental-enable-optimized-metadata-cache", "", false, "This flag enables the radix tree based lru cache")
 
+	flagSet.BoolP("experimental-enable-otel-logging", "", false, "Enable OpenTelemetry log exporting.")
+
+	if err := flagSet.MarkHidden("experimental-enable-otel-logging"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("experimental-enable-pirlo", "", false, "Enables support for pirlo.")
 
 	if err := flagSet.MarkHidden("experimental-enable-pirlo"); err != nil {
@@ -1130,6 +1131,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-o-direct", "", false, "Experimental: Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse process.")
 
 	if err := flagSet.MarkHidden("experimental-o-direct"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-otel-logging-endpoint", "", "telemetry.googleapis.com", "The OTLP HTTP endpoint for OpenTelemetry logs.")
+
+	if err := flagSet.MarkHidden("experimental-otel-logging-endpoint"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-otel-logging-project-id", "", "", "Specify the GCP project id to which OTel logs will be exported. When unset, a project id will be inferred as per the default credential detection process.")
+
+	if err := flagSet.MarkHidden("experimental-otel-logging-project-id"); err != nil {
 		return err
 	}
 
@@ -1320,16 +1333,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringSliceP("o", "", []string{}, "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro")
 
 	flagSet.StringP("only-dir", "", "", "Mount only a specific directory within the bucket. See docs/mounting for more information")
-
-	flagSet.StringP("experimental-otel-logging-endpoint", "", "telemetry.googleapis.com", "The OTLP HTTP endpoint for OpenTelemetry logs.")
-	if err := flagSet.MarkHidden("experimental-otel-logging-endpoint"); err != nil {
-		return err
-	}
-
-	flagSet.StringP("experimental-otel-logging-project-id", "", "", "Specify the GCP project id to which OTel logs will be exported. When unset, a project id will be inferred as per the default credential detection process.")
-	if err := flagSet.MarkHidden("experimental-otel-logging-project-id"); err != nil {
-		return err
-	}
 
 	flagSet.StringP("profile", "", "", "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing")
 
@@ -1668,10 +1671,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("logging.experimental-enable-otel-logging", flagSet.Lookup("experimental-enable-otel-logging")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("write.enable-rapid-appends", flagSet.Lookup("enable-rapid-appends")); err != nil {
 		return err
 	}
@@ -1716,6 +1715,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("logging.experimental-enable-otel-logging", flagSet.Lookup("experimental-enable-otel-logging")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("file-system.experimental-enable-pirlo", flagSet.Lookup("experimental-enable-pirlo")); err != nil {
 		return err
 	}
@@ -1737,6 +1740,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.experimental-o-direct", flagSet.Lookup("experimental-o-direct")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.experimental-otel-logging-endpoint", flagSet.Lookup("experimental-otel-logging-endpoint")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.experimental-otel-logging-project-id", flagSet.Lookup("experimental-otel-logging-project-id")); err != nil {
 		return err
 	}
 
@@ -1949,14 +1960,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("only-dir", flagSet.Lookup("only-dir")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("logging.experimental-otel-logging-endpoint", flagSet.Lookup("experimental-otel-logging-endpoint")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("logging.experimental-otel-logging-project-id", flagSet.Lookup("experimental-otel-logging-project-id")); err != nil {
 		return err
 	}
 
