@@ -391,3 +391,49 @@ func Test_EraseEntriesWithGivenPrefix_Concurrent(t *testing.T) {
 
 	wg.Wait()
 }
+
+type testSparseData struct {
+	Value    int64
+	DataSize uint64
+}
+
+func (td *testSparseData) Size() uint64 {
+	return td.DataSize
+}
+
+func TestUpdateSizeTOCTOU_EraseBeforeUpdateSizeDoesNotUnderflow(t *testing.T) {
+	cache := setupCacheTest(t)
+	data := &testSparseData{Value: 1, DataSize: 0}
+	insertAndAssert(t, cache, "key", data, []int64{}, nil)
+	data.DataSize = 1000
+
+	deletedEntry := cache.Erase("key")
+	err := cache.UpdateSize("key", 1000)
+
+	require.NotNil(t, deletedEntry)
+	assert.ErrorIs(t, err, lru.ErrEntryNotExist)
+}
+
+func TestUpdateSizeTOCTOU_ConcurrentUpdateAndErase(t *testing.T) {
+	cache := setupCacheTest(t)
+	data := &testSparseData{Value: 1, DataSize: 0}
+	insertAndAssert(t, cache, "key", data, []int64{}, nil)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		for range 10 {
+			data.DataSize += 2
+			_ = cache.UpdateSize("key", 2)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		_ = cache.Erase("key")
+	}()
+
+	wg.Wait()
+	// Assert: Invariant checks (sum(size) == currentSize and currentSize <= maxSize)
+	// run automatically on lock release via setupCacheTest.
+}
