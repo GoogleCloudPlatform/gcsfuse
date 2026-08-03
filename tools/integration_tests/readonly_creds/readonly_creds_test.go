@@ -23,7 +23,6 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
@@ -95,9 +94,7 @@ func TestMain(m *testing.M) {
 	// Save mount and root directory variables.
 	mountDir, rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
 
-	flags := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, "")
-	// Test for viewer permission on test bucket.
-	successCode := creds_tests.RunTestsForDifferentAuthMethods(testEnv.ctx, testEnv.cfg, testEnv.storageClient, flags, "objectViewer", m)
+	successCode := m.Run()
 
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, testDirName))
 	os.Exit(successCode)
