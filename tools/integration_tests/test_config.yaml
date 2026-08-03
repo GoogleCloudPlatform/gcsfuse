@@ -44,7 +44,7 @@ implicit_dir:
             same_zone: true
             different_zone: false
         run_on_gke: false
-        run: TestImplicitDirLocalFileRapidWritesEnabled
+        run: TestImplicitDirRapidWritesEnabled
       - flags:
           - "--experimental-enable-pirlo,--enable-rapid-writes=false,--implicit-dirs"
         run_on_pirlo:
@@ -122,7 +122,6 @@ operations:
           hns: true
           zonal: true
         run_on_gke: true
-        run: TestOperationsBase
       - flags:
           - "--experimental-enable-pirlo,--enable-rapid-writes=true,--kernel-list-cache-ttl-secs=-1,--enable-metadata-prefetch"
         run_on_pirlo:
@@ -151,7 +150,6 @@ operations:
           zonal: true
         tpc: true
         run_on_gke: false
-        run: TestOperationsBase
 
 write_large_files:
   - mounted_directory: "${MOUNTED_DIR}"
@@ -472,34 +470,25 @@ read_cache:
         run_on_gke: true
         run: TestRangeReadWithParallelDownloadsTest
       - flags:
-          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationBase,--log-file=/gcsfuse-tmp/TestLocalModificationBase.log,--log-severity=TRACE,--implicit-dirs,--enable-kernel-reader=false,--client-protocol=http1"
-          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestLocalModificationBase,--log-file=/gcsfuse-tmp/TestLocalModificationBase.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
-          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationBase,--log-file=/gcsfuse-tmp/TestLocalModificationBase.log,--log-severity=TRACE,--implicit-dirs,--client-protocol=grpc,--enable-kernel-reader=false"
-          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestLocalModificationBase,--log-file=/gcsfuse-tmp/TestLocalModificationBase.log,--log-severity=TRACE,--client-protocol=grpc,--enable-kernel-reader=false"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--implicit-dirs,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--implicit-dirs,--client-protocol=grpc,--enable-kernel-reader=false"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--client-protocol=grpc,--enable-kernel-reader=false"
         compatible:
           flat: true
           hns: true
           zonal: true
-        run: TestLocalModificationBase
+        run: TestLocalModificationTest
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationRapidWritesEnabled,--log-file=/gcsfuse-tmp/TestLocalModificationRapidWritesEnabled.log,--log-severity=TRACE,--implicit-dirs,--enable-kernel-reader=false"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestLocalModificationRapidWritesEnabled,--log-file=/gcsfuse-tmp/TestLocalModificationRapidWritesEnabled.log,--log-severity=TRACE,--enable-kernel-reader=false"
+          - "--experimental-enable-pirlo,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--implicit-dirs,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
             different_zone: false
-        run_on_gke: false
-        run: TestLocalModificationRapidWritesEnabled
-      - flags:
-          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationBase,--log-file=/gcsfuse-tmp/TestLocalModificationBase.log,--log-severity=TRACE,--implicit-dirs,--enable-kernel-reader=false"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestLocalModificationBase,--log-file=/gcsfuse-tmp/TestLocalModificationBase.log,--log-severity=TRACE,--enable-kernel-reader=false"
-        run_on_pirlo:
-          hns:
-            same_zone: true
-            different_zone: false
-        run_on_gke: false
-        run: TestLocalModificationBase
+        run_on_gke: true
+        run: TestLocalModificationTest
       - flags:
           - "--stat-cache-ttl=0s,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest,--log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log,--log-severity=TRACE,--implicit-dirs,--enable-kernel-reader=false,--client-protocol=http1"
           - "--stat-cache-ttl=0s,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest,--log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
@@ -1165,25 +1154,14 @@ readonly_creds:
           hns: true
           zonal: true
         run_on_gke: false
-        run: TestReadOnlyCredsBase
       - flags:
-          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--implicit-dirs=true"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--implicit-dirs=false"
+          - "--experimental-enable-pirlo,--implicit-dirs=true,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--implicit-dirs=false,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
             different_zone: false
         run_on_gke: false
-        run: TestReadOnlyCredsRapidWritesEnabled
-      - flags:
-          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--implicit-dirs=true"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--implicit-dirs=false"
-        run_on_pirlo:
-          hns:
-            same_zone: true
-            different_zone: false
-        run_on_gke: false
-        run: TestReadOnlyCredsBase
 
 mount_timeout:
   - mounted_directory: "${MOUNTED_DIR}"
