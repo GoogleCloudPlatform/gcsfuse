@@ -62,7 +62,7 @@ func (i *implicitDirLocalFileTest) TestNewFileUnderImplicitDirectoryShouldNotGet
 		// An object written without sync would be recognized as having zero-size.
 		ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testBaseDirName, fileName, "", i.T())
 
-		// An object written with sync can be fully read.
+		// An appendable object written with sync can be fully read.
 		err := fh.Sync()
 		require.NoError(i.T(), err)
 		ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testBaseDirName, fileName, FileContents, i.T())
