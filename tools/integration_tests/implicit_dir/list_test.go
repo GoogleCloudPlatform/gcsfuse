@@ -28,7 +28,6 @@ import (
 )
 
 func (s *implicitDirTestSuite) TestListImplicitObjectsFromBucket() {
-	t := s.T()
 	testDirName := "testListImplicitObjectsFromBucket"
 	testDirPath := setupTestDir(testDirName)
 	// Directory Structure
@@ -41,8 +40,8 @@ func (s *implicitDirTestSuite) TestListImplicitObjectsFromBucket() {
 	// testBucket/dirForImplicitDirTests/testDir/explicitDirectory/fileInExplicitDir1                               -- File
 	// testBucket/dirForImplicitDirTests/testDir/explicitDirectory/fileInExplicitDir2                               -- File
 
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
-	implicit_and_explicit_dir_setup.CreateExplicitDirectoryStructure(path.Join(DirForImplicitDirTests, testDirName), t)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, s.T(), testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
+	implicit_and_explicit_dir_setup.CreateExplicitDirectoryStructure(path.Join(DirForImplicitDirTests, testDirName), s.T())
 
 	err := filepath.WalkDir(testDirPath, func(path string, dir fs.DirEntry, err error) error {
 		if err != nil {
@@ -64,21 +63,21 @@ func (s *implicitDirTestSuite) TestListImplicitObjectsFromBucket() {
 		if path == testDirPath {
 			// numberOfObjects - 3
 			if len(objs) != implicit_and_explicit_dir_setup.NumberOfTotalObjects {
-				t.Errorf("Incorrect number of objects in the bucket.")
+				s.T().Errorf("Incorrect number of objects in the bucket.")
 			}
 
 			// testBucket/dirForImplicitDirTests/testDir/explicitDir     -- Dir
 			if objs[0].Name() != implicit_and_explicit_dir_setup.ExplicitDirectory || objs[0].IsDir() != true {
-				t.Errorf("Listed incorrect object")
+				s.T().Errorf("Listed incorrect object")
 			}
 			// testBucket/dirForImplicitDirTests/testDir/explicitFile    -- File
 			if objs[1].Name() != implicit_and_explicit_dir_setup.ExplicitFile || objs[1].IsDir() != false {
-				t.Errorf("Listed incorrect object")
+				s.T().Errorf("Listed incorrect object")
 			}
 
 			// testBucket/dirForImplicitDirTests/testDir/implicitDir     -- Dir
 			if objs[2].Name() != implicit_and_explicit_dir_setup.ImplicitDirectory || objs[2].IsDir() != true {
-				t.Errorf("Listed incorrect object")
+				s.T().Errorf("Listed incorrect object")
 			}
 		}
 
@@ -86,17 +85,17 @@ func (s *implicitDirTestSuite) TestListImplicitObjectsFromBucket() {
 		if dir.IsDir() && dir.Name() == implicit_and_explicit_dir_setup.ExplicitDirectory {
 			// numberOfObjects - 2
 			if len(objs) != implicit_and_explicit_dir_setup.NumberOfFilesInExplicitDirectory {
-				t.Errorf("Incorrect number of objects in the explicitDirectory.")
+				s.T().Errorf("Incorrect number of objects in the explicitDirectory.")
 			}
 
 			// testBucket/dirForImplicitDirTests/testDir/explicitDir/fileInExplicitDir1   -- File
 			if objs[0].Name() != implicit_and_explicit_dir_setup.FirstFileInExplicitDirectory || objs[0].IsDir() != false {
-				t.Errorf("Listed incorrect object")
+				s.T().Errorf("Listed incorrect object")
 			}
 
 			// testBucket/dirForImplicitDirTests/testDir/explicitDir/fileInExplicitDir2    -- File
 			if objs[1].Name() != implicit_and_explicit_dir_setup.SecondFileInExplicitDirectory || objs[1].IsDir() != false {
-				t.Errorf("Listed incorrect object")
+				s.T().Errorf("Listed incorrect object")
 			}
 			return nil
 		}
@@ -105,16 +104,16 @@ func (s *implicitDirTestSuite) TestListImplicitObjectsFromBucket() {
 		if dir.IsDir() && dir.Name() == implicit_and_explicit_dir_setup.ImplicitDirectory {
 			// numberOfObjects - 2
 			if len(objs) != implicit_and_explicit_dir_setup.NumberOfFilesInImplicitDirectory {
-				t.Errorf("Incorrect number of objects in the implicitDirectory.")
+				s.T().Errorf("Incorrect number of objects in the implicitDirectory.")
 			}
 
 			// testBucket/dirForImplicitDirTests/testDir/implicitDir/fileInImplicitDir1  -- File
 			if objs[0].Name() != implicit_and_explicit_dir_setup.FileInImplicitDirectory || objs[0].IsDir() != false {
-				t.Errorf("Listed incorrect object")
+				s.T().Errorf("Listed incorrect object")
 			}
 			// testBucket/dirForImplicitDirTests/testDir/implicitDir/implicitSubDirectory  -- Dir
 			if objs[1].Name() != implicit_and_explicit_dir_setup.ImplicitSubDirectory || objs[1].IsDir() != true {
-				t.Errorf("Listed incorrect object")
+				s.T().Errorf("Listed incorrect object")
 			}
 			return nil
 		}
@@ -123,38 +122,37 @@ func (s *implicitDirTestSuite) TestListImplicitObjectsFromBucket() {
 		if dir.IsDir() && dir.Name() == implicit_and_explicit_dir_setup.ImplicitSubDirectory {
 			// numberOfObjects - 1
 			if len(objs) != implicit_and_explicit_dir_setup.NumberOfFilesInImplicitSubDirectory {
-				t.Errorf("Incorrect number of objects in the implicitSubDirectoryt.")
+				s.T().Errorf("Incorrect number of objects in the implicitSubDirectoryt.")
 			}
 
 			// testBucket/dirForImplicitDirTests/testDir/implicitDir/implicitSubDir/fileInImplicitDir2   -- File
 			if objs[0].Name() != implicit_and_explicit_dir_setup.FileInImplicitSubDirectory || objs[0].IsDir() != false {
-				t.Errorf("Listed incorrect object")
+				s.T().Errorf("Listed incorrect object")
 			}
 			return nil
 		}
 		return nil
 	})
 	if err != nil {
-		t.Errorf("error walking the path : %v\n", err)
+		s.T().Errorf("error walking the path : %v\n", err)
 		return
 	}
 }
 
 func (s *implicitDirTestSuite) TestStatImplicitDirAfterList() {
-	t := s.T()
 	testDirPath := setup.SetupTestDirectory(DirForImplicitDirTests)
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, DirForImplicitDirTests)
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, s.T(), testEnv.storageClient, DirForImplicitDirTests)
 
 	// List the directory
 	_, err := os.ReadDir(testDirPath)
 	if err != nil {
-		t.Fatalf("ReadDir failed: %v", err)
+		s.T().Fatalf("ReadDir failed: %v", err)
 	}
 
 	// Stat the implicit directory
 	implicitDirPath := path.Join(testDirPath, implicit_and_explicit_dir_setup.ImplicitDirectory)
 	f, err := os.Stat(implicitDirPath)
-	if assert.NoError(t, err) {
-		assert.True(t, f.IsDir())
+	if assert.NoError(s.T(), err) {
+		assert.True(s.T(), f.IsDir())
 	}
 }
