@@ -116,9 +116,11 @@ func runReadOnlyCredsTest(t *testing.T, ts *readOnlyCredsTest) {
 
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
-		log.Printf("Running %s with flags: %s", t.Name(), flags)
-		creds_tests.RunSuiteForDifferentAuthMethods(testEnv.ctx, testEnv.cfg, testEnv.storageClient, flags, "objectViewer", t, func() {
-			suite.Run(t, ts)
+		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
+			log.Printf("Running %s with flags: %s", t.Name(), flags)
+			creds_tests.RunSuiteForDifferentAuthMethods(testEnv.ctx, testEnv.cfg, testEnv.storageClient, flags, "objectViewer", t, func() {
+				suite.Run(t, ts)
+			})
 		})
 	}
 }
