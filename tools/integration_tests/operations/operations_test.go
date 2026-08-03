@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -47,60 +48,79 @@ func runOperationsSuite(t *testing.T, runSuiteFunc func()) {
 
 	flagsSet := setup.BuildFlagSets(*operationsConfig, bucketType, t.Name())
 	for _, flags := range flagsSet {
-		// 1. Static mounting
-		log.Printf("Running static mounting %s with flags: %s", t.Name(), flags)
-		err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(operationsConfig, flags)
-		require.NoError(t, err, "Static mount failed")
+		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
+			// 1. Static mounting
+			t.Run("Static", func(t *testing.T) {
+				log.Printf("Running static mounting %s with flags: %s", t.Name(), flags)
+				err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(operationsConfig, flags)
+				require.NoError(t, err, "Static mount failed")
 
-		runSuiteFunc()
+				runSuiteFunc()
 
-		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-		setup.UnmountGCSFuseWithConfig(operationsConfig)
+				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+				setup.UnmountGCSFuseWithConfig(operationsConfig)
+			})
 
-		// 2. Only-dir mounting
-		setup.SetOnlyDirMounted(onlyDirMounted)
-		log.Printf("Running only dir mounting %s with flags: %s", t.Name(), flags)
-		err = only_dir_mounting.MountGcsfuseWithOnlyDirWithConfigFile(operationsConfig, flags)
-		require.NoError(t, err, "Only dir mount failed")
+			// 2. Only-dir mounting
+			t.Run("OnlyDir", func(t *testing.T) {
+				setup.SetOnlyDirMounted(onlyDirMounted)
+				client.SetupTestDirectory(ctx, storageClient, onlyDirMounted)
+				defer func() {
+					if err := client.DeleteAllObjectsWithPrefix(ctx, storageClient, onlyDirMounted); err != nil {
+						log.Printf("Error deleting object on GCS: %v", err)
+					}
+					setup.SetOnlyDirMounted("")
+				}()
 
-		runSuiteFunc()
+				log.Printf("Running only dir mounting %s with flags: %s", t.Name(), flags)
+				err := only_dir_mounting.MountGcsfuseWithOnlyDirWithConfigFile(operationsConfig, flags)
+				require.NoError(t, err, "Only dir mount failed")
 
-		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-		setup.UnmountGCSFuseWithConfig(operationsConfig)
-		setup.SetOnlyDirMounted("")
+				runSuiteFunc()
 
-		// 3. Persistent mounting
-		log.Printf("Running persistent mounting %s with flags: %s", t.Name(), flags)
-		err = persistent_mounting.MountGcsfuseWithPersistentMountingWithConfigFile(operationsConfig, flags)
-		require.NoError(t, err, "Persistent mount failed")
+				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+				setup.UnmountGCSFuseWithConfig(operationsConfig)
+			})
 
-		runSuiteFunc()
+			// 3. Persistent mounting
+			t.Run("Persistent", func(t *testing.T) {
+				log.Printf("Running persistent mounting %s with flags: %s", t.Name(), flags)
+				err := persistent_mounting.MountGcsfuseWithPersistentMountingWithConfigFile(operationsConfig, flags)
+				require.NoError(t, err, "Persistent mount failed")
 
-		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-		setup.UnmountGCSFuseWithConfig(operationsConfig)
+				runSuiteFunc()
 
-		// 4. Dynamic mounting
-		rootMntDir := operationsConfig.GCSFuseMountedDirectory
+				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+				setup.UnmountGCSFuseWithConfig(operationsConfig)
+			})
 
-		log.Printf("Running dynamic mounting %s with flags: %s", t.Name(), flags)
-		err = dynamic_mounting.MountGcsfuseWithDynamicMountingWithConfig(operationsConfig, flags)
-		require.NoError(t, err, "Dynamic mount failed")
+			// 4. Dynamic mounting
+			t.Run("Dynamic", func(t *testing.T) {
+				rootMntDir := operationsConfig.GCSFuseMountedDirectory
+				setup.SetDynamicBucketMounted(operationsConfig.TestBucket)
 
-		mntDirOfTestBucket := path.Join(rootMntDir, operationsConfig.TestBucket)
-		operationsConfig.GCSFuseMountedDirectory = mntDirOfTestBucket
-		setup.SetMntDir(mntDirOfTestBucket)
-		setup.SetDynamicBucketMounted(operationsConfig.TestBucket)
+				log.Printf("Running dynamic mounting %s with flags: %s", t.Name(), flags)
+				err := dynamic_mounting.MountGcsfuseWithDynamicMountingWithConfig(operationsConfig, flags)
+				require.NoError(t, err, "Dynamic mount failed")
 
-		runSuiteFunc()
+				mntDirOfTestBucket := path.Join(rootMntDir, operationsConfig.TestBucket)
+				operationsConfig.GCSFuseMountedDirectory = mntDirOfTestBucket
+				setup.SetMntDir(mntDirOfTestBucket)
 
-		setup.SetMntDir(rootMntDir)
-		operationsConfig.GCSFuseMountedDirectory = rootMntDir
-		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-		setup.UnmountGCSFuseWithConfig(operationsConfig)
-		setup.SetDynamicBucketMounted("")
+				runSuiteFunc()
 
-		// 5. Creds tests (runs for different auth methods)
-		creds_tests.RunSuiteForDifferentAuthMethods(ctx, operationsConfig, storageClient, flags, "objectAdmin", t, runSuiteFunc)
+				setup.SetMntDir(rootMntDir)
+				operationsConfig.GCSFuseMountedDirectory = rootMntDir
+				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+				setup.UnmountGCSFuseWithConfig(operationsConfig)
+				setup.SetDynamicBucketMounted("")
+			})
+
+			// 5. Creds tests (runs for different auth methods)
+			t.Run("Creds", func(t *testing.T) {
+				creds_tests.RunSuiteForDifferentAuthMethods(ctx, operationsConfig, storageClient, flags, "objectAdmin", t, runSuiteFunc)
+			})
+		})
 	}
 }
 
