@@ -225,5 +225,10 @@ func TestMain(m *testing.M) {
 	setup.OverrideFilePathsInFlagSet(operationsConfig, setup.TestDir())
 	setup.SetUpTestDirForTestBucket(operationsConfig)
 
+	if setup.TestOnTPCEndPoint() {
+		flags := setup.BuildFlagSets(*operationsConfig, bucketType, "")
+		os.Exit(static_mounting.RunTestsWithConfigFile(operationsConfig, flags, m))
+	}
+
 	os.Exit(m.Run())
 }
