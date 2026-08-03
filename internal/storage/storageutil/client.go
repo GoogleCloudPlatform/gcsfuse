@@ -78,6 +78,8 @@ type StorageClientConfig struct {
 
 	// Enabling new API flow for HNS bucket.
 	EnableHNS bool
+	// Prefix to restrict access to (from only-dir config).
+	OnlyDir string
 	// EnableGoogleLibAuth indicates whether to use the google library authentication flow
 	EnableGoogleLibAuth bool
 

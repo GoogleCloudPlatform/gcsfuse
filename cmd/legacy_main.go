@@ -163,6 +163,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		GrpcConnPoolSize:           int(newConfig.GcsConnection.GrpcConnPoolSize),
 		GrpcPathStrategy:           newConfig.GcsConnection.GrpcPathStrategy,
 		EnableHNS:                  newConfig.EnableHns,
+		OnlyDir:                    newConfig.OnlyDir,
 		EnableGoogleLibAuth:        newConfig.EnableGoogleLibAuth,
 		ReadStallRetryConfig:       newConfig.GcsRetries.ReadStall,
 		MetricHandle:               metricHandle,
