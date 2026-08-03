@@ -443,8 +443,10 @@ func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.Storage
 func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig, billingProject string) (sh StorageHandle, err error) {
 	// Sanitize the onlyDir path for only-dir mounting
 	if clientConfig.OnlyDir != "" {
-		prefix := path.Clean(clientConfig.OnlyDir)
-		if prefix != "." && prefix != "/" {
+		// Treat OnlyDir as absolute path to resolve any leading ".." to root.
+		prefix := path.Clean("/" + clientConfig.OnlyDir)
+		prefix = strings.TrimPrefix(prefix, "/")
+		if prefix != "" {
 			clientConfig.OnlyDir = prefix + "/"
 		} else {
 			clientConfig.OnlyDir = ""
