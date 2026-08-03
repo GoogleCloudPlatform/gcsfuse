@@ -81,14 +81,15 @@ func runOperationsSuite(t *testing.T, runSuiteFunc func()) {
 
 		// 4. Dynamic mounting
 		rootMntDir := operationsConfig.GCSFuseMountedDirectory
-		mntDirOfTestBucket := path.Join(operationsConfig.GCSFuseMountedDirectory, operationsConfig.TestBucket)
-		operationsConfig.GCSFuseMountedDirectory = mntDirOfTestBucket
-		setup.SetMntDir(mntDirOfTestBucket)
-		setup.SetDynamicBucketMounted(operationsConfig.TestBucket)
 
 		log.Printf("Running dynamic mounting %s with flags: %s", t.Name(), flags)
 		err = dynamic_mounting.MountGcsfuseWithDynamicMountingWithConfig(operationsConfig, flags)
 		require.NoError(t, err, "Dynamic mount failed")
+
+		mntDirOfTestBucket := path.Join(rootMntDir, operationsConfig.TestBucket)
+		operationsConfig.GCSFuseMountedDirectory = mntDirOfTestBucket
+		setup.SetMntDir(mntDirOfTestBucket)
+		setup.SetDynamicBucketMounted(operationsConfig.TestBucket)
 
 		runSuiteFunc()
 
