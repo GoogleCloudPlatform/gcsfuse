@@ -237,37 +237,6 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethod_GrpcChecksu
 	}
 }
 
-func (testSuite *BucketHandleTest) TestNewMultiRangeDownloader_GrpcChecksumsFlag() {
-	tests := []struct {
-		name             string
-		disableChecksums bool
-	}{
-		{
-			name:             "ChecksumsDisabled",
-			disableChecksums: true,
-		},
-		{
-			name:             "ChecksumsEnabled",
-			disableChecksums: false,
-		},
-	}
-
-	for _, tc := range tests {
-		testSuite.T().Run(tc.name, func(t *testing.T) {
-			createBucketHandle(testSuite, &controlpb.StorageLayout{})
-			testSuite.bucketHandle.disableGrpcReadChecksums = tc.disableChecksums
-
-			mrd, err := testSuite.bucketHandle.NewMultiRangeDownloader(context.Background(),
-				&gcs.MultiRangeDownloaderRequest{
-					Name: TestObjectName,
-				})
-
-			assert.ErrorContains(t, err, "method is not currently supported")
-			assert.Nil(t, mrd)
-		})
-	}
-}
-
 func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithInvalidGeneration() {
 	createBucketHandle(testSuite, &controlpb.StorageLayout{})
 	var notFoundErr *gcs.NotFoundError

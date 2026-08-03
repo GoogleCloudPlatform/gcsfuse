@@ -131,67 +131,67 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketExistsWithEmptyBil
 
 func (testSuite *StorageHandleTest) TestBucketHandle_DisableGrpcReadChecksums() {
 	tests := []struct {
-		name                    string
-		enableGrpcReadChecksums bool
-		bucketTypeRapid         bool
-		clientProtocol          cfg.Protocol
-		expectedDisable         bool
+		name                             string
+		enableGrpcReadChecksums          bool
+		bucketTypeRapid                  bool
+		clientProtocol                   cfg.Protocol
+		expectedDisableGrpcReadChecksums bool
 	}{
 		{
-			name:                    "EnableGrpcReadChecksums is true, bucket is rapid, protocol is grpc",
-			enableGrpcReadChecksums: true,
-			bucketTypeRapid:         true,
-			clientProtocol:          cfg.GRPC,
-			expectedDisable:         false,
+			name:                             "EnableGrpcReadChecksums is true, bucket is rapid, protocol is grpc",
+			enableGrpcReadChecksums:          true,
+			bucketTypeRapid:                  true,
+			clientProtocol:                   cfg.GRPC,
+			expectedDisableGrpcReadChecksums: false,
 		},
 		{
-			name:                    "EnableGrpcReadChecksums is true, bucket is rapid, protocol is http1",
-			enableGrpcReadChecksums: true,
-			bucketTypeRapid:         true,
-			clientProtocol:          cfg.HTTP1,
-			expectedDisable:         false,
+			name:                             "EnableGrpcReadChecksums is true, bucket is rapid, protocol is http1",
+			enableGrpcReadChecksums:          true,
+			bucketTypeRapid:                  true,
+			clientProtocol:                   cfg.HTTP1,
+			expectedDisableGrpcReadChecksums: false,
 		},
 		{
-			name:                    "EnableGrpcReadChecksums is true, bucket is standard, protocol is grpc",
-			enableGrpcReadChecksums: true,
-			bucketTypeRapid:         false,
-			clientProtocol:          cfg.GRPC,
-			expectedDisable:         false,
+			name:                             "EnableGrpcReadChecksums is true, bucket is standard, protocol is grpc",
+			enableGrpcReadChecksums:          true,
+			bucketTypeRapid:                  false,
+			clientProtocol:                   cfg.GRPC,
+			expectedDisableGrpcReadChecksums: false,
 		},
 		{
-			name:                    "EnableGrpcReadChecksums is true, bucket is standard, protocol is http1",
-			enableGrpcReadChecksums: true,
-			bucketTypeRapid:         false,
-			clientProtocol:          cfg.HTTP1,
-			expectedDisable:         true,
+			name:                             "EnableGrpcReadChecksums is true, bucket is standard, protocol is http1",
+			enableGrpcReadChecksums:          true,
+			bucketTypeRapid:                  false,
+			clientProtocol:                   cfg.HTTP1,
+			expectedDisableGrpcReadChecksums: true,
 		},
 		{
-			name:                    "EnableGrpcReadChecksums is false, bucket is rapid, protocol is grpc",
-			enableGrpcReadChecksums: false,
-			bucketTypeRapid:         true,
-			clientProtocol:          cfg.GRPC,
-			expectedDisable:         true,
+			name:                             "EnableGrpcReadChecksums is false, bucket is rapid, protocol is grpc",
+			enableGrpcReadChecksums:          false,
+			bucketTypeRapid:                  true,
+			clientProtocol:                   cfg.GRPC,
+			expectedDisableGrpcReadChecksums: true,
 		},
 		{
-			name:                    "EnableGrpcReadChecksums is false, bucket is rapid, protocol is http1",
-			enableGrpcReadChecksums: false,
-			bucketTypeRapid:         true,
-			clientProtocol:          cfg.HTTP1,
-			expectedDisable:         true,
+			name:                             "EnableGrpcReadChecksums is false, bucket is rapid, protocol is http1",
+			enableGrpcReadChecksums:          false,
+			bucketTypeRapid:                  true,
+			clientProtocol:                   cfg.HTTP1,
+			expectedDisableGrpcReadChecksums: true,
 		},
 		{
-			name:                    "EnableGrpcReadChecksums is false, bucket is standard, protocol is grpc",
-			enableGrpcReadChecksums: false,
-			bucketTypeRapid:         false,
-			clientProtocol:          cfg.GRPC,
-			expectedDisable:         true,
+			name:                             "EnableGrpcReadChecksums is false, bucket is standard, protocol is grpc",
+			enableGrpcReadChecksums:          false,
+			bucketTypeRapid:                  false,
+			clientProtocol:                   cfg.GRPC,
+			expectedDisableGrpcReadChecksums: true,
 		},
 		{
-			name:                    "EnableGrpcReadChecksums is false, bucket is standard, protocol is http1",
-			enableGrpcReadChecksums: false,
-			bucketTypeRapid:         false,
-			clientProtocol:          cfg.HTTP1,
-			expectedDisable:         true,
+			name:                             "EnableGrpcReadChecksums is false, bucket is standard, protocol is http1",
+			enableGrpcReadChecksums:          false,
+			bucketTypeRapid:                  false,
+			clientProtocol:                   cfg.HTTP1,
+			expectedDisableGrpcReadChecksums: true,
 		},
 	}
 
@@ -200,20 +200,19 @@ func (testSuite *StorageHandleTest) TestBucketHandle_DisableGrpcReadChecksums() 
 			// Reinitialize mock client and fake storage for each subtest
 			testSuite.mockClient = new(MockStorageControlClient)
 			testSuite.fakeStorage = NewFakeStorageWithMockClient(testSuite.mockClient, cfg.HTTP2)
-
 			storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 			sh := storageHandle.(*storageClient)
 			sh.clientConfig.EnableGrpcReadChecksums = tc.enableGrpcReadChecksums
 			sh.clientConfig.ClientProtocol = tc.clientProtocol
-
 			bucketType := gcs.BucketType{
 				Zonal: tc.bucketTypeRapid,
 			}
 			testSuite.mockStorageLayout(bucketType)
 
 			bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+
 			assert.Nil(t, err)
-			assert.Equal(t, tc.expectedDisable, bh.disableGrpcReadChecksums)
+			assert.Equal(t, tc.expectedDisableGrpcReadChecksums, bh.disableGrpcReadChecksums)
 		})
 	}
 }
