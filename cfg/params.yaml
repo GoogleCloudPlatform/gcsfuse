@@ -524,6 +524,15 @@ params:
         - bucket-type: "pirlo"
           value: "DefaultMaxBackground()"
 
+  - config-path: "file-system.max-dir-entries"
+    flag-name: "max-dir-entries"
+    type: "int"
+    usage: >-
+      If greater than zero, block creating new files in a directory that
+      already contains at least this many entries, returning ENOSPC and logging
+      a warning. 0 (the default) disables the guard.
+    default: "0"
+
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
     type: "int"

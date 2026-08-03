@@ -133,6 +133,10 @@ type ServerConfig struct {
 	// Allow renaming a directory containing fewer descendants than this limit.
 	RenameDirLimit int64
 
+	// If greater than zero, block creating new files in a directory that
+	// already contains at least this many entries, returning ENOSPC.
+	MaxDirEntries int64
+
 	// File chunk size to read from GCS in one call. Specified in MB.
 	SequentialReadSizeMb int32
 
@@ -202,6 +206,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		dirTypeCacheTTL:            serverCfg.DirTypeCacheTTL,
 		kernelListCacheTTL:         cfg.ListCacheTTLSecsToDuration(serverCfg.NewConfig.FileSystem.KernelListCacheTtlSecs),
 		renameDirLimit:             serverCfg.RenameDirLimit,
+		maxDirEntries:              serverCfg.MaxDirEntries,
 		sequentialReadSizeMb:       serverCfg.SequentialReadSizeMb,
 		uid:                        serverCfg.Uid,
 		gid:                        serverCfg.Gid,
@@ -509,6 +514,7 @@ type fileSystem struct {
 	kernelListCacheTTL time.Duration
 
 	renameDirLimit       int64
+	maxDirEntries        int64
 	sequentialReadSizeMb int32
 
 	// The user and group owning everything in the file system.
@@ -2228,11 +2234,58 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	return child, nil
 }
 
+// checkDirEntryLimit enforces file-system.max-dir-entries. When the limit is
+// greater than zero and the parent directory already contains at least that
+// many entries, new file creation is rejected with ENOSPC and a warning is
+// logged. This gives applications a standard "no space left on device" signal
+// before a directory grows into the size range that degrades listing
+// performance and risks metadata corruption.
+//
+// The count is bounded: ReadDescendants stops once it has seen the limit, so a
+// directory comfortably below the limit only pays the cost of listing its own
+// (few) entries. Directories that are unsupported for descendant listing (e.g.
+// the multi-bucket mount root, which returns ENOSYS) are left to the normal
+// create path.
+//
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) checkDirEntryLimit(ctx context.Context, parentID fuseops.InodeID, name string) error {
+	if fs.maxDirEntries <= 0 {
+		return nil
+	}
+
+	fs.mu.Lock()
+	parent := fs.dirInodeOrDie(parentID)
+	fs.mu.Unlock()
+
+	parent.Lock()
+	descendants, err := parent.ReadDescendants(ctx, int(fs.maxDirEntries))
+	parent.Unlock()
+	if err != nil {
+		if errors.Is(err, fuse.ENOSYS) {
+			return nil
+		}
+		return fmt.Errorf("ReadDescendants for max-dir-entries check: %w", err)
+	}
+
+	if int64(len(descendants)) >= fs.maxDirEntries {
+		logger.Warnf(
+			"max-dir-entries: rejecting creation of %q with ENOSPC; parent directory already contains at least %d entries",
+			name, fs.maxDirEntries)
+		return syscall.ENOSPC
+	}
+
+	return nil
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+
+	if err = fs.checkDirEntryLimit(ctx, op.Parent, op.Name); err != nil {
+		return err
+	}
 	// Create the child.
 	var child inode.Inode
 	openMode := util.FileOpenMode(op.OpenFlags)
