@@ -17,11 +17,12 @@ package fs
 import (
 	"fmt"
 
+	"context"
+
 	newcfg "github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/wrappers"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
-	"golang.org/x/net/context"
 )
 
 // NewServer creates a fuse file system server according to the supplied configuration.

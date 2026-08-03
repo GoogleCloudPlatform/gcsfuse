@@ -18,11 +18,12 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	gcstesting "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake/testing"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 )
 
 func TestBucket(t *testing.T) { ogletest.RunTests(t) }

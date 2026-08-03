@@ -271,7 +271,8 @@ func TestNestedSizeOfGcsMinObject(t *testing.T) {
 		Metadata:        customMetadataFields,
 		Generation:      generation,
 		MetaGeneration:  metaGeneration,
-		Updated:         updated,
+		Updated:         gcs.TimeToNS(updated),
+		Finalized:       0,
 		CRC32C:          &crc32,
 	}
 

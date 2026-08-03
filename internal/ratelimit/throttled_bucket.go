@@ -17,9 +17,10 @@ package ratelimit
 import (
 	"io"
 
+	"context"
+
 	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"golang.org/x/net/context"
 )
 
 // Create a bucket that limits the rate at which it calls the wrapped bucket

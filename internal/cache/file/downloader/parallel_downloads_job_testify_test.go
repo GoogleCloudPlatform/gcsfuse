@@ -21,6 +21,8 @@ import (
 	"sync"
 	"testing"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
@@ -31,7 +33,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/net/context"
 )
 
 type ParallelDownloaderJobTestifyTest struct {
@@ -50,7 +51,9 @@ func (t *ParallelDownloaderJobTestifyTest) SetupTest() {
 		EnableCrc:                true,
 		WriteBufferSize:          4 * 1024 * 1024,
 	}
-	t.ctx, _ = context.WithCancel(context.Background())
+	var cancel context.CancelFunc
+	t.ctx, cancel = context.WithCancel(context.Background())
+	t.T().Cleanup(cancel)
 	t.mockBucket = new(storage.TestifyMockBucket)
 }
 

@@ -16,7 +16,6 @@ package inode_test
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -99,13 +98,8 @@ func TestAttributes(t *testing.T) {
 		Name:     "test",
 		Metadata: metadata,
 	}
-	attrs := fuseops.InodeAttributes{
-		Uid:  1001,
-		Gid:  1002,
-		Mode: 0777 | os.ModeSymlink,
-	}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m, attrs)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -119,16 +113,91 @@ func TestAttributes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Call Attributes
-			extracted, err := s.Attributes(context.TODO(), tt.clobberedCheck)
+			size, _, nlink, err := s.Attributes(context.TODO(), tt.clobberedCheck)
 
 			// Check expected values
 			require.NoError(t, err)
-			assert.Equal(t, uint32(1), extracted.Nlink)
-			assert.Equal(t, attrs.Uid, extracted.Uid)
-			assert.Equal(t, attrs.Gid, extracted.Gid)
-			assert.Equal(t, attrs.Mode, extracted.Mode)
+			assert.Equal(t, uint32(1), nlink)
+			assert.Equal(t, uint64(len("target")), size)
 		})
 	}
+}
+
+func TestAttributesSizeIsTargetLength(t *testing.T) {
+	tests := []struct {
+		name     string
+		target   string
+		metadata map[string]string
+		// objectSize is the size of the backing GCS object, which must not be
+		// what Attributes reports.
+		objectSize uint64
+	}{
+		{
+			name:     "LegacySymlink",
+			target:   "/some/fairly/long/target/path",
+			metadata: map[string]string{inode.SymlinkMetadataKey: "/some/fairly/long/target/path"},
+		},
+		{
+			name:       "LegacySymlinkWithNonZeroObjectSize",
+			target:     "target",
+			metadata:   map[string]string{inode.SymlinkMetadataKey: "target"},
+			objectSize: 100,
+		},
+		{
+			name:     "EmptyTarget",
+			target:   "",
+			metadata: map[string]string{inode.SymlinkMetadataKey: ""},
+		},
+		{
+			name:     "MultiByteTarget",
+			target:   "/tmp/ünïcödé",
+			metadata: map[string]string{inode.SymlinkMetadataKey: "/tmp/ünïcödé"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange.
+			bucket := setupSymlinkTest(t)
+			m := &gcs.MinObject{
+				Name:     "test",
+				Size:     tt.objectSize,
+				Metadata: tt.metadata,
+			}
+			name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
+			s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m)
+			require.NoError(t, err)
+
+			// Act.
+			size, _, _, err := s.Attributes(context.Background(), false)
+
+			// Assert.
+			require.NoError(t, err)
+			assert.Equal(t, uint64(len(tt.target)), size)
+			assert.Equal(t, tt.target, s.Target())
+		})
+	}
+}
+
+func TestAttributesSizeForStandardSymlink(t *testing.T) {
+	// Arrange. A standard symlink keeps its target in the object's content, so
+	// here the backing object size and the target length coincide.
+	const target = "/path/to/target"
+	bucket := setupSymlinkTest(t)
+	obj, err := storageutil.CreateObject(context.Background(), bucket, "test", []byte(target))
+	require.NoError(t, err)
+	m := storageutil.ConvertObjToMinObject(obj)
+	m.Metadata = map[string]string{inode.StandardSymlinkMetadataKey: "true"}
+	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m)
+	require.NoError(t, err)
+
+	// Act.
+	size, _, _, err := s.Attributes(context.Background(), false)
+
+	// Assert.
+	require.NoError(t, err)
+	assert.Equal(t, uint64(len(target)), size)
 }
 
 func TestUpdateSize(t *testing.T) {
@@ -140,9 +209,8 @@ func TestUpdateSize(t *testing.T) {
 		Size:           100,
 		Metadata:       map[string]string{inode.SymlinkMetadataKey: "target"},
 	}
-	attrs := fuseops.InodeAttributes{}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m, attrs)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m)
 	require.NoError(t, err)
 
 	s.UpdateSize(200)
@@ -161,10 +229,9 @@ func TestSource(t *testing.T) {
 	require.NoError(t, err)
 	m := storageutil.ConvertObjToMinObject(obj)
 	m.Metadata = map[string]string{inode.StandardSymlinkMetadataKey: "true"}
-	m.Updated = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC) // Explicitly set Updated time for consistent testing.
-	attrs := fuseops.InodeAttributes{}
+	m.Updated = gcs.TimeToNS(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)) // Explicitly set Updated time for consistent testing.
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m, attrs)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m)
 	require.NoError(t, err)
 
 	source := s.Source()
@@ -174,5 +241,5 @@ func TestSource(t *testing.T) {
 	assert.Equal(t, m.MetaGeneration, source.MetaGeneration)
 	assert.Equal(t, m.Size, source.Size)
 	assert.Equal(t, m.Metadata, source.Metadata)
-	assert.Equal(t, 0, m.Updated.Compare(source.Updated))
+	assert.Equal(t, m.Updated, source.Updated)
 }

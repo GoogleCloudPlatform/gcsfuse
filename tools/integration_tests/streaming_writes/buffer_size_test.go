@@ -47,6 +47,11 @@ func TestWritesWithDifferentConfig(t *testing.T) {
 		fileSize int64
 	}{
 		{
+			name:     "FractionalBlockSize",
+			flags:    []string{"--write-block-size-mb=0.5", "--write-max-blocks-per-file=5"},
+			fileSize: 1 * 1024 * 1024,
+		},
+		{
 			name:     "BlockSizeGreaterThanFileSize",
 			flags:    []string{"--write-block-size-mb=5", "--write-max-blocks-per-file=2"},
 			fileSize: 2 * 1024 * 1024,

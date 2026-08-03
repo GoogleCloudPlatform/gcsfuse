@@ -18,8 +18,9 @@ import (
 	"fmt"
 	"io"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"golang.org/x/net/context"
 )
 
 // Read the contents of the latest generation of the object with the supplied

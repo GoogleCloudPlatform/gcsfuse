@@ -543,15 +543,15 @@ func (t *StatCacheTest) Test_ShouldReturnHitTrueWhenOnlyObjectAlreadyHasEntry() 
 }
 
 func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize() {
-	localCache := lru.NewCache(uint64(2800))
+	localCache := lru.NewCache(uint64(2700))
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
 	objectEntry1 := &gcs.MinObject{Name: "1"}
 	objectEntry2 := &gcs.MinObject{Name: "2"}
 	folderEntry := &gcs.Folder{
 		Name: "3/",
 	}
-	t.statCache.Insert(objectEntry1, expiration) // adds size of 1368
-	t.statCache.Insert(objectEntry2, expiration) // adds size of 1368
+	t.statCache.Insert(objectEntry1, expiration) // adds size of 1304
+	t.statCache.Insert(objectEntry2, expiration) // adds size of 1304
 
 	hit1, entry1 := t.statCache.LookUp("1", someTime)
 	hit2, entry2 := t.statCache.LookUp("2", someTime)

@@ -11,9 +11,10 @@ import (
 	runtime "runtime"
 	unsafe "unsafe"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	oglemock "github.com/jacobsa/oglemock"
-	context "golang.org/x/net/context"
 )
 
 type MockBucket interface {

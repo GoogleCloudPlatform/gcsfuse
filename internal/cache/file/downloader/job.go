@@ -34,7 +34,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 
-	"golang.org/x/net/context"
+	"context"
+
 	"golang.org/x/sync/semaphore"
 )
 

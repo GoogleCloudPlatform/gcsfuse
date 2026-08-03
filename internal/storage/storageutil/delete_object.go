@@ -15,8 +15,9 @@
 package storageutil
 
 import (
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"golang.org/x/net/context"
 )
 
 // DeleteObject deletes an object in the given bucket with the given name.

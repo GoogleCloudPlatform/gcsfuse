@@ -92,6 +92,11 @@ func (name Name) GcsObjectName() string {
 	return name.objectName
 }
 
+// BucketName returns the name of the bucket associated with the Name.
+func (name Name) BucketName() string {
+	return name.bucketName
+}
+
 // LocalName returns the name of the directory or file in the local file system.
 func (name Name) LocalName() string {
 	if name.bucketName == "" {

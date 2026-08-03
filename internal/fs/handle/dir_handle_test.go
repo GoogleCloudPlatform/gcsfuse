@@ -84,11 +84,6 @@ func (t *DirHandleTest) resetDirHandle() {
 		17,
 		inode.NewDirName(inode.NewRootName(""), "testDir"),
 		nil,
-		fuseops.InodeAttributes{
-			Uid:  123,
-			Gid:  456,
-			Mode: 0712,
-		},
 		false, // implicitDirs,
 		false, // enableNonExistentTypeCache
 		0,     // typeCacheTTL

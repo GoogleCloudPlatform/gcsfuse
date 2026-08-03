@@ -15,7 +15,8 @@
 package ratelimit
 
 import (
-	"golang.org/x/net/context"
+	"context"
+
 	"golang.org/x/time/rate"
 )
 

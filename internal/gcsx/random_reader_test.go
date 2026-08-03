@@ -28,6 +28,8 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
@@ -44,7 +46,6 @@ import (
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
-	"golang.org/x/net/context"
 )
 
 // NOTE: Please add new tests in random_reader_stretchr_test.go file. This file
