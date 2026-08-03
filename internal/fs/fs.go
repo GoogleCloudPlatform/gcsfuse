@@ -2043,6 +2043,10 @@ func (fs *fileSystem) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+
+	if err = fs.checkDirEntryLimit(ctx, op.Parent, op.Name); err != nil {
+		return err
+	}
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2101,6 +2105,10 @@ func (fs *fileSystem) MkNode(
 	ctx = fs.getInterruptlessContext(ctx)
 	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
 		return syscall.ENOTSUP
+	}
+
+	if err = fs.checkDirEntryLimit(ctx, op.Parent, op.Name); err != nil {
+		return err
 	}
 
 	// Create the child.
@@ -2236,16 +2244,16 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 
 // checkDirEntryLimit enforces file-system.max-dir-entries. When the limit is
 // greater than zero and the parent directory already contains at least that
-// many entries, new file creation is rejected with ENOSPC and a warning is
-// logged. This gives applications a standard "no space left on device" signal
-// before a directory grows into the size range that degrades listing
-// performance and risks metadata corruption.
+// many direct entries, creation of a new entry in it is rejected with ENOSPC
+// and a warning is logged. This gives applications a standard "no space left
+// on device" signal before a directory grows into the size range that degrades
+// listing performance and risks metadata corruption.
 //
-// The count is bounded: ReadDescendants stops once it has seen the limit, so a
-// directory comfortably below the limit only pays the cost of listing its own
-// (few) entries. Directories that are unsupported for descendant listing (e.g.
-// the multi-bucket mount root, which returns ENOSYS) are left to the normal
-// create path.
+// The count is non-recursive (direct entries only) and bounded: the listing
+// stops once it reaches the limit, and it runs without holding the parent's
+// inode lock, so a directory comfortably below the limit only pays to list its
+// own (few) entries and concurrent operations on the directory are not
+// serialized behind the GCS listing.
 //
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) checkDirEntryLimit(ctx context.Context, parentID fuseops.InodeID, name string) error {
@@ -2257,17 +2265,12 @@ func (fs *fileSystem) checkDirEntryLimit(ctx context.Context, parentID fuseops.I
 	parent := fs.dirInodeOrDie(parentID)
 	fs.mu.Unlock()
 
-	parent.Lock()
-	descendants, err := parent.ReadDescendants(ctx, int(fs.maxDirEntries))
-	parent.Unlock()
+	count, err := parent.CountDirEntriesUpTo(ctx, int(fs.maxDirEntries))
 	if err != nil {
-		if errors.Is(err, fuse.ENOSYS) {
-			return nil
-		}
-		return fmt.Errorf("ReadDescendants for max-dir-entries check: %w", err)
+		return fmt.Errorf("count directory entries for max-dir-entries check: %w", err)
 	}
 
-	if int64(len(descendants)) >= fs.maxDirEntries {
+	if int64(count) >= fs.maxDirEntries {
 		logger.Warnf(
 			"max-dir-entries: rejecting creation of %q with ENOSPC; parent directory already contains at least %d entries",
 			name, fs.maxDirEntries)
@@ -2343,6 +2346,10 @@ func (fs *fileSystem) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+
+	if err = fs.checkDirEntryLimit(ctx, op.Parent, op.Name); err != nil {
+		return err
+	}
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2524,6 +2531,15 @@ func (fs *fileSystem) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+
+	// Guard against bypassing max-dir-entries by renaming an entry into an
+	// already-full directory. Only cross-directory moves add an entry to the
+	// destination; in-place renames do not change the destination's count.
+	if op.NewParent != op.OldParent {
+		if err = fs.checkDirEntryLimit(ctx, op.NewParent, op.NewName); err != nil {
+			return err
+		}
+	}
 	// Find the old and new parents.
 	fs.mu.Lock()
 	oldParent := fs.dirInodeOrDie(op.OldParent)

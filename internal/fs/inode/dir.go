@@ -80,6 +80,13 @@ type DirInode interface {
 	// call.
 	ReadDescendants(ctx context.Context, limit int) (map[Name]*Core, error)
 
+	// CountDirEntriesUpTo returns the number of direct children of this
+	// directory, counting at most `limit` entries (it stops once the count
+	// reaches `limit`). Unlike ReadDescendants this is non-recursive: nested
+	// descendants are not counted. GCS I/O is performed without holding the
+	// inode lock, and internal caches are not refreshed.
+	CountDirEntriesUpTo(ctx context.Context, limit int) (int, error)
+
 	// Read some number of entries from the directory, returning a continuation
 	// token that can be used to pick up the read operation where it left off.
 	// Supply the empty token on the first call.
@@ -1027,6 +1034,36 @@ func (d *dirInode) readObjectsUnlocked(ctx context.Context, tok string, startOff
 
 	d.insertToCache(cores)
 	return
+}
+
+// CountDirEntriesUpTo returns the number of direct children of this directory,
+// counting at most `limit` entries and stopping as soon as the count reaches
+// it. It lists non-recursively (Delimiter "/") via listObjectsAndBuildCores, so
+// only direct entries are counted, and it performs the GCS listing without
+// holding the inode lock (mirroring readObjectsUnlocked) so concurrent
+// operations on the directory are not serialized behind the network call. It
+// does not refresh internal caches.
+//
+// LOCK_EXCLUDED(d)
+func (d *dirInode) CountDirEntriesUpTo(ctx context.Context, limit int) (int, error) {
+	if limit <= 0 {
+		return 0, nil
+	}
+
+	var tok string
+	count := 0
+	for {
+		cores, _, newTok, err := d.listObjectsAndBuildCores(ctx, tok, MaxResultsForListObjectsCall, "")
+		if err != nil {
+			return 0, fmt.Errorf("list objects: %w", err)
+		}
+
+		count += len(cores)
+		if count >= limit || newTok == "" {
+			return count, nil
+		}
+		tok = newTok
+	}
 }
 
 // LOCKS_REQUIRED(d)
