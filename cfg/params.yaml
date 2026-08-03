@@ -1182,6 +1182,13 @@ params:
       Note: Enabling this flag can increase the memory usage significantly.
     default: false
 
+  - config-path: "read.enable-grpc-read-checksums"
+    flag-name: "enable-grpc-read-checksums"
+    type: "bool"
+    usage: "Enables chunk-level CRC32C checksum validation for gRPC read operations. Disabled by default to optimize CPU utilization."
+    default: false
+    hide-flag: true
+
   - config-path: "read.global-max-blocks"
     flag-name: "read-global-max-blocks"
     type: "int"

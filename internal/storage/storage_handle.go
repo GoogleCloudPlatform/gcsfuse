@@ -549,13 +549,22 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		)
 	}
 
+	// By default, follow the user's flag
+	disableGrpcReadChecksums := !sh.clientConfig.EnableGrpcReadChecksums
+	// If the user configures an HTTP connection on a Standard (regional) bucket, grpc checksums
+	// do not apply, so we unconditionally disable them regardless of the flag's value.
+	if !bucketType.IsRapid() && sh.clientConfig.ClientProtocol != cfg.GRPC {
+		disableGrpcReadChecksums = true
+	}
+
 	bh = &bucketHandle{
-		bucket:         storageBucketHandle,
-		bucketName:     bucketName,
-		controlClient:  controlClient,
-		bucketType:     bucketType,
-		billingProject: billingProject,
-		writeConfig:    sh.clientConfig.WriteConfig,
+		bucket:                   storageBucketHandle,
+		bucketName:               bucketName,
+		controlClient:            controlClient,
+		bucketType:               bucketType,
+		billingProject:           billingProject,
+		writeConfig:              sh.clientConfig.WriteConfig,
+		disableGrpcReadChecksums: disableGrpcReadChecksums,
 	}
 
 	return
