@@ -217,9 +217,9 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_PirloEnabled() {
 	assert.Equal(testSuite.T(), gcs.PirloStateRapidWritesEnabled, bt.Pirlo)
 }
 
-func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefix() {
+func (testSuite *StorageHandleTest) runLookupBucketTypeTest(onlyDirInput, expectedPrefixInRequest string) {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.OnlyDir = "foo/bar"
+	sc.OnlyDir = onlyDirInput
 	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
 	require.NoError(testSuite.T(), err)
 	client := sh.(*storageClient)
@@ -228,103 +228,35 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefix() {
 		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
 		LocationType:          "regional",
 	}
-	// Verify that the prefix passed to GetStorageLayout is "foo/bar/" (cleaned and with trailing slash)
+	// Verify that the prefix passed to GetStorageLayout matches expected value.
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
-		return req.Prefix == "foo/bar/" && req.Name == fmt.Sprintf("projects/_/buckets/%s/storageLayout", TestBucketName)
+		return req.Prefix == expectedPrefixInRequest && req.Name == fmt.Sprintf("projects/_/buckets/%s/storageLayout", TestBucketName)
 	}), mock.Anything).Return(storageLayout, nil)
 
 	bt, err := client.lookupBucketType(TestBucketName)
 
 	assert.NoError(testSuite.T(), err)
 	assert.True(testSuite.T(), bt.Hierarchical)
+}
+
+func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefix() {
+	testSuite.runLookupBucketTypeTest("foo/bar", "foo/bar/")
 }
 
 func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefixRoot() {
-	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.OnlyDir = "/." // Cleans to "/" which should be treated as root ("")
-	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
-	require.NoError(testSuite.T(), err)
-	client := sh.(*storageClient)
-	client.storageControlClient = testSuite.mockClient
-	storageLayout := &controlpb.StorageLayout{
-		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
-		LocationType:          "regional",
-	}
-	// Verify that the prefix passed to GetStorageLayout is "" (root)
-	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
-		return req.Prefix == "" && req.Name == fmt.Sprintf("projects/_/buckets/%s/storageLayout", TestBucketName)
-	}), mock.Anything).Return(storageLayout, nil)
-
-	bt, err := client.lookupBucketType(TestBucketName)
-
-	assert.NoError(testSuite.T(), err)
-	assert.True(testSuite.T(), bt.Hierarchical)
+	testSuite.runLookupBucketTypeTest("/.", "")
 }
 
 func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefixDotDot() {
-	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.OnlyDir = ".." // Should resolve to root ("")
-	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
-	require.NoError(testSuite.T(), err)
-	client := sh.(*storageClient)
-	client.storageControlClient = testSuite.mockClient
-	storageLayout := &controlpb.StorageLayout{
-		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
-		LocationType:          "regional",
-	}
-	// Verify that the prefix passed to GetStorageLayout is "" (root)
-	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
-		return req.Prefix == "" && req.Name == fmt.Sprintf("projects/_/buckets/%s/storageLayout", TestBucketName)
-	}), mock.Anything).Return(storageLayout, nil)
-
-	bt, err := client.lookupBucketType(TestBucketName)
-
-	assert.NoError(testSuite.T(), err)
-	assert.True(testSuite.T(), bt.Hierarchical)
+	testSuite.runLookupBucketTypeTest("..", "")
 }
 
 func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefixLeadingDotDot() {
-	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.OnlyDir = "../../foo" // Should resolve to "foo" (since you can't go above bucket root)
-	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
-	require.NoError(testSuite.T(), err)
-	client := sh.(*storageClient)
-	client.storageControlClient = testSuite.mockClient
-	storageLayout := &controlpb.StorageLayout{
-		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
-		LocationType:          "regional",
-	}
-	// Verify that the prefix passed to GetStorageLayout is "foo/"
-	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
-		return req.Prefix == "foo/" && req.Name == fmt.Sprintf("projects/_/buckets/%s/storageLayout", TestBucketName)
-	}), mock.Anything).Return(storageLayout, nil)
-
-	bt, err := client.lookupBucketType(TestBucketName)
-
-	assert.NoError(testSuite.T(), err)
-	assert.True(testSuite.T(), bt.Hierarchical)
+	testSuite.runLookupBucketTypeTest("../../foo", "foo/")
 }
 
 func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefixInternalDotDot() {
-	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.OnlyDir = "foo/../bar" // Should resolve to "bar"
-	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
-	require.NoError(testSuite.T(), err)
-	client := sh.(*storageClient)
-	client.storageControlClient = testSuite.mockClient
-	storageLayout := &controlpb.StorageLayout{
-		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
-		LocationType:          "regional",
-	}
-	// Verify that the prefix passed to GetStorageLayout is "bar/"
-	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
-		return req.Prefix == "bar/" && req.Name == fmt.Sprintf("projects/_/buckets/%s/storageLayout", TestBucketName)
-	}), mock.Anything).Return(storageLayout, nil)
-
-	bt, err := client.lookupBucketType(TestBucketName)
-
-	assert.NoError(testSuite.T(), err)
-	assert.True(testSuite.T(), bt.Hierarchical)
+	testSuite.runLookupBucketTypeTest("foo/../bar", "bar/")
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
