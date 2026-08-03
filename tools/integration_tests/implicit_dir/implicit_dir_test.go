@@ -59,11 +59,13 @@ type implicitDirTestSuite struct {
 }
 
 func runImplicitDirSuite(t *testing.T, runSuiteFunc func()) {
+	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		runSuiteFunc()
 		return
 	}
 
+	// Run tests for GCE environment otherwise.
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
 		log.Printf("Running static mounting %s with flags: %s", t.Name(), flags)
