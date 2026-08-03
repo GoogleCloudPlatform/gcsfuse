@@ -23,6 +23,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/stretchr/testify/require"
 )
 
 // Create below directory structure.
@@ -113,9 +114,7 @@ func (s *operationsTestSuite) TestCopyDirectoryInNonExistingDirectory() {
 	destDir := path.Join(testDir, DestCopyDirectoryNotExist)
 
 	err := operations.CopyDir(srcDir, destDir)
-	if err != nil {
-		s.T().Errorf("Error in copying directory: %v", err)
-	}
+	require.NoError(s.T(), err, "Error in copying directory")
 
 	checkIfCopiedDirectoryHasCorrectData(destDir, s.T())
 }
@@ -142,9 +141,7 @@ func (s *operationsTestSuite) TestCopyDirectoryInEmptyDirectory() {
 	}
 
 	err = operations.CopyDir(srcDir, destDir)
-	if err != nil {
-		s.T().Errorf("Error in copying directory: %v", err)
-	}
+	require.NoError(s.T(), err, "Error in copying directory")
 
 	obj, err := os.ReadDir(destDir)
 	if err != nil {
@@ -181,9 +178,7 @@ func (s *operationsTestSuite) TestCopyDirectoryInNonEmptyDirectory() {
 	destDir := createDestNonEmptyDirectory(path.Join(testDir, DestNonEmptyCopyDirectory), s.T())
 
 	err := operations.CopyDir(srcDir, destDir)
-	if err != nil {
-		s.T().Errorf("Error in copying directory: %v", err)
-	}
+	require.NoError(s.T(), err, "Error in copying directory")
 
 	obj, err := os.ReadDir(destDir)
 	if err != nil {
@@ -248,9 +243,7 @@ func (s *operationsTestSuite) TestCopyEmptyDirectoryInNonEmptyDirectory() {
 	destDir := createDestNonEmptyDirectory(path.Join(testDir, DestNonEmptyCopyDirectory), s.T())
 
 	err := operations.CopyDir(srcDir, destDir)
-	if err != nil {
-		s.T().Errorf("Error in copying directory: %v", err)
-	}
+	require.NoError(s.T(), err, "Error in copying directory")
 
 	objs, err := os.ReadDir(destDir)
 	if err != nil {
@@ -301,9 +294,7 @@ func (s *operationsTestSuite) TestCopyEmptyDirectoryInEmptyDirectory() {
 	operations.CreateDirectoryWithNFiles(0, destDir, "", s.T())
 
 	err := operations.CopyDir(srcDir, destDir)
-	if err != nil {
-		s.T().Errorf("Error in copying directory: %v", err)
-	}
+	require.NoError(s.T(), err, "Error in copying directory")
 
 	obj, err := os.ReadDir(destDir)
 	if err != nil {
@@ -348,9 +339,7 @@ func (s *operationsTestSuite) TestCopyEmptyDirectoryInNonExistingDirectory() {
 	}
 
 	err = operations.CopyDir(srcDir, destDir)
-	if err != nil {
-		s.T().Errorf("Error in copying directory: %v", err)
-	}
+	require.NoError(s.T(), err, "Error in copying directory")
 
 	checkIfCopiedEmptyDirectoryHasNoData(destDir, s.T())
 }
