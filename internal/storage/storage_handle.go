@@ -397,7 +397,8 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 	}
 
 	startTime := time.Now()
-	logger.Infof("GetStorageLayout <- (%s)", bucketName)
+	prefix := sh.clientConfig.OnlyDir
+	logger.Infof("GetStorageLayout <- (%s, prefix: %q)", bucketName, prefix)
 	storageLayout, err := sh.getStorageLayout(bucketName)
 	duration := time.Since(startTime)
 
@@ -405,7 +406,7 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 		return nil, err
 	}
 
-	logger.Infof("GetStorageLayout -> (%s) %v msec", bucketName, duration.Milliseconds())
+	logger.Infof("GetStorageLayout -> (%s, prefix: %q) %v msec", bucketName, prefix, duration.Milliseconds())
 
 	// TODO (b/483608308): Once GetStorageLayout starts returning Pirlo bucket type,
 	// update this logic to use the response instead of inferring from clientConfig.
@@ -428,13 +429,13 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.StorageLayout, error) {
 	var callOptions []gax.CallOption
 
-	stoargeLayout, err := sh.storageControlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
+	storageLayout, err := sh.storageControlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
 		Name:      fmt.Sprintf("projects/_/buckets/%s/storageLayout", bucketName),
 		Prefix:    sh.clientConfig.OnlyDir,
 		RequestId: uuid.NewString(),
 	}, callOptions...)
 
-	return stoargeLayout, err
+	return storageLayout, err
 }
 
 // NewStorageHandle creates control client and stores client config to allow dynamic
