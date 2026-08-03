@@ -207,7 +207,7 @@ func TestGetProjectID(t *testing.T) {
 			if tc.envProjectID != "" {
 				t.Setenv("GOOGLE_CLOUD_PROJECT", tc.envProjectID)
 			} else {
-				os.Unsetenv("GOOGLE_CLOUD_PROJECT")
+				_ = os.Unsetenv("GOOGLE_CLOUD_PROJECT")
 			}
 
 			// Act
