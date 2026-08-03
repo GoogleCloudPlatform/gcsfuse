@@ -58,58 +58,58 @@ func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCre
 	return nil
 }
 
-func TestFileAttributes(t *testing.T) {
+func (s *operationsTestSuite) TestFileAttributes() {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	t.Logf("Verifying file attributes. Expecting: correct name, size = %d bytes, and mod time within window.", BytesWrittenInFile)
-	operations.RetryUntil(context.Background(), t, retryFrequency, retryDuration, func() (bool, error) {
-		fileName := path.Join(testDir, operations.GetRandomName(t))
+	s.T().Logf("Verifying file attributes. Expecting: correct name, size = %d bytes, and mod time within window.", BytesWrittenInFile)
+	operations.RetryUntil(context.Background(), s.T(), retryFrequency, retryDuration, func() (bool, error) {
+		fileName := path.Join(testDir, operations.GetRandomName(s.T()))
 		// kernel time can be slightly out of sync of time.Now(), so using
 		// operations.TimeSlop to adjust pre and post create time.
 		// Ref: https://github.com/golang/go/issues/33510
 		preCreateTime := time.Now().Add(-operations.TimeSlop)
-		operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, t)
+		operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, s.T())
 		postCreateTime := time.Now().Add(+operations.TimeSlop)
 
 		// The file size in createTempFile() is BytesWrittenInFile bytes
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/integration_tests/util/setup/setup.go#L124
-		err := checkIfObjectAttrIsCorrect(fileName, preCreateTime, postCreateTime, BytesWrittenInFile, t)
+		err := checkIfObjectAttrIsCorrect(fileName, preCreateTime, postCreateTime, BytesWrittenInFile, s.T())
 		return err == nil, err
 	})
 }
 
-func TestEmptyDirAttributes(t *testing.T) {
+func (s *operationsTestSuite) TestEmptyDirAttributes() {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	t.Log("Verifying empty directory attributes. Expecting: correct name, size = 0 bytes, and mod time within window.")
-	operations.RetryUntil(context.Background(), t, retryFrequency, retryDuration, func() (bool, error) {
-		dirName := path.Join(testDir, operations.GetRandomName(t))
+	s.T().Log("Verifying empty directory attributes. Expecting: correct name, size = 0 bytes, and mod time within window.")
+	operations.RetryUntil(context.Background(), s.T(), retryFrequency, retryDuration, func() (bool, error) {
+		dirName := path.Join(testDir, operations.GetRandomName(s.T()))
 		// kernel time can be slightly out of sync of time.Now(), so using
 		// operations.TimeSlop to adjust pre and post create time.
 		// Ref: https://github.com/golang/go/issues/33510
 		preCreateTime := time.Now().Add(-operations.TimeSlop)
-		operations.CreateDirectoryWithNFiles(0, dirName, "", t)
+		operations.CreateDirectoryWithNFiles(0, dirName, "", s.T())
 		postCreateTime := time.Now().Add(operations.TimeSlop)
 
-		err := checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, t)
+		err := checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, s.T())
 		return err == nil, err
 	})
 }
 
-func TestNonEmptyDirAttributes(t *testing.T) {
+func (s *operationsTestSuite) TestNonEmptyDirAttributes() {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
-	t.Log("Verifying non-empty directory attributes. Expecting: correct name, size = 0 bytes, and mod time within window.")
-	operations.RetryUntil(context.Background(), t, retryFrequency, retryDuration, func() (bool, error) {
-		dirName := path.Join(testDir, operations.GetRandomName(t))
+	s.T().Log("Verifying non-empty directory attributes. Expecting: correct name, size = 0 bytes, and mod time within window.")
+	operations.RetryUntil(context.Background(), s.T(), retryFrequency, retryDuration, func() (bool, error) {
+		dirName := path.Join(testDir, operations.GetRandomName(s.T()))
 		// kernel time can be slightly out of sync of time.Now(), so using
 		// operations.TimeSlop to adjust pre and post create time.
 		// Ref: https://github.com/golang/go/issues/33510
 		preCreateTime := time.Now().Add(-operations.TimeSlop)
-		operations.CreateDirectoryWithNFiles(NumberOfFilesInDirAttrTest, dirName, PrefixFileInDirAttrTest, t)
+		operations.CreateDirectoryWithNFiles(NumberOfFilesInDirAttrTest, dirName, PrefixFileInDirAttrTest, s.T())
 		postCreateTime := time.Now().Add(operations.TimeSlop)
 
-		err := checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, t)
+		err := checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, s.T())
 		return err == nil, err
 	})
 }
