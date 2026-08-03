@@ -80,6 +80,7 @@ func (r *readOnlyCredsTest) TestEmptyCreateFileFails_FailedFileNotInListing() {
 		require.Error(r.T(), err)
 		assert.True(r.T(), strings.Contains(err.Error(), permissionDeniedError))
 	} else {
+		require.NoError(r.T(), err)
 		r.assertFileSyncFailsWithPermissionError(fh, r.T())
 	}
 
@@ -94,6 +95,7 @@ func (r *readOnlyCredsTest) TestNonEmptyCreateFileFails_FailedFileNotInListing()
 		require.Error(r.T(), err)
 		assert.True(r.T(), strings.Contains(err.Error(), permissionDeniedError))
 	} else {
+		require.NoError(r.T(), err)
 		operations.WriteWithoutClose(fh, content, r.T())
 		operations.WriteWithoutClose(fh, content, r.T())
 		r.assertFileSyncFailsWithPermissionError(fh, r.T())
