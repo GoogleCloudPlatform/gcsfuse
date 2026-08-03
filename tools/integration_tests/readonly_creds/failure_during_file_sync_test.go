@@ -109,11 +109,13 @@ func (r *readOnlyCredsTest) TestNonEmptyCreateFileFails_FailedFileNotInListing()
 ////////////////////////////////////////////////////////////////////////
 
 func runReadOnlyCredsTest(t *testing.T, ts *readOnlyCredsTest) {
+	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		suite.Run(t, ts)
 		return
 	}
 
+	// Run tests for GCE environment otherwise.
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
 		t.Run(strings.Join(flags, "_"), func(t *testing.T) {

@@ -114,11 +114,13 @@ func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss() {
 ////////////////////////////////////////////////////////////////////////
 
 func runLocalModificationTest(t *testing.T, ts *localModificationTest) {
+	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		suite.Run(t, ts)
 		return
 	}
 
+	// Run tests for GCE environment otherwise.
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, ts.flags = range flagsSet {
 		log.Printf("Running %s with flags: %s", t.Name(), ts.flags)
