@@ -24,9 +24,12 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/persistent_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 const ExplicitDirInImplicitDir = "explicitDirInImplicitDir"
@@ -45,9 +48,50 @@ type env struct {
 	storageClient *storage.Client
 	ctx           context.Context
 	testDirPath   string
+	cfg           *test_suite.TestConfig
+	bucketType    string
 }
 
 var testEnv env
+
+type implicitDirTestSuite struct {
+	suite.Suite
+}
+
+func runImplicitDirSuite(t *testing.T, runSuiteFunc func()) {
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		runSuiteFunc()
+		return
+	}
+
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, flags := range flagsSet {
+		log.Printf("Running static mounting %s with flags: %s", t.Name(), flags)
+		err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(testEnv.cfg, flags)
+		require.NoError(t, err, "Static mount failed")
+
+		runSuiteFunc()
+
+		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+		setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+
+		log.Printf("Running persistent mounting %s with flags: %s", t.Name(), flags)
+		err = persistent_mounting.MountGcsfuseWithPersistentMountingWithConfigFile(testEnv.cfg, flags)
+		require.NoError(t, err, "Persistent mount failed")
+
+		runSuiteFunc()
+
+		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+		setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+	}
+}
+
+func TestImplicitDirBase(t *testing.T) {
+	runImplicitDirSuite(t, func() {
+		suite.Run(t, new(implicitDirTestSuite))
+		suite.Run(t, &implicitDirLocalFileTest{isRapidWritesEnabled: false})
+	})
+}
 
 func setupTestDir(dirName string) string {
 	dir := setup.SetupTestDirectory(DirForImplicitDirTests)
@@ -71,7 +115,8 @@ func TestMain(m *testing.M) {
 
 	// 2. Create storage client before running tests.
 	testEnv.ctx = context.Background()
-	bucketType := setup.TestEnvironment(testEnv.ctx, &cfg.ImplicitDir[0])
+	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, &cfg.ImplicitDir[0])
+	testEnv.cfg = &cfg.ImplicitDir[0]
 	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()
@@ -80,12 +125,12 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// 3. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.ImplicitDir[0], bucketType, "")
+	// 3. Set up test directory for test bucket.
+	setup.SetUpTestDirForTestBucket(testEnv.cfg)
+	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
 
-	// 4. Run tests with the dynamically generated flags.
-	successCode := implicit_and_explicit_dir_setup.RunTestsForExplicitAndImplicitDir(&cfg.ImplicitDir[0], flags, m)
-	setup.SaveLogFileInCaseOfFailure(successCode)
+	// 4. Run tests.
+	successCode := m.Run()
 
 	// 5. Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))

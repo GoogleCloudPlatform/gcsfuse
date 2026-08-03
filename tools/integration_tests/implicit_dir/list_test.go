@@ -21,14 +21,14 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestListImplicitObjectsFromBucket(t *testing.T) {
+func (s *implicitDirTestSuite) TestListImplicitObjectsFromBucket() {
+	t := s.T()
 	testDirName := "testListImplicitObjectsFromBucket"
 	testDirPath := setupTestDir(testDirName)
 	// Directory Structure
@@ -140,7 +140,8 @@ func TestListImplicitObjectsFromBucket(t *testing.T) {
 	}
 }
 
-func TestStatImplicitDirAfterList(t *testing.T) {
+func (s *implicitDirTestSuite) TestStatImplicitDirAfterList() {
+	t := s.T()
 	testDirPath := setup.SetupTestDirectory(DirForImplicitDirTests)
 	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, DirForImplicitDirTests)
 
