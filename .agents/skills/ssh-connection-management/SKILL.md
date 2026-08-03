@@ -44,11 +44,11 @@ Ensure local socket directory exists:
 mkdir -p ~/.ssh/sockets
 ```
 
-### Step 2: Clean Up Stale Sockets
+### Step 2: Clean Up Lingering Sessions and Stale Sockets
 
-Before starting a master connection, remove any pre-existing or broken socket file for the target:
+Before starting a master connection, gracefully terminate any active master SSH daemon associated with the target to avoid leaving orphaned background processes in memory, and remove any broken or stale socket file:
 ```bash
-rm -f ~/.ssh/sockets/<TARGET_NAME>.sock
+ssh -O exit -S ~/.ssh/sockets/<TARGET_NAME>.sock <SSH_USER>@nic0.<VM_NAME>.<ZONE>.c.<PROJECT_ID>.internal.gcpnode.com 2>/dev/null || rm -f ~/.ssh/sockets/<TARGET_NAME>.sock
 ```
 
 ### Step 3: Establish Master SSH Connection
@@ -75,24 +75,20 @@ ssh -S ~/.ssh/sockets/<TARGET_NAME>.sock -o StrictHostKeyChecking=no -o UserKnow
 ### Step 5: Refreshing / Recreating Sockets
 
 If user permissions or group memberships change on the remote VM (e.g., after `usermod -aG <group>`):
-1. Gracefully terminate the active master SSH session:
+1. Gracefully terminate the active master SSH session and clean up the socket file:
    ```bash
-   ssh -S ~/.ssh/sockets/<TARGET_NAME>.sock -O exit <SSH_USER>@nic0.<VM_NAME>.<ZONE>.c.<PROJECT_ID>.internal.gcpnode.com
+   ssh -O exit -S ~/.ssh/sockets/<TARGET_NAME>.sock <SSH_USER>@nic0.<VM_NAME>.<ZONE>.c.<PROJECT_ID>.internal.gcpnode.com 2>/dev/null || rm -f ~/.ssh/sockets/<TARGET_NAME>.sock
    ```
-2. Remove any leftover or stale socket file:
-   ```bash
-   rm -f ~/.ssh/sockets/<TARGET_NAME>.sock
-   ```
-3. Re-establish the master connection by repeating Step 3.
+2. Re-establish the master connection by repeating Step 3.
 
 ## Failure Modes & Edge Cases
 
 | Failure Scenario | Root Cause | Remediation / Recovery Action |
 |---|---|---|
-| **`Control socket connect failed: Connection refused`** | Master SSH process died unexpectedly, leaving a dead socket file | Gracefully exit or remove stale socket file (`ssh -S ~/.ssh/sockets/<TARGET_NAME>.sock -O exit <SSH_USER>@<HOST> 2>/dev/null || rm -f ~/.ssh/sockets/<TARGET_NAME>.sock`) and re-run master connection command. |
+| **`Control socket connect failed: Connection refused`** | Master SSH process died unexpectedly, leaving a dead socket file | Gracefully exit or remove stale socket file (`ssh -O exit -S ~/.ssh/sockets/<TARGET_NAME>.sock <SSH_USER>@<HOST> 2>/dev/null || rm -f ~/.ssh/sockets/<TARGET_NAME>.sock`) and re-run master connection command. |
 | **`Permission Denied (publickey)`** | SSH key `~/.ssh/google_compute_engine` missing or expired GCP IAM SSH login credentials | Run `gcloud compute config-default-ssh-keys` or `gcloud compute ssh <VM_NAME> --zone=<ZONE>` to refresh SSH keys. |
-| **Permission / Group Refresh Delay** | User added to a new group or permissions modified, but commands fail with permission errors | Active SSH master session retains original user and group IDs. Gracefully exit master session (`ssh -S ~/.ssh/sockets/<TARGET_NAME>.sock -O exit <SSH_USER>@<HOST>`), remove socket (`rm -f ~/.ssh/sockets/<TARGET_NAME>.sock`), and start new master SSH socket. |
-| **Connection Drop / Network Disconnect** | Remote VM rebooted or network path reset | Gracefully exit master socket if responsive (`ssh -S ~/.ssh/sockets/<TARGET_NAME>.sock -O exit <SSH_USER>@<HOST> 2>/dev/null`), remove stale socket (`rm -f ~/.ssh/sockets/<TARGET_NAME>.sock`), and re-establish master SSH connection. |
+| **Permission / Group Refresh Delay** | User added to a new group or permissions modified, but commands fail with permission errors | Active SSH master session retains original user and group IDs. Gracefully exit master session (`ssh -O exit -S ~/.ssh/sockets/<TARGET_NAME>.sock <SSH_USER>@<HOST> 2>/dev/null || rm -f ~/.ssh/sockets/<TARGET_NAME>.sock`), and start new master SSH socket. |
+| **Connection Drop / Network Disconnect** | Remote VM rebooted or network path reset | Gracefully exit master socket if responsive (`ssh -O exit -S ~/.ssh/sockets/<TARGET_NAME>.sock <SSH_USER>@<HOST> 2>/dev/null || rm -f ~/.ssh/sockets/<TARGET_NAME>.sock`), and re-establish master SSH connection. |
 
 ## Verification Checks
 
