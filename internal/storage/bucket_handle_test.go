@@ -217,7 +217,7 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethod_GrpcChecksu
 		_, err = rc.Read(buf)
 		require.NoError(testSuite.T(), err)
 		assert.Equal(testSuite.T(), ContentInTestObject, string(buf[:]))
-		rc.Close()
+		assert.NoError(testSuite.T(), rc.Close())
 	}
 }
 

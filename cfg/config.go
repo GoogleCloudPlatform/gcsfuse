@@ -655,8 +655,6 @@ type GcsConnectionConfig struct {
 
 	CustomEndpoint string `yaml:"custom-endpoint"`
 
-	EnableGrpcReadChecksums bool `yaml:"enable-grpc-read-checksums"`
-
 	EnableHttpDnsCache bool `yaml:"enable-http-dns-cache"`
 
 	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
@@ -772,6 +770,8 @@ type ReadConfig struct {
 	BlockSizeMb int64 `yaml:"block-size-mb"`
 
 	EnableBufferedRead bool `yaml:"enable-buffered-read"`
+
+	EnableGrpcReadChecksums bool `yaml:"enable-grpc-read-checksums"`
 
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
@@ -1635,7 +1635,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("gcs-connection.enable-grpc-read-checksums", flagSet.Lookup("enable-grpc-read-checksums")); err != nil {
+	if err := v.BindPFlag("read.enable-grpc-read-checksums", flagSet.Lookup("enable-grpc-read-checksums")); err != nil {
 		return err
 	}
 
