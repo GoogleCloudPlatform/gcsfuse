@@ -124,7 +124,6 @@ type entry struct {
 	expiration int64
 	// Set to true only for implicit directory entries. This flag will always remain false for negative entries and explicit objects.
 	implicitDir bool
-	isRadix     bool
 }
 
 // Size returns the approximate memory-size (resident set size) of the receiver entry.
@@ -141,16 +140,7 @@ type entry struct {
 func (e entry) Size() uint64 {
 	size := uint64(util.UnsafeSizeOf(&e) + util.NestedSizeOfGcsMinObject(e.m))
 	if e.m != nil {
-		if e.isRadix {
-			// Deduced radix cache overhead.
-			// At a representative scale of 1,000,000 entries, memory benchmarks
-			// (see internal/cache/lru/lru_memory_test.go) show MapLRU adds ~136 bytes/entry
-			// and RadixLRU adds ~94 bytes/entry (saving ~42 bytes).
-			// Subtracting this savings from the map overhead of 515 gives us roughly 475 bytes.
-			size += 475
-		} else {
-			size += 515
-		}
+		size += 515
 	}
 
 	if e.f != nil {
@@ -161,6 +151,51 @@ func (e entry) Size() uint64 {
 	size = uint64(math.Ceil(util.HeapSizeToRssConversionFactor * float64(size)))
 
 	return size
+}
+
+// radixEntry embeds entry and overrides Size() to account for reduced node/pointer overhead in Radix-based LRU caches.
+type radixEntry struct {
+	entry
+}
+
+// Size returns the approximate memory-size (resident set size) of the receiver entry in a Radix-based LRU cache.
+func (e radixEntry) Size() uint64 {
+	size := uint64(util.UnsafeSizeOf(&e.entry) + util.NestedSizeOfGcsMinObject(e.m))
+	if e.m != nil {
+		// Deduced radix cache overhead.
+		// At a representative scale of 1,000,000 entries, memory benchmarks
+		// (see internal/cache/lru/lru_memory_test.go) show MapLRU adds ~136 bytes/entry
+		// and RadixLRU adds ~94 bytes/entry (saving ~42 bytes).
+		// Subtracting this savings from the map overhead of 515 gives us roughly 475 bytes.
+		size += 473
+	}
+
+	if e.f != nil {
+		size += uint64(util.NestedSizeOfGcsFolder(e.f))
+	}
+
+	// Convert heap-size to RSS (resident set size).
+	size = uint64(math.Ceil(util.HeapSizeToRssConversionFactor * float64(size)))
+
+	return size
+}
+
+func (sc *statCacheBucketView) wrapEntry(e entry) lru.ValueType {
+	if sc.isRadix {
+		return radixEntry{entry: e}
+	}
+	return e
+}
+
+func extractEntry(v lru.ValueType) (entry, bool) {
+	switch val := v.(type) {
+	case entry:
+		return val, true
+	case radixEntry:
+		return val.entry, true
+	default:
+		return entry{}, false
+	}
 }
 
 // timeToUnixNano safely converts a time.Time to Unix nanoseconds.
@@ -230,8 +265,10 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 
 	// Is there already a better entry?
 	if existing := sc.sharedCache.LookUp(name); existing != nil {
-		if !shouldReplace(m, existing.(entry)) {
-			return
+		if existingEntry, ok := extractEntry(existing); ok {
+			if !shouldReplace(m, existingEntry) {
+				return
+			}
 		}
 	}
 
@@ -246,10 +283,9 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	e := entry{
 		m:          mCopy,
 		expiration: timeToUnixNano(expiration),
-		isRadix:    sc.isRadix,
 	}
 
-	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+	if _, err := sc.sharedCache.Insert(name, sc.wrapEntry(e)); err != nil {
 		panic(err)
 	}
 }
@@ -259,23 +295,24 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 
 	// Is there already a better entry?
 	if existing := sc.sharedCache.LookUp(name); existing != nil {
-		e := existing.(entry)
-		// The ListObjects response handles directories in two ways:
-		// 1. 'MinObject' returns explicit directory objects containing full metadata.
-		// 2. 'CollapseRun' generates placeholders for these same directories; if no
-		//    explicit object exists, it treats them as "implicit" (inferred).
-		//
-		// We attempt to create implicit directories for all entries in 'CollapseRun'.
-		// However, since 'ListObject' returns explicit directories in the 'MinObject'
-		// list as well, this could result in redundant implicit entries for
-		// every explicit directory already processed.
-		//
-		// To prevent this, we check if an entry with the same name already exists
-		// with non-nil metadata. If metadata is present, we skip the implicit
-		// creation to avoid overwriting a real, explicit object with an inferred
-		// placeholder (which would lack metadata and have 'Generation 0').
-		if e.m != nil {
-			return
+		if existingEntry, ok := extractEntry(existing); ok {
+			// The ListObjects response handles directories in two ways:
+			// 1. 'MinObject' returns explicit directory objects containing full metadata.
+			// 2. 'CollapseRun' generates placeholders for these same directories; if no
+			//    explicit object exists, it treats them as "implicit" (inferred).
+			//
+			// We attempt to create implicit directories for all entries in 'CollapseRun'.
+			// However, since 'ListObject' returns explicit directories in the 'MinObject'
+			// list as well, this could result in redundant implicit entries for
+			// every explicit directory already processed.
+			//
+			// To prevent this, we check if an entry with the same name already exists
+			// with non-nil metadata. If metadata is present, we skip the implicit
+			// creation to avoid overwriting a real, explicit object with an inferred
+			// placeholder (which would lack metadata and have 'Generation 0').
+			if existingEntry.m != nil {
+				return
+			}
 		}
 	}
 
@@ -283,10 +320,9 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 	e := entry{
 		implicitDir: true,
 		expiration:  timeToUnixNano(expiration),
-		isRadix:     sc.isRadix,
 	}
 
-	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+	if _, err := sc.sharedCache.Insert(name, sc.wrapEntry(e)); err != nil {
 		logger.Errorf("Failed to insert implicit dir stat cache entry for %q: %v", name, err)
 	}
 }
@@ -298,10 +334,9 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 	e := entry{
 		m:          nil,
 		expiration: timeToUnixNano(expiration),
-		isRadix:    sc.isRadix,
 	}
 
-	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+	if _, err := sc.sharedCache.Insert(name, sc.wrapEntry(e)); err != nil {
 		panic(err)
 	}
 }
@@ -313,10 +348,9 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 	e := entry{
 		f:          nil,
 		expiration: timeToUnixNano(expiration),
-		isRadix:    sc.isRadix,
 	}
 
-	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+	if _, err := sc.sharedCache.Insert(name, sc.wrapEntry(e)); err != nil {
 		panic(err)
 	}
 }
@@ -370,7 +404,10 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 		return false, nil
 	}
 
-	e := value.(entry)
+	e, ok := extractEntry(value)
+	if !ok {
+		return false, nil
+	}
 
 	// Has this entry expired?
 	nowNano := timeToUnixNano(now)
@@ -387,22 +424,21 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 }
 
 func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time) {
+	if f == nil {
+		return
+	}
 	name := sc.key(f.Name)
 
-	var fCopy *gcs.Folder
-	if f != nil {
-		fVal := *f
-		fVal.Name = ""
-		fCopy = &fVal
-	}
+	fVal := *f
+	fVal.Name = ""
+	fCopy := &fVal
 
 	e := entry{
 		f:          fCopy,
 		expiration: timeToUnixNano(expiration),
-		isRadix:    sc.isRadix,
 	}
 
-	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+	if _, err := sc.sharedCache.Insert(name, sc.wrapEntry(e)); err != nil {
 		panic(err)
 	}
 }
