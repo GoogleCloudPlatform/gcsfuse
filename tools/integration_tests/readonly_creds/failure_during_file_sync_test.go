@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
@@ -115,12 +115,9 @@ func runReadOnlyCredsTest(t *testing.T, ts *readOnlyCredsTest) {
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
 		log.Printf("Running %s with flags: %s", t.Name(), flags)
-		err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(testEnv.cfg, flags)
-		require.NoError(t, err, "Mount failed")
-
-		suite.Run(t, ts)
-
-		setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+		creds_tests.RunSuiteForDifferentAuthMethods(testEnv.ctx, testEnv.cfg, testEnv.storageClient, flags, "objectViewer", t, func() {
+			suite.Run(t, ts)
+		})
 	}
 }
 

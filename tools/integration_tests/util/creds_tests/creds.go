@@ -34,6 +34,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"github.com/stretchr/testify/require"
 )
 
 const NameOfServiceAccount = "creds-integration-tests"
@@ -212,4 +213,58 @@ func RunTestsForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestCo
 	}
 
 	return successCode
+}
+
+func RunSuiteForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestConfig, storageClient *storage.Client, flags []string, permission string, t *testing.T, runSuiteFunc func()) {
+	serviceAccount, localKeyFilePath := CreateCredentials(ctx)
+	defer func() {
+		if err := os.Remove(localKeyFilePath); err != nil {
+			log.Printf("Failed to delete temp credentials file %s: %v", localKeyFilePath, err)
+		}
+	}()
+	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
+	defer RevokePermission(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
+
+	// 1. Testing with GOOGLE_APPLICATION_CREDENTIALS env variable
+	err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", localKeyFilePath)
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error in setting environment variable: %v", err))
+	}
+
+	log.Printf("Running creds tests with GOOGLE_APPLICATION_CREDENTIALS and flags: %s", flags)
+	err = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(cfg, flags)
+	require.NoError(t, err, "Creds mount with GOOGLE_APPLICATION_CREDENTIALS failed")
+
+	runSuiteFunc()
+
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+	setup.UnmountGCSFuseWithConfig(cfg)
+
+	// 2. Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
+	keyFileFlag := "--key-file=" + localKeyFilePath
+	flagsWithKeyFile := append(slices.Clone(flags), keyFileFlag)
+
+	log.Printf("Running creds tests with --key-file + GOOGLE_APPLICATION_CREDENTIALS and flags: %s", flagsWithKeyFile)
+	err = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(cfg, flagsWithKeyFile)
+	require.NoError(t, err, "Creds mount with --key-file + GOOGLE_APPLICATION_CREDENTIALS failed")
+
+	runSuiteFunc()
+
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+	setup.UnmountGCSFuseWithConfig(cfg)
+
+	// 3. Testing with --key-file flag only.
+	err = os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
+	if err != nil {
+		setup.LogAndExit(fmt.Sprintf("Error in unsetting environment variable: %v", err))
+	}
+
+	log.Printf("Running creds tests with --key-file only and flags: %s", flagsWithKeyFile)
+	err = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(cfg, flagsWithKeyFile)
+	require.NoError(t, err, "Creds mount with --key-file failed")
+
+	runSuiteFunc()
+
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+	setup.UnmountGCSFuseWithConfig(cfg)
 }

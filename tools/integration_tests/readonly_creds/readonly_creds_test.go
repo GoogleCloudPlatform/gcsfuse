@@ -23,7 +23,6 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 )
@@ -94,20 +93,6 @@ func TestMain(m *testing.M) {
 
 	// Save mount and root directory variables.
 	mountDir, rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
-
-	serviceAccount, localKeyFilePath := creds_tests.CreateCredentials(testEnv.ctx)
-	defer func() {
-		if err := os.Remove(localKeyFilePath); err != nil {
-			log.Printf("Failed to delete temp credentials file %s: %v", localKeyFilePath, err)
-		}
-	}()
-	creds_tests.ApplyPermissionToServiceAccount(testEnv.ctx, testEnv.storageClient, serviceAccount, "objectViewer", testEnv.cfg.TestBucket)
-	defer creds_tests.RevokePermission(testEnv.ctx, testEnv.storageClient, serviceAccount, "objectViewer", testEnv.cfg.TestBucket)
-
-	err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", localKeyFilePath)
-	if err != nil {
-		log.Fatalf("Error in setting environment variable: %v", err)
-	}
 
 	successCode := m.Run()
 

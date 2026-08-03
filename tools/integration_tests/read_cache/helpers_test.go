@@ -62,6 +62,7 @@ func readFileAndGetExpectedOutcome(testDirPath, fileName string, readFullFile bo
 	if readFullFile {
 		file, err := os.OpenFile(path.Join(testDirPath, fileName), os.O_RDONLY|syscall.O_DIRECT, setup.FilePermission_0600)
 		require.NoError(t, err)
+		defer file.Close()
 		content, err = operations.ReadFileSequentially(file, chunkSizeToRead)
 		if err != nil {
 			t.Errorf("Failed to read file sequentially: %v", err)
