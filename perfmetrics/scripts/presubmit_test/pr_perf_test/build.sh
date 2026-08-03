@@ -133,7 +133,53 @@ then
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests on zonal bucket(s) ..."
-  bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --zonal --track-resource-usage
+  mkdir -p /tmp/zonal_run
+  bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --zonal --track-resource-usage --enable-coverage --output-dir=/tmp/zonal_run
+
+  echo "Running unit tests with binary coverage..."
+  PACKAGES=$(go list ./... | grep -v 'tools/integration_tests')
+  mkdir -p /tmp/unit_run
+  set +e
+  go test -cover -covermode=atomic -coverpkg=github.com/googlecloudplatform/gcsfuse/v3/... $PACKAGES -args -test.gocoverdir=/tmp/unit_run
+  set -e
+
+  commit_sha=$(git rev-parse HEAD)
+  sharing_bucket="${COVERAGE_SHARING_BUCKET:-gcsfuse-coverage-archive}"
+
+  echo "Uploading raw zonal coverage data to GCS..."
+  gcloud storage cp -r /tmp/zonal_run/e2e_coverage_data/* "gs://${sharing_bucket}/${commit_sha}/e2e_zonal/"
+
+  echo "Uploading raw unit coverage data to GCS..."
+  gcloud storage cp -r /tmp/unit_run/* "gs://${sharing_bucket}/${commit_sha}/unit/"
+
+  input_dirs="/tmp/unit_run,/tmp/zonal_run/e2e_coverage_data"
+
+  if test -n "${integrationTestsStr}"; then
+    echo "Waiting for non-zonal E2E tests to finish and upload coverage..."
+    gcs_cov_path="gs://${sharing_bucket}/${commit_sha}/e2e_regional"
+
+    while ! gcloud storage ls "${gcs_cov_path}/" &>/dev/null; do
+      sleep 30
+    done
+    echo "Non-zonal coverage found! Downloading..."
+    mkdir -p /tmp/non_zonal_run_download
+    gcloud storage cp -r "${gcs_cov_path}/*" /tmp/non_zonal_run_download/
+    input_dirs="${input_dirs},/tmp/non_zonal_run_download"
+  fi
+
+  bash ./tools/scripts/merge_coverage.sh --input-dirs="$input_dirs" --output-dir=/tmp/zonal_run --gcs-upload-path="${sharing_bucket}/${commit_sha}"
+
+  echo "Injecting coverage metrics into BigQuery..."
+  local regional_dir=""
+  if [[ "$input_dirs" == *non_zonal_run_download* ]]; then
+    regional_dir="/tmp/non_zonal_run_download"
+  fi
+  python3 ./tools/scripts/inject_to_bigquery.py \
+    --unit-dir="/tmp/unit_run" \
+    --zonal-dir="/tmp/zonal_run/e2e_coverage_data" \
+    --regional-dir="$regional_dir" \
+    --dataset="gcsfuse_coverage" \
+    --table="trends"
 fi
 
 # Execute integration tests on non-zonal bucket(s).
@@ -143,7 +189,13 @@ then
   git checkout pr/$KOKORO_GITHUB_PULL_REQUEST_NUMBER
 
   echo "Running e2e tests on non-zonal bucket(s) ..."
-  bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage
+  mkdir -p /tmp/non_zonal_run
+  bash ./tools/integration_tests/improved_run_e2e_tests.sh --bucket-location=$BUCKET_LOCATION --presubmit --track-resource-usage --enable-coverage --output-dir=/tmp/non_zonal_run
+
+  echo "Uploading raw coverage data to GCS..."
+  commit_sha=$(git rev-parse HEAD)
+  sharing_bucket="${COVERAGE_SHARING_BUCKET:-gcsfuse-coverage-archive}"
+  gcloud storage cp -r /tmp/non_zonal_run/e2e_coverage_data/* "gs://${sharing_bucket}/${commit_sha}/e2e_regional/"
 fi
 
 # Execute package build tests.
