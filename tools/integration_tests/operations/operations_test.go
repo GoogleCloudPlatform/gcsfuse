@@ -41,11 +41,13 @@ type operationsTestSuite struct {
 }
 
 func runOperationsSuite(t *testing.T, runSuiteFunc func()) {
+	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
 	if operationsConfig.GKEMountedDirectory != "" && operationsConfig.TestBucket != "" {
 		runSuiteFunc()
 		return
 	}
 
+	// Run tests for GCE environment otherwise.
 	flagsSet := setup.BuildFlagSets(*operationsConfig, bucketType, t.Name())
 	for _, flags := range flagsSet {
 		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
