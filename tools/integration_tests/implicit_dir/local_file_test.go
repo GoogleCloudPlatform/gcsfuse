@@ -58,7 +58,7 @@ func (i *implicitDirLocalFileTest) TestNewFileUnderImplicitDirectoryShouldNotGet
 	_, fh := CreateLocalFileInTestDir(testEnv.ctx, testEnv.storageClient, testEnv.testDirPath, fileName, i.T())
 	operations.WriteWithoutClose(fh, FileContents, i.T())
 	if setup.IsZonalBucketRun() || (setup.IsPirloBucketRun() && i.isRapidWritesEnabled) {
-		// For zonal buckets and pirlo rapid writes, the object is unfinalized, but visible.
+		// For appendable objects, the object is unfinalized, but visible.
 		// An object written without sync would be recognized as having zero-size.
 		ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testBaseDirName, fileName, "", i.T())
 
@@ -67,7 +67,7 @@ func (i *implicitDirLocalFileTest) TestNewFileUnderImplicitDirectoryShouldNotGet
 		require.NoError(i.T(), err)
 		ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testBaseDirName, fileName, FileContents, i.T())
 	} else {
-		// For non-zonal/non-rapid buckets, the object is not visible until the file is closed.
+		// For non-appendable objects, the object is not visible until the file is closed.
 		ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testBaseDirName, fileName, i.T())
 	}
 
