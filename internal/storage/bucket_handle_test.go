@@ -199,25 +199,72 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithValidGen
 }
 
 func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethod_GrpcChecksumsFlag() {
-	for _, disableChecksums := range []bool{true, false} {
-		createBucketHandle(testSuite, &controlpb.StorageLayout{})
-		testSuite.bucketHandle.disableGrpcReadChecksums = disableChecksums
+	tests := []struct {
+		name             string
+		disableChecksums bool
+	}{
+		{
+			name:             "ChecksumsDisabled",
+			disableChecksums: true,
+		},
+		{
+			name:             "ChecksumsEnabled",
+			disableChecksums: false,
+		},
+	}
 
-		rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
-			&gcs.ReadObjectRequest{
-				Name: TestObjectName,
-				Range: &gcs.ByteRange{
-					Start: uint64(0),
-					Limit: uint64(len(ContentInTestObject)),
-				},
-			})
+	for _, tc := range tests {
+		testSuite.T().Run(tc.name, func(t *testing.T) {
+			createBucketHandle(testSuite, &controlpb.StorageLayout{})
+			testSuite.bucketHandle.disableGrpcReadChecksums = tc.disableChecksums
 
-		require.NoError(testSuite.T(), err)
-		buf := make([]byte, len(ContentInTestObject))
-		_, err = rc.Read(buf)
-		require.NoError(testSuite.T(), err)
-		assert.Equal(testSuite.T(), ContentInTestObject, string(buf[:]))
-		assert.NoError(testSuite.T(), rc.Close())
+			rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
+				&gcs.ReadObjectRequest{
+					Name: TestObjectName,
+					Range: &gcs.ByteRange{
+						Start: uint64(0),
+						Limit: uint64(len(ContentInTestObject)),
+					},
+				})
+
+			require.NoError(t, err)
+			buf := make([]byte, len(ContentInTestObject))
+			_, err = rc.Read(buf)
+			require.NoError(t, err)
+			assert.Equal(t, ContentInTestObject, string(buf[:]))
+			assert.NoError(t, rc.Close())
+		})
+	}
+}
+
+func (testSuite *BucketHandleTest) TestNewMultiRangeDownloader_GrpcChecksumsFlag() {
+	tests := []struct {
+		name             string
+		disableChecksums bool
+	}{
+		{
+			name:             "ChecksumsDisabled",
+			disableChecksums: true,
+		},
+		{
+			name:             "ChecksumsEnabled",
+			disableChecksums: false,
+		},
+	}
+
+	for _, tc := range tests {
+		testSuite.T().Run(tc.name, func(t *testing.T) {
+			createBucketHandle(testSuite, &controlpb.StorageLayout{})
+			testSuite.bucketHandle.disableGrpcReadChecksums = tc.disableChecksums
+
+			mrd, err := testSuite.bucketHandle.NewMultiRangeDownloader(context.Background(),
+				&gcs.MultiRangeDownloaderRequest{
+					Name: TestObjectName,
+				})
+
+			assert.ErrorContains(t, err, "method is not currently supported")
+			assert.Nil(t, mrd)
+		})
 	}
 }
 
