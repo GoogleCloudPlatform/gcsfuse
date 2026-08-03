@@ -1048,3 +1048,113 @@ func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_AccessCheck_Exhausts
 	assert.ErrorContains(testSuite.T(), err, "bucket access check failed")
 	assert.Equal(testSuite.T(), testMaxRetryAttempts, *attempts, "expected max retry attempts to be exhausted")
 }
+
+func (testSuite *StorageHandleTest) TestIsDirectPathFailure() {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "generic error (not DP)",
+			err:      fmt.Errorf("some error"),
+			expected: false,
+		},
+		{
+			name:     "NewGRPCClient error (not DP)",
+			err:      fmt.Errorf("NewGRPCClient: some config error"),
+			expected: false,
+		},
+		{
+			name:     "DirectPath verification failed error (is DP)",
+			err:      fmt.Errorf("%s %q: some network error", directPathVerificationErrorPrefix, "my-bucket"),
+			expected: true,
+		},
+		{
+			name:     "wrapped DirectPath verification failed error (is DP)",
+			err:      fmt.Errorf("wrapped: %w", fmt.Errorf("%s %q: timeout", directPathVerificationErrorPrefix, "my-bucket")),
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		testSuite.Run(tc.name, func() {
+			actual := isDirectPathFailure(tc.err)
+
+			assert.Equal(testSuite.T(), tc.expected, actual)
+		})
+	}
+}
+
+func (testSuite *StorageHandleTest) setupStorageClientForGrpcPathStrategyTest(strategy cfg.DirectPathStrategy) *storageClient {
+	// Override DirectPath detection parameters to make tests fast.
+	oldMaxAttempts := directPathDetectionMaxAttempts
+	oldTimeout := directPathDetectionTimeout
+	oldMaxBackoff := directPathDetectionMaxBackoff
+
+	directPathDetectionMaxAttempts = 1
+	directPathDetectionTimeout = 10 * time.Millisecond
+	directPathDetectionMaxBackoff = 1 * time.Millisecond
+
+	testSuite.T().Cleanup(func() {
+		directPathDetectionMaxAttempts = oldMaxAttempts
+		directPathDetectionTimeout = oldTimeout
+		directPathDetectionMaxBackoff = oldMaxBackoff
+	})
+
+	return &storageClient{
+		clientConfig: storageutil.StorageClientConfig{
+			ClientProtocol:     cfg.GRPC,
+			GrpcPathStrategy:   strategy,
+			CustomEndpoint:     "http://localhost:54321", // Non-listening port
+			AnonymousAccess:    true,                     // Avoid auth issues
+			EnableMountRetries: false,
+		},
+	}
+}
+
+func (testSuite *StorageHandleTest) TestGetClient_GrpcPathStrategy_DirectPathOnly() {
+	sh := testSuite.setupStorageClientForGrpcPathStrategyTest(cfg.DirectPathOnly)
+
+	client, err := sh.getClient(testSuite.ctx, false, "some-bucket", "")
+
+	assert.Error(testSuite.T(), err)
+	assert.Nil(testSuite.T(), client)
+	assert.Nil(testSuite.T(), sh.httpClient)
+	assert.Nil(testSuite.T(), sh.grpcClient)
+}
+
+func (testSuite *StorageHandleTest) TestGetClient_GrpcPathStrategy_DirectPathWithFallback() {
+	sh := testSuite.setupStorageClientForGrpcPathStrategyTest(cfg.DirectPathWithFallback)
+
+	client, err := sh.getClient(testSuite.ctx, false, "some-bucket", "")
+
+	assert.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), client)
+	assert.NotNil(testSuite.T(), sh.httpClient)
+	assert.Equal(testSuite.T(), sh.httpClient, client)
+	assert.Nil(testSuite.T(), sh.grpcClient)
+	if sh.httpClient != nil {
+		_ = sh.httpClient.Close()
+	}
+}
+
+func (testSuite *StorageHandleTest) TestGetClient_GrpcPathStrategy_DirectPathWithGrpcFallback() {
+	sh := testSuite.setupStorageClientForGrpcPathStrategyTest(cfg.DirectPathWithGrpcFallback)
+
+	client, err := sh.getClient(testSuite.ctx, false, "some-bucket", "")
+
+	assert.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), client)
+	assert.NotNil(testSuite.T(), sh.grpcClient)
+	assert.Equal(testSuite.T(), sh.grpcClient, client)
+	assert.Nil(testSuite.T(), sh.httpClient)
+	if sh.grpcClient != nil {
+		_ = sh.grpcClient.Close()
+	}
+}

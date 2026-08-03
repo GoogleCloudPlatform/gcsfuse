@@ -35,17 +35,18 @@ func bindFlag(t *testing.T, v *viper.Viper, key string, f *flag.Flag) {
 
 func TestParsingSuccess(t *testing.T) {
 	type TestConfig struct {
-		OctalParam       Octal
-		BoolParam        bool
-		StringParam      string
-		IntParam         int
-		FloatParam       float64
-		DurationParam    time.Duration
-		StringSliceParam []string
-		IntSliceParam    []int
-		LogSeverityParam LogSeverity
-		ProtocolParam    Protocol
-		PathParam        ResolvedPath
+		OctalParam              Octal
+		BoolParam               bool
+		StringParam             string
+		IntParam                int
+		FloatParam              float64
+		DurationParam           time.Duration
+		StringSliceParam        []string
+		IntSliceParam           []int
+		LogSeverityParam        LogSeverity
+		ProtocolParam           Protocol
+		PathParam               ResolvedPath
+		DirectPathStrategyParam DirectPathStrategy
 	}
 	declareFlags := func() *flag.FlagSet {
 		fs := flag.NewFlagSet("test", flag.ExitOnError)
@@ -60,6 +61,7 @@ func TestParsingSuccess(t *testing.T) {
 		fs.String("logSeverityParam", "INFO", "")
 		fs.String("protocolParam", "http1", "")
 		fs.String("pathParam", "", "")
+		fs.String("directPathStrategyParam", "direct-path-with-fallback", "")
 		return fs
 	}
 
@@ -77,6 +79,7 @@ func TestParsingSuccess(t *testing.T) {
 		bindFlag(t, v, "LogSeverityParam", fs.Lookup("logSeverityParam"))
 		bindFlag(t, v, "ProtocolParam", fs.Lookup("protocolParam"))
 		bindFlag(t, v, "PathParam", fs.Lookup("pathParam"))
+		bindFlag(t, v, "DirectPathStrategyParam", fs.Lookup("directPathStrategyParam"))
 		return v
 	}
 	tests := []struct {
@@ -212,6 +215,13 @@ func TestParsingSuccess(t *testing.T) {
 				assert.Equal(t, "/a/test.txt", string(c.PathParam))
 			},
 		},
+		{
+			name: "DirectPathStrategy - direct-path-with-grpc-fallback",
+			args: []string{"--directPathStrategyParam=direct-path-with-grpc-fallback"},
+			testFn: func(t *testing.T, c TestConfig) {
+				assert.Equal(t, DirectPathWithGrpcFallback, c.DirectPathStrategyParam)
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -286,7 +296,7 @@ func TestParsingError(t *testing.T) {
 		{
 			name:   "DirectPathStrategy",
 			args:   []string{"--directPathStrategyParam=invalid-strategy"},
-			errMsg: "invalid direct-path strategy value: invalid-strategy. It can only accept values in the list: [direct-path-only direct-path-with-fallback]",
+			errMsg: "invalid direct-path strategy value: invalid-strategy. It can only accept values in the list: [direct-path-only direct-path-with-fallback direct-path-with-grpc-fallback]",
 		},
 	}
 	for _, tc := range tests {

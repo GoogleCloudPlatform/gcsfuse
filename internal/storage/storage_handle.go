@@ -56,13 +56,19 @@ const (
 
 	zonalLocationType = "zone"
 
+	// nonExistentObjectName is the object name used for bucket existence/access check when HNS feature is disabled by providing "--enable-hns:false". E.g. Using Regional Endpoints which do not support GRPC protocol.
+	nonExistentObjectName = "gcsfuse-nonexistent-object-check"
+
+	// directPathVerificationErrorPrefix is the prefix used for errors returned when DirectPath verification fails.
+	directPathVerificationErrorPrefix = "DirectPath verification failed for bucket"
+)
+
+// Keeping these as variables instead of constants to overwrite the values in unit tests.
+var (
 	// DirectPath detection parameters - used for fast-fail detection during client creation
 	directPathDetectionMaxAttempts = 5
 	directPathDetectionTimeout     = 15 * time.Second
 	directPathDetectionMaxBackoff  = 5 * time.Second
-
-	// nonExistentObjectName is the object name used for bucket existence/access check when HNS feature is disabled by providing "--enable-hns:false". E.g. Using Regional Endpoints which do not support GRPC protocol.
-	nonExistentObjectName = "gcsfuse-nonexistent-object-check"
 )
 
 type StorageHandle interface {
@@ -187,7 +193,7 @@ func setRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *stora
 }
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
-func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isbucketRapid bool, enableBidiConfig bool, bucketName string, billingProject string) (*storage.Client, error) {
+func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isbucketRapid bool, enableBidiConfig bool, bucketName string, billingProject string, verifyDirectPath bool) (*storage.Client, error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		return nil, fmt.Errorf("error setting direct path env var: %w", err)
 	}
@@ -199,8 +205,10 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
 
-	// Add DirectPath enforcement - client creation will fail if DirectPath is not available
-	clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
+	if verifyDirectPath {
+		// Add DirectPath enforcement - client creation will fail if DirectPath is not available
+		clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
+	}
 
 	sc, err := storage.NewGRPCClient(ctx, clientOpts...)
 	if err != nil {
@@ -209,9 +217,13 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// Set the production level retry config.
 	defer func() {
-		logger.Infof("Applying production retry config after DirectPath verification.")
+		logger.Infof("Applying production retry config.")
 		setRetryConfig(ctx, sc, clientConfig)
 	}()
+
+	if !verifyDirectPath {
+		return sc, nil
+	}
 
 	// Direct-path verification is fatal for regional. Todo(b/503624405): Make it fatal for all after making the dummy-stat reliable.
 	if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
@@ -256,7 +268,7 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 	// We should get a notFound error and not any error when the object doesn't exist.
 	// Any error other than notFound is treated as dp connection failure.
 	if statErr != nil && !errors.As(gcs.GetGCSError(statErr), &notFoundError) {
-		return fmt.Errorf("DirectPath verification failed for bucket %q: %w", bucketName, statErr)
+		return fmt.Errorf("%s %q: %w", directPathVerificationErrorPrefix, bucketName, statErr)
 	}
 
 	return nil
@@ -471,7 +483,7 @@ func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, buck
 	var err error
 	if isBucketRapid {
 		if sh.grpcClientWithBidiConfig == nil {
-			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, isBucketRapid, true, bucketName, billingProject)
+			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, isBucketRapid, true, bucketName, billingProject, true)
 		}
 		return sh.grpcClientWithBidiConfig, err
 	}
@@ -496,14 +508,28 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 	}
 
 	var err error
-	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, false, bucketName, billingProject)
+	verifyDirectPath := sh.clientConfig.GrpcPathStrategy != cfg.DirectPathWithGrpcFallback
+	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, false, bucketName, billingProject, verifyDirectPath)
 	// No error means we are able to successfully create a grpc client with direct path. Return it.
 	if err == nil {
 		return sh.grpcClient, nil
 	}
 
+	// Check if the error is due to DP failure. If not, return it.
+	if !isDirectPathFailure(err) {
+		logger.Errorf("Grpc client creation failed with non-DirectPath error: %v", err)
+		return nil, err
+	}
+
 	// We will reach here when we failed to create a grpc client with direct path.
-	// Decide whether to create a http client based on grpPathStrategy param.
+	// Decide what to do based on grpPathStrategy param.
+	// Ideally this condition will never be true, since we are checking for non-DP error above.
+	if sh.clientConfig.GrpcPathStrategy == cfg.DirectPathWithGrpcFallback {
+		// We already tried standard gRPC (since verifyDirectPath was false).
+		// No need to retry. Just return the error.
+		return nil, err
+	}
+
 	if sh.clientConfig.GrpcPathStrategy == cfg.DirectPathOnly {
 		logger.Infof("Grpc dp is not available and not falling back to Http as gRPC path strategy is set to DirectPathOnly")
 		return nil, err
@@ -559,4 +585,11 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	}
 
 	return
+}
+
+func isDirectPathFailure(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), directPathVerificationErrorPrefix)
 }
