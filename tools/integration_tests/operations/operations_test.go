@@ -56,12 +56,17 @@ func runOperationsSuite(t *testing.T, runSuiteFunc func()) {
 				log.Printf("Running static mounting %s with flags: %s", t.Name(), flags)
 				err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(operationsConfig, flags)
 				require.NoError(t, err, "Static mount failed")
+				defer func() {
+					setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+					setup.UnmountGCSFuseWithConfig(operationsConfig)
+				}()
 
 				runSuiteFunc()
-
-				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-				setup.UnmountGCSFuseWithConfig(operationsConfig)
 			})
+
+			if setup.TestOnTPCEndPoint() {
+				return
+			}
 
 			// 2. Only-dir mounting
 			t.Run("OnlyDir", func(t *testing.T) {
@@ -72,6 +77,8 @@ func runOperationsSuite(t *testing.T, runSuiteFunc func()) {
 						log.Printf("Error deleting object on GCS: %v", err)
 					}
 					setup.SetOnlyDirMounted("")
+					setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+					setup.UnmountGCSFuseWithConfig(operationsConfig)
 				}()
 
 				log.Printf("Running only dir mounting %s with flags: %s", t.Name(), flags)
@@ -79,9 +86,6 @@ func runOperationsSuite(t *testing.T, runSuiteFunc func()) {
 				require.NoError(t, err, "Only dir mount failed")
 
 				runSuiteFunc()
-
-				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-				setup.UnmountGCSFuseWithConfig(operationsConfig)
 			})
 
 			// 3. Persistent mounting
@@ -89,11 +93,12 @@ func runOperationsSuite(t *testing.T, runSuiteFunc func()) {
 				log.Printf("Running persistent mounting %s with flags: %s", t.Name(), flags)
 				err := persistent_mounting.MountGcsfuseWithPersistentMountingWithConfigFile(operationsConfig, flags)
 				require.NoError(t, err, "Persistent mount failed")
+				defer func() {
+					setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+					setup.UnmountGCSFuseWithConfig(operationsConfig)
+				}()
 
 				runSuiteFunc()
-
-				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-				setup.UnmountGCSFuseWithConfig(operationsConfig)
 			})
 
 			// 4. Dynamic mounting
@@ -104,18 +109,19 @@ func runOperationsSuite(t *testing.T, runSuiteFunc func()) {
 				log.Printf("Running dynamic mounting %s with flags: %s", t.Name(), flags)
 				err := dynamic_mounting.MountGcsfuseWithDynamicMountingWithConfig(operationsConfig, flags)
 				require.NoError(t, err, "Dynamic mount failed")
+				defer func() {
+					setup.SetMntDir(rootMntDir)
+					operationsConfig.GCSFuseMountedDirectory = rootMntDir
+					setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+					setup.UnmountGCSFuseWithConfig(operationsConfig)
+					setup.SetDynamicBucketMounted("")
+				}()
 
 				mntDirOfTestBucket := path.Join(rootMntDir, operationsConfig.TestBucket)
 				operationsConfig.GCSFuseMountedDirectory = mntDirOfTestBucket
 				setup.SetMntDir(mntDirOfTestBucket)
 
 				runSuiteFunc()
-
-				setup.SetMntDir(rootMntDir)
-				operationsConfig.GCSFuseMountedDirectory = rootMntDir
-				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-				setup.UnmountGCSFuseWithConfig(operationsConfig)
-				setup.SetDynamicBucketMounted("")
 			})
 
 			// 5. Creds tests (runs for different auth methods)
@@ -226,11 +232,6 @@ func TestMain(m *testing.M) {
 	// 4. Override GKE specific paths with GCSFuse paths if running in GCE environment.
 	setup.OverrideFilePathsInFlagSet(operationsConfig, setup.TestDir())
 	setup.SetUpTestDirForTestBucket(operationsConfig)
-
-	if setup.TestOnTPCEndPoint() {
-		flags := setup.BuildFlagSets(*operationsConfig, bucketType, "TestOperationsBase")
-		os.Exit(static_mounting.RunTestsWithConfigFile(operationsConfig, flags, m))
-	}
 
 	os.Exit(m.Run())
 }
