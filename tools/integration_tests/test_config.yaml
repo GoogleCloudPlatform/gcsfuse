@@ -38,7 +38,7 @@ implicit_dir:
         run_on_gke: true
         run: TestImplicitDirBase
       - flags:
-          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--implicit-dirs"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=true"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -46,7 +46,7 @@ implicit_dir:
         run_on_gke: false
         run: TestImplicitDirRapidWritesEnabled
       - flags:
-          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--implicit-dirs"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false"
         run_on_pirlo:
           hns:
             same_zone: true
