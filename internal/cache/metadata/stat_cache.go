@@ -15,6 +15,7 @@
 package metadata
 
 import (
+	"fmt"
 	"math"
 	"time"
 
@@ -90,9 +91,11 @@ type StatCache interface {
 // For dynamic-mount (mount for multiple buckets), pass bn as bucket-name.
 // For static-mout (mount for single bucket), pass bn as "".
 func NewStatCacheBucketView(sc lru.Cache, bn string) StatCache {
+	isRadix := fmt.Sprintf("%T", sc) == "*lru.radixCache" || fmt.Sprintf("%T", sc) == "*lru.arenaRadix"
 	return &statCacheBucketView{
 		sharedCache: sc,
 		bucketName:  bn,
+		isRadix:     isRadix,
 	}
 }
 
@@ -109,6 +112,7 @@ type statCacheBucketView struct {
 	// using the same shared lru.Cache object.
 	// It can be empty ("").
 	bucketName string
+	isRadix    bool
 }
 
 // An entry in the cache, pairing an object with the expiration time for the
@@ -119,6 +123,7 @@ type entry struct {
 	expiration int64
 	// Set to true only for implicit directory entries. This flag will always remain false for negative entries and explicit objects.
 	implicitDir bool
+	isRadix     bool
 }
 
 // Size returns the approximate memory-size (resident set size) of the receiver entry.
@@ -135,7 +140,11 @@ type entry struct {
 func (e entry) Size() uint64 {
 	size := uint64(util.UnsafeSizeOf(&e) + util.NestedSizeOfGcsMinObject(e.m))
 	if e.m != nil {
-		size += 515
+		if e.isRadix {
+			size += 475 // Deduced radix cache overhead (Map's 515 minus ~40 bytes saved per entry per benchmark)
+		} else {
+			size += 515
+		}
 	}
 
 	if e.f != nil {
@@ -220,17 +229,15 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 		}
 	}
 
-	var mCopy *gcs.MinObject
-	if m != nil {
-		mVal := *m
-		mVal.Name = ""
-		mCopy = &mVal
-	}
+	mVal := *m
+	mVal.Name = ""
+	mCopy := &mVal
 
 	// Insert an entry.
 	e := entry{
 		m:          mCopy,
 		expiration: timeToUnixNano(expiration),
+		isRadix:    sc.isRadix,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -267,6 +274,7 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 	e := entry{
 		implicitDir: true,
 		expiration:  timeToUnixNano(expiration),
+		isRadix:     sc.isRadix,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -281,6 +289,7 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 	e := entry{
 		m:          nil,
 		expiration: timeToUnixNano(expiration),
+		isRadix:    sc.isRadix,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -295,6 +304,7 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 	e := entry{
 		f:          nil,
 		expiration: timeToUnixNano(expiration),
+		isRadix:    sc.isRadix,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -370,16 +380,14 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time) {
 	name := sc.key(f.Name)
 
-	var fCopy *gcs.Folder
-	if f != nil {
-		fVal := *f
-		fVal.Name = ""
-		fCopy = &fVal
-	}
+	fVal := *f
+	fVal.Name = ""
+	fCopy := &fVal
 
 	e := entry{
 		f:          fCopy,
 		expiration: timeToUnixNano(expiration),
+		isRadix:    sc.isRadix,
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
