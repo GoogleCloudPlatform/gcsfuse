@@ -16,6 +16,7 @@ package logger
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -341,13 +342,13 @@ func (d *dualHandler) Handle(ctx context.Context, r slog.Record) error {
 		err2 = d.otel.Handle(ctx, r)
 	}
 
-	if err1 != nil && err2 != nil {
-		return fmt.Errorf("local err: %v, otel err: %v", err1, err2)
-	}
 	if err1 != nil {
-		return err1
+		err1 = fmt.Errorf("local err: %w", err1)
 	}
-	return err2
+	if err2 != nil {
+		err2 = fmt.Errorf("otel err: %w", err2)
+	}
+	return errors.Join(err1, err2)
 }
 
 func (d *dualHandler) WithAttrs(attrs []slog.Attr) slog.Handler {

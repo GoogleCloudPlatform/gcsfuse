@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"google.golang.org/grpc/codes"
@@ -94,6 +95,95 @@ func TestPermissionAwareExporter_ExportOtherError(t *testing.T) {
 
 	// Act
 	err := exporter.Export(context.Background(), &metricdata.ResourceMetrics{})
+
+	// Assert
+	assert.Error(t, err)
+	assert.False(t, exporter.disabled.Load())
+}
+
+type mockLogExporter struct {
+	log.Exporter
+	exportFunc func(context.Context, []log.Record) error
+}
+
+func (m *mockLogExporter) Export(ctx context.Context, records []log.Record) error {
+	if m.exportFunc != nil {
+		return m.exportFunc(ctx, records)
+	}
+	return nil
+}
+
+func (m *mockLogExporter) ForceFlush(ctx context.Context) error {
+	return nil
+}
+
+func (m *mockLogExporter) Shutdown(ctx context.Context) error {
+	return nil
+}
+
+func TestPermissionAwareLogExporter_ExportSuccess(t *testing.T) {
+	// Arrange
+	mock := &mockLogExporter{}
+	exporter := &permissionAwareLogExporter{Exporter: mock}
+
+	// Act
+	err := exporter.Export(context.Background(), nil)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.False(t, exporter.disabled.Load())
+}
+
+func TestPermissionAwareLogExporter_ExportPermissionDenied(t *testing.T) {
+	// Arrange
+	mock := &mockLogExporter{
+		exportFunc: func(ctx context.Context, records []log.Record) error {
+			return status.Error(codes.PermissionDenied, "permission denied")
+		},
+	}
+	exporter := &permissionAwareLogExporter{Exporter: mock}
+
+	// Act
+	err1 := exporter.Export(context.Background(), nil)
+	err2 := exporter.Export(context.Background(), nil)
+
+	// Assert
+	require.Error(t, err1)
+	require.Equal(t, codes.PermissionDenied, status.Code(err1))
+	require.True(t, exporter.disabled.Load())
+	assert.NoError(t, err2)
+}
+
+func TestPermissionAwareLogExporter_ExportHTTP403(t *testing.T) {
+	// Arrange
+	mock := &mockLogExporter{
+		exportFunc: func(ctx context.Context, records []log.Record) error {
+			return errors.New("failed to send logs to http://127.0.0.1:4318: 403 Forbidden")
+		},
+	}
+	exporter := &permissionAwareLogExporter{Exporter: mock}
+
+	// Act
+	err1 := exporter.Export(context.Background(), nil)
+	err2 := exporter.Export(context.Background(), nil)
+
+	// Assert
+	require.Error(t, err1)
+	require.True(t, exporter.disabled.Load())
+	assert.NoError(t, err2)
+}
+
+func TestPermissionAwareLogExporter_ExportOtherError(t *testing.T) {
+	// Arrange
+	mock := &mockLogExporter{
+		exportFunc: func(ctx context.Context, records []log.Record) error {
+			return errors.New("some other error")
+		},
+	}
+	exporter := &permissionAwareLogExporter{Exporter: mock}
+
+	// Act
+	err := exporter.Export(context.Background(), nil)
 
 	// Assert
 	assert.Error(t, err)

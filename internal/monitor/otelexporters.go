@@ -37,6 +37,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/exemplar"
@@ -146,6 +147,46 @@ func (e *permissionAwareExporter) Export(ctx context.Context, rm *metricdata.Res
 }
 
 func (e *permissionAwareExporter) ForceFlush(ctx context.Context) error {
+	if e.disabled.Load() {
+		return nil
+	}
+	return e.Exporter.ForceFlush(ctx)
+}
+
+// permissionAwareLogExporter wraps a log.Exporter and disables itself if it encounters
+// a PermissionDenied error. This prevents log spam when the environment lacks
+// necessary permissions.
+type permissionAwareLogExporter struct {
+	log.Exporter
+	// disabled indicates whether the exporter has been permanently disabled.
+	disabled atomic.Bool
+}
+
+func (e *permissionAwareLogExporter) Export(ctx context.Context, records []log.Record) error {
+	// Check if disabled before attempting export to save resources and avoid noise.
+	if e.disabled.Load() {
+		return nil
+	}
+
+	for i := range records {
+		// Optimize performance by using a fast integer comparison instead of a string operation
+		// or rewriting all logs. LevelTrace (-8) maps to SeverityTrace1 (1).
+		if int(records[i].Severity()) == 1 /* otellog.SeverityTrace1 */ {
+			records[i].SetSeverityText("TRACE")
+		}
+	}
+
+	err := e.Exporter.Export(ctx, records)
+	// If we get a PermissionDenied error (gRPC) or 403 Forbidden (HTTP), disable the exporter to prevent future attempts.
+	if err != nil && (status.Code(err) == codes.PermissionDenied || strings.Contains(err.Error(), "403")) {
+		if e.disabled.CompareAndSwap(false, true) {
+			logger.Errorf("Disabling Cloud Logging exporter due to permission denied error: %v", err)
+		}
+	}
+	return err
+}
+
+func (e *permissionAwareLogExporter) ForceFlush(ctx context.Context) error {
 	if e.disabled.Load() {
 		return nil
 	}
@@ -267,8 +308,10 @@ func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string, 
 
 	if projectID != "" {
 		projRes, _ := resource.New(ctx,
-			resource.WithSchemaURL(semconv.SchemaURL),
-			resource.WithAttributes(semconv.CloudAccountIDKey.String(projectID)),
+			resource.WithSchemaURL(res.SchemaURL()),
+			resource.WithAttributes(
+				attribute.String("gcp.project_id", projectID),
+			),
 		)
 		res, err = resource.Merge(res, projRes)
 		if err != nil {
@@ -299,8 +342,13 @@ func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string, 
 		return nil, err
 	}
 
+	// Wrap the exporter to handle permission denied errors
+	wrappedExporter := &permissionAwareLogExporter{
+		Exporter: exporter,
+	}
+
 	processor := log.NewBatchProcessor(
-		exporter,
+		wrappedExporter,
 		log.WithExportMaxBatchSize(2000),
 		log.WithMaxQueueSize(8192),
 		log.WithExportInterval(5*time.Second),
