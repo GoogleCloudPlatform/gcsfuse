@@ -135,7 +135,7 @@ func createFilesAndUpload(t *testing.T, dirPath string) {
 
 	localDirPath := path.Join(os.Getenv("HOME"), directoryWithTwelveThousandFiles)
 	operations.CreateDirectoryWithNFiles(numberOfFilesInDirectoryWithTwelveThousandFiles, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles, t)
-	defer os.RemoveAll(localDirPath)
+	defer func() { _ = os.RemoveAll(localDirPath) }()
 
 	testdataUploadFilesToBucket(testEnv.ctx, t, testEnv.storageClient, dirPath, localDirPath, prefixFileInDirectoryWithTwelveThousandFiles)
 }

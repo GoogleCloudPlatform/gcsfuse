@@ -285,7 +285,7 @@ func (t *MainTest) TestCallListRecursiveOnExistingDirectory() {
 	if err != nil {
 		t.T().Fatalf("Failed to set up test. error = %v", err)
 	}
-	defer os.RemoveAll(rootdir)
+	defer func() { _ = os.RemoveAll(rootdir) }()
 
 	_, err = os.CreateTemp(rootdir, "abc-*.txt")
 	if err != nil {

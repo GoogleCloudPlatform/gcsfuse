@@ -151,7 +151,7 @@ func TestMain(m *testing.M) {
 	if client, err = client_util.CreateStorageClient(ctx); err != nil {
 		log.Fatalf("Creation of storage client failed with error : %v", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	testRegion, err = findTestExecutionEnvironment(ctx)
 	if err != nil {

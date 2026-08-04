@@ -314,7 +314,7 @@ func validateContent(t *testing.T, fileName string, start, end int64) {
 	cacheFilePath := getCachedFilePath(fileName)
 	file, err := os.Open(cacheFilePath)
 	require.NoError(t, err)
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	size := end - start
 	cacheContent := make([]byte, size)
 	_, err = file.ReadAt(cacheContent, start)
@@ -325,7 +325,7 @@ func validateContent(t *testing.T, fileName string, start, end int64) {
 	bucketName, objectName := setup.GetBucketAndObjectBasedOnTypeOfMount(objectName)
 	rc, err := testEnv.storageClient.Bucket(bucketName).Object(objectName).NewRangeReader(testEnv.ctx, start, size)
 	require.NoError(t, err)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	gcsContent, err := io.ReadAll(rc)
 	require.NoError(t, err)

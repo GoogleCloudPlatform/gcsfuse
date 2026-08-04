@@ -147,7 +147,7 @@ func setup_testdata() error {
 			return fmt.Errorf("failed to create local file: %w", err)
 		}
 
-		defer os.Remove(localFilePath)
+		defer func() { _ = os.Remove(localFilePath) }()
 
 		// upload to the test-bucket for testing
 		objectPrefixPath := path.Join(TestBucketPrefixPath, fmd.filename)

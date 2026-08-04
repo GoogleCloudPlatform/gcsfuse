@@ -378,7 +378,7 @@ func Test_CreateCacheDirectoryIfNotPresentAt_ShouldNotReturnAnyErrorWhenDirector
 	base := path.Join("./", string(testutil.GenerateRandomBytes(4)))
 	dirPath := path.Join(base, "/", "path/cachedir")
 	dirCreationErr := os.MkdirAll(dirPath, 0700)
-	defer os.RemoveAll(base)
+	defer func() { _ = os.RemoveAll(base) }()
 	require.NoError(t, dirCreationErr)
 
 	err := CreateCacheDirectoryIfNotPresentAt(dirPath, 0000)
@@ -392,7 +392,7 @@ func Test_CreateCacheDirectoryIfNotPresentAt_ShouldNotReturnAnyErrorWhenDirector
 func Test_CreateCacheDirectoryIfNotPresentAt_ShouldNotReturnAnyErrorWhenDirectoryCanBeCreatedWithOwnerPermissions(t *testing.T) {
 	base := path.Join("./", string(testutil.GenerateRandomBytes(4)))
 	dirPath := path.Join(base, "/", "path/cachedir")
-	defer os.RemoveAll(base)
+	defer func() { _ = os.RemoveAll(base) }()
 
 	err := CreateCacheDirectoryIfNotPresentAt(dirPath, 0700)
 
@@ -405,7 +405,7 @@ func Test_CreateCacheDirectoryIfNotPresentAt_ShouldNotReturnAnyErrorWhenDirector
 func Test_CreateCacheDirectoryIfNotPresentAt_ShouldNotReturnAnyErrorWhenDirectoryCanBeCreatedWithOthersPermissions(t *testing.T) {
 	base := path.Join("./", string(testutil.GenerateRandomBytes(4)))
 	dirPath := path.Join(base, "/", "path/cachedir")
-	defer os.RemoveAll(base)
+	defer func() { _ = os.RemoveAll(base) }()
 
 	err := CreateCacheDirectoryIfNotPresentAt(dirPath, 0755)
 
@@ -418,7 +418,7 @@ func Test_CreateCacheDirectoryIfNotPresentAt_ShouldNotReturnAnyErrorWhenDirector
 func Test_CreateCacheDirectoryIfNotPresentAt_ShouldReturnErrorWhenDirectoryDoesNotHavePermissions(t *testing.T) {
 	dirPath := path.Join("./", string(testutil.GenerateRandomBytes(4)))
 	dirCreationErr := os.MkdirAll(dirPath, 0444)
-	defer os.RemoveAll(dirPath)
+	defer func() { _ = os.RemoveAll(dirPath) }()
 	require.NoError(t, dirCreationErr)
 
 	err := CreateCacheDirectoryIfNotPresentAt(dirPath, 0755)

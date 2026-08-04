@@ -44,7 +44,7 @@ var fDuration = flag.Duration("duration", 10*time.Second, "How long to run.")
 
 func closeAll(files []*os.File) {
 	for _, f := range files {
-		f.Close()
+		_ = f.Close()
 	}
 }
 

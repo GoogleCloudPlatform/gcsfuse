@@ -78,7 +78,7 @@ func validateLogsForReaddirplus(t *testing.T, logFile string, dentryCacheEnabled
 
 	file, err := os.Open(logFile)
 	require.NoError(t, err, "Failed to open log file")
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	logLines, err := loadLogLines(file)
 	require.NoError(t, err, "Failed to read log file")
@@ -143,7 +143,7 @@ func TestMain(m *testing.M) {
 		log.Printf("Error creating storage client: %v\n", err)
 		os.Exit(1)
 	}
-	defer testEnv.storageClient.Close()
+	defer func() { _ = testEnv.storageClient.Close() }()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {

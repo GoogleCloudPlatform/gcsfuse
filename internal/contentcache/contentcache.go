@@ -93,10 +93,14 @@ func (c *ContentCache) WriteMetadataCheckpointFile(cacheFileName string, cacheFi
 // Destroy performs disk clean up of cache files and metadata files
 func (c *CacheObject) Destroy() {
 	if c.CacheFile != nil {
-		os.Remove(c.CacheFile.Name())
+		if err := os.Remove(c.CacheFile.Name()); err != nil && !os.IsNotExist(err) {
+			logger.Warnf("CacheObject.Destroy: failed to remove cache file %q: %v", c.CacheFile.Name(), err)
+		}
 		c.CacheFile.Destroy()
 	}
-	os.Remove(c.MetadataFileName)
+	if err := os.Remove(c.MetadataFileName); err != nil && !os.IsNotExist(err) {
+		logger.Warnf("CacheObject.Destroy: failed to remove metadata file %q: %v", c.MetadataFileName, err)
+	}
 }
 
 // recoverFileFromCache recovers a file from the cache via metadata

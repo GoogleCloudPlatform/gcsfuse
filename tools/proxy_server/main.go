@@ -140,7 +140,7 @@ func (ph ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		resp.Header.Set("Location", u.String())
 	}
 
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Copy headers from the target server's response
 	for name, values := range resp.Header {
@@ -232,7 +232,7 @@ func main() {
 		log.Printf("Error opening log file: %v\n", err)
 		os.Exit(1)
 	}
-	defer logFile.Close()
+	defer func() { _ = logFile.Close() }()
 	log.SetOutput(logFile)
 
 	if *fDebug {

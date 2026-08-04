@@ -112,7 +112,7 @@ func (t *MrdInstanceTest) TestRead_RecreatesInvalidEntry() {
 
 	// Manually invalidate the entry to simulate a failure
 	entry := &t.mrdInstance.mrdPool.entries[0]
-	entry.mrd.Close() // Close it.
+	_ = entry.mrd.Close() // Close it.
 	// Replace the entry's MRD with one that returns an error.
 	entry.mu.Lock()
 	entry.mrd = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, nil, fmt.Errorf("broken"))
@@ -151,7 +151,7 @@ func (t *MrdInstanceTest) TestRead_RecreationFails() {
 
 	// Manually invalidate the entry to simulate a failure.
 	entry := &t.mrdInstance.mrdPool.entries[0]
-	entry.mrd.Close() // Close it.
+	_ = entry.mrd.Close() // Close it.
 	// Replace the entry's MRD with one that returns an error.
 	entry.mu.Lock()
 	entry.mrd = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, nil, fmt.Errorf("broken"))
@@ -229,7 +229,7 @@ func (t *MrdInstanceTest) TestGetMRDEntry_RecreatesInvalidMRD() {
 	entry1, err := t.mrdInstance.getMRDEntry()
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), fakeMRD1, entry1.mrd)
-	entry1.mrd.Close()
+	_ = entry1.mrd.Close()
 	entry1.mu.Lock()
 	entry1.mrd = fake.NewFakeMultiRangeDownloaderWithStatusError(t.object, nil, fmt.Errorf("broken"))
 	entry1.mu.Unlock()

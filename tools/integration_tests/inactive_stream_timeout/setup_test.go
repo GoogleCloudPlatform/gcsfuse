@@ -95,7 +95,7 @@ func hasInactiveReaderClosedLogLineInLogFile(t *testing.T, objectName, logFile s
 
 	file, err := os.Open(logFile)
 	require.NoError(t, err, "failed to open log file")
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -144,7 +144,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("client.CreateStorageClient: %v", err)
 	}
-	defer testEnv.storageClient.Close()
+	defer func() { _ = testEnv.storageClient.Close() }()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {

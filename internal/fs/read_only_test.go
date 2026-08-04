@@ -56,7 +56,7 @@ func (t *ReadOnlyTest) ModifyFile() {
 
 	// Opening it for writing should fail.
 	f, err := os.OpenFile(path.Join(mntDir, "foo"), os.O_RDWR, 0)
-	f.Close()
+	_ = f.Close()
 
 	ExpectThat(err, Error(HasSubstr("read-only")))
 }

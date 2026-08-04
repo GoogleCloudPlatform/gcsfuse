@@ -152,6 +152,6 @@ func DeleteDirOnGCS(ctx context.Context, storageClient *gcsstorage.Client, relat
 	_ = getBucketHandle(storageClient, bucket).Object(gcsObjName).Delete(ctx)
 	if controlClient, err := CreateControlClient(ctx); err == nil && controlClient != nil {
 		_ = DeleteFolderInBucket(ctx, controlClient, relativeDirPath)
-		controlClient.Close()
+		_ = controlClient.Close()
 	}
 }

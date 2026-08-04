@@ -36,7 +36,7 @@ func BuildGcsfuse(dstDir string) (err error) {
 			return
 		}
 
-		defer os.RemoveAll(toolDir)
+		defer func() { _ = os.RemoveAll(toolDir) }()
 
 		toolPath = path.Join(toolDir, "build_gcsfuse")
 		log.Printf("Building build_gcsfuse at %s", toolPath)
@@ -112,7 +112,7 @@ func buildBuildGcsfuse(dst string) (err error) {
 		err = fmt.Errorf("TempDir: %w", err)
 		return
 	}
-	defer os.RemoveAll(gopath)
+	defer func() { _ = os.RemoveAll(gopath) }()
 
 	// Create a directory to become GOCACHE for our build below.
 	var gocache string
@@ -121,7 +121,7 @@ func buildBuildGcsfuse(dst string) (err error) {
 		err = fmt.Errorf("TempDir: %w", err)
 		return
 	}
-	defer os.RemoveAll(gocache)
+	defer func() { _ = os.RemoveAll(gocache) }()
 
 	// Build within that directory with no GOPATH -- it should have no external
 	// dependencies besides the standard library.

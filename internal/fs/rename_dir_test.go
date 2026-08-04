@@ -113,7 +113,7 @@ func (t *RenameDirTests) TestRenameFolderWithSourceDirectoryHaveLocalFiles() {
 	assert.NoError(t.T(), err)
 	file, err := os.OpenFile(path.Join(oldDirPath, "file4.txt"), os.O_RDWR|os.O_CREATE, filePerms)
 	assert.NoError(t.T(), err)
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	newDirPath := path.Join(mntDir, "bar", "foo_rename")
 
 	err = os.Rename(oldDirPath, newDirPath)

@@ -63,7 +63,7 @@ func run() (err error) {
 	// Make sure we clean it up later.
 	defer func() {
 		log.Printf("Deleting %s.", path)
-		os.Remove(path)
+		_ = os.Remove(path)
 	}()
 
 	// Fill it with random content.

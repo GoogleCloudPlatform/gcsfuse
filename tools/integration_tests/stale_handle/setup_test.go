@@ -70,7 +70,7 @@ func TestMain(m *testing.M) {
 		log.Printf("Error creating storage client: %v\n", err)
 		os.Exit(1)
 	}
-	defer testEnv.storageClient.Close()
+	defer func() { _ = testEnv.storageClient.Close() }()
 
 	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
 	// flags to be set, as stale handle tests validates content from the bucket.

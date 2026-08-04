@@ -94,7 +94,11 @@ func atomicFileWrite(kernelParamsFile string, data []byte) error {
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer os.Remove(tempFile.Name())
+	// Best-effort cleanup: succeeds only if the rename below never happens (temp file
+	// is already gone after a successful rename, so this is a no-op in the common case).
+	defer func() {
+		_ = os.Remove(tempFile.Name())
+	}()
 
 	if _, err := tempFile.Write(data); err != nil {
 		return fmt.Errorf("failed to write temp file: %w", err)

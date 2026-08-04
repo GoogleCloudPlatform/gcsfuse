@@ -32,7 +32,7 @@ import (
 func Test_GetClientAuthOptionsAndToken_TokenUrlSuccess(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintln(w, `{"access_token":"dummy-token","token_type":"Bearer"}`)
+		_, _ = fmt.Fprintln(w, `{"access_token":"dummy-token","token_type":"Bearer"}`)
 	}))
 	defer server.Close()
 	config := &StorageClientConfig{

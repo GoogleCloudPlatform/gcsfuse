@@ -333,7 +333,7 @@ func readMultipleUsingMultiRangeDownloader(
 	}
 	// Not checking error on mrd.Close() here as it is expected to fail for
 	// negative test cases. These negative cases are tested through errs[i].
-	defer mrd.Close()
+	defer func() { _ = mrd.Close() }()
 
 	// Feed indices into a channel.
 	indices := make(chan int, len(ranges))
@@ -2789,7 +2789,7 @@ func (t *readTest) ObjectNameDoesntExist() {
 
 	rc, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
 	if err == nil {
-		defer rc.Close()
+		defer func() { _ = rc.Close() }()
 		_, err = rc.Read(make([]byte, 1))
 	}
 
@@ -2856,7 +2856,7 @@ func (t *readTest) ParticularGeneration_NeverExisted() {
 
 	rc, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
 	if err == nil {
-		defer rc.Close()
+		defer func() { _ = rc.Close() }()
 		_, err = rc.Read(make([]byte, 1))
 	}
 
@@ -2892,7 +2892,7 @@ func (t *readTest) ParticularGeneration_HasBeenDeleted() {
 
 	rc, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
 	if err == nil {
-		defer rc.Close()
+		defer func() { _ = rc.Close() }()
 		_, err = rc.Read(make([]byte, 1))
 	}
 
@@ -2958,7 +2958,7 @@ func (t *readTest) ParticularGeneration_ObjectHasBeenOverwritten() {
 
 	rc, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
 	if err == nil {
-		defer rc.Close()
+		defer func() { _ = rc.Close() }()
 		_, err = rc.Read(make([]byte, 1))
 	}
 
@@ -4110,7 +4110,7 @@ func (t *deleteTest) NoParticularGeneration_Successful() {
 
 	rc, err := t.bucket.NewReaderWithReadHandle(t.ctx, req)
 	if err == nil {
-		defer rc.Close()
+		defer func() { _ = rc.Close() }()
 		_, err = rc.Read(make([]byte, 1))
 	}
 
@@ -4901,7 +4901,7 @@ func (t *cancellationTest) ReadObject() {
 
 	AssertEq(nil, err)
 
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	// Read a few bytes; nothing should go wrong.
 	const firstReadSize = 32

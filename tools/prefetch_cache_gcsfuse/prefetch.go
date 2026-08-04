@@ -45,14 +45,14 @@ func downloadFile(ctx context.Context, client *storage.Client, object *storage.O
 		err = fmt.Errorf("os.CreateTemp: %w", err)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	rc, err := client.Bucket(object.Bucket).Object(object.Name).NewReader(ctx)
 
 	if err != nil {
 		return fmt.Errorf("Object(%q).NewReader: %w", object.Name, err)
 	}
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	if _, err := io.Copy(f, rc); err != nil {
 		return fmt.Errorf("io.Copy: %w", err)
@@ -86,7 +86,7 @@ func prefetchCache(cacheDir, bucketName, prefix string) (err error) {
 	if err != nil {
 		return fmt.Errorf("storage.NewClient: %w", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// Should we set a higher timeout or let this be configurable by the user
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*10)

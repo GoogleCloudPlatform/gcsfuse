@@ -161,7 +161,7 @@ func TestWriteFile(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", "testFile-*")
 	require.NoError(t, err)
 	filePath := tmpFile.Name()
-	defer os.Remove(filePath)
+	defer func() { _ = os.Remove(filePath) }()
 	require.NoError(t, tmpFile.Close())
 
 	// Call WriteFile
@@ -179,7 +179,7 @@ func TestReadFile(t *testing.T) {
 	file, err := os.CreateTemp("", "testFile-*")
 	require.NoError(t, err)
 	fileName := file.Name()
-	defer os.Remove(fileName)
+	defer func() { _ = os.Remove(fileName) }()
 	_, err = file.WriteString("content")
 	require.NoError(t, err)
 	require.NoError(t, file.Close())

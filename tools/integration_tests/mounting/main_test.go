@@ -90,6 +90,6 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	// Clean up and exit.
-	os.RemoveAll(gBuildDir)
+	_ = os.RemoveAll(gBuildDir)
 	os.Exit(code)
 }

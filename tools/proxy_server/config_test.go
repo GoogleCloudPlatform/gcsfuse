@@ -38,11 +38,11 @@ retryConfig:
 `
 		tempFile, err := os.CreateTemp("", "valid-config-*.yaml")
 		assert.NoError(t, err)
-		defer os.Remove(tempFile.Name())
+		defer func() { _ = os.Remove(tempFile.Name()) }()
 
 		_, err = tempFile.Write([]byte(validContent))
 		assert.NoError(t, err)
-		tempFile.Close()
+		assert.NoError(t, tempFile.Close())
 
 		// Parse the file
 		config, err := parseConfigFile(tempFile.Name())
@@ -67,8 +67,8 @@ retryConfig:
 		// Create an empty temporary file
 		tempFile, err := os.CreateTemp("", "empty-config-*.yaml")
 		assert.NoError(t, err)
-		defer os.Remove(tempFile.Name())
-		tempFile.Close()
+		defer func() { _ = os.Remove(tempFile.Name()) }()
+		assert.NoError(t, tempFile.Close())
 
 		// Parse the file
 		config, err := parseConfigFile(tempFile.Name())
@@ -86,11 +86,11 @@ another_invalid_key:
 `
 		tempFile, err := os.CreateTemp("", "invalid-config-*.yaml")
 		assert.NoError(t, err)
-		defer os.Remove(tempFile.Name())
+		defer func() { _ = os.Remove(tempFile.Name()) }()
 
 		_, err = tempFile.Write([]byte(invalidContent))
 		assert.NoError(t, err)
-		tempFile.Close()
+		assert.NoError(t, tempFile.Close())
 
 		// Parse the file
 		config, err := parseConfigFile(tempFile.Name())

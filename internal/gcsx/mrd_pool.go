@@ -223,7 +223,9 @@ func (p *MRDPool) Close() (handle []byte) {
 			if handle == nil {
 				handle = entry.mrd.GetHandle()
 			}
-			entry.mrd.Close()
+			if closeErr := entry.mrd.Close(); closeErr != nil {
+				logger.Warnf("MRDPool.Close: error while closing MRD: %v", closeErr)
+			}
 			entry.mrd = nil
 		}
 		entry.mu.Unlock()

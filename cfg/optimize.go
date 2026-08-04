@@ -77,7 +77,9 @@ func getMetadata(client *http.Client, endpoint string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("request to %s failed: %w", endpoint, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close() // Body is fully read below; a close error here is not actionable.
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("request to %s returned non-OK status: %d", endpoint, resp.StatusCode)

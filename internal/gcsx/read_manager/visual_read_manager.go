@@ -163,7 +163,11 @@ func appendToFile(outputFilePath, text string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open output file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			logger.Warnf("appendToFile: error while closing output file: %v", closeErr)
+		}
+	}()
 
 	if _, err := f.Write([]byte(text)); err != nil {
 		return fmt.Errorf("failed to write to output file: %w", err)

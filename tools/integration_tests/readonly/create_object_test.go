@@ -35,7 +35,7 @@ func checkIfFileCreationFailed(filePath string, t *testing.T) {
 
 	operations.CheckErrorForReadOnlyFileSystem(t, err)
 
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 }
 
 func TestCreateFile(t *testing.T) {

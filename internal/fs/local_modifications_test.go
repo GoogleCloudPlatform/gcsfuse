@@ -2744,7 +2744,7 @@ func (t *RenameTest) OutOfFileSystem() {
 	// Attempt to move it out of the file system.
 	tempDir, err := os.MkdirTemp("", "memfs_test")
 	AssertEq(nil, err)
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	err = os.Rename(oldPath, path.Join(tempDir, "bar"))
 	ExpectThat(err, Error(HasSubstr("cross-device")))
@@ -2761,7 +2761,7 @@ func (t *RenameTest) IntoFileSystem() {
 	}()
 
 	oldPath := f.Name()
-	defer os.Remove(oldPath)
+	defer func() { _ = os.Remove(oldPath) }()
 
 	// Attempt to move it into the file system.
 	err = os.Rename(oldPath, path.Join(mntDir, "bar"))

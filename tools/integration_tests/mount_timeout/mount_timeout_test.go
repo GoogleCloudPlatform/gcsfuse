@@ -164,7 +164,7 @@ func TestMain(m *testing.M) {
 		log.Printf("Error creating storage client: %v\n", err)
 		os.Exit(1)
 	}
-	defer gStorageClient.Close()
+	defer func() { _ = gStorageClient.Close() }()
 
 	testEnv := findTestExecutionEnvironment(gCtx)
 	err = os.Setenv("TEST_ENV", testEnv)
@@ -200,6 +200,6 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	// Clean up and exit.
-	os.RemoveAll(gBuildDir)
+	_ = os.RemoveAll(gBuildDir)
 	os.Exit(code)
 }

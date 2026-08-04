@@ -343,7 +343,7 @@ func TestInitLogFile(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, defaultLoggerFactory.file)
 	t.Cleanup(func() {
-		defaultLoggerFactory.file.Close() // Close file handle to release resources.
+		_ = defaultLoggerFactory.file.Close() // Close file handle to release resources.
 	})
 	assert.Equal(t, filePath, defaultLoggerFactory.file.Name())
 	assert.Nil(t, defaultLoggerFactory.sysWriter)

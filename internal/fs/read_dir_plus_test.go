@@ -185,7 +185,7 @@ func (t *LocalFileEntriesReadDirPlusTest) TestDirectoryWithLocalFile() {
 	// Create a local file that is not yet synced to GCS.
 	f, err := os.Create(path.Join(mntDir, "local_file"))
 	assert.Nil(t.T(), err)
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Read the directory.
 	entries, err := fusetesting.ReadDirPlusPicky(mntDir)
@@ -205,7 +205,7 @@ func (t *LocalFileEntriesReadDirPlusTest) TestDirWithOneLocalAndOneGCSEntry() {
 	// Create a local-only file
 	f, err := os.Create(path.Join(mntDir, "local_file"))
 	assert.Nil(t.T(), err)
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Read the directory
 	entries, err := fusetesting.ReadDirPlusPicky(mntDir)
