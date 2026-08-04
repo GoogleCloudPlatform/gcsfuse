@@ -1144,6 +1144,13 @@ params:
     default: "3"
     hide-flag: true
 
+  - config-path: "mount-id"
+    flag-name: "mount-id"
+    type: "string"
+    usage: "Custom identifier to be appended to the mount ID and printed in all logs."
+    default: ""
+    hide-flag: true
+
   - config-path: "mrd.pool-size"
     flag-name: "mrd-pool-size"
     type: "int"

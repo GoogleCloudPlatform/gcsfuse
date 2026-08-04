@@ -523,6 +523,8 @@ type Config struct {
 
 	Metrics MetricsConfig `yaml:"metrics"`
 
+	MountId string `yaml:"mount-id"`
+
 	Mrd MrdConfig `yaml:"mrd"`
 
 	OnlyDir string `yaml:"only-dir"`
@@ -1316,6 +1318,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.StringP("mount-id", "", "", "Custom identifier to be appended to the mount ID and printed in all logs.")
+
+	if err := flagSet.MarkHidden("mount-id"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("mrd-pool-size", "", 4, "Specifies the MRD pool size to be used for zonal buckets. The value should be more than 0.")
 
 	if err := flagSet.MarkHidden("mrd-pool-size"); err != nil {
@@ -1936,6 +1944,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.workers", flagSet.Lookup("metrics-workers")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("mount-id", flagSet.Lookup("mount-id")); err != nil {
 		return err
 	}
 

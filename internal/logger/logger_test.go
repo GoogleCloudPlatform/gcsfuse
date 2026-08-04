@@ -54,7 +54,7 @@ func expectedLogRegex(t *testing.T, format, severity, message string) string {
 
 func redirectLogsToGivenBuffer(buf *bytes.Buffer, level string) {
 	handler := defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: ")
-	handler = handler.WithAttrs(loggerAttr(testFsName))
+	handler = handler.WithAttrs(loggerAttr(testFsName, ""))
 	defaultLogger = slog.New(handler)
 	setLoggingLevel(level)
 }
@@ -338,7 +338,7 @@ func TestInitLogFile(t *testing.T) {
 		},
 	}
 
-	err := InitLogFile(newLogConfig, testFsName)
+	err := InitLogFile(newLogConfig, testFsName, "")
 
 	require.NoError(t, err)
 	require.NotNil(t, defaultLoggerFactory.file)
@@ -387,7 +387,7 @@ func TestUpdateDefaultLogger(t *testing.T) {
 				logRotate: logConfig.LogRotate,
 			}
 
-			UpdateDefaultLogger(tc.format, testFsName)
+			UpdateDefaultLogger(tc.format, testFsName, "")
 			var buf bytes.Buffer
 			redirectLogsToGivenBuffer(&buf, defaultLoggerFactory.level)
 			Infof("www.infoExample.com")
@@ -565,4 +565,45 @@ func TestGetLogFHandler(t *testing.T) {
 		expectedTraceRegex := expectedLogRegex(t, "text", "TRACE", message)
 		assert.Regexp(t, expectedTraceRegex, logs[1])
 	})
+}
+
+func TestMountInstanceID(t *testing.T) {
+	testCases := []struct {
+		name                         string
+		fsName                       string
+		customID                     string
+		expectedMountInstanceIDRegex string
+	}{
+		{
+			name:                         "NoCustomID",
+			fsName:                       "mybucket",
+			customID:                     "",
+			expectedMountInstanceIDRegex: "^mybucket-[0-9a-f]{8}$",
+		},
+		{
+			name:                         "WithOnlyDirInFSNameAndNoCustomID",
+			fsName:                       "mybucket/somedir",
+			customID:                     "",
+			expectedMountInstanceIDRegex: "^mybucket/somedir-[0-9a-f]{8}$",
+		},
+		{
+			name:                         "WithCustomID",
+			fsName:                       "mybucket",
+			customID:                     "pod-123",
+			expectedMountInstanceIDRegex: "^mybucket-[0-9a-f]{8}-pod-123$",
+		},
+		{
+			name:                         "WithOnlyDirAndCustomID",
+			fsName:                       "mybucket/somedir",
+			customID:                     "pod-123",
+			expectedMountInstanceIDRegex: "^mybucket/somedir-[0-9a-f]{8}-pod-123$",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := MountInstanceID(tc.fsName, tc.customID)
+			assert.Regexp(t, tc.expectedMountInstanceIDRegex, result)
+		})
+	}
 }

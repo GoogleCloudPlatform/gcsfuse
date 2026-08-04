@@ -341,28 +341,50 @@ func (t *MainTest) TestFSName() {
 	testCases := []struct {
 		name       string
 		bucketName string
+		onlyDir    string
 		fsName     string
 	}{
 		{
 			name:       "Empty bucket name",
 			bucketName: "",
+			onlyDir:    "",
 			fsName:     DynamicMountFSName,
 		},
 		{
 			name:       "Underscore bucket name",
 			bucketName: "_",
+			onlyDir:    "",
 			fsName:     DynamicMountFSName,
 		},
 		{
 			name:       "Regular bucket name",
 			bucketName: "abc",
+			onlyDir:    "",
 			fsName:     "abc",
+		},
+		{
+			name:       "Regular bucket name with onlyDir",
+			bucketName: "abc",
+			onlyDir:    "dir1/dir2",
+			fsName:     "abc/dir1/dir2",
+		},
+		{
+			name:       "Regular bucket name with leading and trailing slashes in onlyDir",
+			bucketName: "abc",
+			onlyDir:    "/dir1/",
+			fsName:     "abc/dir1",
+		},
+		{
+			name:       "Bucket name already containing slash (GKE format)",
+			bucketName: "abc/dir1",
+			onlyDir:    "dir1",
+			fsName:     "abc/dir1",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.T().Run(tc.name, func(t *testing.T) {
-			actualFSName := fsName(tc.bucketName)
+			actualFSName := fsName(tc.bucketName, tc.onlyDir)
 
 			assert.Equal(t, tc.fsName, actualFSName)
 		})

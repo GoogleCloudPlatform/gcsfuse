@@ -147,7 +147,7 @@ be interacting with the file system.`)
 		return
 	}
 
-	fsName := fsName(bucketName)
+	fsName := fsName(bucketName, newConfig.OnlyDir)
 
 	// Apply pre mount kernel settings in non-GKE environments for non dynamic mounts when kernel reader is enabled.
 	if !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) && newConfig.FileSystem.EnableKernelReader {
@@ -232,10 +232,10 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 	// DEBUG         ERROR
 	// TRACE         TRACE
 	if newConfig.Logging.Severity.Rank() <= cfg.ErrorLogSeverity.Rank() {
-		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ", fsName)
+		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse: ", fsName, newConfig.MountId)
 	}
 	if newConfig.Logging.Severity.Rank() <= cfg.TraceLogSeverity.Rank() {
-		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ", fsName)
+		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelTrace, "fuse_debug: ", fsName, newConfig.MountId)
 	}
 	return mountCfg
 }
