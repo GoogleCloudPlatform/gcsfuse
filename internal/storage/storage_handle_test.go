@@ -1129,11 +1129,12 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 
 func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_RapidBucket() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	// For rapid buckets (isbucketRapid = true), createGRPCClientHandle should omit WithDirectConnectivityEnforced
-	// and should not return an error when verifyDirectPathConnectivity fails.
+	// For rapid buckets (isBucketRapid = true), createGRPCClientHandle should omit WithDirectConnectivityEnforced
+	// and skip verifyDirectPathConnectivity entirely.
 	client, err := createGRPCClientHandle(testSuite.ctx, &sc, true, true, TestBucketName, "")
-	assert.NoError(testSuite.T(), err)
-	assert.NotNil(testSuite.T(), client)
+	require.NoError(testSuite.T(), err)
+	require.NotNil(testSuite.T(), client)
+	defer client.Close()
 }
 
 func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_NonRapidBucket() {
@@ -1144,4 +1145,3 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_NonRapidBucket() 
 	assert.Error(testSuite.T(), err)
 	assert.Nil(testSuite.T(), client)
 }
-
