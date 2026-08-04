@@ -231,7 +231,9 @@ func RunSuiteForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestCo
 
 	err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", localKeyFilePath)
 	require.NoError(t, err, "Error setting environment variable")
-	defer os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
+	defer func() {
+		_ = os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
+	}()
 
 	keyFileFlag := "--key-file=" + localKeyFilePath
 	flagsWithKeyFile := append(slices.Clone(flags), keyFileFlag)
