@@ -297,7 +297,8 @@ func fsName(bucketName, onlyDir string) string {
 	if isDynamicMount(bucketName) {
 		return DynamicMountFSName
 	}
-	if onlyDir != "" && !strings.Contains(bucketName, "/") {
+	// GCS bucket name cannot have /. So, we can directly append to it.
+	if onlyDir != "" {
 		return fmt.Sprintf("%s/%s", bucketName, onlyDir)
 	}
 	return bucketName
