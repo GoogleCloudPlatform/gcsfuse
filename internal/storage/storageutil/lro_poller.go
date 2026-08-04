@@ -88,9 +88,11 @@ func PollLRO[T any](ctx context.Context, op LROPoller[T], cfg LROPollConfig) (T,
 	// Poll #0: Immediate status check right after operation creation to handle instantaneous completions.
 	result, err := op.Poll(ctx)
 	if err != nil {
-		return zero, err
-	}
-	if op.Done() {
+		if !ShouldRetryWithoutLogging(err) {
+			return zero, err
+		}
+		// On transient errors (e.g. 429), fall through and let the normal polling loop take over.
+	} else if op.Done() {
 		return result, nil
 	}
 
@@ -109,9 +111,11 @@ func PollLRO[T any](ctx context.Context, op LROPoller[T], cfg LROPollConfig) (T,
 
 		result, err = op.Poll(ctx)
 		if err != nil {
-			return zero, err
-		}
-		if op.Done() {
+			if !ShouldRetryWithoutLogging(err) {
+				return zero, err
+			}
+			// On transient errors (e.g. 429), ignore and proceed to sleep for the next retry interval.
+		} else if op.Done() {
 			return result, nil
 		}
 
@@ -120,9 +124,9 @@ func PollLRO[T any](ctx context.Context, op LROPoller[T], cfg LROPollConfig) (T,
 			backoff = min(cfg.Max, time.Duration(float64(backoff)*cfg.Multiplier))
 		}
 
-		// Add full jitter to avoid the thundering herd problem.
-		// The actual wait time is a random value between 1ns and the current backoff.
-		pause := time.Duration(rand.Int63n(int64(backoff))) + 1
+		// Add a random jitter (sleeping between 80% and 100% of the backoff) to prevent
+		// multiple retries from other operations from hitting the API at the same time.
+		pause := backoff - time.Duration(rand.Int63n(int64(backoff/5)+1))
 		timer.Reset(pause)
 	}
 }

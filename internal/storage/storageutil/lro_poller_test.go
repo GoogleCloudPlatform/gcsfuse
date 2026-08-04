@@ -23,6 +23,8 @@ import (
 	"github.com/googleapis/gax-go/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type mockLROPoller struct {
@@ -97,13 +99,13 @@ func TestPollLRO_SuccessAfterRetries(t *testing.T) {
 	poller.AssertExpectations(t)
 }
 
-func TestPollLRO_TransientRPCErrorPropagated(t *testing.T) {
+func TestPollLRO_NonRetryableErrorPropagated(t *testing.T) {
 	ctx := context.Background()
 	poller := new(mockLROPoller)
-	transientErr := errors.New("transient network error")
+	nonRetryableErr := errors.New("some non-retryable error")
 	poller.On("Poll", ctx).Return("", nil).Once()
 	poller.On("Done").Return(false).Once()
-	poller.On("Poll", ctx).Return("", transientErr).Once()
+	poller.On("Poll", ctx).Return("", nonRetryableErr).Once()
 	cfg := LROPollConfig{
 		Initial:         1 * time.Millisecond,
 		FastPhaseWindow: 1 * time.Second,
@@ -113,8 +115,58 @@ func TestPollLRO_TransientRPCErrorPropagated(t *testing.T) {
 
 	result, err := PollLRO(ctx, poller, cfg)
 
-	assert.ErrorIs(t, err, transientErr)
+	assert.ErrorIs(t, err, nonRetryableErr)
 	assert.Equal(t, "", result)
+	poller.AssertExpectations(t)
+}
+
+func TestPollLRO_RetryOn429ResourceExhausted(t *testing.T) {
+	ctx := context.Background()
+	poller := new(mockLROPoller)
+	expectedResult := "success_after_429"
+	err429 := status.Error(codes.ResourceExhausted, "quota exceeded")
+	// Poll 0 (immediate) returns 429
+	poller.On("Poll", ctx).Return("", err429).Once()
+	// Loop poll 1 returns 429
+	poller.On("Poll", ctx).Return("", err429).Once()
+	// Loop poll 2 succeeds
+	poller.On("Poll", ctx).Return(expectedResult, nil).Once()
+	poller.On("Done").Return(true).Once()
+	cfg := LROPollConfig{
+		Initial:         1 * time.Millisecond,
+		FastPhaseWindow: 1 * time.Second,
+		Multiplier:      1.1,
+		Max:             10 * time.Millisecond,
+	}
+
+	result, err := PollLRO(ctx, poller, cfg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expectedResult, result)
+	poller.AssertExpectations(t)
+}
+
+func TestPollLRO_RetryOnUnauthenticated(t *testing.T) {
+	ctx := context.Background()
+	poller := new(mockLROPoller)
+	expectedResult := "success_after_auth_refresh"
+	errAuth := status.Error(codes.Unauthenticated, "token expired")
+	// Poll 0 (immediate) returns auth error
+	poller.On("Poll", ctx).Return("", errAuth).Once()
+	// Loop poll 1 succeeds
+	poller.On("Poll", ctx).Return(expectedResult, nil).Once()
+	poller.On("Done").Return(true).Once()
+	cfg := LROPollConfig{
+		Initial:         1 * time.Millisecond,
+		FastPhaseWindow: 1 * time.Second,
+		Multiplier:      1.1,
+		Max:             10 * time.Millisecond,
+	}
+
+	result, err := PollLRO(ctx, poller, cfg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expectedResult, result)
 	poller.AssertExpectations(t)
 }
 
