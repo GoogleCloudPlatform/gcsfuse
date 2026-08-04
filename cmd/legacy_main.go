@@ -326,13 +326,14 @@ func forwardedEnvVars() []string {
 
 	// Forward GOOGLE_APPLICATION_CREDENTIALS, since we document in
 	// mounting.md that it can be used for specifying a key file.
+	// Forward GOOGLE_CLOUD_PROJECT as it can be used for specifying a cloud project ID.
 	// Forward the no_proxy environment variable. Whenever
 	// using the http(s)_proxy environment variables. This should
 	// also be included to know for which hosts the use of proxies
 	// should be ignored.
 	// Forward GCE_METADATA_HOST, GCE_METADATA_ROOT, GCE_METADATA_IP as these are used for mocked metadata services.
 	// Forward GRPC_GO_LOG_VERBOSITY_LEVEL and GRPC_GO_LOG_SEVERITY_LEVEL as these are used to enable grpc debug logs.
-	for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "no_proxy", "GCE_METADATA_HOST", "GCE_METADATA_ROOT", "GCE_METADATA_IP", "GRPC_GO_LOG_VERBOSITY_LEVEL", "GRPC_GO_LOG_SEVERITY_LEVEL"} {
+	for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_PROJECT", "no_proxy", "GCE_METADATA_HOST", "GCE_METADATA_ROOT", "GCE_METADATA_IP", "GRPC_GO_LOG_VERBOSITY_LEVEL", "GRPC_GO_LOG_SEVERITY_LEVEL"} {
 		if envval, ok := os.LookupEnv(envvar); ok {
 			env = append(env, fmt.Sprintf("%s=%s", envvar, envval))
 			fmt.Fprintf(
