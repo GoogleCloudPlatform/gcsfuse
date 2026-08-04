@@ -46,12 +46,13 @@ func TestPollLRO_ImmediateSuccess(t *testing.T) {
 	poller.On("Poll", ctx).Return(expectedResult, nil).Once()
 	poller.On("Done").Return(true).Once()
 	cfg := LROPollConfig{
-		Initial:    1 * time.Millisecond,
-		Multiplier: 1.1,
-		Max:        10 * time.Millisecond,
+		Initial:         1 * time.Millisecond,
+		FastPhaseWindow: 1 * time.Second,
+		Multiplier:      1.1,
+		Max:             10 * time.Millisecond,
 	}
 
-	result, err := PollLRO[string](ctx, poller, cfg)
+	result, err := PollLRO(ctx, poller, cfg)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResult, result)
@@ -65,7 +66,7 @@ func TestPollLRO_ImmediateError(t *testing.T) {
 	poller.On("Poll", ctx).Return("", expectedErr).Once()
 	cfg := DefaultLROPollConfig()
 
-	result, err := PollLRO[string](ctx, poller, cfg)
+	result, err := PollLRO(ctx, poller, cfg)
 
 	assert.ErrorIs(t, err, expectedErr)
 	assert.Equal(t, "", result)
@@ -83,12 +84,13 @@ func TestPollLRO_SuccessAfterRetries(t *testing.T) {
 	poller.On("Poll", ctx).Return(expectedResult, nil).Once()
 	poller.On("Done").Return(true).Once()
 	cfg := LROPollConfig{
-		Initial:    1 * time.Millisecond,
-		Multiplier: 1.1,
-		Max:        10 * time.Millisecond,
+		Initial:         1 * time.Millisecond,
+		FastPhaseWindow: 1 * time.Second,
+		Multiplier:      1.1,
+		Max:             10 * time.Millisecond,
 	}
 
-	result, err := PollLRO[string](ctx, poller, cfg)
+	result, err := PollLRO(ctx, poller, cfg)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResult, result)
@@ -103,12 +105,13 @@ func TestPollLRO_TransientRPCErrorPropagated(t *testing.T) {
 	poller.On("Done").Return(false).Once()
 	poller.On("Poll", ctx).Return("", transientErr).Once()
 	cfg := LROPollConfig{
-		Initial:    1 * time.Millisecond,
-		Multiplier: 1.1,
-		Max:        10 * time.Millisecond,
+		Initial:         1 * time.Millisecond,
+		FastPhaseWindow: 1 * time.Second,
+		Multiplier:      1.1,
+		Max:             10 * time.Millisecond,
 	}
 
-	result, err := PollLRO[string](ctx, poller, cfg)
+	result, err := PollLRO(ctx, poller, cfg)
 
 	assert.ErrorIs(t, err, transientErr)
 	assert.Equal(t, "", result)
@@ -122,12 +125,13 @@ func TestPollLRO_ContextCancelled(t *testing.T) {
 	poller.On("Done").Return(false).Once()
 	cancel()
 	cfg := LROPollConfig{
-		Initial:    50 * time.Millisecond,
-		Multiplier: 1.1,
-		Max:        100 * time.Millisecond,
+		Initial:         50 * time.Millisecond,
+		FastPhaseWindow: 1 * time.Second,
+		Multiplier:      1.1,
+		Max:             100 * time.Millisecond,
 	}
 
-	result, err := PollLRO[string](ctx, poller, cfg)
+	result, err := PollLRO(ctx, poller, cfg)
 
 	assert.ErrorIs(t, err, context.Canceled)
 	assert.Equal(t, "", result)
@@ -151,9 +155,67 @@ func TestPollLRO_FixedFastPhaseWindow(t *testing.T) {
 		Max:             100 * time.Millisecond,
 	}
 
-	result, err := PollLRO[string](ctx, poller, cfg)
+	result, err := PollLRO(ctx, poller, cfg)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResult, result)
 	poller.AssertExpectations(t)
+}
+
+func TestPollLRO_InvalidConfig(t *testing.T) {
+	ctx := context.Background()
+
+	testCases := []struct {
+		name string
+		cfg  LROPollConfig
+	}{
+		{
+			name: "invalid_initial",
+			cfg: LROPollConfig{
+				Initial:         0,
+				FastPhaseWindow: 1 * time.Second,
+				Multiplier:      1.1,
+				Max:             10 * time.Millisecond,
+			},
+		},
+		{
+			name: "invalid_fast_phase",
+			cfg: LROPollConfig{
+				Initial:         1 * time.Millisecond,
+				FastPhaseWindow: 0,
+				Multiplier:      1.1,
+				Max:             10 * time.Millisecond,
+			},
+		},
+		{
+			name: "invalid_multiplier",
+			cfg: LROPollConfig{
+				Initial:         1 * time.Millisecond,
+				FastPhaseWindow: 1 * time.Second,
+				Multiplier:      0.9,
+				Max:             10 * time.Millisecond,
+			},
+		},
+		{
+			name: "invalid_max",
+			cfg: LROPollConfig{
+				Initial:         1 * time.Millisecond,
+				FastPhaseWindow: 1 * time.Second,
+				Multiplier:      1.1,
+				Max:             0,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			poller := new(mockLROPoller)
+			// Poller should not be called if config is invalid
+			_, err := PollLRO(ctx, poller, tc.cfg)
+
+			assert.Error(t, err)
+			poller.AssertNotCalled(t, "Poll")
+			poller.AssertNotCalled(t, "Done")
+		})
+	}
 }

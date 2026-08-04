@@ -16,6 +16,7 @@ package storageutil
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/googleapis/gax-go/v2"
@@ -69,6 +70,20 @@ type LROPoller[T any] interface {
 // PollLRO polls the given LRO using a two-stage adaptive polling strategy.
 func PollLRO[T any](ctx context.Context, op LROPoller[T], cfg LROPollConfig) (T, error) {
 	var zero T
+
+	if cfg.Initial <= 0 {
+		return zero, fmt.Errorf("initial sleep duration must be greater than 0")
+	}
+	if cfg.FastPhaseWindow <= 0 {
+		return zero, fmt.Errorf("fast phase window must be greater than 0")
+	}
+	if cfg.Multiplier < 1.0 {
+		return zero, fmt.Errorf("multiplier must be greater than or equal to 1.0")
+	}
+	if cfg.Max <= 0 {
+		return zero, fmt.Errorf("max sleep duration must be greater than 0")
+	}
+
 	// Poll #0: Immediate status check right after operation creation to handle instantaneous completions.
 	result, err := op.Poll(ctx)
 	if err != nil {
@@ -78,25 +93,8 @@ func PollLRO[T any](ctx context.Context, op LROPoller[T], cfg LROPollConfig) (T,
 		return result, nil
 	}
 
-	initial := cfg.Initial
-	if initial <= 0 {
-		initial = DefaultLROPollInitial
-	}
-	fastPhaseWindow := cfg.FastPhaseWindow
-	if fastPhaseWindow <= 0 {
-		fastPhaseWindow = DefaultLROPollFastPhase
-	}
-	multiplier := cfg.Multiplier
-	if multiplier < 1.0 {
-		multiplier = DefaultLROPollMultiplier
-	}
-	maxInterval := cfg.Max
-	if maxInterval <= 0 {
-		maxInterval = DefaultLROPollMax
-	}
-
 	startTime := time.Now()
-	interval := initial
+	interval := cfg.Initial
 
 	timer := time.NewTimer(interval)
 	defer timer.Stop()
@@ -117,8 +115,8 @@ func PollLRO[T any](ctx context.Context, op LROPoller[T], cfg LROPollConfig) (T,
 		}
 
 		// Apply exponential backoff after fast phase window.
-		if time.Since(startTime) >= fastPhaseWindow {
-			interval = min(maxInterval, time.Duration(float64(interval)*multiplier))
+		if time.Since(startTime) >= cfg.FastPhaseWindow {
+			interval = min(cfg.Max, time.Duration(float64(interval)*cfg.Multiplier))
 		}
 		timer.Reset(interval)
 	}
