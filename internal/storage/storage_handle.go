@@ -241,6 +241,9 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 		bucketHandle = bucketHandle.UserProject(billingProject)
 	}
 
+	// Disable Go SDK retries for this call to let ExecuteWithRetry handle it.
+	bucketHandle = bucketHandle.Retryer(storage.WithMaxAttempts(1))
+
 	dpClientConfig := &storageutil.StorageClientConfig{
 		MaxRetrySleep:    directPathDetectionMaxBackoff,
 		RetryMultiplier:  clientConfig.RetryMultiplier,
@@ -251,9 +254,6 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 	apiCall := func(attemptCtx context.Context) (*storage.ObjectAttrs, error) {
 		return bucketHandle.Object(testObject).Attrs(attemptCtx)
 	}
-
-	// Disable Go SDK retries for this call to let ExecuteWithRetry handle it.
-	sc.SetRetry(storage.WithMaxAttempts(1))
 
 	_, statErr := storageutil.ExecuteWithRetryAtLogLevel(ctx, retryConfig, "Attrs", testObject, uuid.NewString(), apiCall, logger.LevelInfo)
 
