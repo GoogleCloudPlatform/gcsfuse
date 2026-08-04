@@ -305,6 +305,48 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_PirloEnabled() {
 	assert.Equal(testSuite.T(), gcs.PirloStateRapidWritesEnabled, bt.Pirlo)
 }
 
+func (testSuite *StorageHandleTest) runLookupBucketTypeTest(onlyDirInput, expectedPrefixInRequest string) {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.OnlyDir = onlyDirInput
+	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
+	require.NoError(testSuite.T(), err)
+	client := sh.(*storageClient)
+	client.storageControlClient = testSuite.mockClient
+	storageLayout := &controlpb.StorageLayout{
+		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+		LocationType:          "regional",
+	}
+	// Verify that the prefix passed to GetStorageLayout matches expected value.
+	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
+		return req.Prefix == expectedPrefixInRequest && req.Name == fmt.Sprintf("projects/_/buckets/%s/storageLayout", TestBucketName)
+	}), mock.Anything).Return(storageLayout, nil)
+
+	bt, err := client.lookupBucketType(TestBucketName)
+
+	assert.NoError(testSuite.T(), err)
+	assert.True(testSuite.T(), bt.Hierarchical)
+}
+
+func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefix() {
+	testSuite.runLookupBucketTypeTest("foo/bar", "foo/bar/")
+}
+
+func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefixRoot() {
+	testSuite.runLookupBucketTypeTest("/.", "")
+}
+
+func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefixDotDot() {
+	testSuite.runLookupBucketTypeTest("..", "")
+}
+
+func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefixLeadingDotDot() {
+	testSuite.runLookupBucketTypeTest("../../foo", "foo/")
+}
+
+func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefixInternalDotDot() {
+	testSuite.runLookupBucketTypeTest("foo/../bar", "bar/")
+}
+
 func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile) // by default http1 enabled
 
@@ -1135,4 +1177,55 @@ func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_AccessCheck_Exhausts
 	assert.Nil(testSuite.T(), bh)
 	assert.ErrorContains(testSuite.T(), err, "bucket access check failed")
 	assert.Equal(testSuite.T(), testMaxRetryAttempts, *attempts, "expected max retry attempts to be exhausted")
+}
+
+// TestBucketHandle_NonHNS_AccessCheck_WithPrefix verifies that when GCSFuse mounts
+// a non-HNS bucket with a prefix restriction (--only-dir), the mount-time access
+// check (which performs a Stat/Attrs call on a non-existent object to verify bucket
+// existence and access) is correctly prefixed. This ensures the check does not
+// attempt to access the root of the bucket, which would fail with 403 Permission Denied
+// in prefix-restricted environments.
+func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_AccessCheck_WithPrefix() {
+	testObject := "gcsfuse-nonexistent-object-check"
+	prefix := "foo/bar"
+	// We expect GCSFuse to check: <prefix>/gcsfuse-nonexistent-object-check
+	expectedObjectPath := prefix + "/" + testObject
+	expectedRequestPath := "/b/" + TestBucketName + "/o/" + url.PathEscape(expectedObjectPath)
+	// Set up a mock HTTP server to capture the outgoing GCS API request.
+	requestPathChan := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestPathChan <- r.URL.EscapedPath()
+		// Mock a 404 response. For access verification, 404 (Not Found) means
+		// we have permission to access the path (otherwise we would get 403 Forbidden).
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error": {"code": 404, "message": "Not Found"}}`))
+	}))
+	defer server.Close()
+	// Configure GCSFuse client with the mock server URL and only-dir prefix.
+	scConfig := storageutil.StorageClientConfig{
+		ClientProtocol:     cfg.HTTP1,
+		EnableMountRetries: true, // Triggers verifyNonHNSBucketAccess during BucketHandle
+		MaxRetrySleep:      time.Microsecond,
+		RetryMultiplier:    1.0,
+		MaxRetryAttempts:   1,
+		OnlyDir:            prefix,
+		CustomEndpoint:     server.URL,
+		AnonymousAccess:    true, // Bypass real auth for mock server
+	}
+	sh, err := NewStorageHandle(testSuite.ctx, scConfig, "")
+	require.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), sh)
+
+	// Trigger bucket setup which runs the verification checks.
+	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+
+	require.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), bh)
+	// Assert that the request path captured by the mock server matches our expected prefixed path.
+	select {
+	case reqPath := <-requestPathChan:
+		assert.Equal(testSuite.T(), expectedRequestPath, reqPath)
+	case <-time.After(time.Second):
+		testSuite.T().Fatal("Timeout waiting for request")
+	}
 }
