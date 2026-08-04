@@ -1126,3 +1126,22 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 	assert.True(testSuite.T(), controlClientWithRetry.enableRetriesOnFolderAPIs, "Retries should be enabled for folder APIs on zonal buckets")
 	assert.Same(testSuite.T(), mockRawControlClientWithoutRetries, controlClientWithRetry.raw)
 }
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_RapidBucket() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	// For rapid buckets (isbucketRapid = true), createGRPCClientHandle should omit WithDirectConnectivityEnforced
+	// and should not return an error when verifyDirectPathConnectivity fails.
+	client, err := createGRPCClientHandle(testSuite.ctx, &sc, true, true, TestBucketName, "")
+	assert.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), client)
+}
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_NonRapidBucket() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	// For non-rapid buckets (isbucketRapid = false), createGRPCClientHandle includes WithDirectConnectivityEnforced
+	// and returns an error when verifyDirectPathConnectivity fails in unit test environment.
+	client, err := createGRPCClientHandle(testSuite.ctx, &sc, false, false, TestBucketName, "")
+	assert.Error(testSuite.T(), err)
+	assert.Nil(testSuite.T(), client)
+}
+

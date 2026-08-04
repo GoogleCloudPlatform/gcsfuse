@@ -200,8 +200,11 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
 
-	// Add DirectPath enforcement - client creation will fail if DirectPath is not available
-	clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
+	// Add DirectPath enforcement - client creation will fail if DirectPath is not available.
+	// Rapid buckets do not support DirectPath enforcement headers.
+	if !isbucketRapid {
+		clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
+	}
 
 	sc, err := storage.NewGRPCClient(ctx, clientOpts...)
 	if err != nil {
