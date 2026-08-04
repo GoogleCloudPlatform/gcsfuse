@@ -56,6 +56,9 @@ const (
 	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
 
 	zonalLocationType = "zone"
+
+	// nonExistentObjectName is the object name used for bucket existence/access check when HNS feature is disabled by providing "--enable-hns:false". E.g. Using Regional Endpoints which do not support GRPC protocol.
+	nonExistentObjectName = "gcsfuse-nonexistent-object-check"
 )
 
 var (
@@ -63,12 +66,6 @@ var (
 	directPathDetectionMaxAttempts = 5
 	directPathDetectionTimeout     = 15 * time.Second
 	directPathDetectionMaxBackoff  = 5 * time.Second
-)
-
-const (
-
-	// nonExistentObjectName is the object name used for bucket existence/access check when HNS feature is disabled by providing "--enable-hns:false". E.g. Using Regional Endpoints which do not support GRPC protocol.
-	nonExistentObjectName = "gcsfuse-nonexistent-object-check"
 )
 
 type DirectPathVerificationError struct {
