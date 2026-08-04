@@ -220,12 +220,54 @@ func (sc *statCacheBucketView) lookUpInternal(key string, now time.Time) (lookup
 	return lookupHit, &e
 }
 
+// isPositiveEntry returns true if the entry represents a positive cache entry
+// (i.e. it holds a MinObject, a Folder, or is an implicit directory).
+func isPositiveEntry(e entry) bool {
+	return e.m != nil || e.f != nil || e.implicitDir
+}
+
+// getEntryStatus returns the metrics.EntryStatus attribute for the given entry.
+func getEntryStatus(e entry) metrics.EntryStatus {
+	if isPositiveEntry(e) {
+		return metrics.EntryStatusPositiveAttr
+	}
+	return metrics.EntryStatusNegativeAttr
+}
+
+// recordInsertMetrics updates the size metric for a newly inserted entry,
+// any overwritten entry, and all LRU-evicted entries.
+func (sc *statCacheBucketView) recordInsertMetrics(newEntry entry, overwritten *entry, evicted []lru.ValueType) {
+	// Add size of newly inserted entry.
+	sc.metricHandle.MetadataCacheSize(int64(newEntry.Size()), getEntryStatus(newEntry))
+
+	// Subtract size of overwritten entry if replacing an existing entry.
+	if overwritten != nil {
+		sc.metricHandle.MetadataCacheSize(-int64(overwritten.Size()), getEntryStatus(*overwritten))
+	}
+
+	// Subtract size of all LRU-evicted entries.
+	for _, ev := range evicted {
+		evEntry := ev.(entry)
+		sc.metricHandle.MetadataCacheSize(-int64(evEntry.Size()), getEntryStatus(evEntry))
+	}
+}
+
+// recordEraseMetrics updates the size metric when an entry is deleted from the cache.
+func (sc *statCacheBucketView) recordEraseMetrics(deleted lru.ValueType) {
+	if deleted != nil {
+		delEntry := deleted.(entry)
+		sc.metricHandle.MetadataCacheSize(-int64(delEntry.Size()), getEntryStatus(delEntry))
+	}
+}
+
 func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
+	var overwritten *entry
 	// Is there already a better entry?
 	if res, existing := sc.lookUpInternal(m.Name, time.Time{}); res == lookupHit {
 		if !shouldReplace(m, *existing) {
 			return
 		}
+		overwritten = existing
 	}
 
 	name := sc.key(m.Name)
@@ -236,12 +278,16 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 		expiration: expiration,
 	}
 
-	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+	evicted, err := sc.sharedCache.Insert(name, e)
+	if err != nil {
 		panic(err)
 	}
+
+	sc.recordInsertMetrics(e, overwritten, evicted)
 }
 
 func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration time.Time) {
+	var overwritten *entry
 	// Is there already a better entry?
 	if res, existing := sc.lookUpInternal(objectName, time.Time{}); res == lookupHit {
 		// The ListObjects response handles directories in two ways:
@@ -261,6 +307,7 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 		if existing.m != nil {
 			return
 		}
+		overwritten = existing
 	}
 
 	name := sc.key(objectName)
@@ -271,12 +318,21 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 		expiration:  expiration,
 	}
 
-	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+	evicted, err := sc.sharedCache.Insert(name, e)
+	if err != nil {
 		logger.Errorf("Failed to insert implicit dir stat cache entry for %q: %v", name, err)
+		return
 	}
+
+	sc.recordInsertMetrics(e, overwritten, evicted)
 }
 
 func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration time.Time) {
+	var overwritten *entry
+	if res, existing := sc.lookUpInternal(objectName, time.Time{}); res == lookupHit {
+		overwritten = existing
+	}
+
 	name := sc.key(objectName)
 
 	// Insert a negative entry.
@@ -285,12 +341,20 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 		expiration: expiration,
 	}
 
-	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+	evicted, err := sc.sharedCache.Insert(name, e)
+	if err != nil {
 		panic(err)
 	}
+
+	sc.recordInsertMetrics(e, overwritten, evicted)
 }
 
 func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expiration time.Time) {
+	var overwritten *entry
+	if res, existing := sc.lookUpInternal(folderName, time.Time{}); res == lookupHit {
+		overwritten = existing
+	}
+
 	name := sc.key(folderName)
 
 	// Insert a negative entry.
@@ -299,14 +363,18 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 		expiration: expiration,
 	}
 
-	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+	evicted, err := sc.sharedCache.Insert(name, e)
+	if err != nil {
 		panic(err)
 	}
+
+	sc.recordInsertMetrics(e, overwritten, evicted)
 }
 
 func (sc *statCacheBucketView) Erase(objectName string) {
 	name := sc.key(objectName)
-	sc.sharedCache.Erase(name)
+	deleted := sc.sharedCache.Erase(name)
+	sc.recordEraseMetrics(deleted)
 }
 
 func (sc *statCacheBucketView) LookUp(
@@ -349,12 +417,7 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 	// a GCS Folder (e.f), or is an implicit directory (e.implicitDir).
 	// If all are nil/false, the entry represents a negative cache entry (i.e. we
 	// explicitly cached that the object/folder does not exist).
-	var entryStatus metrics.EntryStatus
-	if e.m != nil || e.f != nil || e.implicitDir {
-		entryStatus = metrics.EntryStatusPositiveAttr
-	} else {
-		entryStatus = metrics.EntryStatusNegativeAttr
-	}
+	entryStatus := getEntryStatus(*e)
 
 	if result == lookupExpired {
 		sc.metricHandle.MetadataCacheReadCount(1, false, entryStatus, metrics.LookupDetailTtlExpiredAttr)
@@ -366,6 +429,11 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 }
 
 func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time) {
+	var overwritten *entry
+	if res, existing := sc.lookUpInternal(f.Name, time.Time{}); res == lookupHit {
+		overwritten = existing
+	}
+
 	name := sc.key(f.Name)
 
 	e := entry{
@@ -373,13 +441,19 @@ func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time)
 		expiration: expiration,
 	}
 
-	if _, err := sc.sharedCache.Insert(name, e); err != nil {
+	evicted, err := sc.sharedCache.Insert(name, e)
+	if err != nil {
 		panic(err)
 	}
+
+	sc.recordInsertMetrics(e, overwritten, evicted)
 }
 
 // Invalidate cache for all the entries with given prefix.
 func (sc *statCacheBucketView) EraseEntriesWithGivenPrefix(prefix string) {
 	prefix = sc.key(prefix)
-	sc.sharedCache.EraseEntriesWithGivenPrefix(prefix)
+	deletedEntries := sc.sharedCache.EraseEntriesWithGivenPrefix(prefix)
+	for _, deleted := range deletedEntries {
+		sc.recordEraseMetrics(deleted)
+	}
 }

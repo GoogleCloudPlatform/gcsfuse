@@ -1911,3 +1911,95 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 	// Post-fetch attribute check hits positive cache -> total 4
 	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 4)
 }
+
+func TestMetadataCache_Size_Integration(t *testing.T) {
+	// Arrange
+	ctx := context.Background()
+	origProvider := otel.GetMeterProvider()
+	t.Cleanup(func() { otel.SetMeterProvider(origProvider) })
+	reader := metric.NewManualReader()
+	provider := metric.NewMeterProvider(metric.WithReader(reader))
+	otel.SetMeterProvider(provider)
+
+	mh, err := metrics.NewOTelMetrics(ctx, 1, 100)
+	require.NoError(t, err)
+
+	clock := &timeutil.SimulatedClock{}
+	clock.SetTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+
+	bucketName := "test-bucket"
+	bucket := fake.NewFakeBucket(clock, bucketName, gcs.BucketType{})
+
+	lruCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(lruCache, bucketName, mh)
+
+	serverCfg := &fs.ServerConfig{
+		NewConfig: &cfg.Config{
+			Write:           cfg.WriteConfig{GlobalMaxBlocks: 1},
+			Read:            cfg.ReadConfig{GlobalMaxBlocks: 1},
+			EnableNewReader: true,
+			MetadataCache: cfg.MetadataCacheConfig{
+				TtlSecs:         60,
+				NegativeTtlSecs: 60,
+			},
+		},
+		MetricHandle: mh,
+		TraceHandle:  tracing.NewNoopTracer(),
+		CacheClock:   clock,
+		BucketName:   bucketName,
+		BucketManager: &fakeBucketManagerForStatCache{
+			bucket:    bucket,
+			statCache: statCache,
+			clock:     clock,
+		},
+	}
+
+	server, err := fs.NewFileSystem(ctx, serverCfg)
+	require.NoError(t, err)
+	server = wrappers.WithMonitoring(server, mh)
+
+	attrsPositive := attribute.NewSet(
+		attribute.String("entry_status", "positive"),
+	)
+	attrsNegative := attribute.NewSet(
+		attribute.String("entry_status", "negative"),
+	)
+
+	// --- Step 1: Lookup nonexistent file (Inserts Negative Entry) ---
+	lookupOp1 := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "nonexistent.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOp1)
+	assert.Equal(t, fuse.ENOENT, err)
+	waitForMetricsProcessing()
+
+	// Negative cache size should be greater than 0
+	metrics.VerifyGaugeMetric(t, ctx, reader, "metadata_cache/size", attrsNegative, 1, metrics.AtLeast())
+
+	// --- Step 2: Lookup existent file (Inserts Positive Entry) ---
+	createWithContents(ctx, t, bucket, "existent.txt", "hello")
+	lookupOp2 := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "existent.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOp2)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// Positive cache size should be greater than 0
+	metrics.VerifyGaugeMetric(t, ctx, reader, "metadata_cache/size", attrsPositive, 1, metrics.AtLeast())
+
+	// --- Step 3: Advance clock past TTL and lookup nonexistent file (Erases expired negative entry) ---
+	clock.AdvanceTime(2 * time.Minute)
+	lookupOp3 := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "nonexistent.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOp3)
+	assert.Equal(t, fuse.ENOENT, err)
+	waitForMetricsProcessing()
+
+	// Negative size should still be >= 0 (since it was erased and re-inserted)
+	metrics.VerifyGaugeMetric(t, ctx, reader, "metadata_cache/size", attrsNegative, 1, metrics.AtLeast())
+}

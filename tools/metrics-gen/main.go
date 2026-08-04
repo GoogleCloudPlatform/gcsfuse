@@ -80,6 +80,7 @@ var funcMap = template.FuncMap{
 	"joinInts":                    joinInts,
 	"isCounter":                   func(m Metric) bool { return m.Type == "int_counter" },
 	"isUpDownCounter":             func(m Metric) bool { return m.Type == "int_up_down_counter" },
+	"isGauge":                     func(m Metric) bool { return m.Type == "int_gauge" },
 	"isHistogram":                 func(m Metric) bool { return m.Type == "int_histogram" || m.Type == "time_histogram" },
 	"isTimeHistogram":             func(m Metric) bool { return m.Type == "time_histogram" },
 	"buildSwitches":               buildSwitches,
@@ -287,17 +288,17 @@ func validateMetric(m Metric) error {
 	if m.Description == "" {
 		return fmt.Errorf("description is required for metric %q", m.Name)
 	}
-	if m.Type != "int_counter" && m.Type != "int_histogram" && m.Type != "time_histogram" && m.Type != "int_up_down_counter" {
-		return fmt.Errorf("type for metric %q must be 'int_counter', 'int_histogram', 'time_histogram', or 'int_up_down_counter', got %q", m.Name, m.Type)
+	if m.Type != "int_counter" && m.Type != "int_histogram" && m.Type != "time_histogram" && m.Type != "int_up_down_counter" && m.Type != "int_gauge" {
+		return fmt.Errorf("type for metric %q must be 'int_counter', 'int_histogram', 'time_histogram', 'int_up_down_counter', or 'int_gauge', got %q", m.Name, m.Type)
 	}
 
 	if m.Type == "int_histogram" || m.Type == "time_histogram" {
 		if len(m.Boundaries) == 0 {
 			return fmt.Errorf("boundaries are required for histogram metric %q", m.Name)
 		}
-	} else { // int_counter
+	} else { // int_counter, int_up_down_counter, int_gauge
 		if len(m.Boundaries) > 0 {
-			return fmt.Errorf("boundaries should not be present for counter metric %q", m.Name)
+			return fmt.Errorf("boundaries should not be present for non-histogram metric %q", m.Name)
 		}
 	}
 
@@ -399,7 +400,7 @@ func buildSwitches(metric Metric) string {
 		if level == len(metric.Attributes) {
 			// Base case: record the metric
 			indent := strings.Repeat("\t", level+1)
-			if metric.Type == "int_counter" || metric.Type == "int_up_down_counter" {
+			if metric.Type == "int_counter" || metric.Type == "int_up_down_counter" || metric.Type == "int_gauge" {
 				atomicName := getAtomicName(metric.Name, combo)
 				fmt.Fprintf(&builder, "%so.%s.Add(inc)\n", indent, atomicName)
 			} else { // histogram
@@ -458,7 +459,7 @@ func buildSwitches(metric Metric) string {
 				valueStr = fmt.Sprintf("int64(%s)", valueStr)
 			}
 			fmt.Fprintf(&builder, "\trecord := histogramRecord{ctx: ctx, instrument: o.%s, value: %s}\n", toCamel(metric.Name), valueStr)
-		case "int_counter", "int_up_down_counter":
+		case "int_counter", "int_up_down_counter", "int_gauge":
 			atomicName := getAtomicName(metric.Name, AttrCombination{})
 			fmt.Fprintf(&builder, "\to.%s.Add(inc)\n", atomicName)
 		}

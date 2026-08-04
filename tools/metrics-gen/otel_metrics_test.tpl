@@ -89,7 +89,7 @@ func gatherHistogramMetrics(ctx context.Context, t *testing.T, rd *metric.Manual
 	return results
 }
 
-// gatherNonZeroCounterMetrics collects all non-zero counter metrics from the reader.
+// gatherNonZeroCounterMetrics collects all non-zero counter and gauge metrics from the reader.
 // It returns a map where the key is the metric name, and the value is another map.
 // The inner map's key is a string representation of the attributes,
 // and the value is the metric's value.
@@ -104,23 +104,34 @@ func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.M
 
 	for _, sm := range rm.ScopeMetrics {
 		for _, m := range sm.Metrics {
-			// We are interested in Sum[int64] which corresponds to int_counter.
-			sum, ok := m.Data.(metricdata.Sum[int64])
-			if !ok {
-				continue
-			}
+			// We are interested in Sum[int64] which corresponds to counter/updown_counter, or Gauge[int64] which corresponds to gauge.
+			switch data := m.Data.(type) {
+			case metricdata.Sum[int64]:
+				metricMap := make(metricValueMap)
+				for _, dp := range data.DataPoints {
+					if dp.Value == 0 {
+						continue
+					}
 
-			metricMap := make(metricValueMap)
-			for _, dp := range sum.DataPoints {
-				if dp.Value == 0 {
-					continue
+					metricMap[dp.Attributes.Encoded(encoder)] = dp.Value
 				}
 
-				metricMap[dp.Attributes.Encoded(encoder)] = dp.Value
-			}
+				if len(metricMap) > 0 {
+					results[m.Name] = metricMap
+				}
+			case metricdata.Gauge[int64]:
+				metricMap := make(metricValueMap)
+				for _, dp := range data.DataPoints {
+					if dp.Value == 0 {
+						continue
+					}
 
-			if len(metricMap) > 0 {
-				results[m.Name] = metricMap
+					metricMap[dp.Attributes.Encoded(encoder)] = dp.Value
+				}
+
+				if len(metricMap) > 0 {
+					results[m.Name] = metricMap
+				}
 			}
 		}
 	}
@@ -129,7 +140,7 @@ func gatherNonZeroCounterMetrics(ctx context.Context, t *testing.T, rd *metric.M
 }
 
 {{range .Metrics}}
-{{if or (isCounter .) (isUpDownCounter .)}}
+{{if or (isCounter .) (isUpDownCounter .) (isGauge .)}}
 func Test{{toPascal .Name}}(t *testing.T) {
 	{{- if .Attributes}}
 	tests := []struct {
@@ -175,7 +186,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 				m.{{toPascal $metric.Name}}(-5, {{getTestFuncArgs $firstComb}})
 				m.{{toPascal $metric.Name}}(2, {{getTestFuncArgs $firstComb}})
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet({{getExpectedAttrs (index $combinations 0)}}): {{if isUpDownCounter $metric}}-3{{else}}2{{end}}},
+			expected: map[attribute.Set]int64{attribute.NewSet({{getExpectedAttrs (index $combinations 0)}}): {{if or (isUpDownCounter $metric) (isGauge $metric)}}-3{{else}}2{{end}}},
 		},
 	}
 
@@ -224,7 +235,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
 	metric, ok = metrics["{{.Name}}"]
 	require.True(t, ok, "{{.Name}} metric not found after negative increment")
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): {{if isUpDownCounter .}}2972{{else}}3072{{end}}}, metric, "Negative increment should {{if isUpDownCounter .}}change{{else}}not change{{end}} the metric value.")
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): {{if or (isUpDownCounter .) (isGauge .)}}2972{{else}}3072{{end}}}, metric, "Negative increment should {{if or (isUpDownCounter .) (isGauge .)}}change{{else}}not change{{end}} the metric value.")
 	{{- end}}
 }
 {{else if isHistogram .}}

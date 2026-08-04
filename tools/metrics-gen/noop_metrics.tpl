@@ -23,7 +23,7 @@ import (
 type noopMetrics struct {}
 {{- range .Metrics}}
 	func (*noopMetrics) {{toPascal .Name}}(
-		{{- if or (isCounter .) (isUpDownCounter .) -}}
+		{{- if or (isCounter .) (isUpDownCounter .) (isGauge .) -}}
 			inc int64
 		{{- else -}}
 			ctx context.Context, {{if isTimeHistogram .}}latency time.Duration{{else}}value int64{{end}}

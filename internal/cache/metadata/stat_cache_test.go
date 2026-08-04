@@ -681,9 +681,15 @@ type recordedReadCount struct {
 	lookupDetail metrics.LookupDetail
 }
 
+type recordedSize struct {
+	inc         int64
+	entryStatus metrics.EntryStatus
+}
+
 type mockMetricHandle struct {
 	metrics.MetricHandle
 	readCounts []recordedReadCount
+	sizes      []recordedSize
 }
 
 func (m *mockMetricHandle) MetadataCacheReadCount(inc int64, cacheHit bool, entryStatus metrics.EntryStatus, lookupDetail metrics.LookupDetail) {
@@ -692,6 +698,13 @@ func (m *mockMetricHandle) MetadataCacheReadCount(inc int64, cacheHit bool, entr
 		cacheHit:     cacheHit,
 		entryStatus:  entryStatus,
 		lookupDetail: lookupDetail,
+	})
+}
+
+func (m *mockMetricHandle) MetadataCacheSize(inc int64, entryStatus metrics.EntryStatus) {
+	m.sizes = append(m.sizes, recordedSize{
+		inc:         inc,
+		entryStatus: entryStatus,
 	})
 }
 
@@ -833,4 +846,248 @@ func (t *StatCacheTest) Test_Metrics_InsertDoesNotIncrementReadCount() {
 
 	// Assert: Insertion operations must not record read count metrics
 	assert.Equal(t.T(), 0, len(mockMetrics.readCounts))
+}
+
+func (t *StatCacheTest) Test_Metrics_Size_InsertPositiveMinObject() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+	m := &gcs.MinObject{Name: "file.txt", Generation: 1}
+
+	// Act
+	statCache.Insert(m, expiration)
+
+	// Assert
+	assert.Equal(t.T(), 1, len(mockMetrics.sizes))
+	assert.True(t.T(), mockMetrics.sizes[0].inc > 0)
+	assert.Equal(t.T(), metrics.EntryStatusPositiveAttr, mockMetrics.sizes[0].entryStatus)
+}
+
+func (t *StatCacheTest) Test_Metrics_Size_InsertImplicitDir() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+
+	// Act
+	statCache.InsertImplicitDir("dir/", expiration)
+
+	// Assert
+	assert.Equal(t.T(), 1, len(mockMetrics.sizes))
+	assert.True(t.T(), mockMetrics.sizes[0].inc > 0)
+	assert.Equal(t.T(), metrics.EntryStatusPositiveAttr, mockMetrics.sizes[0].entryStatus)
+}
+
+func (t *StatCacheTest) Test_Metrics_Size_InsertFolder() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+	f := &gcs.Folder{Name: "folder/"}
+
+	// Act
+	statCache.InsertFolder(f, expiration)
+
+	// Assert
+	assert.Equal(t.T(), 1, len(mockMetrics.sizes))
+	assert.True(t.T(), mockMetrics.sizes[0].inc > 0)
+	assert.Equal(t.T(), metrics.EntryStatusPositiveAttr, mockMetrics.sizes[0].entryStatus)
+}
+
+func (t *StatCacheTest) Test_Metrics_Size_AddNegativeEntry() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+
+	// Act
+	statCache.AddNegativeEntry("nonexistent.txt", expiration)
+
+	// Assert
+	assert.Equal(t.T(), 1, len(mockMetrics.sizes))
+	assert.True(t.T(), mockMetrics.sizes[0].inc > 0)
+	assert.Equal(t.T(), metrics.EntryStatusNegativeAttr, mockMetrics.sizes[0].entryStatus)
+}
+
+func (t *StatCacheTest) Test_Metrics_Size_AddNegativeEntryForFolder() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+
+	// Act
+	statCache.AddNegativeEntryForFolder("nonexistent_folder/", expiration)
+
+	// Assert
+	assert.Equal(t.T(), 1, len(mockMetrics.sizes))
+	assert.True(t.T(), mockMetrics.sizes[0].inc > 0)
+	assert.Equal(t.T(), metrics.EntryStatusNegativeAttr, mockMetrics.sizes[0].entryStatus)
+}
+
+func (t *StatCacheTest) Test_Metrics_Size_Erase() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+	m := &gcs.MinObject{Name: "file.txt", Generation: 1}
+	statCache.Insert(m, expiration)
+	insertSize := mockMetrics.sizes[0].inc
+	mockMetrics.sizes = nil
+
+	// Act
+	statCache.Erase("file.txt")
+
+	// Assert
+	assert.Equal(t.T(), 1, len(mockMetrics.sizes))
+	assert.Equal(t.T(), -insertSize, mockMetrics.sizes[0].inc)
+	assert.Equal(t.T(), metrics.EntryStatusPositiveAttr, mockMetrics.sizes[0].entryStatus)
+}
+
+func (t *StatCacheTest) Test_Metrics_Size_LookupTtlExpired_Erase() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+	m := &gcs.MinObject{Name: "file.txt", Generation: 1}
+	statCache.Insert(m, expiration)
+	insertSize := mockMetrics.sizes[0].inc
+	mockMetrics.sizes = nil
+
+	// Act: Lookup expired entry (triggers inline sc.Erase)
+	hit, entry := statCache.LookUp("file.txt", expiration.Add(time.Second))
+
+	// Assert
+	assert.False(t.T(), hit)
+	assert.Nil(t.T(), entry)
+	assert.Equal(t.T(), 1, len(mockMetrics.sizes))
+	assert.Equal(t.T(), -insertSize, mockMetrics.sizes[0].inc)
+	assert.Equal(t.T(), metrics.EntryStatusPositiveAttr, mockMetrics.sizes[0].entryStatus)
+}
+
+func (t *StatCacheTest) Test_Metrics_Size_OverwritePositiveWithPositive() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+	m1 := &gcs.MinObject{Name: "file.txt", Generation: 1}
+	statCache.Insert(m1, expiration)
+	size1 := mockMetrics.sizes[0].inc
+	mockMetrics.sizes = nil
+
+	// Act: Insert updated positive entry (Generation 2)
+	m2 := &gcs.MinObject{Name: "file.txt", Generation: 2}
+	statCache.Insert(m2, expiration)
+
+	// Assert: Should have 2 size records: +newEntry.Size() and -overwritten.Size()
+	assert.Equal(t.T(), 2, len(mockMetrics.sizes))
+	assert.Equal(t.T(), recordedSize{inc: size1, entryStatus: metrics.EntryStatusPositiveAttr}, mockMetrics.sizes[0])
+	assert.Equal(t.T(), recordedSize{inc: -size1, entryStatus: metrics.EntryStatusPositiveAttr}, mockMetrics.sizes[1])
+}
+
+func (t *StatCacheTest) Test_Metrics_Size_OverwriteNegativeWithPositive() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+	statCache.AddNegativeEntry("file.txt", expiration)
+	negSize := mockMetrics.sizes[0].inc
+	mockMetrics.sizes = nil
+
+	// Act: File is created, inserting positive entry
+	m := &gcs.MinObject{Name: "file.txt", Generation: 1}
+	statCache.Insert(m, expiration)
+
+	// Assert: Should add positive size and subtract old negative size
+	assert.Equal(t.T(), 2, len(mockMetrics.sizes))
+	assert.True(t.T(), mockMetrics.sizes[0].inc > 0)
+	assert.Equal(t.T(), metrics.EntryStatusPositiveAttr, mockMetrics.sizes[0].entryStatus)
+	assert.Equal(t.T(), recordedSize{inc: -negSize, entryStatus: metrics.EntryStatusNegativeAttr}, mockMetrics.sizes[1])
+}
+
+func (t *StatCacheTest) Test_Metrics_Size_OverwritePositiveWithNegative() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+	m := &gcs.MinObject{Name: "file.txt", Generation: 1}
+	statCache.Insert(m, expiration)
+	posSize := mockMetrics.sizes[0].inc
+	mockMetrics.sizes = nil
+
+	// Act: Add negative entry for the same name
+	statCache.AddNegativeEntry("file.txt", expiration)
+
+	// Assert: Should add negative size and subtract old positive size
+	assert.Equal(t.T(), 2, len(mockMetrics.sizes))
+	assert.True(t.T(), mockMetrics.sizes[0].inc > 0)
+	assert.Equal(t.T(), metrics.EntryStatusNegativeAttr, mockMetrics.sizes[0].entryStatus)
+	assert.Equal(t.T(), recordedSize{inc: -posSize, entryStatus: metrics.EntryStatusPositiveAttr}, mockMetrics.sizes[1])
+}
+
+func (t *StatCacheTest) Test_Metrics_Size_LRUEviction() {
+	// Arrange: Cache capacity only large enough for 2 positive entries
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	m1 := &gcs.MinObject{Name: "file1.txt", Generation: 1}
+	m2 := &gcs.MinObject{Name: "file2.txt", Generation: 1}
+	m3 := &gcs.MinObject{Name: "file3.txt", Generation: 1}
+
+	// Determine entry size
+	localCacheProbe := lru.NewCache(100000)
+	statCacheProbe := metadata.NewStatCacheBucketView(localCacheProbe, "bucket", mockMetrics)
+	statCacheProbe.Insert(m1, expiration)
+	entrySize := mockMetrics.sizes[0].inc
+
+	// Create small cache of 2 * entrySize
+	localCache := lru.NewCache(uint64(entrySize * 2))
+	mockMetrics.sizes = nil
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+
+	// Insert file1 and file2
+	statCache.Insert(m1, expiration)
+	statCache.Insert(m2, expiration)
+	mockMetrics.sizes = nil
+
+	// Act: Insert file3 -> triggers eviction of file1
+	statCache.Insert(m3, expiration)
+
+	// Assert: Record for +m3 (positive) and -m1 (positive eviction)
+	assert.Equal(t.T(), 2, len(mockMetrics.sizes))
+	assert.Equal(t.T(), recordedSize{inc: entrySize, entryStatus: metrics.EntryStatusPositiveAttr}, mockMetrics.sizes[0])
+	assert.Equal(t.T(), recordedSize{inc: -entrySize, entryStatus: metrics.EntryStatusPositiveAttr}, mockMetrics.sizes[1])
+}
+
+func (t *StatCacheTest) Test_Metrics_Size_EraseEntriesWithGivenPrefix() {
+	// Arrange
+	mockMetrics := &mockMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	localCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(localCache, "bucket", mockMetrics)
+
+	m1 := &gcs.MinObject{Name: "dir/file1.txt", Generation: 1}
+	m2 := &gcs.MinObject{Name: "dir/file2.txt", Generation: 1}
+	mOther := &gcs.MinObject{Name: "other/file.txt", Generation: 1}
+
+	statCache.Insert(m1, expiration)
+	statCache.Insert(m2, expiration)
+	statCache.AddNegativeEntry("dir/nonexistent.txt", expiration)
+	statCache.Insert(mOther, expiration)
+	mockMetrics.sizes = nil
+
+	// Act: Erase all entries with prefix "dir/"
+	statCache.EraseEntriesWithGivenPrefix("dir/")
+
+	// Assert: Should have 3 decrements (2 positive, 1 negative)
+	assert.Equal(t.T(), 3, len(mockMetrics.sizes))
+	posCount := 0
+	negCount := 0
+	for _, s := range mockMetrics.sizes {
+		assert.True(t.T(), s.inc < 0)
+		if s.entryStatus == metrics.EntryStatusPositiveAttr {
+			posCount++
+		} else if s.entryStatus == metrics.EntryStatusNegativeAttr {
+			negCount++
+		}
+	}
+	assert.Equal(t.T(), 2, posCount)
+	assert.Equal(t.T(), 1, negCount)
 }

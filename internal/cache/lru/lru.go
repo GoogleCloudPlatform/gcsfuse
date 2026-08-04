@@ -207,14 +207,17 @@ func (c *Cache) eraseInternal(key string) (value ValueType) {
 	return deletedEntry.Value
 }
 
-// eraseKeys removes a list of keys from the cache.
-func (c *Cache) eraseKeys(keys []string) {
+// eraseKeys removes a list of keys from the cache and returns their values.
+func (c *Cache) eraseKeys(keys []string) (deletedValues []ValueType) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	for _, key := range keys {
-		c.eraseInternal(key)
+		if val := c.eraseInternal(key); val != nil {
+			deletedValues = append(deletedValues, val)
+		}
 	}
+	return deletedValues
 }
 
 // Erase any entry for the supplied key, also returns the value of erased key.
@@ -318,7 +321,7 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 	return nil
 }
 
-func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
+func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) []ValueType {
 	c.mu.RLock()
 	var keysToDelete []string
 	for key := range c.index {
@@ -329,6 +332,7 @@ func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
 	c.mu.RUnlock()
 
 	if len(keysToDelete) > 0 {
-		c.eraseKeys(keysToDelete)
+		return c.eraseKeys(keysToDelete)
 	}
+	return nil
 }

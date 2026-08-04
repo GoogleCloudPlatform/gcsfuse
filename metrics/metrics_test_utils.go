@@ -68,7 +68,7 @@ func verifyValue[T int64 | uint64](t *testing.T, actual T, expected T, atLeast b
 	}
 }
 
-// VerifyCounterMetric finds a counter metric across all scopes and verifies its value.
+// VerifyCounterMetric finds a counter or gauge metric across all scopes and verifies its value.
 // By default, it requires an exact attribute match and an exact value match.
 // Use AtLeast() or Subset() options to relax these requirements.
 func VerifyCounterMetric(t *testing.T, ctx context.Context, reader *metric.ManualReader, metricName string, attrs attribute.Set, expectedValue int64, options ...VerifyOption) {
@@ -88,14 +88,23 @@ func VerifyCounterMetric(t *testing.T, ctx context.Context, reader *metric.Manua
 		for _, m := range sm.Metrics {
 			if m.Name == metricName {
 				foundMetric = true
-				data, ok := m.Data.(metricdata.Sum[int64])
-				require.True(t, ok, "metric %s is not a Sum[int64], but %T", metricName, m.Data)
-
-				for _, dp := range data.DataPoints {
-					if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
-						verifyValue(t, dp.Value, expectedValue, cfg.atLeast, metricName, attrs)
-						return
+				switch data := m.Data.(type) {
+				case metricdata.Sum[int64]:
+					for _, dp := range data.DataPoints {
+						if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
+							verifyValue(t, dp.Value, expectedValue, cfg.atLeast, metricName, attrs)
+							return
+						}
 					}
+				case metricdata.Gauge[int64]:
+					for _, dp := range data.DataPoints {
+						if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
+							verifyValue(t, dp.Value, expectedValue, cfg.atLeast, metricName, attrs)
+							return
+						}
+					}
+				default:
+					require.Fail(t, fmt.Sprintf("metric %s is not a Sum[int64] or Gauge[int64], but %T", metricName, m.Data))
 				}
 			}
 		}
@@ -103,6 +112,14 @@ func VerifyCounterMetric(t *testing.T, ctx context.Context, reader *metric.Manua
 
 	require.True(t, foundMetric, "metric %s not found", metricName)
 	require.Fail(t, fmt.Sprintf("Data point for attributes %v not found in %s metric", attrs, metricName))
+}
+
+// VerifyGaugeMetric finds a gauge metric across all scopes and verifies its value.
+// By default, it requires an exact attribute match and an exact value match.
+// Use AtLeast() or Subset() options to relax these requirements.
+func VerifyGaugeMetric(t *testing.T, ctx context.Context, reader *metric.ManualReader, metricName string, attrs attribute.Set, expectedValue int64, options ...VerifyOption) {
+	t.Helper()
+	VerifyCounterMetric(t, ctx, reader, metricName, attrs, expectedValue, options...)
 }
 
 // VerifyHistogramMetric finds a histogram metric across all scopes and verifies its count.
