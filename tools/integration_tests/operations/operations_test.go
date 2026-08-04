@@ -228,7 +228,7 @@ func TestMain(m *testing.M) {
 	setup.SetUpTestDirForTestBucket(operationsConfig)
 
 	if setup.TestOnTPCEndPoint() {
-		flags := setup.BuildFlagSets(*operationsConfig, bucketType, "")
+		flags := setup.BuildFlagSets(*operationsConfig, bucketType, "TestOperationsBase")
 		os.Exit(static_mounting.RunTestsWithConfigFile(operationsConfig, flags, m))
 	}
 
