@@ -47,7 +47,7 @@ type downloaderTest struct {
 	job                    *Job
 	bucket                 gcs.Bucket
 	object                 gcs.MinObject
-	cache                  *lru.Cache
+	cache                  lru.Cache
 	fakeStorage            storage.FakeStorage
 	fileSpec               data.FileSpec
 	jm                     *JobManager

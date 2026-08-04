@@ -660,7 +660,7 @@ type fileSystem struct {
 	globalMetadataPrefetchSem *semaphore.Weighted
 
 	// mrdCache manages the cache of inactive MultiRangeDownloaders.
-	mrdCache *lru.Cache
+	mrdCache lru.Cache
 
 	// readBufferPool is a pool of readPoolBufferSize (1 MiB) buffers.
 	readBufferPool buffer.Pool

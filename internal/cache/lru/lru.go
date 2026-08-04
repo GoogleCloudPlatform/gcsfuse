@@ -32,9 +32,20 @@ var (
 	ErrEntryNotExist          = errors.New("entry with given key does not exist")
 )
 
-// Cache is a LRU cache for any lru.ValueType indexed by string keys.
+// Cache is an interface for a generic LRU cache.
+type Cache interface {
+	Insert(key string, value ValueType) ([]ValueType, error)
+	Erase(key string) (value ValueType)
+	LookUp(key string) (value ValueType)
+	LookUpWithoutChangingOrder(key string) (value ValueType)
+	UpdateWithoutChangingOrder(key string, value ValueType) error
+	UpdateSize(key string, sizeDelta uint64) error
+	EraseEntriesWithGivenPrefix(prefix string)
+}
+
+// mapCache is a map-based LRU cache for any lru.ValueType indexed by string keys.
 // That means entry's value should be a lru.ValueType.
-type Cache struct {
+type mapCache struct {
 	/////////////////////////
 	// Constant data
 	/////////////////////////
@@ -78,8 +89,8 @@ type entry struct {
 
 // NewCache returns the reference of cache object by initialising the cache with
 // the supplied maxSize, which must be greater than zero.
-func NewCache(maxSize uint64) *Cache {
-	c := &Cache{
+func NewCache(maxSize uint64) Cache {
+	c := &mapCache{
 		maxSize: maxSize,
 		index:   make(map[string]*list.Element),
 	}
@@ -91,8 +102,8 @@ func NewCache(maxSize uint64) *Cache {
 
 // NewCacheWithOptions returns a Cache instance initialized with the
 // supplied maxSize and lock options.
-func NewCacheWithOptions(maxSize uint64, opts locker.Options) *Cache {
-	c := &Cache{
+func NewCacheWithOptions(maxSize uint64, opts locker.Options) Cache {
+	c := &mapCache{
 		maxSize: maxSize,
 		index:   make(map[string]*list.Element),
 	}
@@ -102,7 +113,7 @@ func NewCacheWithOptions(maxSize uint64, opts locker.Options) *Cache {
 }
 
 // checkInvariants panic if any internal invariants have been violated.
-func (c *Cache) checkInvariants() {
+func (c *mapCache) checkInvariants() {
 	// INVARIANT: maxSize > 0
 	if !(c.maxSize > 0) {
 		panic(fmt.Sprintf("Invalid maxSize: %v", c.maxSize))
@@ -143,7 +154,7 @@ func (c *Cache) checkInvariants() {
 	}
 }
 
-func (c *Cache) evictOne() ValueType {
+func (c *mapCache) evictOne() ValueType {
 	e := c.entries.Back()
 	key := e.Value.(entry).Key
 
@@ -157,13 +168,13 @@ func (c *Cache) evictOne() ValueType {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Cache interface
+// Cache interface implementation on mapCache
 ////////////////////////////////////////////////////////////////////////
 
 // Insert the supplied value into the cache, overwriting any previous entry for
 // the given key. The value must be non-nil.
 // Also returns a slice of ValueType evicted by the new inserted entry.
-func (c *Cache) Insert(
+func (c *mapCache) Insert(
 	key string,
 	value ValueType) ([]ValueType, error) {
 	if value == nil {
@@ -204,7 +215,7 @@ func (c *Cache) Insert(
 // eraseInternal removes any entry for the supplied key from the cache without acquiring locks.
 // It returns the value of the erased key, or nil if not present.
 // LOCKS_REQUIRED(c.mu)
-func (c *Cache) eraseInternal(key string) (value ValueType) {
+func (c *mapCache) eraseInternal(key string) (value ValueType) {
 	e, ok := c.index[key]
 	if !ok {
 		return
@@ -220,7 +231,7 @@ func (c *Cache) eraseInternal(key string) (value ValueType) {
 }
 
 // eraseKeys removes a list of keys from the cache.
-func (c *Cache) eraseKeys(keys []string) {
+func (c *mapCache) eraseKeys(keys []string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -230,7 +241,7 @@ func (c *Cache) eraseKeys(keys []string) {
 }
 
 // Erase any entry for the supplied key, also returns the value of erased key.
-func (c *Cache) Erase(key string) (value ValueType) {
+func (c *mapCache) Erase(key string) (value ValueType) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -239,7 +250,7 @@ func (c *Cache) Erase(key string) (value ValueType) {
 
 // LookUp a previously-inserted value for the given key. Return nil if no
 // value is present.
-func (c *Cache) LookUp(key string) (value ValueType) {
+func (c *mapCache) LookUp(key string) (value ValueType) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -261,7 +272,7 @@ func (c *Cache) LookUp(key string) (value ValueType) {
 //
 // Note: Because this look up doesn't change the order, it only acquires and
 // releases read lock.
-func (c *Cache) LookUpWithoutChangingOrder(key string) (value ValueType) {
+func (c *mapCache) LookUpWithoutChangingOrder(key string) (value ValueType) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -279,7 +290,7 @@ func (c *Cache) LookUpWithoutChangingOrder(key string) (value ValueType) {
 // given value without changing order of entries in cache, returning error if an
 // entry with given key doesn't exist. Also, the size of value for entry
 // shouldn't be updated with this method (use c.Insert for updating size).
-func (c *Cache) UpdateWithoutChangingOrder(
+func (c *mapCache) UpdateWithoutChangingOrder(
 	key string,
 	value ValueType) error {
 	if value == nil {
@@ -309,7 +320,7 @@ func (c *Cache) UpdateWithoutChangingOrder(
 // This is needed for entries whose size grows incrementally (e.g., sparse files).
 // Eviction is deferred until the next Insert() call.
 // The entry's order in the LRU is not changed.
-func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
+func (c *mapCache) UpdateSize(key string, sizeDelta uint64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -330,7 +341,7 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 	return nil
 }
 
-func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
+func (c *mapCache) EraseEntriesWithGivenPrefix(prefix string) {
 	c.mu.RLock()
 	var keysToDelete []string
 	for key := range c.index {

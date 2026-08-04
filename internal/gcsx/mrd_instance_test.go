@@ -42,7 +42,7 @@ type MrdInstanceTest struct {
 	suite.Suite
 	object      *gcs.MinObject
 	bucket      *storage.TestifyMockBucket
-	cache       *lru.Cache
+	cache       lru.Cache
 	inodeID     fuseops.InodeID
 	config      *cfg.Config
 	mrdInstance *MrdInstance

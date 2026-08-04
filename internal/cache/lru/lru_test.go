@@ -38,7 +38,7 @@ func (td testData) Size() uint64 {
 	return td.DataSize
 }
 
-func setupCacheTest(t *testing.T) *lru.Cache {
+func setupCacheTest(t *testing.T) lru.Cache {
 	t.Helper()
 	testOpts := locker.Options{
 		EnableInvariantsCheck: true,
@@ -48,7 +48,7 @@ func setupCacheTest(t *testing.T) *lru.Cache {
 
 // insertAndAssert inserts the given key,value in the cache and assert based on
 // the expected eviction and error.
-func insertAndAssert(t *testing.T, cache *lru.Cache, key string, val lru.ValueType, evictedValues []int64, expectedError error) {
+func insertAndAssert(t *testing.T, cache lru.Cache, key string, val lru.ValueType, evictedValues []int64, expectedError error) {
 	t.Helper()
 	ret, err := cache.Insert(key, val)
 

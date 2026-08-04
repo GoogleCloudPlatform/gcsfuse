@@ -89,7 +89,7 @@ type StatCache interface {
 // Create a new bucket-view to the passed shared-cache object.
 // For dynamic-mount (mount for multiple buckets), pass bn as bucket-name.
 // For static-mout (mount for single bucket), pass bn as "".
-func NewStatCacheBucketView(sc *lru.Cache, bn string) StatCache {
+func NewStatCacheBucketView(sc lru.Cache, bn string) StatCache {
 	return &statCacheBucketView{
 		sharedCache: sc,
 		bucketName:  bn,
@@ -103,7 +103,7 @@ func NewStatCacheBucketView(sc *lru.Cache, bn string) StatCache {
 // bucket-name to its entry keys to make them unique
 // to it.
 type statCacheBucketView struct {
-	sharedCache *lru.Cache
+	sharedCache lru.Cache
 	// bucketName is the unique identifier for this
 	// statCache object among all statCache objects
 	// using the same shared lru.Cache object.

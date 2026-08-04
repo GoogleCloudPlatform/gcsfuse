@@ -126,7 +126,7 @@ type typeCache struct {
 	// A cache mapping names to the cache entry.
 	// INVARIANT: entries.CheckInvariants() does not panic
 	// INVARIANT: Each value is of type cacheEntry
-	entries *lru.Cache
+	entries lru.Cache
 }
 
 // NewTypeCache creates an LRU-policy-based cache with given parameters.

@@ -34,7 +34,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 )
 
-func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject, config *cfg.Config, mrdCache *lru.Cache) (*MultiRangeDownloaderWrapper, error) {
+func NewMultiRangeDownloaderWrapper(bucket gcs.Bucket, object *gcs.MinObject, config *cfg.Config, mrdCache lru.Cache) (*MultiRangeDownloaderWrapper, error) {
 	if object == nil {
 		return nil, fmt.Errorf("NewMultiRangeDownloaderWrapper: Missing MinObject")
 	}
@@ -76,7 +76,7 @@ type MultiRangeDownloaderWrapper struct {
 	handle []byte
 
 	// MRD cache for LRU-based eviction of inactive MRD instances.
-	mrdCache *lru.Cache
+	mrdCache lru.Cache
 }
 
 // SetMinObject sets the gcs.MinObject stored in the wrapper to passed value, only if it's non nil.

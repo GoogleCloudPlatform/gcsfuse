@@ -66,7 +66,7 @@ func verifyCompleteFile(t *testing.T, spec data.FileSpec, content []byte) {
 	assert.True(t, reflect.DeepEqual(content, fileContent[:len(content)]))
 }
 
-func verifyFileInfoEntry(t *testing.T, mockBucket *storage.TestifyMockBucket, object gcs.MinObject, cache *lru.Cache, offset uint64) {
+func verifyFileInfoEntry(t *testing.T, mockBucket *storage.TestifyMockBucket, object gcs.MinObject, cache lru.Cache, offset uint64) {
 	fileInfo := getFileInfo(t, mockBucket, object, cache)
 	assert.True(t, fileInfo != nil)
 	assert.Equal(t, object.Generation, fileInfo.(data.FileInfo).ObjectGeneration)
@@ -74,7 +74,7 @@ func verifyFileInfoEntry(t *testing.T, mockBucket *storage.TestifyMockBucket, ob
 	assert.Equal(t, object.Size, fileInfo.(data.FileInfo).ContentSize())
 }
 
-func getFileInfo(t *testing.T, mockBucket *storage.TestifyMockBucket, object gcs.MinObject, cache *lru.Cache) lru.ValueType {
+func getFileInfo(t *testing.T, mockBucket *storage.TestifyMockBucket, object gcs.MinObject, cache lru.Cache) lru.ValueType {
 	fileInfoKey := data.FileInfoKey{BucketName: mockBucket.Name(), ObjectName: object.Name}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	assert.Equal(t, nil, err)

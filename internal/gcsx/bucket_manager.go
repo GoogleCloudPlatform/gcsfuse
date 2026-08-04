@@ -94,7 +94,7 @@ type BucketManager interface {
 type bucketManager struct {
 	config          BucketConfig
 	storageHandle   storage.StorageHandle
-	sharedStatCache *lru.Cache
+	sharedStatCache lru.Cache
 
 	// Garbage collector
 	gcCtx                 context.Context
@@ -102,7 +102,7 @@ type bucketManager struct {
 }
 
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
-	var c *lru.Cache
+	var c lru.Cache
 	if config.StatCacheMaxSizeMB > 0 {
 		c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
 	}
