@@ -51,7 +51,7 @@ type testDirStrucure struct {
 //	explicitDir2Name/file1InExplicitDir2Name
 //
 // Also returns the path to test directory.
-func createDirStructure(s *operationsTestSuite) testDirStrucure {
+func (s *operationsTestSuite) createDirStructure() testDirStrucure {
 	var tds testDirStrucure
 	tds.testDir = setup.SetupTestDirectory(DirForOperationTests + "-" + setup.GenerateRandomString(5))
 
@@ -109,7 +109,7 @@ func lookUpFileStat(wg *sync.WaitGroup, filePath string, result *os.FileInfo, er
 
 func (s *operationsTestSuite) TestParallelLookUpsForSameFile() {
 	// Create directory structure for testing.
-	tds := createDirStructure(s)
+	tds := s.createDirStructure()
 	defer deleteDirStructure(tds)
 	var stat1, stat2 os.FileInfo
 	var err1, err2 error
@@ -148,7 +148,7 @@ func (s *operationsTestSuite) TestParallelLookUpsForSameFile() {
 
 func (s *operationsTestSuite) TestParallelReadDirs() {
 	// Create directory structure for testing.
-	tds := createDirStructure(s)
+	tds := s.createDirStructure()
 	defer deleteDirStructure(tds)
 	readDirFunc := func(wg *sync.WaitGroup, dirPath string, dirEntries *[]os.DirEntry, err *error) {
 		defer wg.Done()
@@ -200,7 +200,7 @@ func (s *operationsTestSuite) TestParallelReadDirs() {
 
 func (s *operationsTestSuite) TestParallelLookUpAndDeleteSameDir() {
 	// Create directory structure for testing.
-	tds := createDirStructure(s)
+	tds := s.createDirStructure()
 	defer deleteDirStructure(tds)
 	deleteFunc := func(wg *sync.WaitGroup, dirPath string, err *error) {
 		defer wg.Done()
@@ -232,7 +232,7 @@ func (s *operationsTestSuite) TestParallelLookUpAndDeleteSameDir() {
 
 func (s *operationsTestSuite) TestParallelLookUpsForDifferentFiles() {
 	// Create directory structure for testing.
-	tds := createDirStructure(s)
+	tds := s.createDirStructure()
 	defer deleteDirStructure(tds)
 	var stat1, stat2 os.FileInfo
 	var err1, err2 error
@@ -275,7 +275,7 @@ func (s *operationsTestSuite) TestParallelLookUpsForDifferentFiles() {
 
 func (s *operationsTestSuite) TestParallelReadDirAndMkdirInsideSameDir() {
 	// Create directory structure for testing.
-	tds := createDirStructure(s)
+	tds := s.createDirStructure()
 	defer deleteDirStructure(tds)
 	readDirFunc := func(wg *sync.WaitGroup, dirPath string, dirEntries *[]os.DirEntry, err *error) {
 		defer wg.Done()
@@ -315,7 +315,7 @@ func (s *operationsTestSuite) TestParallelReadDirAndMkdirInsideSameDir() {
 
 func (s *operationsTestSuite) TestParallelLookUpAndDeleteSameFile() {
 	// Create directory structure for testing.
-	tds := createDirStructure(s)
+	tds := s.createDirStructure()
 	defer deleteDirStructure(tds)
 	deleteFileFunc := func(wg *sync.WaitGroup, filePath string, err *error) {
 		defer wg.Done()
@@ -350,7 +350,7 @@ func (s *operationsTestSuite) TestParallelLookUpAndDeleteSameFile() {
 
 func (s *operationsTestSuite) TestParallelLookUpAndRenameSameFile() {
 	// Create directory structure for testing.
-	tds := createDirStructure(s)
+	tds := s.createDirStructure()
 	defer deleteDirStructure(tds)
 	renameFunc := func(wg *sync.WaitGroup, oldFilePath string, newFilePath string, err *error) {
 		defer wg.Done()
@@ -388,7 +388,7 @@ func (s *operationsTestSuite) TestParallelLookUpAndRenameSameFile() {
 
 func (s *operationsTestSuite) TestParallelLookUpAndMkdirSameDir() {
 	// Create directory structure for testing.
-	tds := createDirStructure(s)
+	tds := s.createDirStructure()
 	defer deleteDirStructure(tds)
 	mkdirFunc := func(wg *sync.WaitGroup, dirPath string, err *error) {
 		defer wg.Done()
