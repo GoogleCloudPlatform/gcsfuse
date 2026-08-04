@@ -19,7 +19,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -29,43 +28,43 @@ import (
 // Create below directory and file.
 // Test               -- Directory
 // Test/move.txt      -- File
-func createSrcDirectoryAndFile(dirPath string, filePath string, t *testing.T) {
+func (s *operationsTestSuite) createSrcDirectoryAndFile(dirPath string, filePath string) {
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Mkdir at %q: %v", dirPath, err)
+		s.T().Errorf("Mkdir at %q: %v", dirPath, err)
 		return
 	}
 
 	file, err := os.Create(filePath)
 	if err != nil {
-		t.Errorf("Error in creating file %v:", err)
+		s.T().Errorf("Error in creating file %v:", err)
 	}
 
 	// Closing file at the end.
-	defer operations.CloseFileShouldNotThrowError(t, file)
+	defer operations.CloseFileShouldNotThrowError(s.T(), file)
 
 	err = operations.WriteFile(file.Name(), MoveFileContent)
 	if err != nil {
-		t.Errorf("File at %v", err)
+		s.T().Errorf("File at %v", err)
 	}
 }
 
-func checkIfFileMoveOperationSucceeded(srcFilePath string, destDirPath string, t *testing.T) {
+func (s *operationsTestSuite) checkIfFileMoveOperationSucceeded(srcFilePath string, destDirPath string) {
 	// Move file from Test/move.txt to destination.
 	err := operations.Move(srcFilePath, destDirPath)
 	if err != nil {
-		t.Errorf("Error in moving file: %v", err)
+		s.T().Errorf("Error in moving file: %v", err)
 	}
 
 	// Check if the file content matches.
 	moveFilePath := path.Join(destDirPath, MoveFile)
 	content, err := operations.ReadFile(moveFilePath)
 	if err != nil {
-		t.Errorf("ReadAll: %v", err)
+		s.T().Errorf("ReadAll: %v", err)
 	}
 
 	if got, want := string(content), MoveFileContent; got != want {
-		t.Errorf("File content %q not match %q", got, want)
+		s.T().Errorf("File content %q not match %q", got, want)
 	}
 }
 
@@ -75,7 +74,7 @@ func (s *operationsTestSuite) TestMoveFileWithinSameDirectory() {
 	dirPath := path.Join(testDir, "Test")
 	filePath := path.Join(dirPath, MoveFile)
 
-	createSrcDirectoryAndFile(dirPath, filePath, s.T())
+	s.createSrcDirectoryAndFile(dirPath, filePath)
 
 	destDirPath := path.Join(dirPath, "a")
 	err := os.Mkdir(destDirPath, setup.FilePermission_0600)
@@ -83,7 +82,7 @@ func (s *operationsTestSuite) TestMoveFileWithinSameDirectory() {
 		s.T().Errorf("Mkdir at %q: %v", destDirPath, err)
 	}
 
-	checkIfFileMoveOperationSucceeded(filePath, destDirPath, s.T())
+	s.checkIfFileMoveOperationSucceeded(filePath, destDirPath)
 }
 
 // Move file from Test/move.txt to Test1/move.txt
@@ -92,7 +91,7 @@ func (s *operationsTestSuite) TestMoveFileWithinDifferentDirectory() {
 	dirPath := path.Join(testDir, "Test")
 	filePath := path.Join(dirPath, MoveFile)
 
-	createSrcDirectoryAndFile(dirPath, filePath, s.T())
+	s.createSrcDirectoryAndFile(dirPath, filePath)
 
 	destDirPath := path.Join(testDir, "Test2")
 	err := os.Mkdir(destDirPath, setup.FilePermission_0600)
@@ -100,7 +99,7 @@ func (s *operationsTestSuite) TestMoveFileWithinDifferentDirectory() {
 		s.T().Errorf("Mkdir at %q: %v", destDirPath, err)
 	}
 
-	checkIfFileMoveOperationSucceeded(filePath, destDirPath, s.T())
+	s.checkIfFileMoveOperationSucceeded(filePath, destDirPath)
 }
 
 // Rename file from Test/move1.txt to Test/move2.txt

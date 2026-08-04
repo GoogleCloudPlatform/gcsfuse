@@ -225,7 +225,7 @@ func RunSuiteForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestCo
 	ApplyPermissionToServiceAccount(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
 	defer RevokePermission(ctx, storageClient, serviceAccount, permission, cfg.TestBucket)
 
-	// Without –key-file flag and GOOGLE_APPLICATION_CREDENTIALS
+	// Without --key-file flag and GOOGLE_APPLICATION_CREDENTIALS
 	// This case will not get covered as gcsfuse internally authenticates from a metadata server on GCE VM.
 	// https://github.com/golang/oauth2/blob/master/google/default.go#L160
 

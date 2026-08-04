@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -35,7 +34,7 @@ const (
 	retryDuration              = 3 * time.Minute
 )
 
-func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCreateTime time.Time, byteSize int64, t *testing.T) error {
+func (s *operationsTestSuite) checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCreateTime time.Time, byteSize int64) error {
 	oStat, err := os.Stat(objName)
 
 	if err != nil {
@@ -54,7 +53,7 @@ func checkIfObjectAttrIsCorrect(objName string, preCreateTime time.Time, postCre
 	if oStat.Size() != byteSize {
 		return fmt.Errorf("object size mismatch: got %d bytes, want %d bytes", oStat.Size(), byteSize)
 	}
-	t.Logf("Attributes for %q are correct. ModTime: %v (expected range: [%v, %v])", objName, statModTime, preCreateTime, postCreateTime)
+	s.T().Logf("Attributes for %q are correct. ModTime: %v (expected range: [%v, %v])", objName, statModTime, preCreateTime, postCreateTime)
 	return nil
 }
 
@@ -73,7 +72,7 @@ func (s *operationsTestSuite) TestFileAttributes() {
 
 		// The file size in createTempFile() is BytesWrittenInFile bytes
 		// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/tools/integration_tests/util/setup/setup.go#L124
-		err := checkIfObjectAttrIsCorrect(fileName, preCreateTime, postCreateTime, BytesWrittenInFile, s.T())
+		err := s.checkIfObjectAttrIsCorrect(fileName, preCreateTime, postCreateTime, BytesWrittenInFile)
 		return err == nil, err
 	})
 }
@@ -91,7 +90,7 @@ func (s *operationsTestSuite) TestEmptyDirAttributes() {
 		operations.CreateDirectoryWithNFiles(0, dirName, "", s.T())
 		postCreateTime := time.Now().Add(operations.TimeSlop)
 
-		err := checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, s.T())
+		err := s.checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0)
 		return err == nil, err
 	})
 }
@@ -109,7 +108,7 @@ func (s *operationsTestSuite) TestNonEmptyDirAttributes() {
 		operations.CreateDirectoryWithNFiles(NumberOfFilesInDirAttrTest, dirName, PrefixFileInDirAttrTest, s.T())
 		postCreateTime := time.Now().Add(operations.TimeSlop)
 
-		err := checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0, s.T())
+		err := s.checkIfObjectAttrIsCorrect(dirName, preCreateTime, postCreateTime, 0)
 		return err == nil, err
 	})
 }

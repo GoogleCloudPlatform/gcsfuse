@@ -19,7 +19,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -30,11 +29,11 @@ import (
 // srcCopyDir               -- Dir
 // srcCopyDir/copy.txt      -- File
 // srcCopyDir/subSrcCopyDir -- Dir
-func createSrcDirectoryWithObjects(dirPath string, t *testing.T) string {
+func (s *operationsTestSuite) createSrcDirectoryWithObjects(dirPath string) string {
 	// testBucket/srcCopyDir
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Mkdir at %q: %v", dirPath, err)
+		s.T().Errorf("Mkdir at %q: %v", dirPath, err)
 		return ""
 	}
 
@@ -42,7 +41,7 @@ func createSrcDirectoryWithObjects(dirPath string, t *testing.T) string {
 	subDirPath := path.Join(dirPath, SubSrcCopyDirectory)
 	err = os.Mkdir(subDirPath, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Mkdir at %q: %v", subDirPath, err)
+		s.T().Errorf("Mkdir at %q: %v", subDirPath, err)
 		return ""
 	}
 
@@ -51,21 +50,21 @@ func createSrcDirectoryWithObjects(dirPath string, t *testing.T) string {
 
 	file, err := os.Create(filePath)
 	if err != nil {
-		t.Errorf("Error in creating file %v:", err)
+		s.T().Errorf("Error in creating file %v:", err)
 	}
 
 	err = operations.WriteFile(file.Name(), SrcCopyFileContent)
 	if err != nil {
-		t.Errorf("File at %v", err)
+		s.T().Errorf("File at %v", err)
 	}
 
 	// Closing file at the end
-	defer operations.CloseFileShouldNotThrowError(t, file)
+	defer operations.CloseFileShouldNotThrowError(s.T(), file)
 
 	return dirPath
 }
 
-func checkIfCopiedDirectoryHasCorrectData(destDir string, t *testing.T) {
+func (s *operationsTestSuite) checkIfCopiedDirectoryHasCorrectData(destDir string) {
 	obj, err := os.ReadDir(destDir)
 	if err != nil {
 		log.Fatal(err)
@@ -73,30 +72,30 @@ func checkIfCopiedDirectoryHasCorrectData(destDir string, t *testing.T) {
 
 	// Comparing number of objects in the testBucket - 2
 	if len(obj) != NumberOfObjectsInSrcCopyDirectory {
-		t.Errorf("The number of objects in the current directory doesn't match.")
+		s.T().Errorf("The number of objects in the current directory doesn't match.")
 		return
 	}
 
 	// Comparing first object name and type
 	// Name - testBucket/destCopyDir/copy.txt, Type - file
 	if obj[0].Name() != SrcCopyFile || obj[0].IsDir() == true {
-		t.Errorf("Object Listed for bucket directory is incorrect.")
+		s.T().Errorf("Object Listed for bucket directory is incorrect.")
 	}
 
 	// Comparing second object name and type
 	// Name - testBucket/destCopyDir/srcCopyDir, Type - dir
 	if obj[1].Name() != SubSrcCopyDirectory || obj[1].IsDir() != true {
-		t.Errorf("Object Listed for bucket directory is incorrect.")
+		s.T().Errorf("Object Listed for bucket directory is incorrect.")
 	}
 
 	destFile := path.Join(destDir, SrcCopyFile)
 
 	content, err := operations.ReadFile(destFile)
 	if err != nil {
-		t.Errorf("ReadAll: %v", err)
+		s.T().Errorf("ReadAll: %v", err)
 	}
 	if got, want := string(content), SrcCopyFileContent; got != want {
-		t.Errorf("File content %q not match %q", got, want)
+		s.T().Errorf("File content %q not match %q", got, want)
 	}
 }
 
@@ -110,13 +109,13 @@ func checkIfCopiedDirectoryHasCorrectData(destDir string, t *testing.T) {
 // destCopyDir/subSrcCopyDir -- Dir
 func (s *operationsTestSuite) TestCopyDirectoryInNonExistingDirectory() {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-	srcDir := createSrcDirectoryWithObjects(path.Join(testDir, SrcCopyDirectory), s.T())
+	srcDir := s.createSrcDirectoryWithObjects(path.Join(testDir, SrcCopyDirectory))
 	destDir := path.Join(testDir, DestCopyDirectoryNotExist)
 
 	err := operations.CopyDir(srcDir, destDir)
 	require.NoError(s.T(), err, "Error in copying directory")
 
-	checkIfCopiedDirectoryHasCorrectData(destDir, s.T())
+	s.checkIfCopiedDirectoryHasCorrectData(destDir)
 }
 
 // Copy SrcDirectory in DestDirectory
@@ -130,7 +129,7 @@ func (s *operationsTestSuite) TestCopyDirectoryInNonExistingDirectory() {
 // destCopyDir/srcCopyDir/subSrcCopyDir -- Dir
 func (s *operationsTestSuite) TestCopyDirectoryInEmptyDirectory() {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-	srcDir := createSrcDirectoryWithObjects(path.Join(testDir, SrcCopyDirectory), s.T())
+	srcDir := s.createSrcDirectoryWithObjects(path.Join(testDir, SrcCopyDirectory))
 
 	// Create below directory
 	// destCopyDir               -- Dir
@@ -157,25 +156,25 @@ func (s *operationsTestSuite) TestCopyDirectoryInEmptyDirectory() {
 	}
 
 	destSrc := path.Join(destDir, SrcCopyDirectory)
-	checkIfCopiedDirectoryHasCorrectData(destSrc, s.T())
+	s.checkIfCopiedDirectoryHasCorrectData(destSrc)
 }
 
-func createDestNonEmptyDirectory(dirPath string, t *testing.T) string {
-	operations.CreateDirectoryWithNFiles(0, dirPath, "", t)
+func (s *operationsTestSuite) createDestNonEmptyDirectory(dirPath string) string {
+	operations.CreateDirectoryWithNFiles(0, dirPath, "", s.T())
 
 	destSubDir := path.Join(dirPath, SubDirInNonEmptyDestCopyDirectory)
-	operations.CreateDirectoryWithNFiles(0, destSubDir, "", t)
+	operations.CreateDirectoryWithNFiles(0, destSubDir, "", s.T())
 
 	return dirPath
 }
 
 func (s *operationsTestSuite) TestCopyDirectoryInNonEmptyDirectory() {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-	srcDir := createSrcDirectoryWithObjects(path.Join(testDir, SrcCopyDirectory), s.T())
+	srcDir := s.createSrcDirectoryWithObjects(path.Join(testDir, SrcCopyDirectory))
 
 	// Create below directory
 	// destCopyDir               -- Dir
-	destDir := createDestNonEmptyDirectory(path.Join(testDir, DestNonEmptyCopyDirectory), s.T())
+	destDir := s.createDestNonEmptyDirectory(path.Join(testDir, DestNonEmptyCopyDirectory))
 
 	err := operations.CopyDir(srcDir, destDir)
 	require.NoError(s.T(), err, "Error in copying directory")
@@ -207,17 +206,17 @@ func (s *operationsTestSuite) TestCopyDirectoryInNonEmptyDirectory() {
 	}
 
 	destSrc := path.Join(destDir, SrcCopyDirectory)
-	checkIfCopiedDirectoryHasCorrectData(destSrc, s.T())
+	s.checkIfCopiedDirectoryHasCorrectData(destSrc)
 }
 
-func checkIfCopiedEmptyDirectoryHasNoData(destSrc string, t *testing.T) {
+func (s *operationsTestSuite) checkIfCopiedEmptyDirectoryHasNoData(destSrc string) {
 	objs, err := os.ReadDir(destSrc)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if len(objs) != 0 {
-		t.Errorf("Directory has incorrect data.")
+		s.T().Errorf("Directory has incorrect data.")
 	}
 }
 
@@ -240,7 +239,7 @@ func (s *operationsTestSuite) TestCopyEmptyDirectoryInNonEmptyDirectory() {
 	// Create below directory
 	// destNonEmptyCopyDirectory                                                -- Dir
 	// destNonEmptyCopyDirectory/subDirInNonEmptyDestCopyDirectory              -- Dir
-	destDir := createDestNonEmptyDirectory(path.Join(testDir, DestNonEmptyCopyDirectory), s.T())
+	destDir := s.createDestNonEmptyDirectory(path.Join(testDir, DestNonEmptyCopyDirectory))
 
 	err := operations.CopyDir(srcDir, destDir)
 	require.NoError(s.T(), err, "Error in copying directory")
@@ -272,7 +271,7 @@ func (s *operationsTestSuite) TestCopyEmptyDirectoryInNonEmptyDirectory() {
 	}
 
 	copyDirPath := path.Join(destDir, EmptySrcDirectoryCopyTest)
-	checkIfCopiedEmptyDirectoryHasNoData(copyDirPath, s.T())
+	s.checkIfCopiedEmptyDirectoryHasNoData(copyDirPath)
 }
 
 // Copy SrcDirectory in DestDirectory
@@ -316,7 +315,7 @@ func (s *operationsTestSuite) TestCopyEmptyDirectoryInEmptyDirectory() {
 	}
 
 	copyDirPath := path.Join(destDir, EmptySrcDirectoryCopyTest)
-	checkIfCopiedEmptyDirectoryHasNoData(copyDirPath, s.T())
+	s.checkIfCopiedEmptyDirectoryHasNoData(copyDirPath)
 }
 
 // Copy SrcDirectory in DestDirectory
@@ -341,5 +340,5 @@ func (s *operationsTestSuite) TestCopyEmptyDirectoryInNonExistingDirectory() {
 	err = operations.CopyDir(srcDir, destDir)
 	require.NoError(s.T(), err, "Error in copying directory")
 
-	checkIfCopiedEmptyDirectoryHasNoData(destDir, s.T())
+	s.checkIfCopiedEmptyDirectoryHasNoData(destDir)
 }
