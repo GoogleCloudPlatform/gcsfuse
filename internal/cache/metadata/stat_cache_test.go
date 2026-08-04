@@ -223,8 +223,10 @@ func (t *StatCacheTest) Test_ExpiresLeastRecentlyUsed() {
 
 	// Insert another.
 	o3 := &gcs.MinObject{Name: "queso"}
-	t.cache.Insert(o3, expiration) // size = 1402 bytes (cumulative = 5810 bytes)
-	// This would evict the least recent entry i.e o1/"taco".
+	t.cache.Insert(o3, expiration)
+
+	// Add a large negative entry to force eviction of taco.
+	t.cache.AddNegativeEntry("very_long_negative_entry_name_to_force_eviction", expiration)
 
 	// See what's left.
 	assert.False(t.T(), t.cache.Hit("taco", someTime))
@@ -434,7 +436,11 @@ func (t *MultiBucketStatCacheTest) Test_ExpiresLeastRecentlyUsed() {
 
 	// Insert another.
 	saffron := &gcs.MinObject{Name: "saffron"}
-	spices.Insert(saffron, expiration) // size = 1424 bytes (cumulative = 5688 bytes)
+	spices.Insert(saffron, expiration)
+
+	saffron2 := &gcs.MinObject{Name: "saffron2"}
+	spices.Insert(saffron2, expiration)
+
 	// This will evict the least recent entry, i.e. orange.
 
 	// See what's left.
@@ -543,7 +549,7 @@ func (t *StatCacheTest) Test_ShouldReturnHitTrueWhenOnlyObjectAlreadyHasEntry() 
 }
 
 func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize() {
-	localCache := lru.NewCache(uint64(2700))
+	localCache := lru.NewCache(uint64(2600))
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
 	objectEntry1 := &gcs.MinObject{Name: "1"}
 	objectEntry2 := &gcs.MinObject{Name: "2"}

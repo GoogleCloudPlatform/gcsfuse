@@ -24,6 +24,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
+// 9223372036 is math.MaxInt64 / 1,000,000,000 (max seconds representable in nanoseconds)
+const maxSeconds int64 = math.MaxInt64 / 1000000000
+
 // A cache mapping from name to most recent known record for the object of that
 // name. External synchronization must be provided.
 type StatCache interface {
@@ -113,7 +116,7 @@ type statCacheBucketView struct {
 type entry struct {
 	m          *gcs.MinObject
 	f          *gcs.Folder
-	expiration time.Time
+	expiration int64
 	// Set to true only for implicit directory entries. This flag will always remain false for negative entries and explicit objects.
 	implicitDir bool
 }
@@ -143,6 +146,25 @@ func (e entry) Size() uint64 {
 	size = uint64(math.Ceil(util.HeapSizeToRssConversionFactor * float64(size)))
 
 	return size
+}
+
+// timeToUnixNano safely converts a time.Time to Unix nanoseconds.
+// It prevents int64 overflow for dates beyond the year 2262, returning
+// math.MaxInt64 instead, which safely mimics "never expire".
+func timeToUnixNano(t time.Time) int64 {
+	if t.IsZero() {
+		return math.MinInt64
+	}
+
+	unixSecs := t.Unix()
+	if unixSecs >= maxSeconds {
+		return math.MaxInt64
+	}
+	if unixSecs <= -maxSeconds {
+		return math.MinInt64
+	}
+
+	return t.UnixNano()
 }
 
 // Should the supplied object for a new positive entry replace the given
@@ -198,10 +220,14 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 		}
 	}
 
+	mVal := *m
+	mVal.Name = ""
+	mCopy := &mVal
+
 	// Insert an entry.
 	e := entry{
-		m:          m,
-		expiration: expiration,
+		m:          mCopy,
+		expiration: timeToUnixNano(expiration),
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -237,7 +263,7 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 	// Insert an entry.
 	e := entry{
 		implicitDir: true,
-		expiration:  expiration,
+		expiration:  timeToUnixNano(expiration),
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -251,7 +277,7 @@ func (sc *statCacheBucketView) AddNegativeEntry(objectName string, expiration ti
 	// Insert a negative entry.
 	e := entry{
 		m:          nil,
-		expiration: expiration,
+		expiration: timeToUnixNano(expiration),
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -265,7 +291,7 @@ func (sc *statCacheBucketView) AddNegativeEntryForFolder(folderName string, expi
 	// Insert a negative entry.
 	e := entry{
 		f:          nil,
-		expiration: expiration,
+		expiration: timeToUnixNano(expiration),
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
@@ -287,7 +313,12 @@ func (sc *statCacheBucketView) LookUp(
 		if entry.implicitDir {
 			return true, &gcs.MinObject{Name: objectName}
 		}
-		return hit, entry.m
+		if entry.m != nil {
+			mCopy := *entry.m
+			mCopy.Name = objectName
+			return hit, &mCopy
+		}
+		return hit, nil
 	}
 
 	return false, nil
@@ -300,7 +331,12 @@ func (sc *statCacheBucketView) LookUpFolder(
 	hit, entry := sc.sharedCacheLookup(folderName, now)
 
 	if hit {
-		return hit, entry.f
+		if entry.f != nil {
+			fCopy := *entry.f
+			fCopy.Name = folderName
+			return hit, &fCopy
+		}
+		return hit, nil
 	}
 
 	return false, nil
@@ -315,7 +351,12 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 	e := value.(entry)
 
 	// Has this entry expired?
-	if e.expiration.Before(now) {
+	nowNano := timeToUnixNano(now)
+	if now.IsZero() {
+		nowNano = math.MinInt64
+	}
+
+	if e.expiration < nowNano {
 		sc.Erase(key)
 		return false, nil
 	}
@@ -326,9 +367,13 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time) {
 	name := sc.key(f.Name)
 
+	fVal := *f
+	fVal.Name = ""
+	fCopy := &fVal
+
 	e := entry{
-		f:          f,
-		expiration: expiration,
+		f:          fCopy,
+		expiration: timeToUnixNano(expiration),
 	}
 
 	if _, err := sc.sharedCache.Insert(name, e); err != nil {
