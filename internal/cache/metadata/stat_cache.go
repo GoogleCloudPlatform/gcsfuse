@@ -91,10 +91,7 @@ type StatCache interface {
 // For dynamic-mount (mount for multiple buckets), pass bn as bucket-name.
 // For static-mout (mount for single bucket), pass bn as "".
 func NewStatCacheBucketView(sc lru.Cache, bn string) StatCache {
-	isRadix := false
-	if fmt.Sprintf("%T", sc) == "*lru.radixCache" || fmt.Sprintf("%T", sc) == "*lru.arenaRadix" {
-		isRadix = true
-	}
+	isRadix := fmt.Sprintf("%T", sc) == "*lru.radixCache" || fmt.Sprintf("%T", sc) == "*lru.arenaRadix"
 	return &statCacheBucketView{
 		sharedCache: sc,
 		bucketName:  bn,
@@ -232,12 +229,9 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 		}
 	}
 
-	var mCopy *gcs.MinObject
-	if m != nil {
-		mVal := *m
-		mVal.Name = ""
-		mCopy = &mVal
-	}
+	mVal := *m
+	mVal.Name = ""
+	mCopy := &mVal
 
 	// Insert an entry.
 	e := entry{
@@ -386,12 +380,9 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time) {
 	name := sc.key(f.Name)
 
-	var fCopy *gcs.Folder
-	if f != nil {
-		fVal := *f
-		fVal.Name = ""
-		fCopy = &fVal
-	}
+	fVal := *f
+	fVal.Name = ""
+	fCopy := &fVal
 
 	e := entry{
 		f:          fCopy,
