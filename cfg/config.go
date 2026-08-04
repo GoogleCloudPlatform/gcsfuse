@@ -777,6 +777,8 @@ type ReadConfig struct {
 
 	EnableBufferedRead bool `yaml:"enable-buffered-read"`
 
+	EnableGrpcReadChecksums bool `yaml:"enable-grpc-read-checksums"`
+
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
 	InactiveStreamTimeout time.Duration `yaml:"inactive-stream-timeout"`
@@ -1011,6 +1013,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-google-lib-auth", "", true, "Enable google library authentication method to fetch the credentials")
 
 	if err := flagSet.MarkHidden("enable-google-lib-auth"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-grpc-read-checksums", "", false, "Enables chunk-level CRC32C checksum validation for gRPC read operations. Disabled by default to optimize CPU utilization.")
+
+	if err := flagSet.MarkHidden("enable-grpc-read-checksums"); err != nil {
 		return err
 	}
 
@@ -1648,6 +1656,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-google-lib-auth", flagSet.Lookup("enable-google-lib-auth")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("read.enable-grpc-read-checksums", flagSet.Lookup("enable-grpc-read-checksums")); err != nil {
 		return err
 	}
 

@@ -73,6 +73,7 @@ type ValueType interface {
 type entry struct {
 	Key   string
 	Value ValueType
+	size  uint64
 }
 
 // NewCache returns the reference of cache object by initialising the cache with
@@ -100,13 +101,18 @@ func (c *Cache) checkInvariants() {
 		panic(fmt.Sprintf("CurrentSize %v over maxSize %v", c.currentSize, c.maxSize))
 	}
 
-	// INVARIANT: Each element is of type entry
+	// INVARIANT: Each element is of type entry and sum of entry sizes matches currentSize
+	var sumSize uint64
 	for e := c.entries.Front(); e != nil; e = e.Next() {
-		switch e.Value.(type) {
-		case entry:
-		default:
+		ent, ok := e.Value.(entry)
+		if !ok {
 			panic(fmt.Sprintf("Unexpected element type: %v", reflect.TypeOf(e.Value)))
 		}
+		sumSize += ent.size
+	}
+
+	if sumSize != c.currentSize {
+		panic(fmt.Sprintf("Size mismatch: sum of entry sizes %v vs currentSize %v", sumSize, c.currentSize))
 	}
 
 	// INVARIANT: For each k, v: v.Value.(entry).Key == k
@@ -129,13 +135,13 @@ func (c *Cache) evictOne() ValueType {
 	e := c.entries.Back()
 	key := e.Value.(entry).Key
 
-	evictedEntry := e.Value.(entry).Value
-	c.currentSize -= evictedEntry.Size()
+	evictedEntry := e.Value.(entry)
+	c.currentSize -= evictedEntry.size
 
 	c.entries.Remove(e)
 	delete(c.index, key)
 
-	return evictedEntry
+	return evictedEntry.Value
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -163,13 +169,13 @@ func (c *Cache) Insert(
 	e, ok := c.index[key]
 	if ok {
 		// Update an entry if already exist.
-		c.currentSize -= e.Value.(entry).Value.Size()
+		c.currentSize -= e.Value.(entry).size
 		c.currentSize += valueSize
-		e.Value = entry{key, value}
+		e.Value = entry{key, value, valueSize}
 		c.entries.MoveToFront(e)
 	} else {
 		// Add the entry if already doesn't exist.
-		e := c.entries.PushFront(entry{key, value})
+		e := c.entries.PushFront(entry{key, value, valueSize})
 		c.index[key] = e
 		c.currentSize += valueSize
 	}
@@ -192,13 +198,13 @@ func (c *Cache) eraseInternal(key string) (value ValueType) {
 		return
 	}
 
-	deletedEntry := e.Value.(entry).Value
-	c.currentSize -= deletedEntry.Size()
+	deletedEntry := e.Value.(entry)
+	c.currentSize -= deletedEntry.size
 
 	delete(c.index, key)
 	c.entries.Remove(e)
 
-	return deletedEntry
+	return deletedEntry.Value
 }
 
 // eraseKeys removes a list of keys from the cache.
@@ -276,11 +282,12 @@ func (c *Cache) UpdateWithoutChangingOrder(
 		return ErrEntryNotExist
 	}
 
-	if value.Size() != e.Value.(entry).Value.Size() {
+	ent := e.Value.(entry)
+	if value.Size() != ent.size {
 		return ErrInvalidUpdateEntrySize
 	}
 
-	e.Value = entry{key, value}
+	e.Value = entry{key, value, ent.size}
 	c.index[key] = e
 
 	return nil
@@ -294,10 +301,14 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	_, ok := c.index[key]
+	e, ok := c.index[key]
 	if !ok {
 		return ErrEntryNotExist
 	}
+
+	ent := e.Value.(entry)
+	ent.size += sizeDelta
+	e.Value = ent
 
 	// Update currentSize accounting
 	// Note: This may temporarily violate currentSize <= maxSize invariant
