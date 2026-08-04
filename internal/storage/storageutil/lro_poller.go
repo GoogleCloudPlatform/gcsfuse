@@ -17,6 +17,7 @@ package storageutil
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/googleapis/gax-go/v2"
@@ -94,9 +95,9 @@ func PollLRO[T any](ctx context.Context, op LROPoller[T], cfg LROPollConfig) (T,
 	}
 
 	startTime := time.Now()
-	interval := cfg.Initial
+	backoff := cfg.Initial
 
-	timer := time.NewTimer(interval)
+	timer := time.NewTimer(backoff)
 	defer timer.Stop()
 
 	for {
@@ -116,8 +117,12 @@ func PollLRO[T any](ctx context.Context, op LROPoller[T], cfg LROPollConfig) (T,
 
 		// Apply exponential backoff after fast phase window.
 		if time.Since(startTime) >= cfg.FastPhaseWindow {
-			interval = min(cfg.Max, time.Duration(float64(interval)*cfg.Multiplier))
+			backoff = min(cfg.Max, time.Duration(float64(backoff)*cfg.Multiplier))
 		}
-		timer.Reset(interval)
+
+		// Add full jitter to avoid the thundering herd problem.
+		// The actual wait time is a random value between 1ns and the current backoff.
+		pause := time.Duration(rand.Int63n(int64(backoff))) + 1
+		timer.Reset(pause)
 	}
 }
