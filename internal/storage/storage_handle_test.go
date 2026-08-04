@@ -709,8 +709,7 @@ func (testSuite *StorageHandleTest) TestBucketHandle_GRPCDirectPathFallback_NonR
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), bh)
 	assert.NotNil(testSuite.T(), sClient.httpClient)
-	assert.NotNil(testSuite.T(), sClient.grpcClient)
-	assert.Equal(testSuite.T(), sClient.httpClient, sClient.grpcClient)
+	assert.Nil(testSuite.T(), sClient.grpcClient)
 }
 
 func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithReadStallRetry() {

@@ -69,10 +69,20 @@ const (
 
 	// nonExistentObjectName is the object name used for bucket existence/access check when HNS feature is disabled by providing "--enable-hns:false". E.g. Using Regional Endpoints which do not support GRPC protocol.
 	nonExistentObjectName = "gcsfuse-nonexistent-object-check"
-
-	// directPathVerificationErrorPrefix is the prefix used for errors returned when DirectPath verification fails.
-	directPathVerificationErrorPrefix = "DirectPath verification failed for bucket"
 )
+
+type DirectPathVerificationError struct {
+	BucketName string
+	Err        error
+}
+
+func (e *DirectPathVerificationError) Error() string {
+	return fmt.Sprintf("DirectPath verification failed for bucket %q: %v", e.BucketName, e.Err)
+}
+
+func (e *DirectPathVerificationError) Unwrap() error {
+	return e.Err
+}
 
 type StorageHandle interface {
 	// In case of non-empty billingProject, this project is set as user-project for
@@ -228,8 +238,6 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// Direct-path verification is fatal for regional. Todo(b/503624405): Make it fatal for all after making the dummy-stat reliable.
 	if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
 		logger.Warnf("DirectPath verification failed with error: %v", verifyErr)
-		err = sc.Close()
-		logger.Infof("Failed to close the client: %v", err)
 		return nil, verifyErr
 	} else {
 		logger.Infof("DirectPath verification succeeded, applying retry config and continuing with DirectPath.")
@@ -272,7 +280,7 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 	// We should get a notFound error and not any error when the object doesn't exist.
 	// Any error other than notFound is treated as dp connection failure.
 	if statErr != nil && !errors.As(gcs.GetGCSError(statErr), &notFoundError) {
-		return fmt.Errorf("%s %q: %w", directPathVerificationErrorPrefix, bucketName, statErr)
+		return &DirectPathVerificationError{BucketName: bucketName, Err: statErr}
 	}
 
 	return nil
@@ -513,7 +521,12 @@ func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, buck
 	if sh.clientConfig.ClientProtocol == cfg.GRPC {
 		if sh.grpcClient == nil {
 			// We are not using bidi for non-rapid buckets.
-			sh.grpcClient, err = sh.createGRPCClient(ctx, isBucketRapid, bucketName, false, billingProject)
+			var client *storage.Client
+			client, err = sh.createGRPCClient(ctx, isBucketRapid, bucketName, false, billingProject)
+			if err == nil && client != sh.httpClient {
+				sh.grpcClient = client
+			}
+			return client, err
 		}
 		return sh.grpcClient, err
 	}
@@ -563,10 +576,8 @@ func (sh *storageClient) createGRPCClient(ctx context.Context, isRapid bool, buc
 	return sh.httpClient, err
 }
 func isDirectPathFailure(err error) bool {
-	if err == nil {
-		return false
-	}
-	return strings.Contains(err.Error(), directPathVerificationErrorPrefix)
+	var dpErr *DirectPathVerificationError
+	return errors.As(err, &dpErr)
 }
 
 func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error) {
