@@ -185,14 +185,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 // It creates the token-source from the provided
 // key-file or using ADC search order (https://cloud.google.com/docs/authentication/application-default-credentials#order).
 func CreateTokenSource(storageClientConfig *StorageClientConfig) (tokenSrc oauth2.TokenSource, err error) {
-	tokenSrc, err = auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
-	if err != nil {
-		return nil, err
-	}
-	if storageClientConfig.EnableMountRetries {
-		tokenSrc = NewRetryingTokenSource(tokenSrc, NewRetryConfig(storageClientConfig))
-	}
-	return tokenSrc, nil
+	return auth.GetTokenSource(context.Background(), storageClientConfig.KeyFile, storageClientConfig.TokenUrl, storageClientConfig.ReuseTokenFromUrl)
 }
 
 // StripScheme strips the scheme part of given url.

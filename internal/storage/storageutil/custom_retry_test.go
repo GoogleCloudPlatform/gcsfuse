@@ -25,7 +25,6 @@ import (
 	"net/url"
 	"os"
 	"sync"
-	"syscall"
 	"testing"
 
 	"cloud.google.com/go/compute/metadata"
@@ -274,6 +273,62 @@ func TestDetermineRetryAction(t *testing.T) {
 			name:     "UnexpectedEOF",
 			err:      io.ErrUnexpectedEOF,
 			expected: retryTransient,
+		},
+		{
+			name: "RetrieveError503",
+			err: &oauth2.RetrieveError{
+				Response: &http.Response{StatusCode: http.StatusServiceUnavailable},
+			},
+			expected: retryTransientMDSError,
+		},
+		{
+			name: "RetrieveError429",
+			err: &oauth2.RetrieveError{
+				Response: &http.Response{StatusCode: http.StatusTooManyRequests},
+			},
+			expected: retryTransientMDSError,
+		},
+		{
+			name: "RetrieveError400",
+			err: &oauth2.RetrieveError{
+				Response: &http.Response{StatusCode: http.StatusBadRequest},
+			},
+			expected: retryTransientMDSError,
+		},
+		{
+			name:     "MetadataError500",
+			err:      &metadata.Error{Code: 500},
+			expected: retryTransientMDSError,
+		},
+		{
+			name:     "MetadataError400",
+			err:      &metadata.Error{Code: http.StatusBadRequest},
+			expected: retryTransientMDSError,
+		},
+		{
+			name:     "MetadataError408",
+			err:      &metadata.Error{Code: http.StatusRequestTimeout},
+			expected: retryTransientMDSError,
+		},
+		{
+			name:     "MetadataError429",
+			err:      &metadata.Error{Code: http.StatusTooManyRequests},
+			expected: retryTransientMDSError,
+		},
+		{
+			name:     "MetadataError502",
+			err:      &metadata.Error{Code: http.StatusBadGateway},
+			expected: retryTransientMDSError,
+		},
+		{
+			name:     "MetadataError503",
+			err:      &metadata.Error{Code: http.StatusServiceUnavailable},
+			expected: retryTransientMDSError,
+		},
+		{
+			name:     "MetadataError404",
+			err:      &metadata.Error{Code: 404},
+			expected: noRetry,
 		},
 	}
 
@@ -546,7 +601,7 @@ func TestShouldRetryOnMount(t *testing.T) {
 	}
 }
 
-func TestShouldRetryOnOAuthOrMDSError(t *testing.T) {
+func TestShouldRetryOnMount_TransientMDSErrors(t *testing.T) {
 	testCases := []struct {
 		name     string
 		err      error
@@ -572,57 +627,10 @@ func TestShouldRetryOnOAuthOrMDSError(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "oauth2.RetrieveError 401 permanent",
-			err: &oauth2.RetrieveError{
-				Response: &http.Response{StatusCode: http.StatusUnauthorized},
-			},
-			expected: false,
-		},
-		{
-			name: "oauth2.RetrieveError 400 permanent",
+			name: "oauth2.RetrieveError 400",
 			err: &oauth2.RetrieveError{
 				Response: &http.Response{StatusCode: http.StatusBadRequest},
 			},
-			expected: false,
-		},
-		{
-			name:     "googleapi.Error 500",
-			err:      &googleapi.Error{Code: 500},
-			expected: true,
-		},
-		{
-			name:     "googleapi.Error 403 permanent",
-			err:      &googleapi.Error{Code: 403},
-			expected: false,
-		},
-		{
-			name:     "MDS connection refused syscall error",
-			err:      fmt.Errorf("Get http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token: dial tcp 169.254.169.254:80: connect: %w", syscall.ECONNREFUSED),
-			expected: true,
-		},
-		{
-			name:     "MDS connection reset syscall error",
-			err:      fmt.Errorf("fetching token from metadata server failed: %w", syscall.ECONNRESET),
-			expected: true,
-		},
-		{
-			name:     "MDS connection timeout syscall error",
-			err:      fmt.Errorf("fetching token from metadata server timed out: %w", syscall.ETIMEDOUT),
-			expected: true,
-		},
-		{
-			name:     "MDS broken pipe syscall error",
-			err:      fmt.Errorf("writing to metadata server failed: %w", syscall.EPIPE),
-			expected: true,
-		},
-		{
-			name:     "EOF error",
-			err:      io.EOF,
-			expected: true,
-		},
-		{
-			name:     "unexpected EOF error",
-			err:      io.ErrUnexpectedEOF,
 			expected: true,
 		},
 		{
@@ -636,20 +644,15 @@ func TestShouldRetryOnOAuthOrMDSError(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "metadata.Error 404 permanent",
+			name:     "metadata.Error 404",
 			err:      &metadata.Error{Code: 404, Message: "Not Found"},
 			expected: false,
-		},
-		{
-			name:     "net.DNSError fast-start resolution failure",
-			err:      &net.DNSError{Err: "no such host", Name: "metadata.google.internal", IsNotFound: true},
-			expected: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := ShouldRetryOnOAuthOrMDSError(tc.err)
+			result := ShouldRetryOnMount(tc.err)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
