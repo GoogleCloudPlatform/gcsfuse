@@ -297,9 +297,8 @@ func fsName(bucketName, onlyDir string) string {
 	if isDynamicMount(bucketName) {
 		return DynamicMountFSName
 	}
-	trimmedOnlyDir := strings.Trim(onlyDir, "/")
-	if trimmedOnlyDir != "" && !strings.Contains(bucketName, "/") {
-		return fmt.Sprintf("%s/%s", bucketName, trimmedOnlyDir)
+	if onlyDir != "" && !strings.Contains(bucketName, "/") {
+		return fmt.Sprintf("%s/%s", bucketName, onlyDir)
 	}
 	return bucketName
 }

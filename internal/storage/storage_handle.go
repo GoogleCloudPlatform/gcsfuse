@@ -21,7 +21,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -441,16 +440,9 @@ func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.Storage
 // NewStorageHandle creates control client and stores client config to allow dynamic
 // creation of http or grpc client.
 func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig, billingProject string) (sh StorageHandle, err error) {
-	// Sanitize the onlyDir path for only-dir mounting
+	// Ensure trailing slash for GCS prefix-based API calls.
 	if clientConfig.OnlyDir != "" {
-		// Treat OnlyDir as absolute path to resolve any leading ".." to root.
-		prefix := path.Clean("/" + clientConfig.OnlyDir)
-		prefix = strings.TrimPrefix(prefix, "/")
-		if prefix != "" {
-			clientConfig.OnlyDir = prefix + "/"
-		} else {
-			clientConfig.OnlyDir = ""
-		}
+		clientConfig.OnlyDir += "/"
 	}
 	// The default protocol for the Go Storage control client's folders API is gRPC.
 	// gcsfuse will initially mirror this behavior due to the client's lack of HTTP support.

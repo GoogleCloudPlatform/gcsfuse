@@ -18,6 +18,7 @@ import (
 	"log"
 	"math"
 	"net/url"
+	"path"
 	"slices"
 	"strings"
 
@@ -166,6 +167,15 @@ func resolveGCSRetriesConfig(c *GcsRetriesConfig) {
 	}
 }
 
+// resolveOnlyDir normalizes OnlyDir to a clean relative path without leading
+// or trailing slashes (e.g., "foo/bar/.." -> "foo", "/foo/bar/" -> "foo/bar").
+func resolveOnlyDir(c *Config) {
+	if c.OnlyDir != "" {
+		clean := strings.TrimPrefix(path.Clean("/"+c.OnlyDir), "/")
+		c.OnlyDir = clean
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	var err error
@@ -187,6 +197,7 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	resolveParallelDownloadsValue(v, &c.FileCache, c)
 	resolveFileCacheAndBufferedReadConflict(v, c)
 	resolveGCSRetriesConfig(&c.GcsRetries)
+	resolveOnlyDir(c)
 
 	return nil
 }
