@@ -233,11 +233,12 @@ func RunSuiteForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestCo
 		log.Printf("Running creds tests with GOOGLE_APPLICATION_CREDENTIALS and flags: %s", flags)
 		err = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(cfg, flags)
 		require.NoError(t, err, "Creds mount with GOOGLE_APPLICATION_CREDENTIALS failed")
+		defer func() {
+			setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+			setup.UnmountGCSFuseWithConfig(cfg)
+		}()
 
 		runSuiteFunc()
-
-		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-		setup.UnmountGCSFuseWithConfig(cfg)
 	})
 
 	// 2. Testing with --key-file and GOOGLE_APPLICATION_CREDENTIALS env variable set
@@ -251,11 +252,12 @@ func RunSuiteForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestCo
 		log.Printf("Running creds tests with --key-file + GOOGLE_APPLICATION_CREDENTIALS and flags: %s", flagsWithKeyFile)
 		err = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(cfg, flagsWithKeyFile)
 		require.NoError(t, err, "Creds mount with --key-file + GOOGLE_APPLICATION_CREDENTIALS failed")
+		defer func() {
+			setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+			setup.UnmountGCSFuseWithConfig(cfg)
+		}()
 
 		runSuiteFunc()
-
-		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-		setup.UnmountGCSFuseWithConfig(cfg)
 	})
 
 	// 3. Testing with --key-file flag only.
@@ -269,10 +271,11 @@ func RunSuiteForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestCo
 		log.Printf("Running creds tests with --key-file only and flags: %s", flagsWithKeyFile)
 		err = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(cfg, flagsWithKeyFile)
 		require.NoError(t, err, "Creds mount with --key-file failed")
+		defer func() {
+			setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+			setup.UnmountGCSFuseWithConfig(cfg)
+		}()
 
 		runSuiteFunc()
-
-		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-		setup.UnmountGCSFuseWithConfig(cfg)
 	})
 }
