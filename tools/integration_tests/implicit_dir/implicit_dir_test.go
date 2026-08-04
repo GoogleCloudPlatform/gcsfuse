@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -28,7 +29,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -68,23 +68,17 @@ func runImplicitDirSuite(t *testing.T, runSuiteFunc func()) {
 	// Run tests for GCE environment otherwise.
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagsSet {
-		log.Printf("Running static mounting %s with flags: %s", t.Name(), flags)
-		err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(testEnv.cfg, flags)
-		require.NoError(t, err, "Static mount failed")
+		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
+			// 1. Static mounting
+			t.Run("Static", func(t *testing.T) {
+				static_mounting.RunSuiteForStaticMounting(testEnv.cfg, flags, t, runSuiteFunc)
+			})
 
-		runSuiteFunc()
-
-		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-		setup.UnmountGCSFuseWithConfig(testEnv.cfg)
-
-		log.Printf("Running persistent mounting %s with flags: %s", t.Name(), flags)
-		err = persistent_mounting.MountGcsfuseWithPersistentMountingWithConfigFile(testEnv.cfg, flags)
-		require.NoError(t, err, "Persistent mount failed")
-
-		runSuiteFunc()
-
-		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-		setup.UnmountGCSFuseWithConfig(testEnv.cfg)
+			// 2. Persistent mounting
+			t.Run("Persistent", func(t *testing.T) {
+				persistent_mounting.RunSuiteForPersistentMounting(testEnv.cfg, flags, t, runSuiteFunc)
+			})
+		})
 	}
 }
 
