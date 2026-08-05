@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -211,6 +212,7 @@ func (c *grpcStorageClient) NewMultiRangeDownloader(ctx context.Context, params 
 		if manager.attrs != nil {
 			mrd.Attrs = *manager.attrs
 		}
+		fmt.Fprintf(os.Stderr, "[MRD_CREATED] Created MultiRangeDownloader for File=%s/%s\n", params.bucket, params.object)
 		return mrd, nil
 	case <-ctx.Done():
 		cancel()
@@ -549,6 +551,9 @@ func (m *multiRangeDownloaderManager) getReqAndTargetStream(req *rangeRequest) (
 func (m *multiRangeDownloaderManager) eventLoop() {
 	defer m.cleanup()
 
+	ticker := time.NewTicker(333 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
 		if m.ctx.Err() != nil {
 			return
@@ -577,6 +582,9 @@ func (m *multiRangeDownloaderManager) eventLoop() {
 		select {
 		case <-m.ctx.Done():
 			return
+		case <-ticker.C:
+			fmt.Fprintf(os.Stderr, "[MRD_SCALING] TimeMs=%d File=%s/%s Streams=%d PendingRanges=%d AtCapacityStreams=%d UnsentRequests=%d\n",
+				time.Now().UnixMilli(), m.params.bucket, m.params.object, len(m.streams), m.pendingRangesCount, m.atCapacityCount, m.unsentRequests.Len())
 		// This path only triggers if space is available in the channel.
 		// It never blocks the eventLoop.
 		case targetChan <- nextReq:
@@ -1478,22 +1486,124 @@ func (q *requestQueue) RemoveFront() {
 
 type dummyBidiStream struct {
 	grpc.ClientStream
-	ctx      context.Context
-	reqQueue chan *storagepb.BidiReadObjectRequest
-	limiter  *rate.Limiter
-	decQueue chan *readResponseDecoder
+	ctx       context.Context
+	limiter   *rate.Limiter
+	decQueue  chan *readResponseDecoder
+	reqQueue  chan *storagepb.BidiReadObjectRequest
+	lastDec   *readResponseDecoder
+	latencyMs float64
+	debug     bool
 }
 
 func newDummyBidiStream(ctx context.Context, limiter *rate.Limiter) *dummyBidiStream {
-	return &dummyBidiStream{
-		ctx:      ctx,
-		reqQueue: make(chan *storagepb.BidiReadObjectRequest, 100),
-		limiter:  limiter,
-		decQueue: make(chan *readResponseDecoder, 100),
+	debug := os.Getenv("GCS_DUMMY_MRD_DEBUG") == "true"
+	latencyMs := 4.5
+	if val := os.Getenv("GCS_DUMMY_MRD_LATENCY_MS"); val != "" {
+		if parsed, err := strconv.ParseFloat(val, 64); err == nil && parsed >= 0 {
+			latencyMs = parsed
+		}
+	}
+
+	stream := &dummyBidiStream{
+		ctx:       ctx,
+		limiter:   limiter,
+		decQueue:  make(chan *readResponseDecoder, 10000),
+		reqQueue:  make(chan *storagepb.BidiReadObjectRequest, 10000),
+		latencyMs: latencyMs,
+		debug:     debug,
+	}
+
+	// Start a single sequential background worker for this stream
+	go stream.worker()
+
+	if debug {
+		fmt.Fprintf(os.Stderr, "[DUMMY_MRD] dummyBidiStream created, limiterActive=%t, latencyMs=%.2f\n", limiter != nil, latencyMs)
+	}
+	return stream
+}
+
+func (d *dummyBidiStream) worker() {
+	for {
+		select {
+		case req := <-d.reqQueue:
+			var totalBytes int64
+			var dataRanges []*storagepb.ObjectRangeData
+			dummyLengths := make(map[int64]int64)
+			for _, r := range req.GetReadRanges() {
+				length := r.GetReadLength()
+				if length <= 0 {
+					length = 1024 * 1024
+				}
+				totalBytes += length
+				dummyLengths[r.GetReadId()] = length
+				dataRanges = append(dataRanges, &storagepb.ObjectRangeData{
+					ReadRange: &storagepb.ReadRange{ReadId: r.GetReadId()},
+					RangeEnd:  true,
+				})
+			}
+
+			if totalBytes > 0 {
+				if d.latencyMs > 0 {
+					sleepDur := time.Duration(float64(totalBytes) / (1024.0 * 1024.0) * d.latencyMs * float64(time.Millisecond))
+					if d.debug {
+						fmt.Fprintf(os.Stderr, "[DUMMY_MRD] Sequential worker: totalBytes=%d, sleep=%v\n", totalBytes, sleepDur)
+					}
+					time.Sleep(sleepDur)
+					if d.ctx.Err() != nil {
+						return
+					}
+				}
+				if d.limiter != nil {
+					err := d.limiter.WaitN(d.ctx, int(totalBytes))
+					if err != nil {
+						if d.debug {
+							fmt.Fprintf(os.Stderr, "[DUMMY_MRD] WaitN failed: %v\n", err)
+						}
+						return
+					}
+				}
+			}
+
+			dec := &readResponseDecoder{
+				msg: &storagepb.BidiReadObjectResponse{
+					ObjectDataRanges: dataRanges,
+				},
+				isDummy:      true,
+				dummyLengths: dummyLengths,
+			}
+
+			select {
+			case d.decQueue <- dec:
+			case <-d.ctx.Done():
+				return
+			}
+
+		case <-d.ctx.Done():
+			return
+		}
 	}
 }
 
 func (d *dummyBidiStream) Send(req *storagepb.BidiReadObjectRequest) error {
+	if req.ReadObjectSpec != nil {
+		dec := &readResponseDecoder{
+			msg: &storagepb.BidiReadObjectResponse{
+				ReadHandle: &storagepb.BidiReadHandle{Handle: []byte("dummy-read-handle")},
+				Metadata: &storagepb.Object{
+					Name: "dummy-object",
+					Size: 1024 * 1024 * 1024 * 1024,
+				},
+			},
+			isDummy: true,
+		}
+		select {
+		case d.decQueue <- dec:
+			return nil
+		case <-d.ctx.Done():
+			return d.ctx.Err()
+		}
+	}
+
 	select {
 	case d.reqQueue <- req:
 		return nil
@@ -1512,56 +1622,11 @@ func (d *dummyBidiStream) Recv() (*storagepb.BidiReadObjectResponse, error) {
 
 func (d *dummyBidiStream) RecvMsg(m any) error {
 	select {
-	case req, ok := <-d.reqQueue:
+	case dec, ok := <-d.decQueue:
 		if !ok {
 			return io.EOF
 		}
-		if req.ReadObjectSpec != nil {
-			dec := &readResponseDecoder{
-				msg: &storagepb.BidiReadObjectResponse{
-					ReadHandle: &storagepb.BidiReadHandle{Handle: []byte("dummy-read-handle")},
-					Metadata: &storagepb.Object{
-						Name: "dummy-object",
-						Size: 1024 * 1024 * 1024 * 1024,
-					},
-				},
-				isDummy: true,
-			}
-			d.decQueue <- dec
-			return nil
-		}
-
-		var totalBytes int64
-		var dataRanges []*storagepb.ObjectRangeData
-		dummyLengths := make(map[int64]int64)
-		for _, r := range req.GetReadRanges() {
-			length := r.GetReadLength()
-			if length <= 0 {
-				length = 1024 * 1024
-			}
-			totalBytes += length
-			dummyLengths[r.GetReadId()] = length
-			dataRanges = append(dataRanges, &storagepb.ObjectRangeData{
-				ReadRange: &storagepb.ReadRange{ReadId: r.GetReadId()},
-				RangeEnd:  true,
-			})
-		}
-
-		if totalBytes > 0 {
-			time.Sleep(time.Duration(float64(totalBytes)/(1024.0*1024.0)*float64(time.Millisecond)))
-			if d.limiter != nil {
-				_ = d.limiter.WaitN(d.ctx, int(totalBytes))
-			}
-		}
-
-		dec := &readResponseDecoder{
-			msg: &storagepb.BidiReadObjectResponse{
-				ObjectDataRanges: dataRanges,
-			},
-			isDummy:      true,
-			dummyLengths: dummyLengths,
-		}
-		d.decQueue <- dec
+		d.lastDec = dec
 		return nil
 	case <-d.ctx.Done():
 		return d.ctx.Err()
@@ -1569,11 +1634,5 @@ func (d *dummyBidiStream) RecvMsg(m any) error {
 }
 
 func (d *dummyBidiStream) popDecoder() *readResponseDecoder {
-	select {
-	case dec := <-d.decQueue:
-		return dec
-	case <-d.ctx.Done():
-		return nil
-	}
+	return d.lastDec
 }
-

@@ -140,11 +140,13 @@ func (c *grpcStorageClient) getBandwidthLimiter() *rate.Limiter {
 		if os.Getenv("GCS_DUMMY_MRD") == "true" || os.Getenv("GCS_DUMMY_MRD") == "1" {
 			limitMB := 1000 // default 1000 MB/s (1 GB/s)
 			if val := os.Getenv("GCS_DUMMY_MRD_MB_PER_SEC"); val != "" {
-				if parsed, err := strconv.Atoi(val); err == nil && parsed > 0 {
+				if parsed, err := strconv.Atoi(val); err == nil {
 					limitMB = parsed
 				}
 			}
-			c.bandwidthLimiter = rate.NewLimiter(rate.Limit(int64(limitMB)*1024*1024), 16*1024*1024)
+			if limitMB > 0 {
+				c.bandwidthLimiter = rate.NewLimiter(rate.Limit(int64(limitMB)*1024*1024), 512*1024*1024)
+			}
 		}
 	})
 	return c.bandwidthLimiter
