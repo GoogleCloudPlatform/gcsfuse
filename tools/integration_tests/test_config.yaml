@@ -1192,13 +1192,6 @@ mount_timeout:
           hns: true
           zonal: true
         run_on_gke: false
-      - flags:
-          - "--experimental-enable-pirlo,--client-protocol=http1"
-        run_on_pirlo:
-          hns:
-            same_zone: true
-            different_zone: false
-        run_on_gke: false
 
 release_version:
   - mounted_directory: "${MOUNTED_DIR}"
