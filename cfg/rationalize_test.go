@@ -914,6 +914,11 @@ func TestResolveOnlyDir(t *testing.T) {
 		{"Leading and trailing slashes", "/foo/bar/", "foo/bar"},
 		{"Relative parent segment", "foo/../bar/", "bar"},
 		{"Root slash", "/", ""},
+		{"Root dot", "/.", ""},
+		{"Parent directory", "..", ""},
+		{"Root parent directory", "/..", ""},
+		{"Current directory prefix", "./foo", "foo"},
+		{"Parent directory prefix", "../foo", "foo"},
 		{"Empty string", "", ""},
 	}
 	for _, tc := range testCases {
