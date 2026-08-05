@@ -243,6 +243,12 @@ type MultiRangeDownloaderRequest struct {
 
 	// ReadHandle associated with the object. This would be periodically refreshed.
 	ReadHandle []byte
+
+	// Multistream autoscaling settings.
+	MinConnections      int64
+	MaxConnections      int64
+	TargetPendingRanges int64
+	TargetPendingBytes  int64
 }
 
 type StatObjectRequest struct {

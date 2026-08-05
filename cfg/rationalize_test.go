@@ -901,3 +901,111 @@ func TestRationalize_MetadataCacheConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestRationalize_MrdConfig(t *testing.T) {
+	testCases := []struct {
+		name              string
+		setupViper        func(v *viper.Viper)
+		config            *Config
+		expectedMrdConfig MrdConfig
+	}{
+		{
+			name:       "default_values_no_user_input",
+			setupViper: func(v *viper.Viper) {},
+			config: &Config{
+				Mrd: MrdConfig{
+					PoolSize: 4,
+				},
+			},
+			expectedMrdConfig: MrdConfig{
+				PoolSize:            4,
+				TargetPendingRanges: 20,
+				TargetPendingBytes:  10 * 1024 * 1024,
+			},
+		},
+		{
+			name: "user_configured_dynamic_pool_only_bytes",
+			setupViper: func(v *viper.Viper) {
+				v.Set("mrd.target-pending-bytes", 1024)
+			},
+			config: &Config{
+				Mrd: MrdConfig{
+					PoolSize:            4,
+					TargetPendingBytes:  1024,
+					TargetPendingRanges: 0,
+				},
+			},
+			expectedMrdConfig: MrdConfig{
+				PoolSize:            4,
+				TargetPendingRanges: 0,
+				TargetPendingBytes:  1024,
+			},
+		},
+		{
+			name: "user_configured_dynamic_pool_only_ranges",
+			setupViper: func(v *viper.Viper) {
+				v.Set("mrd.target-pending-ranges", 5)
+			},
+			config: &Config{
+				Mrd: MrdConfig{
+					PoolSize:            4,
+					TargetPendingRanges: 5,
+					TargetPendingBytes:  0,
+				},
+			},
+			expectedMrdConfig: MrdConfig{
+				PoolSize:            4,
+				TargetPendingRanges: 5,
+				TargetPendingBytes:  0,
+			},
+		},
+		{
+			name: "user_configured_only_pool_size",
+			setupViper: func(v *viper.Viper) {
+				v.Set("mrd.pool-size", 8)
+			},
+			config: &Config{
+				Mrd: MrdConfig{
+					PoolSize: 8,
+				},
+			},
+			expectedMrdConfig: MrdConfig{
+				PoolSize:            8,
+				TargetPendingRanges: 20,
+				TargetPendingBytes:  10 * 1024 * 1024,
+			},
+		},
+		{
+			// Setting both triggers to 0 disables autoscaling, which instructs the
+			// downloader wrapper to configure a static connection pool of size PoolSize.
+			name: "user_explicitly_disables_triggers",
+			setupViper: func(v *viper.Viper) {
+				v.Set("mrd.target-pending-ranges", 0)
+				v.Set("mrd.target-pending-bytes", 0)
+			},
+			config: &Config{
+				Mrd: MrdConfig{
+					PoolSize:            4,
+					TargetPendingRanges: 0,
+					TargetPendingBytes:  0,
+				},
+			},
+			expectedMrdConfig: MrdConfig{
+				PoolSize:            4,
+				TargetPendingRanges: 0,
+				TargetPendingBytes:  0,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := viper.New()
+			tc.setupViper(v)
+			err := Rationalize(v, tc.config, []string{})
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedMrdConfig, tc.config.Mrd)
+		})
+	}
+}
