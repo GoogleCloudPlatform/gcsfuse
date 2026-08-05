@@ -340,6 +340,7 @@ func (fs *monitoring) OpenFile(ctx context.Context, op *fuseops.OpenFileOp) erro
 }
 
 func (fs *monitoring) ReadFile(ctx context.Context, op *fuseops.ReadFileOp) error {
+	fs.metricHandle.ReadBlockSizes(ctx, int64(len(op.Dst)))
 	return fs.invokeWrapped(ctx, metrics.FsOpReadFileAttr, func(ctx context.Context) error { return fs.wrapped.ReadFile(ctx, op) })
 }
 

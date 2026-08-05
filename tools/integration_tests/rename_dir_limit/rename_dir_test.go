@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"syscall"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -196,4 +197,26 @@ func TestRenameDirectoryWithExistingEmptyDestDirectory(t *testing.T) {
 	assert.True(t, dirEntries[0].IsDir())
 	assert.Equal(t, "temp1", dirEntries[1].Name())
 	assert.False(t, dirEntries[1].IsDir())
+}
+
+func TestRenameDirectoryWithExistingNonEmptyDestDirectory(t *testing.T) {
+	testDir := setup.SetupTestDirectory(DirForRenameDirLimitTests)
+	// Creating directory structure
+	// testBucket/dirForRenameDirLimitTests/srcDirectory                                      -- Dir
+	// testBucket/dirForRenameDirLimitTests/srcDirectory/temp1                                -- File
+	// testBucket/dirForRenameDirLimitTests/destNonEmptyDirectory                             -- Dir
+	// testBucket/dirForRenameDirLimitTests/destNonEmptyDirectory/temp1                       -- File
+	oldDirPath := path.Join(testDir, SrcDirectory)
+	operations.CreateDirectoryWithNFiles(1, oldDirPath, PrefixTempFile, t)
+	newDirPath := path.Join(testDir, "destNonEmptyDirectory")
+	operations.CreateDirectoryWithNFiles(1, newDirPath, PrefixTempFile, t)
+
+	// Go's Rename function does not support renaming a directory into an existing directory.
+	// To achieve this, we call a Python rename function as a workaround.
+	// We catch OSError and exit with the errno so we can validate ENOTEMPTY.
+	cmd := exec.Command("python3", "-c", fmt.Sprintf("import os, sys; exec(\"try:\\n  os.rename('%s', '%s')\\nexcept OSError as e:\\n  sys.exit(e.errno)\")", oldDirPath, newDirPath))
+	_, err := cmd.CombinedOutput()
+
+	assert.Error(t, err)
+	assert.Equal(t, int(syscall.ENOTEMPTY), err.(*exec.ExitError).ExitCode())
 }

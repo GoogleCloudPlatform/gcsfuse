@@ -21,11 +21,12 @@ import (
 	"sync"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"golang.org/x/net/context"
 
 	"github.com/jacobsa/timeutil"
 )
@@ -51,15 +52,17 @@ func NewFastStatBucket(
 	negativeCacheTTL time.Duration,
 	isTypeCacheDeprecated bool,
 	implicitDir bool,
+	enableEmptyManagedFolders bool,
 ) (b gcs.Bucket) {
 	fsb := &fastStatBucket{
-		cache:                 cache,
-		clock:                 clock,
-		wrapped:               wrapped,
-		primaryCacheTTL:       primaryCacheTTL,
-		negativeCacheTTL:      negativeCacheTTL,
-		isTypeCacheDeprecated: isTypeCacheDeprecated,
-		implicitDir:           implicitDir,
+		cache:                     cache,
+		clock:                     clock,
+		wrapped:                   wrapped,
+		primaryCacheTTL:           primaryCacheTTL,
+		negativeCacheTTL:          negativeCacheTTL,
+		isTypeCacheDeprecated:     isTypeCacheDeprecated,
+		implicitDir:               implicitDir,
+		enableEmptyManagedFolders: enableEmptyManagedFolders,
 	}
 
 	b = fsb
@@ -92,6 +95,8 @@ type fastStatBucket struct {
 	isTypeCacheDeprecated bool
 
 	implicitDir bool
+
+	enableEmptyManagedFolders bool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -144,6 +149,14 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	// Do not cache implicit directories if the flag is not passed.
 	if !b.implicitDir {
 		return
+	}
+	// Negative Cache (Only if it's a directory and there are NO contents)
+	// If enableEmptyManagedFolders is true, do not negatively cache empty directories,
+	// otherwise existing positive entries for valid empty managed folders get overwritten.
+	isNegativeCacheEnabled := b.negativeCacheTTL > 0 && !b.enableEmptyManagedFolders
+	isEmptyNonRootDir := !dirHasContents && dirName != ""
+	if isNegativeCacheEnabled && isEmptyNonRootDir {
+		b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
 	}
 
 	// 3. Cache Sub-directories (Collapsed Runs)

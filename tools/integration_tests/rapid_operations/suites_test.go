@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rapid_appends
+package rapid_operations
 
 import (
 	"log"
 	"os"
 	"path"
+	"slices"
 	"testing"
 	"time"
 
@@ -43,7 +44,7 @@ const (
 type mountPoint struct {
 	rootDir     string // Root directory of the test folder, which contains mnt and gcsfuse.log.
 	mntDir      string // Directory where the GCS bucket is mounted. This is 'mnt' inside rootDir.
-	testDirPath string // Path to the 'RapidAppendsTest' directory inside mntDir.
+	testDirPath string // Path to the 'RapidOperationsTest' directory inside mntDir.
 	logFilePath string // Path to the GCSFuse log file. This is gcsfuse.log inside rootDir.
 }
 
@@ -71,6 +72,21 @@ type SingleMountAppendsTestSuite struct{ BaseSuite }
 // DualMountAppendsTestSuite groups general dual-mount tests for append behavior.
 type DualMountAppendsTestSuite struct{ BaseSuite }
 
+// FinalizeRapidWritesEnabledSuite groups tests for verifying transition to finalized state when enabled.
+type FinalizeRapidWritesEnabledSuite struct {
+	BaseSuite
+	isFinalizeEnabled bool
+}
+
+// FinalizeRapidWritesDisabledSuite groups tests for verifying transition to finalized state when disabled.
+type FinalizeRapidWritesDisabledSuite struct {
+	BaseSuite
+	isFinalizeEnabled bool
+}
+
+// StatAndListTestSuite groups tests for checking new file discovery.
+type StatAndListTestSuite struct{ BaseSuite }
+
 ////////////////////////////////////////////////////////////////////////
 // Common Suite Logic
 ////////////////////////////////////////////////////////////////////////
@@ -79,22 +95,24 @@ func (t *BaseSuite) SetupTest() {
 	if testEnv.cfg.GKEMountedDirectory != "" {
 		// GKE Mode: Already mounted
 		t.primaryMount.mntDir = testEnv.cfg.GKEMountedDirectory
-		t.primaryMount.testDirPath = path.Join(t.primaryMount.mntDir, testDirName)
 		t.primaryMount.logFilePath = testEnv.cfg.LogFile // Might be empty, but that's fine for GKE
+		setup.SetMntDir(t.primaryMount.mntDir)
+		t.primaryMount.testDirPath = setup.SetupTestDirectory(testDirName)
 
 		if len(t.secondaryFlags) > 0 {
 			t.secondaryMount.mntDir = testEnv.cfg.GKEMountedDirectorySecondary
-			t.secondaryMount.testDirPath = path.Join(t.secondaryMount.mntDir, testDirName)
+			setup.SetMntDir(t.secondaryMount.mntDir)
+			t.secondaryMount.testDirPath = setup.SetupTestDirectory(testDirName)
 		}
 	} else {
 		// GCE Mode: Mount it
 		t.primaryMount.setupTestDir(testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.LogFile)
-		t.mountGcsfuse(t.primaryMount, "primary", t.primaryFlags)
+		t.mountGcsfuse(&t.primaryMount, "primary", t.primaryFlags)
 
 		if len(t.secondaryFlags) > 0 {
 			secondaryLog := path.Join(path.Dir(testEnv.cfg.LogFile), "gcsfuse_secondary.log")
 			t.secondaryMount.setupTestDir(testEnv.cfg.GCSFuseMountedDirectorySecondary, secondaryLog)
-			t.mountGcsfuse(t.secondaryMount, "secondary", t.secondaryFlags)
+			t.mountGcsfuse(&t.secondaryMount, "secondary", t.secondaryFlags)
 		}
 	}
 }
@@ -116,9 +134,9 @@ func (t *BaseSuite) TearDownTest() {
 		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
 	} else {
 		// GCE Mode: Unmount and clean up
-		t.unmountAndCleanupMount(t.primaryMount, "primary")
+		t.unmountAndCleanupMount(&t.primaryMount)
 		if len(t.secondaryFlags) > 0 {
-			t.unmountAndCleanupMount(t.secondaryMount, "secondary")
+			t.unmountAndCleanupMount(&t.secondaryMount)
 		}
 	}
 }
@@ -134,7 +152,7 @@ func (mnt *mountPoint) setupTestDir(mountDir, logFile string) {
 	mnt.testDirPath = path.Join(mountDir, testDirName)
 }
 
-func (t *BaseSuite) mountGcsfuse(mnt mountPoint, mountType string, flags []string) {
+func (t *BaseSuite) mountGcsfuse(mnt *mountPoint, mountType string, flags []string) {
 	setup.SetMntDir(mnt.mntDir)
 	setup.SetLogFile(mnt.logFilePath)
 	err := static_mounting.MountGcsfuseWithStaticMounting(flags)
@@ -143,7 +161,7 @@ func (t *BaseSuite) mountGcsfuse(mnt mountPoint, mountType string, flags []strin
 	log.Printf("Running tests with %s mount flags %v", mountType, flags)
 }
 
-func (t *BaseSuite) unmountAndCleanupMount(m mountPoint, name string) {
+func (t *BaseSuite) unmountAndCleanupMount(m *mountPoint) {
 	setup.UnmountGCSFuse(m.mntDir)
 	// Cleaning up the intermediate generated test files.
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
@@ -182,29 +200,45 @@ func (t *BaseSuite) appendToFile(file *os.File, appendContent string) {
 	}
 }
 
-func getNewEmptyCacheDir(rootDir string) string {
-	cacheDirPath, err := os.MkdirTemp(rootDir, "cache_dir_*")
-	if err != nil {
-		log.Fatalf("Failed to create temporary directory for cache dir for tests: %v", err)
-	}
-	return cacheDirPath
-}
-
 func (t *BaseSuite) isMetadataCacheEnabled() bool {
 	return t.metadataCacheEnabled
 }
 
-func RunTests(t *testing.T, runName string, factory func(primaryFlags, secondaryFlags []string) suite.TestingSuite) {
-	for _, cfg := range testEnv.cfg.Configs {
-		if cfg.Run == runName {
-			for i, flagStr := range cfg.Flags {
-				primaryFlags := strings.Fields(flagStr)
-				var secondaryFlags []string
-				if len(cfg.SecondaryFlags) > i {
-					secondaryFlags = strings.Fields(cfg.SecondaryFlags[i])
-				}
-				suite.Run(t, factory(primaryFlags, secondaryFlags))
+func RunTests(t *testing.T, testName string, factory func(primaryFlags, secondaryFlags []string) suite.TestingSuite) {
+	for _, testConfig := range testEnv.cfg.Configs {
+		isBucketCompatible := false
+		switch testEnv.bucketType {
+		case setup.FlatPirloBucket:
+			isBucketCompatible = testConfig.RunOnPirlo.Flat.SameZone || testConfig.RunOnPirlo.Flat.DifferentZone
+		case setup.HNSPirloBucket:
+			isBucketCompatible = testConfig.RunOnPirlo.Hns.SameZone || testConfig.RunOnPirlo.Hns.DifferentZone
+		default:
+			isBucketCompatible = testConfig.Compatible[testEnv.bucketType]
+		}
+		isTPCCompatible := (setup.TestOnTPCEndPoint() == testConfig.TPC)
+		if !isBucketCompatible || !isTPCCompatible {
+			continue
+		}
+
+		// The skip field is intended for function-level test suites where testName is specified (e.g. t.Name()).
+		// Package-level test executions (where testName is empty) do not support skip in test_config.yaml.
+		if testName == "" && len(testConfig.Skip) > 0 {
+			log.Fatalf("Invalid configuration: skip field is not supported when testName is empty in test_config.yaml")
+		}
+
+		if slices.Contains(testConfig.Skip, testName) || (testConfig.Run != "" && testName != testConfig.Run) {
+			continue
+		}
+
+		for i, flagStr := range testConfig.Flags {
+			flagStr = strings.ReplaceAll(flagStr, ",", " ")
+			primaryFlags := strings.Fields(flagStr)
+			var secondaryFlags []string
+			if len(testConfig.SecondaryFlags) > i {
+				secFlagStr := strings.ReplaceAll(testConfig.SecondaryFlags[i], ",", " ")
+				secondaryFlags = strings.Fields(secFlagStr)
 			}
+			suite.Run(t, factory(primaryFlags, secondaryFlags))
 		}
 	}
 }

@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -35,16 +36,18 @@ import (
 	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
-	"go.opentelemetry.io/contrib/detectors/gcp"
-	"go.opentelemetry.io/otel/sdk/resource"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
 
 var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
 var isZonalBucketRun = flag.Bool("zonal", false, "Boolean flag to indicate if test-run should use a zonal bucket.")
-var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test.")
-var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test.")
+var isPirloBucketRun = flag.Bool("pirlo", false, "Boolean flag to indicate if test-run is for a Pirlo bucket.")
+
+// Note: testBucket and mountedDirectory can also be set via BUCKET_NAME and MOUNTED_DIR
+// environment variables respectively. However, command-line flags take precedence.
+var testBucket = flag.String("testbucket", "", "The GCS bucket used for the test. Can also be set via BUCKET_NAME env var.")
+var mountedDirectory = flag.String("mountedDirectory", "", "The GCSFuse mounted directory used for the test. Can also be set via MOUNTED_DIR env var.")
 var integrationTest = flag.Bool("integrationTest", false, "Run tests only when the flag value is true.")
 var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] Run tests on the package pre-installed on the host machine. By default, integration tests build a new package to run the tests.")
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
@@ -58,8 +61,6 @@ const (
 	PathEnvVariable                   = "PATH"
 	GCSFuseLogFilePrefix              = "gcsfuse-failed-integration-test-logs-"
 	ProxyServerLogFilePrefix          = "proxy-server-failed-integration-test-logs-"
-	zoneMatcherRegex                  = "^[a-z]+-[a-z0-9]+-[a-z]$"
-	regionMatcherRegex                = "^[a-z]+-[a-z0-9]+$"
 	unsupportedCharactersInTestBucket = " "
 )
 
@@ -91,6 +92,15 @@ func SetKeyFile(kf string) {
 	keyFile = kf
 }
 
+// ReplaceOrAppendFlag replaces the placeholder in the flag if present,
+// or appends the value to the flag prefix if the placeholder is not present.
+func ReplaceOrAppendFlag(flag, placeholder, flagPrefix, value string) string {
+	if strings.Contains(flag, placeholder) {
+		return strings.ReplaceAll(flag, placeholder, value)
+	}
+	return strings.ReplaceAll(flag, flagPrefix, flagPrefix+value)
+}
+
 // Run the shell script to prepare the testData in the specified bucket.
 // First argument will be name of scipt script
 func RunScriptForTestData(args ...string) {
@@ -114,7 +124,18 @@ func SetIsZonalBucketRun(val bool) {
 	*isZonalBucketRun = val
 }
 
+func IsPirloBucketRun() bool {
+	return *isPirloBucketRun
+}
+
+func SetIsPirloBucketRun(val bool) {
+	*isPirloBucketRun = val
+}
+
 func TestBucket() string {
+	if *testBucket == "" {
+		*testBucket = os.Getenv("BUCKET_NAME")
+	}
 	return *testBucket
 }
 
@@ -127,6 +148,9 @@ func TestOnTPCEndPoint() bool {
 }
 
 func MountedDirectory() string {
+	if *mountedDirectory == "" {
+		*mountedDirectory = os.Getenv("MOUNTED_DIR")
+	}
 	return *mountedDirectory
 }
 
@@ -378,17 +402,6 @@ func IgnoreTestIfIntegrationTestFlagIsSet(t *testing.T) {
 	}
 }
 
-// IgnoreTestIfIntegrationTestFlagIsNotSet helps skip a test if --integrationTest flag is not set.
-// If the test uses TestMain, then one usually calls os.Exit() to skip the test,
-// but for non-TestMain tests, this helps skip integration tests if --integrationTest has not been passed.
-func IgnoreTestIfIntegrationTestFlagIsNotSet(t *testing.T) {
-	flag.Parse()
-
-	if !*integrationTest {
-		t.SkipNow()
-	}
-}
-
 func IgnoreTestIfPresubmitFlagIsSet(b *testing.B) {
 	flag.Parse()
 
@@ -400,18 +413,9 @@ func IgnoreTestIfPresubmitFlagIsSet(b *testing.B) {
 func ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet() {
 	ParseSetUpFlags()
 
-	if *testBucket == "" && *mountedDirectory == "" {
+	if TestBucket() == "" && *mountedDirectory == "" {
 		log.Print("--testbucket or --mountedDirectory must be specified")
 		os.Exit(1)
-	}
-}
-
-// Deprecated: Use RunTestsForMountedDirectory instead.
-// TODO(b/438068132): cleanup deprecated methods after migration is complete.
-func RunTestsForMountedDirectoryFlag(m *testing.M) {
-	// Execute tests for the mounted directory.
-	if *mountedDirectory != "" {
-		os.Exit(RunTestsForMountedDirectory(*mountedDirectory, m))
 	}
 }
 
@@ -562,36 +566,50 @@ func ResolveIsHierarchicalBucket(ctx context.Context, testBucket string, storage
 func TestEnvironment(ctx context.Context, cfg *test_suite.TestConfig) string {
 	// TODO: clean up SetGlobalVars after migration completes.
 	SetGlobalVars(cfg)
-	bucketType, err := BucketType(ctx, cfg.TestBucket)
+	bType, err := bucketType(ctx, cfg.TestBucket)
 	if err != nil {
-		log.Fatalf("BucketType failed: %v", err)
+		log.Fatalf("bucketType failed: %v", err)
 	}
-	if bucketType == ZonalBucket {
+	if bType == ZonalBucket {
 		SetIsZonalBucketRun(true)
 	}
 
-	return bucketType
+	return bType
 }
 
 const FlatBucket = "flat"
 const HNSBucket = "hns"
 const ZonalBucket = "zonal"
+const FlatPirloBucket = "flat_pirlo"
+const HNSPirloBucket = "hns_pirlo"
 
-func BucketType(ctx context.Context, testBucket string) (bucketType string, err error) {
+func bucketType(ctx context.Context, testBucket string) (bType string, err error) {
 	// For only-dir mounts bucket name is passed as <test_bucket>/<only_dir> by GKE.
 	testBucket = strings.Split(testBucket, "/")[0]
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	var opts []option.ClientOption
 	opts = append(opts, experimental.WithGRPCBidiReads())
-	if keyFile != "" {
+	if TestOnTPCEndPoint() {
+		cred, err := auth2.GetCredentials("/tmp/sa.key.json")
+		if err != nil {
+			return "", fmt.Errorf("failed to get credentials for TPC: %w", err)
+		}
+		opts = append(opts, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithAuthCredentials(cred), option.WithUniverseDomain("apis-tpczero.goog"))
+	} else if keyFile != "" {
 		cred, err := auth2.GetCredentials(keyFile)
 		if err != nil {
 			return "", fmt.Errorf("failed to get credentials: %w", err)
 		}
 		opts = append(opts, option.WithAuthCredentials(cred))
 	}
-	storageClient, err := storage.NewGRPCClient(ctx, opts...)
+	var storageClient *storage.Client
+	if TestOnTPCEndPoint() {
+		storageClient, err = storage.NewClient(ctx, opts...)
+	} else {
+		storageClient, err = storage.NewGRPCClient(ctx, opts...)
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}
@@ -606,18 +624,26 @@ func BucketType(ctx context.Context, testBucket string) (bucketType string, err 
 	if attrs.LocationType == "zone" {
 		return ZonalBucket, nil
 	}
+	// TODO(b/483608308): Once GetStorageLayout starts returning Pirlo bucket type,
+	// update this logic to use the response instead of inferring from IsPirloBucketRun().
 	if attrs.HierarchicalNamespace != nil && attrs.HierarchicalNamespace.Enabled {
+		if IsPirloBucketRun() {
+			return HNSPirloBucket, nil
+		}
 		return HNSBucket, nil
+	}
+	if IsPirloBucketRun() {
+		return FlatPirloBucket, nil
 	}
 	return FlatBucket, nil
 }
 
 // BuildFlagSets dynamically builds a list of flag sets based on bucket compatibility.
-// bucketType should be "flat", "hns", or "zonal".
-// The run parameter filters flag sets based on the 'Run' field in the test
-// configuration, which typically corresponds to a specific test name. If run is
+// bucketType should be "flat", "hns", "zonal", "flat_pirlo", or "hns_pirlo".
+// The testName parameter filters flag sets based on the 'Run' field in the test
+// configuration, which typically corresponds to a specific test name. If testName is
 // an empty string, all flag sets for the package are returned.
-func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][]string {
+func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, testName string) [][]string {
 	// In case of mounted-directory, no need to
 	// parse flags. Just return a single
 	// set of empty flags to run only one test case
@@ -629,42 +655,58 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, run string) [][
 	var dynamicFlags [][]string
 
 	// 1. Iterate through each defined test configuration (e.g., HTTP, gRPC).
-	for _, testCase := range cfg.Configs {
+	for _, testConfig := range cfg.Configs {
 		// 2. Check if the current test case is compatible with the bucket type.
-		// This is a safe and concise way to check the map.
-		isCompatible, ok := testCase.Compatible[bucketType]
-		if ok && isCompatible && (run == "" || run == testCase.Run) {
-			// 3. If compatible, process its flags and add them to the result.
-			for _, flagString := range testCase.Flags {
-				flagString = strings.ReplaceAll(flagString, ",", " ")
-				dynamicFlags = append(dynamicFlags, strings.Fields(flagString))
+		// For Pirlo runs, evaluate the RunOnPirlo struct. Otherwise, check the standard Compatible map.
+		isBucketCompatible := false
+		switch bucketType {
+		case FlatPirloBucket:
+			isBucketCompatible = testConfig.RunOnPirlo.Flat.SameZone || testConfig.RunOnPirlo.Flat.DifferentZone
+		case HNSPirloBucket:
+			isBucketCompatible = testConfig.RunOnPirlo.Hns.SameZone || testConfig.RunOnPirlo.Hns.DifferentZone
+		default:
+			var ok bool
+			isBucketCompatible, ok = testConfig.Compatible[bucketType]
+			if !ok {
+				isBucketCompatible = false
 			}
+		}
+		isTPCCompatible := (TestOnTPCEndPoint() == testConfig.TPC)
+		if !isBucketCompatible || !isTPCCompatible {
+			continue
+		}
+
+		// The skip field is intended for function-level test suites where testName is specified (e.g. t.Name()).
+		// Package-level test executions (where testName is empty) do not support skip in test_config.yaml.
+		if testName == "" && len(testConfig.Skip) > 0 {
+			log.Fatalf("Invalid configuration: skip field is not supported when testName is empty in test_config.yaml")
+		}
+
+		if slices.Contains(testConfig.Skip, testName) || (testConfig.Run != "" && testName != testConfig.Run) {
+			continue
+		}
+
+		// Process flags and add them to the result.
+		for _, flagString := range testConfig.Flags {
+			flagString = strings.ReplaceAll(flagString, ",", " ")
+			dynamicFlags = append(dynamicFlags, strings.Fields(flagString))
 		}
 	}
 	return dynamicFlags
 }
 
 func SetGlobalVars(cfg *test_suite.TestConfig) {
+	if cfg.TestBucket == "" {
+		cfg.TestBucket = TestBucket()
+	}
+	if cfg.GKEMountedDirectory == "" {
+		cfg.GKEMountedDirectory = MountedDirectory()
+	}
 	// TODO: clean global variables after test migration to config file completes.
 	testBucket = &cfg.TestBucket
 	logFile = cfg.LogFile
 	mntDir = cfg.GKEMountedDirectory
 	onlyDirMounted = cfg.OnlyDir
-}
-
-// Explicitly set the enable-hns config flag to true when running tests on the HNS bucket.
-func AddHNSFlagForHierarchicalBucket(ctx context.Context, storageClient *storage.Client) ([]string, error) {
-	if !IsHierarchicalBucket(ctx, storageClient) {
-		return nil, fmt.Errorf("bucket is not Hierarchical")
-	}
-
-	var flags []string
-	mountConfig4 := map[string]any{
-		"enable-hns": true,
-	}
-	filePath4 := YAMLConfigFile(mountConfig4, "config_hns.yaml")
-	flags = append(flags, "--config-file="+filePath4)
-	return flags, nil
 }
 
 func separateBucketAndObjectName(bucket, object string) (string, string) {
@@ -757,29 +799,10 @@ func UnmountGCSFuseWithConfig(cfg *test_suite.TestConfig) {
 }
 
 func RunTestsOnlyForStaticMount(mountDir string, t *testing.T) {
-	if strings.Contains(mountDir, *testBucket) || OnlyDirMounted() != "" {
+	if TestBucket() == "" || strings.Contains(mountDir, TestBucket()) || OnlyDirMounted() != "" {
 		log.Println("This test will run only for static mounting...")
 		t.SkipNow()
 	}
-}
-
-// AppendFlagsToAllFlagsInTheFlagsSet appends each flag in newFlags to every flags present in the
-// flagsSet.
-// Input flagsSet: [][]string{{"--x", "--y"}, {"--x", "--z"}}
-// Input newFlags: {"--a", "--b", ""}
-// Output modified flagsSet: [][]string{{"--x", "--y", "--a"}, {"--x", "--z", "--a"},{"--x", "--y", "--b"},{"--x", "--z", "--b"},{"--x", "--y"}, {"--x", "--z"}}
-func AppendFlagsToAllFlagsInTheFlagsSet(flagsSet *[][]string, newFlags ...string) {
-	var resultFlagsSet [][]string
-	for _, flags := range *flagsSet {
-		for _, newFlag := range newFlags {
-			f := flags
-			if strings.Compare(newFlag, "") != 0 {
-				f = append(flags, newFlag)
-			}
-			resultFlagsSet = append(resultFlagsSet, f)
-		}
-	}
-	*flagsSet = resultFlagsSet
 }
 
 func CreateProxyServerLogFile(t *testing.T) string {
@@ -795,41 +818,6 @@ func AppendProxyEndpointToFlagSet(flagSet *[]string, port int) {
 	*flagSet = append(*flagSet, "--custom-endpoint="+fmt.Sprintf("http://localhost:%d/storage/v1/", port))
 }
 
-// GetGCEZone returns the GCE zone of the current machine from
-// the GCP resource detector.
-func GetGCEZone(ctx context.Context) (string, error) {
-	detectedAttrs, err := resource.New(ctx, resource.WithDetectors(gcp.NewDetector()))
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch GCP resource detector: %w", err)
-	}
-	attrs := detectedAttrs.Set()
-	if zoneValue, exists := attrs.Value("cloud.availability_zone"); exists {
-		zone := zoneValue.AsString()
-		// Confirm that the zone string is in right format e.g. us-central1-a.
-		if match, err := regexp.MatchString(zoneMatcherRegex, zone); !match || err != nil {
-			return zone, fmt.Errorf("zone %q returned by GCP resource detector is not a valid zone-string: %w", zone, err)
-		}
-		return zone, nil
-	}
-	return "", fmt.Errorf("cloud.availability_zone not found in GCP resource detector")
-}
-
-// GetGCERegion return the GCE region for a given GCE zone.
-// E.g. from us-central1-a, it returns us-central1.
-func GetGCERegion(gceZone string) (string, error) {
-	indexOfLastHyphen := strings.LastIndex(gceZone, "-")
-	if indexOfLastHyphen < 0 {
-		return "", fmt.Errorf("input gceZone %q is not proper. It is expected to be of the form <country>-<region>-<zone> e.g. us-central1-a.", gceZone)
-	}
-	region := gceZone[:indexOfLastHyphen]
-
-	// Confirm that the region string is in right format e.g. us-central1.
-	if match, err := regexp.MatchString(regionMatcherRegex, region); !match || err != nil {
-		return region, fmt.Errorf("zone %q returned by GCE metadata server is not a valid zone-string: %w", region, err)
-	}
-	return region, nil
-}
-
 // IsDynamicMount returns true if the mount is dynamic.
 // In dynamic mounts, rootDir contains all buckets, and mountDir is the specific bucket directory.
 func IsDynamicMount(mountDir, rootDir string) bool {
@@ -839,7 +827,7 @@ func IsDynamicMount(mountDir, rootDir string) bool {
 // ExtractServiceVersionFromFlags parses the cloud-profiler-label from a slice of flag strings.
 func ExtractServiceVersionFromFlags(flags []string) string {
 	// Regex to find --cloud-profiler-label=some_value or --cloud-profiler-label some_value
-	re := regexp.MustCompile(`--cloud-profiler-label[=\s]([^\s]+)`)
+	re := regexp.MustCompile(`--cloud-profiler-label[=\s]([^,\s]+)`)
 	for _, flagSet := range flags {
 		matches := re.FindStringSubmatch(flagSet)
 		// matches[0] is the full match, e.g., "--cloud-profiler-label=v1"
@@ -855,7 +843,7 @@ func ExtractServiceVersionFromFlags(flags []string) string {
 // CloudProfilerServiceNameFromFlags parses the cloud-profiler-service-name from a slice of flag strings.
 func CloudProfilerServiceNameFromFlags(flags []string) string {
 	// Regex to find --cloud-profiler-service-name=some_value or --cloud-profiler-service-name some_value
-	re := regexp.MustCompile(`--cloud-profiler-service-name[=\s]([^\s]+)`)
+	re := regexp.MustCompile(`--cloud-profiler-service-name[=\s]([^,\s]+)`)
 	for _, flagSet := range flags {
 		matches := re.FindStringSubmatch(flagSet)
 		// matches[0] is the full match, e.g., "--cloud-profiler-service-name=v1"
@@ -895,13 +883,23 @@ func ParseLogFileFromFlags(flags []string) string {
 	return ""
 }
 
-func SetUpLogFilePath(flags []string, GKETempDir string, OldGKElogFilePath string, cfg *test_suite.TestConfig) {
+func SetUpLogFilePath(testName string, flags []string, GKETempDir string, OldGKElogFilePath string, cfg *test_suite.TestConfig) {
 	var logFilePath string
 	parsedLogFileName := ParseLogFileFromFlags(flags)
 
 	// Infer log filename directly from the parsed config block.
-	if parsedLogFileName == "" && cfg != nil && len(cfg.Configs) > 0 {
-		parsedLogFileName = ParseLogFileFromFlags(cfg.Configs[0].Flags)
+	if parsedLogFileName == "" && cfg != nil {
+		currentTest := strings.Trim(testName, "^$")
+		currentTest = strings.Split(currentTest, "/")[0]
+
+		if currentTest != "" {
+			for _, c := range cfg.Configs {
+				if c.Run == currentTest {
+					parsedLogFileName = ParseLogFileFromFlags(c.Flags)
+					break
+				}
+			}
+		}
 	}
 
 	// Default logFile name.

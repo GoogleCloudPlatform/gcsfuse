@@ -28,7 +28,6 @@ import (
 )
 
 const (
-	DirAttrTest                = "dirAttrTest"
 	PrefixFileInDirAttrTest    = "fileInDirAttrTest"
 	NumberOfFilesInDirAttrTest = 2
 	BytesWrittenInFile         = 14

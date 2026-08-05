@@ -29,9 +29,8 @@ import (
 )
 
 const (
-	TmpDir               = "/tmp"
-	OneMiB               = 1024 * 1024
-	WritePermission_0200 = 0200
+	TmpDir = "/tmp"
+	OneMiB = 1024 * 1024
 )
 
 var (
@@ -45,17 +44,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.WriteLargeFiles) == 0 {
-		log.Println("No configuration found for write large files tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.WriteLargeFiles = make([]test_suite.TestConfig, 1)
-		cfg.WriteLargeFiles[0].TestBucket = setup.TestBucket()
-		cfg.WriteLargeFiles[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.WriteLargeFiles[0].Configs = make([]test_suite.ConfigItem, 1)
-		cfg.WriteLargeFiles[0].Configs[0].Flags = []string{
-			"--enable-streaming-writes=false",
-			"--write-max-blocks-per-file=2 --write-global-max-blocks=5",
-		}
-		cfg.WriteLargeFiles[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		log.Fatal("No configuration found for WriteLargeFiles in config file.")
 	}
 
 	// 2. Create storage client before running tests.

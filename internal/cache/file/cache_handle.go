@@ -173,7 +173,7 @@ func (fch *CacheHandle) Read(ctx context.Context, bucket gcs.Bucket, object *gcs
 	//
 	// Note: Change the below check to `(offset + len(dst)) > int64(fileInfoData.FileSize))` if the below
 	// check causes a problem in any edge-case.
-	if bucket.BucketType().Zonal && object.IsUnfinalized() && offset >= int64(fileInfoData.FileSize) {
+	if bucket.BucketType().IsRapid() && object.IsUnfinalized() && offset >= int64(fileInfoData.FileSize) {
 		err = util.ErrFallbackToGCS
 		return
 	}
@@ -293,7 +293,12 @@ func (fch *CacheHandle) IsSequential(currentOffset int64) bool {
 		return false
 	}
 
-	if currentOffset-fch.prevOffset.Load() > downloader.ReadChunkSize {
+	chunkSize := int64(downloader.DefaultReadChunkSize)
+	if fch.fileDownloadJob != nil {
+		chunkSize = fch.fileDownloadJob.ReadChunkSize
+	}
+
+	if currentOffset-fch.prevOffset.Load() > chunkSize {
 		return false
 	}
 

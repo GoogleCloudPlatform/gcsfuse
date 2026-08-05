@@ -31,6 +31,14 @@ export PATH=$PATH:/usr/local/go/bin
 
 # Build gcsfuse.
 cd "${KOKORO_ARTIFACTS_DIR}/github/gcsfuse"
+if [[ "${KOKORO_BUILD_INITIATOR:-}" == "kokoro" ]]; then
+  commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+else
+  commitId=$(git log -n 1 --pretty=%H)
+fi
+echo "Checking out commit ID: ${commitId}"
+git checkout "$commitId"
+
 # Install latest gcloud version for compatability with HNS bucket.
 ./perfmetrics/scripts/install_latest_gcloud.sh
 export PATH="/usr/local/google-cloud-sdk/bin:$PATH"

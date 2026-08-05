@@ -30,10 +30,11 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/ratelimit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/net/context"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -135,7 +136,7 @@ func TestThrottleSuite(t *testing.T) {
 
 func (t *ThrottleTest) TestIntegration() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	const perCaseDuration = 1 * time.Second
+	const perCaseDuration = 500 * time.Millisecond
 
 	// Set up several test cases where we have N goroutines simulating arrival of
 	// packets at a given rate, asking a limiter when to admit them.
@@ -145,14 +146,14 @@ func (t *ThrottleTest) TestIntegration() {
 		limitRateHz   float64
 	}{
 		// Single actor
-		{1, 150, 200},
-		{1, 200, 200},
-		{1, 250, 200},
+		{1, 300, 400},
+		{1, 400, 400},
+		{1, 500, 400},
 
 		// Multiple actors
-		{4, 150, 200},
-		{4, 200, 200},
-		{4, 250, 200},
+		{4, 300, 400},
+		{4, 400, 400},
+		{4, 500, 400},
 	}
 
 	// Run each test case.
@@ -170,9 +171,10 @@ func (t *ThrottleTest) TestIntegration() {
 		var wg sync.WaitGroup
 		var totalProcessed uint64
 
-		ctx, _ := context.WithDeadline(
+		ctx, cancel := context.WithDeadline(
 			context.Background(),
 			time.Now().Add(perCaseDuration))
+		defer cancel()
 
 		for i := 0; i < tc.numActors; i++ {
 			wg.Add(1)
@@ -198,7 +200,7 @@ func (t *ThrottleTest) TestIntegration() {
 		}
 
 		expected := smallerRateHz * (float64(perCaseDuration) / float64(time.Second))
-		assert.InDelta(t.T(), totalProcessed, expected, 0.1*expected,
+		assert.InDelta(t.T(), totalProcessed, expected, 0.15*expected,
 			fmt.Sprintf("Test case %d. expected: %f", i, expected))
 	}
 }

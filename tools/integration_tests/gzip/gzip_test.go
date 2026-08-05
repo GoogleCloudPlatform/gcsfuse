@@ -197,17 +197,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.Gzip) == 0 {
-		log.Println("No configuration found for gzip tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.Gzip = make([]test_suite.TestConfig, 1)
-		cfg.Gzip[0].TestBucket = setup.TestBucket()
-		cfg.Gzip[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.Gzip[0].Configs = make([]test_suite.ConfigItem, 1)
-		cfg.Gzip[0].Configs[0].Flags = []string{
-			"--sequential-read-size-mb=1 --implicit-dirs",
-			"--sequential-read-size-mb=1 --implicit-dirs --client-protocol=grpc",
-		}
-		cfg.Gzip[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		log.Fatal("No configuration found for Gzip in config file.")
 	}
 
 	// 2. Create storage client before running tests.

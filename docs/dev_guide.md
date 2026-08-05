@@ -7,6 +7,9 @@ please open a GitHub issue to discuss your proposal with the GCSFuse team first
 before making the contribution.** Make sure to describe the use case (what are
 you trying to solve and why?), and the proposed solution in the GitHub issue.
 
+* **Deprecation plan for short-term fixes:** If the proposed solution is a short-term/temporary workaround, external contributors must provide a clear deprecation plan detailing how the fix will be decommissioned or replaced.
+* **Security approvals:** If a feature requires security approvals or compliance reviews, Google-internal contributors must lead and drive this process. For external contributors, the GCSFuse team will manage and drive the security approval process.
+
 **Note:** We make no guarantees that contribution requests are accepted, or will
 be rolled out as a Generally Available (GA) feature
 
@@ -185,7 +188,9 @@ write end-to-end tests for GCSFuse.
    [discussion thread](https://github.com/GoogleCloudPlatform/gcsfuse/discussions)
    with GCSFuse team. We're here to help!
 
-## Dummy I/O Mode for Performance Testing
+## Performance Testing
+
+### Dummy I/O Mode
 
 Dummy I/O mode simulates read operations without transferring data from Cloud Storage, allowing you to isolate and measure GCSFuse overhead independent of network latency.
 
@@ -216,3 +221,4 @@ Dummy I/O mode simulates read operations without transferring data from Cloud St
 --dummy-io-per-mb-latency=20ms     # Simulates per-MB read from stream latency
 ```
 
+**Note for Google-internal contributors:** In addition to executing micro-benchmarks, running macro-benchmarks is required to validate the performance impact of the proposed changes. Please refer to this guide for running macro-benchmarks: [go/gcsfuse-tess-release-qualification](https://g3doc.corp.google.com/cloud/storage/g3doc/team/sub_teams/clients/sub_teams/gcsfuse/resources/releases/tessellation_tests.md?cl=head).

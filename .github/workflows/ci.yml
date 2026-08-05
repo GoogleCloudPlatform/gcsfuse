@@ -53,7 +53,7 @@ jobs:
     - name: Formatting and Imports check
       run: |
         goimports -w .
-        go fmt ./...
+        gofmt -s -w .
         go mod tidy
         git diff --exit-code --name-only
 

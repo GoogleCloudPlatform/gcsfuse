@@ -213,15 +213,3 @@ func RunTestsForDifferentAuthMethods(ctx context.Context, cfg *test_suite.TestCo
 
 	return successCode
 }
-
-// Deprecated: Use RunTestsForDifferentAuthMethods instead.
-// TODO(b/438068132): cleanup deprecated methods after migration is complete.
-func RunTestsForKeyFileAndGoogleApplicationCredentialsEnvVarSet(ctx context.Context, storageClient *storage.Client, testFlagSet [][]string, permission string, m *testing.M) (successCode int) {
-	config := &test_suite.TestConfig{
-		TestBucket:              setup.TestBucket(),
-		GKEMountedDirectory:     setup.MountedDirectory(),
-		GCSFuseMountedDirectory: setup.MntDir(),
-		LogFile:                 setup.LogFile(),
-	}
-	return RunTestsForDifferentAuthMethods(ctx, config, storageClient, testFlagSet, permission, m)
-}

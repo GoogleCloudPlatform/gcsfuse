@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,52 +29,40 @@ import (
 )
 
 const (
-	testDirName    = "ConcurrentOperationsTest"
-	onlyDirMounted = "OnlyDirConcurrentOperationsTest"
+	testDirName = "TestConcurrentOperations"
+	GKETempDir  = "/gcsfuse-tmp"
 )
 
 var (
-	storageClient *storage.Client
-	ctx           context.Context
-	testDirPath   string
-
+	testEnv   env
+	mountFunc func(*test_suite.TestConfig, []string) error
+	mountDir  string
 	// root directory is the directory to be unmounted.
 	rootDir string
 )
 
-////////////////////////////////////////////////////////////////////////
-// Helper functions
-////////////////////////////////////////////////////////////////////////
-
-func mountGCSFuseAndSetupTestDir(flags []string, testDirName string, t *testing.T) {
-	// When tests are running in GKE environment, use the mounted directory provided as test flag.
-	if setup.MountedDirectory() != "" {
-		testDirPathForRead = setup.MountedDirectory()
-	} else {
-		config := &test_suite.TestConfig{
-			TestBucket:              setup.TestBucket(),
-			GCSFuseMountedDirectory: setup.MntDir(),
-			GKEMountedDirectory:     setup.MountedDirectory(),
-			LogFile:                 setup.LogFile(),
-		}
-		if err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags); err != nil {
-			t.Fatalf("Failed to mount GCS FUSE: %v", err)
-			return
-		}
-		testDirPathForRead = setup.MntDir()
-	}
-	setup.SetMntDir(testDirPathForRead)
-	testDirPath := setup.SetupTestDirectory(testDirName)
-	testDirPathForRead = testDirPath
+type env struct {
+	storageClient *storage.Client
+	ctx           context.Context
+	testDirPath   string
+	cfg           *test_suite.TestConfig
+	bucketType    string
 }
 
 func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
-	setup.ExitWithFailureIfBothTestBucketAndMountedDirectoryFlagsAreNotSet()
+	// 1. Load and parse the common configuration.
+	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
+	if len(cfg.ConcurrentOperations) == 0 {
+		log.Fatal("No configuration found for ConcurrentOperations in config file.")
+	}
 
-	// Create common storage client to be used in test.
-	ctx = context.Background()
-	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
+	testEnv.ctx = context.Background()
+	testEnv.cfg = &cfg.ConcurrentOperations[0]
+	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
+
+	// 2. Create storage client before running tests.
+	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
 		err := closeStorageClient()
 		if err != nil {
@@ -82,22 +70,24 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// If Mounted Directory flag is set, run tests for mounted directory.
-	setup.RunTestsForMountedDirectoryFlag(m)
-	// Else run tests for testBucket.
-	// Set up test directory.
-	setup.SetUpTestDirForTestBucketFlag()
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory.
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		mountDir = testEnv.cfg.GKEMountedDirectory
+		os.Exit(setup.RunTestsForMountedDirectory(mountDir, m))
+	}
 
-	// Save root directory variables.
-	rootDir = setup.MntDir()
+	// Run tests for testBucket.
+	setup.SetUpTestDirForTestBucket(testEnv.cfg)
+	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
+
+	// Save mount and root directory variables.
+	mountDir, rootDir = testEnv.cfg.GCSFuseMountedDirectory, testEnv.cfg.GCSFuseMountedDirectory
 
 	log.Println("Running static mounting tests...")
+	mountFunc = static_mounting.MountGcsfuseWithStaticMountingWithConfigFile
 	successCode := m.Run()
 
-	// If test failed, save the gcsfuse log files for debugging.
-	setup.SaveLogFileInCaseOfFailure(successCode)
-
 	// Clean up test directory created.
-	setup.CleanupDirectoryOnGCS(ctx, storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, testDirName))
 	os.Exit(successCode)
 }

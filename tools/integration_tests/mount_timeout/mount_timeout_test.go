@@ -53,20 +53,21 @@ var (
 
 const (
 	// Constants specific to non-ZB E2E runs.
-	testEnvGCEUSCentral                    string        = "gce-us-central"
-	testEnvGCENonUSCentral                 string        = "gce-non-us-central"
-	testEnvNonGCE                          string        = "non-gce"
-	multiRegionUSBucket                    string        = "mount_timeout_test_bucket_us"
-	multiRegionAsiaBucket                  string        = "mount_timeout_test_bucket_asia"
-	dualRegionUSBucket                     string        = "mount_timeout_test_bucket_nam4"
-	dualRegionAsiaBucket                   string        = "mount_timeout_test_bucket_asia1"
-	singleRegionUSCentralBucket            string        = "mount_timeout_test_bucket_us-central1"
-	singleRegionAsiaEastBucket             string        = "mount_timeout_test_bucket_asia-east1"
-	singleRegionAsiaEastExpectedMountTime  time.Duration = 5500 * time.Millisecond
+	testEnvGCEUSCentral         string = "gce-us-central"
+	testEnvGCENonUSCentral      string = "gce-non-us-central"
+	testEnvNonGCE               string = "non-gce"
+	multiRegionUSBucket         string = "mount_timeout_test_bucket_us"
+	multiRegionAsiaBucket       string = "mount_timeout_test_bucket_asia"
+	dualRegionUSBucket          string = "mount_timeout_test_bucket_nam4"
+	dualRegionAsiaBucket        string = "mount_timeout_test_bucket_asia1"
+	singleRegionUSCentralBucket string = "mount_timeout_test_bucket_us-central1"
+	singleRegionAsiaEastBucket  string = "mount_timeout_test_bucket_asia-east1"
+	// TODO: Remove temporary 10s timeout for cross-region mounts after cl/958817829 is rolled out to production.
+	singleRegionAsiaEastExpectedMountTime  time.Duration = 10000 * time.Millisecond
 	multiRegionUSExpectedMountTime         time.Duration = 4500 * time.Millisecond
-	multiRegionAsiaExpectedMountTime       time.Duration = 7500 * time.Millisecond
+	multiRegionAsiaExpectedMountTime       time.Duration = 10000 * time.Millisecond
 	dualRegionUSExpectedMountTime          time.Duration = 4500 * time.Millisecond
-	dualRegionAsiaExpectedMountTime        time.Duration = 6250 * time.Millisecond
+	dualRegionAsiaExpectedMountTime        time.Duration = 10000 * time.Millisecond
 	singleRegionUSCentralExpectedMountTime time.Duration = 2500 * time.Millisecond
 	// Constants specific to ZB E2E runs.
 	testEnvZoneGCEUSCentral1A       string        = "gce-zone-us-central1-a"
@@ -77,7 +78,7 @@ const (
 	zonalSameZoneExpectedMountTime  time.Duration = 2500 * time.Millisecond
 	zonalCrossZoneExpectedMountTime time.Duration = 5000 * time.Millisecond
 	// Commont constants.
-	relaxedExpectedMountTime time.Duration = 8000 * time.Millisecond
+	relaxedExpectedMountTime time.Duration = 10000 * time.Millisecond
 	logfilePathPrefix        string        = "/tmp/gcsfuse_mount_timeout_"
 )
 
@@ -145,10 +146,7 @@ func TestMain(m *testing.M) {
 	// Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.MountTimeout) == 0 {
-		log.Println("No configuration found for mount_timeout tests in config. Using flags instead.")
-		cfg.MountTimeout = make([]test_suite.TestConfig, 1)
-		cfg.MountTimeout[0].TestBucket = setup.TestBucket()
-		cfg.MountTimeout[0].GKEMountedDirectory = setup.MountedDirectory()
+		log.Fatal("No configuration found for MountTimeout in config file.")
 	}
 
 	// Skip for GKE or mounted directory tests.

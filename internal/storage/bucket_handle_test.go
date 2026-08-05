@@ -71,7 +71,7 @@ func createBucketHandle(testSuite *BucketHandleTest, resp *controlpb.StorageLayo
 
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 		Return(resp, nil)
-	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "", false)
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
 	testSuite.bucketHandle.controlClient = testSuite.mockClient
 
 	assert.NotNil(testSuite.T(), testSuite.bucketHandle)
@@ -196,6 +196,45 @@ func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithValidGen
 	_, err = rc.Read(buf)
 	assert.Nil(testSuite.T(), err)
 	assert.Equal(testSuite.T(), ContentInTestObject, string(buf[:]))
+}
+
+func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethod_GrpcChecksumsFlag() {
+	tests := []struct {
+		name             string
+		disableChecksums bool
+	}{
+		{
+			name:             "ChecksumsDisabled",
+			disableChecksums: true,
+		},
+		{
+			name:             "ChecksumsEnabled",
+			disableChecksums: false,
+		},
+	}
+
+	for _, tc := range tests {
+		testSuite.T().Run(tc.name, func(t *testing.T) {
+			createBucketHandle(testSuite, &controlpb.StorageLayout{})
+			testSuite.bucketHandle.disableGrpcReadChecksums = tc.disableChecksums
+
+			rc, err := testSuite.bucketHandle.NewReaderWithReadHandle(context.Background(),
+				&gcs.ReadObjectRequest{
+					Name: TestObjectName,
+					Range: &gcs.ByteRange{
+						Start: uint64(0),
+						Limit: uint64(len(ContentInTestObject)),
+					},
+				})
+
+			require.NoError(t, err)
+			buf := make([]byte, len(ContentInTestObject))
+			_, err = rc.Read(buf)
+			require.NoError(t, err)
+			assert.Equal(t, ContentInTestObject, string(buf[:]))
+			assert.NoError(t, rc.Close())
+		})
+	}
 }
 
 func (testSuite *BucketHandleTest) TestNewReaderWithReadHandleMethodWithInvalidGeneration() {
@@ -591,6 +630,124 @@ func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
 			assert.Equal(t, tt.chunkSize, objWr.ChunkSize)
 			assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
 		})
+	}
+}
+
+func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
+	tests := []struct {
+		name                 string
+		bucketType           gcs.BucketType
+		finalizeFileForRapid bool
+		expectedAppend       bool
+	}{
+		{
+			name:                 "StandardBucket",
+			bucketType:           gcs.BucketType{},
+			finalizeFileForRapid: true,
+			expectedAppend:       false,
+		},
+		{
+			name:                 "ZonalBucket",
+			bucketType:           gcs.BucketType{Zonal: true},
+			finalizeFileForRapid: false,
+			expectedAppend:       true,
+		},
+		{
+			name:                 "PirloBucket_RapidEnabled",
+			bucketType:           gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			finalizeFileForRapid: true,
+			expectedAppend:       true,
+		},
+		{
+			name:                 "PirloBucket_RapidDisabled",
+			bucketType:           gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
+			finalizeFileForRapid: false,
+			expectedAppend:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(tt.name, func(t *testing.T) {
+			createBucketHandle(testSuite, &controlpb.StorageLayout{})
+			testSuite.bucketHandle.bucketType = &tt.bucketType
+			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{FinalizeFileForRapid: tt.finalizeFileForRapid}
+
+			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), &gcs.CreateObjectRequest{Name: "test_object"}, 1024, nil)
+
+			require.NoError(t, err)
+			objWr, ok := w.(*ObjectWriter)
+			require.True(t, ok)
+			assert.Equal(t, tt.expectedAppend, objWr.Append)
+			assert.Equal(t, tt.finalizeFileForRapid, objWr.FinalizeOnClose)
+		})
+	}
+}
+
+func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
+	// Define the bucket scenarios to test.
+	bucketScenarios := []struct {
+		name                        string
+		bucketType                  gcs.BucketType
+		expectedWriterStorageClass  string
+		expectedCreatedStorageClass string
+		canTestCreateObject         bool
+	}{
+		{
+			name:                        "StandardBucket",
+			bucketType:                  gcs.BucketType{Pirlo: gcs.PirloStateNone},
+			expectedWriterStorageClass:  "",
+			expectedCreatedStorageClass: "STANDARD",
+			canTestCreateObject:         true,
+		},
+		{
+			name:                       "ZonalBucket",
+			bucketType:                 gcs.BucketType{Zonal: true},
+			expectedWriterStorageClass: "",    // Zonal buckets do not use the RAPID storage class.
+			canTestCreateObject:        false, // Fails on HTTP append.
+		},
+		{
+			name:                       "PirloBucket_RapidEnabled",
+			bucketType:                 gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			expectedWriterStorageClass: storageClassRapid,
+			canTestCreateObject:        false, // Fails on HTTP append.
+		},
+		{
+			name:                        "PirloBucket_RapidDisabled",
+			bucketType:                  gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
+			expectedWriterStorageClass:  "",
+			expectedCreatedStorageClass: "STANDARD",
+			canTestCreateObject:         true,
+		},
+	}
+
+	for _, scenario := range bucketScenarios {
+		testSuite.T().Run(scenario.name+"/CreateObjectChunkWriter", func(t *testing.T) {
+			createBucketHandle(testSuite, &controlpb.StorageLayout{})
+			testSuite.bucketHandle.bucketType = &scenario.bucketType
+			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{}
+			req := &gcs.CreateObjectRequest{Name: "test_object_2"}
+
+			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), req, 1024, nil)
+
+			require.NoError(t, err)
+			objWr, ok := w.(*ObjectWriter)
+			require.True(t, ok)
+			assert.Equal(t, scenario.expectedWriterStorageClass, objWr.StorageClass)
+		})
+
+		if scenario.canTestCreateObject {
+			testSuite.T().Run(scenario.name+"/CreateObject", func(t *testing.T) {
+				createBucketHandle(testSuite, &controlpb.StorageLayout{})
+				testSuite.bucketHandle.bucketType = &scenario.bucketType
+				testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{}
+				req := &gcs.CreateObjectRequest{Name: "test_object_1", Contents: strings.NewReader("data")}
+
+				o, err := testSuite.bucketHandle.CreateObject(context.Background(), req)
+
+				require.NoError(t, err)
+				assert.Equal(t, scenario.expectedCreatedStorageClass, o.StorageClass)
+			})
+		}
 	}
 }
 
@@ -1513,7 +1670,7 @@ func (testSuite *BucketHandleTest) TestBucketHandleWithError() {
 
 	// Test when the client returns an error.
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(x, errors.New("mocked error"))
-	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "", false)
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
 
 	assert.Nil(testSuite.T(), testSuite.bucketHandle)
 	assert.Contains(testSuite.T(), err.Error(), "mocked error")
@@ -1529,7 +1686,7 @@ func (testSuite *BucketHandleTest) TestBucketHandleWithRapidAppendsEnabled() {
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(&controlpb.StorageLayout{}, nil)
 	testSuite.mockClient.On("getClient", mock.Anything, mock.Anything).Return(&storage.Client{}, nil)
 
-	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "", false)
+	testSuite.bucketHandle, err = testSuite.storageHandle.BucketHandle(context.Background(), TestBucketName, "")
 
 	assert.NotNil(testSuite.T(), testSuite.bucketHandle)
 	assert.Nil(testSuite.T(), err)
@@ -1559,7 +1716,9 @@ func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderExitForHierarchical
 	})
 	ctx := context.Background()
 	deleteFolderReq := controlpb.DeleteFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName)}
-	testSuite.mockClient.On("DeleteFolder", ctx, &deleteFolderReq, mock.Anything).Return(nil)
+	testSuite.mockClient.On("DeleteFolder", ctx, mock.MatchedBy(func(req *controlpb.DeleteFolderRequest) bool {
+		return req.Name == deleteFolderReq.Name
+	}), mock.Anything).Return(nil)
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	err := testSuite.bucketHandle.DeleteFolder(ctx, TestFolderName)
@@ -1574,7 +1733,9 @@ func (testSuite *BucketHandleTest) TestDeleteFolderWhenFolderNotExistForHierarch
 		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
 	})
 	deleteFolderReq := controlpb.DeleteFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, missingFolderName)}
-	testSuite.mockClient.On("DeleteFolder", mock.Anything, &deleteFolderReq, mock.Anything).Return(errors.New("mock error"))
+	testSuite.mockClient.On("DeleteFolder", mock.Anything, mock.MatchedBy(func(req *controlpb.DeleteFolderRequest) bool {
+		return req.Name == deleteFolderReq.Name
+	}), mock.Anything).Return(errors.New("mock error"))
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	err := testSuite.bucketHandle.DeleteFolder(ctx, missingFolderName)
@@ -1593,7 +1754,9 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderExistsForHierarchicalB
 	mockFolder := controlpb.Folder{
 		Name: folderPath,
 	}
-	testSuite.mockClient.On("GetFolder", ctx, &getFolderReq, mock.Anything).Return(&mockFolder, nil)
+	testSuite.mockClient.On("GetFolder", ctx, mock.MatchedBy(func(req *controlpb.GetFolderRequest) bool {
+		return req.Name == getFolderReq.Name
+	}), mock.Anything).Return(&mockFolder, nil)
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	result, err := testSuite.bucketHandle.GetFolder(ctx, &gcs.GetFolderRequest{Name: TestFolderName})
@@ -1610,7 +1773,9 @@ func (testSuite *BucketHandleTest) TestGetFolderWhenFolderDoesNotExistsForHierar
 	})
 	folderPath := fmt.Sprintf(FullFolderPathHNS, TestBucketName, missingFolderName)
 	getFolderReq := controlpb.GetFolderRequest{Name: folderPath}
-	testSuite.mockClient.On("GetFolder", ctx, &getFolderReq, mock.Anything).Return(nil, status.Error(codes.NotFound, "folder not found"))
+	testSuite.mockClient.On("GetFolder", ctx, mock.MatchedBy(func(req *controlpb.GetFolderRequest) bool {
+		return req.Name == getFolderReq.Name
+	}), mock.Anything).Return(nil, status.Error(codes.NotFound, "folder not found"))
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	result, err := testSuite.bucketHandle.GetFolder(ctx, &gcs.GetFolderRequest{Name: missingFolderName})
@@ -1626,7 +1791,9 @@ func (testSuite *BucketHandleTest) TestRenameFolderWithError() {
 		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
 	})
 	renameFolderReq := controlpb.RenameFolderRequest{Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName), DestinationFolderId: TestRenameFolder}
-	testSuite.mockClient.On("RenameFolder", mock.Anything, &renameFolderReq, mock.Anything).Return(nil, errors.New("mock error"))
+	testSuite.mockClient.On("RenameFolder", mock.Anything, mock.MatchedBy(func(req *controlpb.RenameFolderRequest) bool {
+		return req.Name == renameFolderReq.Name && req.DestinationFolderId == renameFolderReq.DestinationFolderId
+	}), mock.Anything).Return(nil, errors.New("mock error"))
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	_, err := testSuite.bucketHandle.RenameFolder(ctx, TestFolderName, TestRenameFolder)
@@ -1640,7 +1807,9 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithError() {
 		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
 	})
 	createFolderReq := controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName), FolderId: TestFolderName, Recursive: true}
-	testSuite.mockClient.On("CreateFolder", context.Background(), &createFolderReq, mock.Anything).Return(nil, errors.New("mock error"))
+	testSuite.mockClient.On("CreateFolder", context.Background(), mock.MatchedBy(func(req *controlpb.CreateFolderRequest) bool {
+		return req.Parent == createFolderReq.Parent && req.FolderId == createFolderReq.FolderId
+	}), mock.Anything).Return(nil, errors.New("mock error"))
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	folder, err := testSuite.bucketHandle.CreateFolder(context.Background(), TestFolderName)
@@ -1658,7 +1827,9 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithGivenName() {
 		Name: fmt.Sprintf(FullFolderPathHNS, TestBucketName, TestFolderName),
 	}
 	createFolderReq := controlpb.CreateFolderRequest{Parent: fmt.Sprintf(FullBucketPathHNS, TestBucketName), FolderId: TestFolderName, Recursive: true}
-	testSuite.mockClient.On("CreateFolder", context.Background(), &createFolderReq, mock.Anything).Return(&mockFolder, nil)
+	testSuite.mockClient.On("CreateFolder", context.Background(), mock.MatchedBy(func(req *controlpb.CreateFolderRequest) bool {
+		return req.Parent == createFolderReq.Parent && req.FolderId == createFolderReq.FolderId
+	}), mock.Anything).Return(&mockFolder, nil)
 	testSuite.bucketHandle.bucketType = &gcs.BucketType{Hierarchical: true}
 
 	folder, err := testSuite.bucketHandle.CreateFolder(context.Background(), TestFolderName)

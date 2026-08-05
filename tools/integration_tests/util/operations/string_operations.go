@@ -22,22 +22,6 @@ import (
 	"github.com/google/uuid"
 )
 
-func VerifyExpectedSubstrings(t *testing.T, input string, expectedSubstrings []string) {
-	for _, expectedSubstring := range expectedSubstrings {
-		if !strings.Contains(input, expectedSubstring) {
-			t.Errorf("input does not contain expected substring (%q)", expectedSubstring)
-		}
-	}
-}
-
-func VerifyUnexpectedSubstrings(t *testing.T, input string, unexpectedSubstrings []string) {
-	for _, unexpectedSubstring := range unexpectedSubstrings {
-		if strings.Contains(input, unexpectedSubstring) {
-			t.Errorf("input contains unexpected substring (%q)", unexpectedSubstring)
-		}
-	}
-}
-
 func GetRandomName(t *testing.T) string {
 	id, err := uuid.NewRandom()
 	if err != nil {

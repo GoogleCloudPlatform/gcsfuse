@@ -186,6 +186,41 @@ func TestValidateCliFlag(t *testing.T) {
 			args:    []string{"--profile=unknown-profile"},
 			wantErr: true,
 		},
+		{
+			name:    "valid fuse-max-request-size-kb",
+			args:    []string{"--fuse-max-request-size-kb=1024"},
+			wantErr: false,
+		},
+		{
+			name:    "invalid negative fuse-max-request-size-kb",
+			args:    []string{"--fuse-max-request-size-kb=-10"},
+			wantErr: true,
+		},
+		{
+			name:    "valid <1MB fuse-max-request-size-kb",
+			args:    []string{"--fuse-max-request-size-kb=512"},
+			wantErr: false,
+		},
+		{
+			name:    "invalid exceeding max pages fuse-max-request-size-kb",
+			args:    []string{"--fuse-max-request-size-kb=10000000"},
+			wantErr: true,
+		},
+		{
+			name:    "valid fuse-max-write-size-kb",
+			args:    []string{"--fuse-max-write-size-kb=1024"},
+			wantErr: false,
+		},
+		{
+			name:    "invalid negative fuse-max-write-size-kb",
+			args:    []string{"--fuse-max-write-size-kb=-10"},
+			wantErr: true,
+		},
+		{
+			name:    "invalid exceeds 1MB fuse-max-write-size-kb",
+			args:    []string{"--fuse-max-write-size-kb=2048"},
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -588,6 +623,8 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			configFile: "testdata/empty_file.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
+					FuseMaxWriteSizeKb:     1024,
 					DirMode:                0755,
 					DisableParallelDirops:  false,
 					FileMode:               0644,
@@ -608,6 +645,8 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			configFile: "testdata/file_system_config/unset_file_system_config.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
+					FuseMaxWriteSizeKb:     1024,
 					DirMode:                0755,
 					DisableParallelDirops:  false,
 					FileMode:               0644,
@@ -628,6 +667,8 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				FileSystem: cfg.FileSystemConfig{
+					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
+					FuseMaxWriteSizeKb:     1024,
 					DirMode:                0777,
 					DisableParallelDirops:  true,
 					FileMode:               0666,
@@ -727,40 +768,6 @@ func TestValidateConfigFile_EnableHNSConfigSuccessful(t *testing.T) {
 	}
 }
 
-func TestValidateConfigFile_DisableListAccessCheckSuccessful(t *testing.T) {
-	testCases := []struct {
-		name           string
-		configFile     string
-		expectedConfig *cfg.Config
-	}{
-		{
-			// Test default values.
-			name:       "empty_config_file",
-			configFile: "testdata/empty_file.yaml",
-			expectedConfig: &cfg.Config{
-				DisableListAccessCheck: true,
-			},
-		},
-		{
-			name:       "valid_config_file",
-			configFile: "testdata/valid_config.yaml",
-			expectedConfig: &cfg.Config{
-				DisableListAccessCheck: false,
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
-
-			if assert.NoError(t, err) {
-				assert.EqualValues(t, tc.expectedConfig.DisableListAccessCheck, gotConfig.DisableListAccessCheck)
-			}
-		})
-	}
-}
-
 func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 	testCases := []struct {
 		name           string
@@ -779,7 +786,7 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 					EnableNonexistentTypeCache:          false,
 					MetadataPrefetchEntriesLimit:        5000,
 					MetadataPrefetchMaxWorkers:          10,
-					EnableMetadataPrefetch:              false,
+					EnableMetadataPrefetch:              true,
 					ExperimentalMetadataPrefetchOnMount: "disabled",
 					StatCacheMaxSizeMb:                  34,
 					TtlSecs:                             60,
@@ -797,7 +804,7 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 					DeprecatedStatCacheTtl:              30 * time.Second,
 					DeprecatedTypeCacheTtl:              20 * time.Second,
 					EnableNonexistentTypeCache:          true,
-					EnableMetadataPrefetch:              true,
+					EnableMetadataPrefetch:              false,
 					MetadataPrefetchMaxWorkers:          5,
 					MetadataPrefetchEntriesLimit:        50,
 					ExperimentalMetadataPrefetchOnMount: "sync",
@@ -835,6 +842,7 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 				GcsRetries: cfg.GcsRetriesConfig{
 					ChunkRetryDeadlineSecs:   120,
 					ChunkTransferTimeoutSecs: 10,
+					EnableMountRetries:       false,
 					MaxRetryAttempts:         math.MaxInt,
 					MaxRetrySleep:            30 * time.Second,
 					Multiplier:               2,
@@ -854,12 +862,12 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				GcsRetries: cfg.GcsRetriesConfig{
-					ExperimentalNonrapidFolderApiStallRetry: true,
-					ChunkRetryDeadlineSecs:                  180,
-					ChunkTransferTimeoutSecs:                20,
-					MaxRetryAttempts:                        math.MaxInt,
-					MaxRetrySleep:                           30 * time.Second,
-					Multiplier:                              2,
+					ChunkRetryDeadlineSecs:   180,
+					ChunkTransferTimeoutSecs: 20,
+					EnableMountRetries:       false,
+					MaxRetryAttempts:         math.MaxInt,
+					MaxRetrySleep:            30 * time.Second,
+					Multiplier:               2,
 					ReadStall: cfg.ReadStallGcsRetriesConfig{
 						Enable:              false,
 						MinReqTimeout:       10 * time.Second,

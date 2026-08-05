@@ -130,7 +130,14 @@ func (fs *tracedFS) OpenFile(ctx context.Context, op *fuseops.OpenFileOp) error 
 }
 
 func (fs *tracedFS) ReadFile(ctx context.Context, op *fuseops.ReadFileOp) error {
-	return fs.invokeWrapped(ctx, tracing.ReadFile, func(ctx context.Context) error { return fs.wrapped.ReadFile(ctx, op) })
+	ctx, span := fs.traceHandle.StartServerSpan(ctx, tracing.ReadFile)
+	defer fs.traceHandle.EndSpan(span)
+	err := fs.wrapped.ReadFile(ctx, op)
+	if err != nil {
+		fs.traceHandle.RecordError(span, err)
+	}
+	fs.traceHandle.SetReadFileAttributes(span, op.BytesRead, op.Offset)
+	return err
 }
 
 func (fs *tracedFS) WriteFile(ctx context.Context, op *fuseops.WriteFileOp) error {

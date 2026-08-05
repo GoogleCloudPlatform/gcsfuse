@@ -284,6 +284,26 @@ func (t *StatCacheTest) Test_Overwrite_SameGeneration_SameMetadataGen() {
 	assert.Equal(t.T(), m1, t.cache.LookUpOrNil("taco", someTime))
 }
 
+func (t *StatCacheTest) Test_Overwrite_SameGeneration_SameMetadataGen_SmallerSize() {
+	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5, Size: 10}
+	m1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5, Size: 8}
+
+	t.cache.Insert(m0, expiration)
+	t.cache.Insert(m1, expiration)
+
+	assert.Equal(t.T(), m0, t.cache.LookUpOrNil("taco", someTime))
+}
+
+func (t *StatCacheTest) Test_Overwrite_SameGeneration_SameMetadataGen_LargerSize() {
+	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5, Size: 10}
+	m1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5, Size: 12}
+
+	t.cache.Insert(m0, expiration)
+	t.cache.Insert(m1, expiration)
+
+	assert.Equal(t.T(), m1, t.cache.LookUpOrNil("taco", someTime))
+}
+
 func (t *StatCacheTest) Test_Overwrite_SameGeneration_OlderMetadataGen() {
 	m0 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 5}
 	m1 := &gcs.MinObject{Name: "taco", Generation: 17, MetaGeneration: 3}
@@ -523,15 +543,15 @@ func (t *StatCacheTest) Test_ShouldReturnHitTrueWhenOnlyObjectAlreadyHasEntry() 
 }
 
 func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize() {
-	localCache := lru.NewCache(uint64(2800))
+	localCache := lru.NewCache(uint64(2700))
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
 	objectEntry1 := &gcs.MinObject{Name: "1"}
 	objectEntry2 := &gcs.MinObject{Name: "2"}
 	folderEntry := &gcs.Folder{
 		Name: "3/",
 	}
-	t.statCache.Insert(objectEntry1, expiration) // adds size of 1368
-	t.statCache.Insert(objectEntry2, expiration) // adds size of 1368
+	t.statCache.Insert(objectEntry1, expiration) // adds size of 1304
+	t.statCache.Insert(objectEntry2, expiration) // adds size of 1304
 
 	hit1, entry1 := t.statCache.LookUp("1", someTime)
 	hit2, entry2 := t.statCache.LookUp("2", someTime)

@@ -20,7 +20,7 @@ jobs:
       issues: write
     steps:
       - name: Add 'remind-reviewers' label
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             // List of authors to exclude from reminders.
@@ -37,9 +37,16 @@ jobs:
               return;
             }
 
-            github.rest.issues.addLabels({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              labels: ['remind-reviewers']
-            })
+            // Attempt to add the 'remind-reviewers' label.
+            // Wrapped in try-catch to gracefully handle permission failures (e.g., fork PRs with read-only tokens
+            // or restricted GITHUB_TOKEN settings), ensuring label addition failure does not block PR submission.
+            try {
+              await github.rest.issues.addLabels({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: ['remind-reviewers']
+              });
+            } catch (error) {
+              console.log(`Unable to add 'remind-reviewers' label (e.g., restricted permissions or fork PR): ${error.message}. Silently skipping.`);
+            }

@@ -60,18 +60,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	config := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(config.LogRotation) == 0 {
-		log.Println("No configuration found for log rotation tests in config. Using flags instead.")
-		// Populate the config manually.
-		config.LogRotation = make([]test_suite.TestConfig, 1)
-		config.LogRotation[0].TestBucket = setup.TestBucket()
-		config.LogRotation[0].GKEMountedDirectory = setup.MountedDirectory()
-		config.LogRotation[0].LogFile = setup.LogFile()
-		config.LogRotation[0].Configs = make([]test_suite.ConfigItem, 1)
-		config.LogRotation[0].Configs[0].Flags = []string{
-			"--log-file=/gcsfuse-tmp/TestLogRotation.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=false --log-severity=trace",
-			"--log-file=/gcsfuse-tmp/TestLogRotation.log --log-rotate-max-file-size-mb=2 --log-rotate-backup-file-count=2 --log-rotate-compress=true --log-severity=trace",
-		}
-		config.LogRotation[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		log.Fatal("No configuration found for LogRotation in config file.")
 	}
 
 	cfg = &config.LogRotation[0]

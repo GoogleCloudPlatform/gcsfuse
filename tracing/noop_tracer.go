@@ -41,6 +41,8 @@ func (*noopTracer) RecordError(span trace.Span, err error) {}
 
 func (o *noopTracer) SetCacheReadAttributes(span trace.Span, isCacheHit bool, bytesRead int) {}
 
+func (o *noopTracer) SetReadFileAttributes(span trace.Span, bytesRead int, offset int64) {}
+
 func (o *noopTracer) SetUploadAttributes(span trace.Span, bytesUploaded int64, objectName string) {}
 
 func (*noopTracer) TraceUpload(ctx context.Context, name string, objName string, bytes *int64, err *error) (context.Context, func()) {

@@ -18,7 +18,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
@@ -86,18 +85,6 @@ func (s *BaseSymlinkSuite) createSymlink(linkName, target string) string {
 	return linkPath
 }
 
-func (s *BaseSymlinkSuite) createTempFile() string {
-	targetFile, err := os.CreateTemp("", "symlink-target")
-	s.Require().NoError(err)
-	s.T().Cleanup(func() {
-		if err := os.Remove(targetFile.Name()); err != nil {
-			s.T().Logf("Error removing temporary file %s: %v", targetFile.Name(), err)
-		}
-	})
-	s.Require().NoError(targetFile.Close())
-	return targetFile.Name()
-}
-
 // validateBackingGCSObjectForSymlink validates the GCS object created for a symlink.
 func (s *BaseSymlinkSuite) validateBackingGCSObjectForSymlink(linkName, target string, isStandardSymlink bool) {
 	bucketName, objectName := setup.GetBucketAndObjectBasedOnTypeOfMount(path.Join(TestDirName, linkName))
@@ -139,8 +126,7 @@ func (s *BaseSymlinkSuite) createGCSSymlinkObject(linkName, target string) {
 	fullLinkPath := path.Join(TestDirName, linkName)
 	bucketName, objectName := setup.GetBucketAndObjectBasedOnTypeOfMount(fullLinkPath)
 	objHandle := testEnv.storageClient.Bucket(bucketName).Object(objectName)
-	w, err := client.NewWriter(testEnv.ctx, objHandle, testEnv.storageClient)
-	s.Require().NoError(err)
+	w := client.NewWriterWithOptions(testEnv.ctx, objHandle)
 
 	var content []byte
 	if s.isStandardSymlink {
@@ -151,7 +137,7 @@ func (s *BaseSymlinkSuite) createGCSSymlinkObject(linkName, target string) {
 		content = []byte("") // Legacy symlinks have empty content
 	}
 
-	_, err = w.Write(content)
+	_, err := w.Write(content)
 	s.Require().NoError(err)
 	s.Require().NoError(w.Close())
 	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
@@ -174,12 +160,8 @@ func TestLegacySymlinks(t *testing.T) {
 }
 
 func RunTests(t *testing.T, runName string, factory func(flags []string) suite.TestingSuite) {
-	for _, cfg := range testEnv.cfg.Configs {
-		if cfg.Run == runName {
-			for _, flagStr := range cfg.Flags {
-				flags := strings.Fields(flagStr)
-				suite.Run(t, factory(flags))
-			}
-		}
+	flagsSets := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, runName)
+	for _, flags := range flagsSets {
+		suite.Run(t, factory(flags))
 	}
 }

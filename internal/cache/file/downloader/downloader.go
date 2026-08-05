@@ -15,6 +15,7 @@
 package downloader
 
 import (
+	"fmt"
 	"math"
 	"os"
 
@@ -108,15 +109,18 @@ func (jm *JobManager) removeJob(objectName string, bucketName string) {
 // If there is already an existing job then this method returns that.
 //
 // Acquires and releases Lock(jm.mu)
-func (jm *JobManager) CreateJobIfNotExists(object *gcs.MinObject, bucket gcs.Bucket) (job *Job) {
+func (jm *JobManager) CreateJobIfNotExists(object *gcs.MinObject, bucket gcs.Bucket) (job *Job, err error) {
 	objectPath := util.GetObjectPath(bucket.Name(), object.Name)
 	jm.mu.Lock()
 	defer jm.mu.Unlock()
 	job, ok := jm.jobs[objectPath]
 	if ok {
-		return job
+		return job, nil
 	}
-	downloadPath := util.GetDownloadPath(jm.cacheDir, objectPath)
+	downloadPath, err := util.GetDownloadPath(jm.cacheDir, objectPath)
+	if err != nil {
+		return nil, fmt.Errorf("CreateJobIfNotExists: %w", err)
+	}
 	fileSpec := data.FileSpec{Path: downloadPath, FilePerm: jm.filePerm, DirPerm: jm.dirPerm}
 	// Pass call back function to Job. When this callback function is called, it
 	// removes the job reference from jobs map.
@@ -125,7 +129,7 @@ func (jm *JobManager) CreateJobIfNotExists(object *gcs.MinObject, bucket gcs.Buc
 	}
 	job = NewJob(object, bucket, jm.fileInfoCache, jm.sequentialReadSizeMb, fileSpec, removeJobCallback, jm.fileCacheConfig, jm.maxParallelismSem, jm.metricHandle, jm.traceHandle, jm.cacheDirVolumeBlockSize)
 	jm.jobs[objectPath] = job
-	return job
+	return job, nil
 }
 
 // GetJob returns downloader.Job for given object and bucket if present. If the

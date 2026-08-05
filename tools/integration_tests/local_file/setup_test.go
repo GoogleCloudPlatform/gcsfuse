@@ -44,23 +44,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.LocalFile) == 0 {
-		log.Println("No configuration found for LocalFile tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.LocalFile = make([]test_suite.TestConfig, 1)
-		cfg.LocalFile[0].TestBucket = setup.TestBucket()
-		cfg.LocalFile[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.LocalFile[0].Configs = make([]test_suite.ConfigItem, 2)
-		cfg.LocalFile[0].Configs[0].Flags = []string{
-			"--implicit-dirs=true --rename-dir-limit=3 --enable-streaming-writes=false",
-			"--implicit-dirs=false --rename-dir-limit=3 --enable-streaming-writes=false --client-protocol=grpc",
-			"--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=0",
-		}
-		cfg.LocalFile[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.LocalFile[0].Configs[1].Flags = []string{
-			"--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=-1 --client-protocol=grpc",
-			"--rename-dir-limit=3 --write-block-size-mb=1 --write-max-blocks-per-file=2 --write-global-max-blocks=-1",
-		}
-		cfg.LocalFile[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
+		log.Fatal("No configuration found for LocalFile in config file.")
 	}
 
 	// 2. Create storage client before running tests.

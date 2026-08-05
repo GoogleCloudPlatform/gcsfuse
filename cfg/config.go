@@ -28,23 +28,28 @@ import (
 var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.congestion-threshold": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      int64(DefaultCongestionThreshold()),
+			BucketTypes: shared.BucketTypeList{
+				"zonal",
+				"pirlo",
+			},
+			Value: int64(StorageClassRapid.DefaultCongestionThreshold()),
 		},
 		{
-			BucketType: "pirlo",
-			Value:      int64(DefaultCongestionThreshold()),
+			BucketTypes: shared.BucketTypeList{
+				"flat",
+				"hierarchical",
+			},
+			Value: int64(StorageClassStandard.DefaultCongestionThreshold()),
 		},
 	},
 }, "file-system.enable-kernel-reader": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      bool(true),
-		},
-		{
-			BucketType: "pirlo",
-			Value:      bool(true),
+			BucketTypes: shared.BucketTypeList{
+				"zonal",
+				"pirlo",
+			},
+			Value: bool(true),
 		},
 	},
 }, "file-cache.cache-file-for-range-read": {
@@ -56,6 +61,31 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 		{
 			Name:  "aiml-checkpointing",
 			Value: bool(true),
+		},
+	},
+}, "write.finalize-file-for-rapid": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketTypes: shared.BucketTypeList{
+				"zonal",
+			},
+			Value: bool(false),
+		},
+		{
+			BucketTypes: shared.BucketTypeList{
+				"pirlo",
+			},
+			Value: bool(true),
+		},
+	},
+}, "file-system.fuse-max-request-size-kb": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketTypes: shared.BucketTypeList{
+				"flat",
+				"hierarchical",
+			},
+			Value: int64(StorageClassStandard.DefaultFuseMaxRequestSizeKb()),
 		},
 	},
 }, "implicit-dirs": {
@@ -89,23 +119,35 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 }, "file-system.max-background": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      int64(DefaultMaxBackground()),
+			BucketTypes: shared.BucketTypeList{
+				"zonal",
+				"pirlo",
+			},
+			Value: int64(StorageClassRapid.DefaultMaxBackground()),
 		},
 		{
-			BucketType: "pirlo",
-			Value:      int64(DefaultMaxBackground()),
+			BucketTypes: shared.BucketTypeList{
+				"flat",
+				"hierarchical",
+			},
+			Value: int64(StorageClassStandard.DefaultMaxBackground()),
 		},
 	},
 }, "file-system.max-read-ahead-kb": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
-			BucketType: "zonal",
-			Value:      int64(16384),
+			BucketTypes: shared.BucketTypeList{
+				"zonal",
+				"pirlo",
+			},
+			Value: int64(StorageClassRapid.DefaultMaxReadAheadKb()),
 		},
 		{
-			BucketType: "pirlo",
-			Value:      int64(16384),
+			BucketTypes: shared.BucketTypeList{
+				"flat",
+				"hierarchical",
+			},
+			Value: int64(StorageClassStandard.DefaultMaxReadAheadKb()),
 		},
 	},
 }, "metadata-cache.negative-ttl-secs": {
@@ -277,6 +319,30 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 			}
 		}
 	}
+	if !v.IsSet("write.finalize-file-for-rapid") {
+		rules := AllFlagOptimizationRules["write.finalize-file-for-rapid"]
+		result := getOptimizedValue(&rules, c.Write.FinalizeFileForRapid, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(bool); ok {
+				if c.Write.FinalizeFileForRapid != val {
+					c.Write.FinalizeFileForRapid = val
+					optimizedFlags["write.finalize-file-for-rapid"] = result
+				}
+			}
+		}
+	}
+	if !v.IsSet("file-system.fuse-max-request-size-kb") {
+		rules := AllFlagOptimizationRules["file-system.fuse-max-request-size-kb"]
+		result := getOptimizedValue(&rules, c.FileSystem.FuseMaxRequestSizeKb, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileSystem.FuseMaxRequestSizeKb != val {
+					c.FileSystem.FuseMaxRequestSizeKb = val
+					optimizedFlags["file-system.fuse-max-request-size-kb"] = result
+				}
+			}
+		}
+	}
 	if !v.IsSet("implicit-dirs") {
 		rules := AllFlagOptimizationRules["implicit-dirs"]
 		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, input, machineTypeToGroupMap)
@@ -417,8 +483,6 @@ type Config struct {
 
 	DisableAutoconfig bool `yaml:"disable-autoconfig"`
 
-	DisableListAccessCheck bool `yaml:"disable-list-access-check"`
-
 	DummyIo DummyIoConfig `yaml:"dummy-io"`
 
 	EnableAtomicRenameObject bool `yaml:"enable-atomic-rename-object"`
@@ -545,6 +609,10 @@ type FileSystemConfig struct {
 
 	FileMode Octal `yaml:"file-mode"`
 
+	FuseMaxRequestSizeKb int64 `yaml:"fuse-max-request-size-kb"`
+
+	FuseMaxWriteSizeKb int64 `yaml:"fuse-max-write-size-kb"`
+
 	FuseOptions []string `yaml:"fuse-options"`
 
 	Gid int64 `yaml:"gid"`
@@ -562,6 +630,8 @@ type FileSystemConfig struct {
 	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
 
 	RenameDirLimit int64 `yaml:"rename-dir-limit"`
+
+	StrongConsistencyOnOpen bool `yaml:"strong-consistency-on-open"`
 
 	TempDir ResolvedPath `yaml:"temp-dir"`
 
@@ -613,7 +683,7 @@ type GcsRetriesConfig struct {
 
 	ChunkTransferTimeoutSecs int64 `yaml:"chunk-transfer-timeout-secs"`
 
-	ExperimentalNonrapidFolderApiStallRetry bool `yaml:"experimental-nonrapid-folder-api-stall-retry"`
+	EnableMountRetries bool `yaml:"enable-mount-retries"`
 
 	MaxRetryAttempts int64 `yaml:"max-retry-attempts"`
 
@@ -637,6 +707,12 @@ type LogRotateLoggingConfig struct {
 }
 
 type LoggingConfig struct {
+	ExperimentalEnableOtelLogging bool `yaml:"experimental-enable-otel-logging"`
+
+	ExperimentalOtelLoggingEndpoint string `yaml:"experimental-otel-logging-endpoint"`
+
+	ExperimentalOtelLoggingProjectId string `yaml:"experimental-otel-logging-project-id"`
+
 	FilePath ResolvedPath `yaml:"file-path"`
 
 	Format string `yaml:"format"`
@@ -658,6 +734,8 @@ type MetadataCacheConfig struct {
 	EnableMetadataPrefetch bool `yaml:"enable-metadata-prefetch"`
 
 	EnableNonexistentTypeCache bool `yaml:"enable-nonexistent-type-cache"`
+
+	ExperimentalEnableOptimizedMetadataCache bool `yaml:"experimental-enable-optimized-metadata-cache"`
 
 	ExperimentalMetadataPrefetchOnMount string `yaml:"experimental-metadata-prefetch-on-mount"`
 
@@ -700,6 +778,8 @@ type ReadConfig struct {
 	BlockSizeMb int64 `yaml:"block-size-mb"`
 
 	EnableBufferedRead bool `yaml:"enable-buffered-read"`
+
+	EnableGrpcReadChecksums bool `yaml:"enable-grpc-read-checksums"`
 
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
@@ -745,11 +825,13 @@ type WorkloadInsightConfig struct {
 }
 
 type WriteConfig struct {
-	BlockSizeMb int64 `yaml:"block-size-mb"`
+	BlockSizeMb float64 `yaml:"block-size-mb"`
 
 	CreateEmptyFile bool `yaml:"create-empty-file"`
 
 	EnableRapidAppends bool `yaml:"enable-rapid-appends"`
+
+	EnableRapidWrites bool `yaml:"enable-rapid-writes"`
 
 	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
 
@@ -782,7 +864,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("client-protocol", "", "http1", "The protocol used for communicating with the GCS backend. Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2) or 'grpc'.")
+	flagSet.StringP("client-protocol", "", "http1", "The protocol used for communicating with the GCS backend. Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2), 'grpc', or 'httpmtls'. 'httpmtls' delegates connection creation to the SDK (enabling mTLS) and uses HTTP/2 by default, falling back to HTTP/1.1 if the server doesn't support it.")
 
 	flagSet.IntP("cloud-metrics-export-interval-secs", "", 0, "Specifies the interval at which the metrics are uploaded to cloud monitoring")
 
@@ -884,12 +966,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("disable-list-access-check", "", true, "Disables the list object based access check during mount operation")
-
-	if err := flagSet.MarkHidden("disable-list-access-check"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("disable-parallel-dirops", "", false, "Specifies whether to allow parallel dir operations (lookups and readers)")
 
 	if err := flagSet.MarkHidden("disable-parallel-dirops"); err != nil {
@@ -942,6 +1018,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("enable-grpc-read-checksums", "", false, "Enables chunk-level CRC32C checksum validation for gRPC read operations. Disabled by default to optimize CPU utilization.")
+
+	if err := flagSet.MarkHidden("enable-grpc-read-checksums"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-hns", "", true, "Enables support for HNS buckets")
 
 	if err := flagSet.MarkHidden("enable-hns"); err != nil {
@@ -954,13 +1036,15 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("enable-kernel-reader", "", false, "Enables kernel reader, disables prefetching gcsfuse side and relies on kernel read-ahead and page-cache.")
+	flagSet.BoolP("enable-kernel-reader", "", false, "Enables the kernel reader and FUSE asynchronous reads. When enabled, GCSFuse-side prefetching is disabled, and file read operations rely entirely on the Linux kernel's native read-ahead and page-cache mechanisms.")
 
-	if err := flagSet.MarkHidden("enable-kernel-reader"); err != nil {
+	flagSet.BoolP("enable-metadata-prefetch", "", true, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
+
+	flagSet.BoolP("enable-mount-retries", "", false, "If true, enables retry logic in GCSFuse during the mount sequence  for additional errors (such as metadata server readiness delays, IAM propagation  delays, and temporary bucket non-existence). Intended specifically for the  GKE GCSFuse CSI Driver.")
+
+	if err := flagSet.MarkHidden("enable-mount-retries"); err != nil {
 		return err
 	}
-
-	flagSet.BoolP("enable-metadata-prefetch", "", false, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
 
 	flagSet.BoolP("enable-new-reader", "", true, "Enables support for new reader implementation.")
 
@@ -971,6 +1055,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil. This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.")
 
 	flagSet.BoolP("enable-rapid-appends", "", true, "Enables support for appends to unfinalized object using streaming writes")
+
+	flagSet.BoolP("enable-rapid-writes", "", false, "For pirlo, toggles between using STANDARD class and RAPID class for writes.")
 
 	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
@@ -1016,6 +1102,14 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("experimental-enable-optimized-metadata-cache", "", false, "This flag enables the radix tree based lru cache")
+
+	flagSet.BoolP("experimental-enable-otel-logging", "", false, "Enable OpenTelemetry log exporting.")
+
+	if err := flagSet.MarkHidden("experimental-enable-otel-logging"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("experimental-enable-pirlo", "", false, "Enables support for pirlo.")
 
 	if err := flagSet.MarkHidden("experimental-enable-pirlo"); err != nil {
@@ -1046,15 +1140,21 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("experimental-nonrapid-folder-api-stall-retry", "", false, "Enables stall-retry-fix for folder APIs for non-rapid buckets.")
-
-	if err := flagSet.MarkHidden("experimental-nonrapid-folder-api-stall-retry"); err != nil {
-		return err
-	}
-
 	flagSet.BoolP("experimental-o-direct", "", false, "Experimental: Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse process.")
 
 	if err := flagSet.MarkHidden("experimental-o-direct"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-otel-logging-endpoint", "", "telemetry.googleapis.com", "The OTLP HTTP endpoint for OpenTelemetry logs.")
+
+	if err := flagSet.MarkHidden("experimental-otel-logging-endpoint"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-otel-logging-project-id", "", "", "Specify the GCP project id to which OTel logs will be exported. When unset, a project id will be inferred as per the default credential detection process.")
+
+	if err := flagSet.MarkHidden("experimental-otel-logging-project-id"); err != nil {
 		return err
 	}
 
@@ -1126,6 +1226,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("foreground", "", false, "Stay in the foreground after mounting.")
 
+	flagSet.IntP("fuse-max-request-size-kb", "", StorageClassRapid.DefaultFuseMaxRequestSizeKb(), "Sets the target maximum request size in KiB that FUSE can process in a single request (currently used to control read requests only). This is translated to the kernel max_pages limit based on host page size. As max_pages_limit is a global, machine-level configuration across all mounts, the host's limit is only updated if the calculated pages value is greater than the current system limit. Note that the FUSE kernel max_pages limit can be set to at most 65535 (fuse_max_max_pages), so the value of this parameter must be > 0 and translate to at most 65535 pages.  Additionally, on GKE, the system-wide setting is capped to 16 MiB (16384 KiB) by default by the CSI driver. If needed to be set beyond that on GKE, the user has to manually increase the value on the node before GCSFuse mounting begins. Requires enable-kernel-reader to be set to true, otherwise the value will be ignored. Not supported for rapid buckets for now. Setting this flag on rapid buckets will result in mount failure.")
+
+	if err := flagSet.MarkHidden("fuse-max-request-size-kb"); err != nil {
+		return err
+	}
+
+	flagSet.IntP("fuse-max-write-size-kb", "", 1024, "Sets the target maximum write size in KiB that FUSE can process in a single write request. If fuse-max-request-size-kb is less than fuse-max-write-size-kb, we will restrict fuse-max-write-size-kb to fuse-max-request-size-kb. Right now only a maximum value of 1MB is supported.")
+
+	if err := flagSet.MarkHidden("fuse-max-write-size-kb"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
 
 	flagSet.StringP("grpc-path-strategy", "", "direct-path-with-fallback", "Strategy for DirectPath connectivity when client-protocol=grpc. Options: 'direct-path-only' (fail if unavailable), 'direct-path-with-fallback' (always fallback to HTTP/1 when direct path is not available).")
@@ -1196,7 +1308,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the number of times an operation will be retried if it fails, preventing endless retry loops. A value of 0 indicates no limit.")
+	flagSet.IntP("max-retry-attempts", "", 0, "It sets a limit on the total number of attempts (including the initial call) made for an operation if it fails, preventing endless retry loops. For example, a value of 5 means up to 5 total attempts (1 initial call plus 4 retries). A value of 0 indicates unlimited attempts.")
 
 	flagSet.DurationP("max-retry-duration", "", 0*time.Nanosecond, "This is currently unused.")
 
@@ -1204,7 +1316,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.DurationP("max-retry-sleep", "", 30000000000*time.Nanosecond, "The maximum duration allowed to sleep in a retry loop with exponential backoff for failed requests to GCS backend. Once the backoff duration exceeds this limit, the retry continues with this specified maximum value.")
+	flagSet.DurationP("max-retry-sleep", "", 30000000000*time.Nanosecond, "The maximum backoff sleep duration allowed between retry attempts. Once the exponential backoff exceeds this limit, subsequent retries will use this constant sleep value.")
 
 	flagSet.IntP("metadata-cache-negative-ttl-secs", "", 5, "The negative-ttl-secs value in seconds to be used for expiring negative entries in metadata-cache. It can be set to -1 for no-ttl, 0 for no cache and > 0 for ttl-controlled negative entries in metadata-cache. Any value set below -1 will throw an error.")
 
@@ -1316,7 +1428,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("rename-dir-limit", "", 0, "Allow rename a directory containing fewer descendants than this limit.")
 
-	flagSet.Float64P("retry-multiplier", "", 2, "Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.")
+	flagSet.Float64P("retry-multiplier", "", 2, "The multiplier factor by which the retry backoff duration increases after each failed attempt. For example, a multiplier of 2.0 doubles the backoff sleep duration for each subsequent retry.")
 
 	flagSet.BoolP("reuse-token-from-url", "", true, "If false, the token acquired from token-url is not reused.")
 
@@ -1341,6 +1453,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkDeprecated("stat-cache-ttl", "This flag has been deprecated (starting v2.0) in favor of metadata-cache-ttl-secs."); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("strong-consistency-on-open", "", false, "When enabled, during open file, GCSFuse will check with GCS if the file has been modified since it last fetched and fail with ESTALE if the file has been clobbered (externally modified).")
 
 	flagSet.StringP("temp-dir", "", "", "Path to the temporary directory where writes are staged prior to upload to Cloud Storage. (default: system default, likely /tmp)")
 
@@ -1394,7 +1508,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value should be more than 0.")
+	flagSet.Float64P("write-block-size-mb", "", 32, "Specifies the block size for streaming writes. The value must be greater than 0 and a multiple of 0.25 MiB (256 KiB) to align with GCS upload chunk size requirements.")
 
 	if err := flagSet.MarkHidden("write-block-size-mb"); err != nil {
 		return err
@@ -1509,10 +1623,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("disable-list-access-check", flagSet.Lookup("disable-list-access-check")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("file-system.disable-parallel-dirops", flagSet.Lookup("disable-parallel-dirops")); err != nil {
 		return err
 	}
@@ -1553,6 +1663,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("read.enable-grpc-read-checksums", flagSet.Lookup("enable-grpc-read-checksums")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("enable-hns", flagSet.Lookup("enable-hns")); err != nil {
 		return err
 	}
@@ -1569,6 +1683,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("gcs-retries.enable-mount-retries", flagSet.Lookup("enable-mount-retries")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("enable-new-reader", flagSet.Lookup("enable-new-reader")); err != nil {
 		return err
 	}
@@ -1578,6 +1696,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("write.enable-rapid-appends", flagSet.Lookup("enable-rapid-appends")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("write.enable-rapid-writes", flagSet.Lookup("enable-rapid-writes")); err != nil {
 		return err
 	}
 
@@ -1613,6 +1735,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("metadata-cache.experimental-enable-optimized-metadata-cache", flagSet.Lookup("experimental-enable-optimized-metadata-cache")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.experimental-enable-otel-logging", flagSet.Lookup("experimental-enable-otel-logging")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("file-system.experimental-enable-pirlo", flagSet.Lookup("experimental-enable-pirlo")); err != nil {
 		return err
 	}
@@ -1633,11 +1763,15 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("gcs-retries.experimental-nonrapid-folder-api-stall-retry", flagSet.Lookup("experimental-nonrapid-folder-api-stall-retry")); err != nil {
+	if err := v.BindPFlag("file-system.experimental-o-direct", flagSet.Lookup("experimental-o-direct")); err != nil {
 		return err
 	}
 
-	if err := v.BindPFlag("file-system.experimental-o-direct", flagSet.Lookup("experimental-o-direct")); err != nil {
+	if err := v.BindPFlag("logging.experimental-otel-logging-endpoint", flagSet.Lookup("experimental-otel-logging-endpoint")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.experimental-otel-logging-project-id", flagSet.Lookup("experimental-otel-logging-project-id")); err != nil {
 		return err
 	}
 
@@ -1710,6 +1844,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("foreground", flagSet.Lookup("foreground")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.fuse-max-request-size-kb", flagSet.Lookup("fuse-max-request-size-kb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.fuse-max-write-size-kb", flagSet.Lookup("fuse-max-write-size-kb")); err != nil {
 		return err
 	}
 
@@ -1938,6 +2080,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.deprecated-stat-cache-ttl", flagSet.Lookup("stat-cache-ttl")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.strong-consistency-on-open", flagSet.Lookup("strong-consistency-on-open")); err != nil {
 		return err
 	}
 

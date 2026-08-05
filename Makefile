@@ -47,7 +47,7 @@ imports: generate
 	goimports -w .
 
 fmt: imports
-	go mod tidy && go fmt ./...
+	go mod tidy && gofmt -s -w .
 
 vet: fmt
 	go vet ./...
@@ -88,4 +88,4 @@ e2e-test:
 	echo $$ZONE; \
 	REGION=$$(echo $$ZONE | sed 's/-[a-z]$$//'); \
 	echo $$REGION; \
-	tools/integration_tests/improved_run_e2e_tests.sh --bucket-location $$REGION
+	tools/integration_tests/improved_run_e2e_tests.sh --bucket-location $$REGION $(if $(PROJECT),--project-id $(PROJECT))

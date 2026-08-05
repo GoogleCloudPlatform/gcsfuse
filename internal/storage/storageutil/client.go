@@ -23,6 +23,8 @@ import (
 	"strings"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
@@ -30,7 +32,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
-	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
 
@@ -52,16 +53,16 @@ type StorageClientConfig struct {
 	/** Common client parameters. */
 
 	// ClientProtocol decides the go-sdk client to create.
-	ClientProtocol                          cfg.Protocol
-	UserAgent                               string
-	CustomEndpoint                          string
-	KeyFile                                 string
-	TokenUrl                                string
-	ReuseTokenFromUrl                       bool
-	ExperimentalNonrapidFolderApiStallRetry bool
-	MaxRetrySleep                           time.Duration
-	RetryMultiplier                         float64
-	LocalSocketAddress                      string
+	ClientProtocol     cfg.Protocol
+	UserAgent          string
+	CustomEndpoint     string
+	KeyFile            string
+	TokenUrl           string
+	ReuseTokenFromUrl  bool
+	MaxRetrySleep      time.Duration
+	RetryMultiplier    float64
+	EnableMountRetries bool
+	LocalSocketAddress string
 
 	/** HTTP client parameters. */
 	MaxConnsPerHost            int
@@ -72,11 +73,14 @@ type StorageClientConfig struct {
 	AnonymousAccess            bool
 
 	/** Grpc client parameters. */
-	GrpcConnPoolSize int
-	GrpcPathStrategy cfg.DirectPathStrategy
+	GrpcConnPoolSize        int
+	GrpcPathStrategy        cfg.DirectPathStrategy
+	EnableGrpcReadChecksums bool
 
 	// Enabling new API flow for HNS bucket.
 	EnableHNS bool
+	// Prefix to restrict access to (from only-dir config).
+	OnlyDir string
 	// EnableGoogleLibAuth indicates whether to use the google library authentication flow
 	EnableGoogleLibAuth bool
 
@@ -94,6 +98,8 @@ type StorageClientConfig struct {
 
 	// IsGKE inspects the mountPoint and indicates if running in a GKE environment.
 	IsGKE bool
+
+	WriteConfig *cfg.WriteConfig
 }
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {

@@ -27,24 +27,28 @@ import (
 
 	"cloud.google.com/go/storage"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
+	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"google.golang.org/api/iterator"
-	"google.golang.org/grpc/metadata"
 )
 
 const FullFolderPathHNS = "projects/_/buckets/%s/folders/%s"
 const FullBucketPathHNS = "projects/_/buckets/%s"
 
+const storageClassRapid = "RAPID"
+
 type bucketHandle struct {
 	gcs.Bucket
-	bucket               *storage.BucketHandle
-	bucketName           string
-	bucketType           *gcs.BucketType
-	controlClient        StorageControlClient
-	finalizeFileForRapid bool
-	billingProject       string
+	bucket                   *storage.BucketHandle
+	bucketName               string
+	bucketType               *gcs.BucketType
+	controlClient            StorageControlClient
+	billingProject           string
+	writeConfig              *cfg.WriteConfig
+	disableGrpcReadChecksums bool
 }
 
 func (bh *bucketHandle) Name() string {
@@ -97,7 +101,11 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 	}
 
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
-	storageReader, err := obj.NewRangeReader(ctx, start, length)
+	var opts []storage.ReaderOption
+	if bh.disableGrpcReadChecksums {
+		opts = append(opts, storage.WithDisableReaderChecksum())
+	}
+	storageReader, err := obj.NewRangeReader(ctx, start, length, opts...)
 	if err == nil {
 		reader = newGCSFullReadCloser(storageReader)
 	}
@@ -190,6 +198,13 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 		err = gcs.GetGCSError(err)
 	}()
 
+	// When rapid writes are enabled on an RCU bucket, objects should be explicitly
+	// created with the RAPID storage class in the zonal cache rather than
+	// defaulting to the bucket's default storage class
+	if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesEnabled {
+		req.StorageClass = storageClassRapid
+	}
+
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
@@ -199,12 +214,18 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
 	wc = storageutil.SetAttrsInWriter(wc, req)
 	wc.ProgressFunc = req.CallBack
-	// All objects in zonal buckets must be appendable.
-	wc.Append = bh.BucketType().Zonal
-	// Objects in zonal buckets should not be finalized by default. Finalize them if finalizeFileForRapid is set to true.
-	// When writer.Append is false,then this parameter is anyways ignored.
-	// Refer: https://github.com/googleapis/google-cloud-go/blob/main/storage/writer.go#L135
-	wc.FinalizeOnClose = bh.finalizeFileForRapid
+	// Zonal buckets strictly require the appendable API. For Pirlo buckets, the
+	// appendable API provides file-like semantics (immediate data visibility)
+	// but defers regional durability until the object is finalized. Users can
+	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
+	// to false, which allows further appends, but if they keep it unfinalized
+	// it never becomes regionally durable.
+	wc.Append = bh.BucketType().RapidWritesEnabled()
+	// By default, objects in zonal buckets are not finalized on close, whereas objects in
+	// pirlo buckets are. This behavior is controlled by the finalizeFileForRapid flag.
+	// When writer.Append is false, then this parameter is anyways ignored.
+	// Refer: https://github.com/googleapis/google-cloud-go/blob/bf56afb2a15301500b9981ee76ccc5f449e3f545/storage/writer.go#L160
+	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileForRapid
 
 	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
@@ -226,6 +247,13 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 }
 
 func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+	// When rapid writes are enabled on an RCU bucket, objects should be explicitly
+	// created with the RAPID storage class in the zonal cache rather than
+	// defaulting to the bucket's default storage class.
+	if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesEnabled {
+		req.StorageClass = storageClassRapid
+	}
+
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
 	wc := &ObjectWriter{obj.NewWriter(ctx)}
@@ -234,18 +262,24 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc.ChunkRetryDeadline = time.Duration(req.ChunkRetryDeadlineSecs) * time.Second
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
 	wc.ProgressFunc = callBack
-	// All objects in zonal buckets must be appendable.
-	wc.Append = bh.BucketType().Zonal
-	// Objects in zonal buckets should not be finalized by default. Finalize them if finalizeFileForRapid is set to true.
+	// Zonal buckets strictly require the appendable API. For Pirlo buckets, the
+	// appendable API provides file-like semantics (immediate data visibility)
+	// but defers regional durability until the object is finalized. Users can
+	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
+	// to false, which allows further appends, but if they keep it unfinalized
+	// it never becomes regionally durable.
+	wc.Append = bh.BucketType().RapidWritesEnabled()
+	// By default, objects in zonal buckets are not finalized on close, whereas objects in
+	// pirlo buckets are. This behavior is controlled by the finalizeFileForRapid flag.
 	// When writer.Append is false, then this parameter is anyways ignored.
-	// Refer: https://github.com/googleapis/google-cloud-go/blob/main/storage/writer.go#L135
-	wc.FinalizeOnClose = bh.finalizeFileForRapid
-
+	// Refer: https://github.com/googleapis/google-cloud-go/blob/bf56afb2a15301500b9981ee76ccc5f449e3f545/storage/writer.go#L160
+	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileForRapid
 	return wc, nil
 }
 
 func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {
+
 	obj := bh.getObjectHandleWithPreconditionsSet(&req.CreateObjectRequest)
 	// To create the takeover writer, the objectHandle.Generation must be set.
 	obj = obj.Generation(*req.CreateObjectRequest.GenerationPrecondition)
@@ -253,7 +287,7 @@ func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	opts := storage.AppendableWriterOpts{
 		ChunkSize:       req.ChunkSize,
 		ProgressFunc:    req.CallBack,
-		FinalizeOnClose: bh.finalizeFileForRapid,
+		FinalizeOnClose: bh.writeConfig.FinalizeFileForRapid,
 	}
 
 	tw, off, err := obj.NewWriterFromAppendableObject(ctx, &opts) // Takeover writer tw created from offset off.
@@ -367,7 +401,7 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 		//MaxResults: , (Field not present in storage.Query of Go Storage Library but present in ListObjectsQuery in Jacobsa code.)
 	}
 	minObjAttrs := []string{"Name", "Size", "Generation", "Metageneration", "Updated", "Metadata", "ContentEncoding", "CRC32C"}
-	if bh.BucketType().Zonal {
+	if bh.BucketType().IsRapid() {
 		// For regional buckets, partial response API fails to populate the Finalized field.(b/398916957)
 		// For objects in regional buckets, this field will be *unset*.
 		minObjAttrs = append(minObjAttrs, "Finalized")
@@ -377,10 +411,6 @@ func (bh *bucketHandle) ListObjects(ctx context.Context, req *gcs.ListObjectsReq
 	if err != nil {
 		err = fmt.Errorf("error while setting attribute selection for List Object query :%w", err)
 		return
-	}
-
-	if bh.billingProject != "" {
-		ctx = metadata.AppendToOutgoingContext(ctx, "x-goog-user-project", bh.billingProject)
 	}
 
 	itr := bh.bucket.Objects(ctx, query) // Returning iterator to the list of objects.
@@ -545,7 +575,8 @@ func (bh *bucketHandle) DeleteFolder(ctx context.Context, folderName string) (er
 	var callOptions []gax.CallOption
 
 	err = bh.controlClient.DeleteFolder(ctx, &controlpb.DeleteFolderRequest{
-		Name: fmt.Sprintf(FullFolderPathHNS, bh.bucketName, folderName),
+		Name:      fmt.Sprintf(FullFolderPathHNS, bh.bucketName, folderName),
+		RequestId: uuid.NewString(),
 	}, callOptions...)
 	return
 }
@@ -592,6 +623,7 @@ func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, des
 	req := &controlpb.RenameFolderRequest{
 		Name:                fmt.Sprintf(FullFolderPathHNS, bh.bucketName, folderName),
 		DestinationFolderId: destinationFolderId,
+		RequestId:           uuid.NewString(),
 	}
 	resp, err := bh.controlClient.RenameFolder(ctx, req)
 	if err != nil {
@@ -619,7 +651,8 @@ func (bh *bucketHandle) GetFolder(ctx context.Context, req *gcs.GetFolderRequest
 	var callOptions []gax.CallOption
 	var clientFolder *controlpb.Folder
 	clientFolder, err = bh.controlClient.GetFolder(ctx, &controlpb.GetFolderRequest{
-		Name: fmt.Sprintf(FullFolderPathHNS, bh.bucketName, req.Name),
+		Name:      fmt.Sprintf(FullFolderPathHNS, bh.bucketName, req.Name),
+		RequestId: uuid.NewString(),
 	}, callOptions...)
 
 	if err != nil {
@@ -640,6 +673,7 @@ func (bh *bucketHandle) CreateFolder(ctx context.Context, folderName string) (fo
 		Parent:    fmt.Sprintf(FullBucketPathHNS, bh.bucketName),
 		FolderId:  folderName,
 		Recursive: true,
+		RequestId: uuid.NewString(),
 	}
 
 	clientFolder, err := bh.controlClient.CreateFolder(ctx, req)
@@ -673,7 +707,12 @@ func (bh *bucketHandle) NewMultiRangeDownloader(
 		obj = obj.ReadHandle(req.ReadHandle)
 	}
 
-	mrd, err = obj.NewMultiRangeDownloader(ctx)
+	var opts []storage.MRDOption
+	if bh.disableGrpcReadChecksums {
+		opts = append(opts, storage.WithDisableMRDReadChecksum())
+	}
+
+	mrd, err = obj.NewMultiRangeDownloader(ctx, opts...)
 	return
 }
 

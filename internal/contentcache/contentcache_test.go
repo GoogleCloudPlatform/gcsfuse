@@ -18,17 +18,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/jacobsa/fuse/fsutil"
-	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const numConcurrentGoRoutines = 100
-const testTempDir = "/tmp"
 const testGeneration = 10002022
 const testGenerationOld = 10002020
 const testMetaGeneration = 1
@@ -43,7 +44,7 @@ func TestValidateGeneration(t *testing.T) {
 		MetaGeneration:      testMetaGeneration,
 	}
 	cacheObject := contentcache.CacheObject{CacheFileObjectMetadata: &objectMetadata}
-	ExpectTrue(cacheObject.ValidateGeneration(testGeneration, testMetaGeneration))
+	assert.True(t, cacheObject.ValidateGeneration(testGeneration, testMetaGeneration))
 }
 
 func TestValidateGenerationNegative(t *testing.T) {
@@ -55,16 +56,19 @@ func TestValidateGenerationNegative(t *testing.T) {
 		MetaGeneration:      testMetaGeneration,
 	}
 	cacheObject := contentcache.CacheObject{CacheFileObjectMetadata: &objectMetadata}
-	ExpectFalse(cacheObject.ValidateGeneration(testGenerationOld, testMetaGenerationOld))
-	ExpectFalse(cacheObject.ValidateGeneration(testGenerationOld, testMetaGeneration))
-	ExpectFalse(cacheObject.ValidateGeneration(testGeneration, testMetaGenerationOld))
+	assert.False(t, cacheObject.ValidateGeneration(testGenerationOld, testMetaGenerationOld))
+	assert.False(t, cacheObject.ValidateGeneration(testGenerationOld, testMetaGeneration))
+	assert.False(t, cacheObject.ValidateGeneration(testGeneration, testMetaGenerationOld))
 }
 
 func TestReadWriteMetadataCheckpointFile(t *testing.T) {
+	tempDir := t.TempDir()
 	mtimeClock := timeutil.RealClock()
-	contentCache := contentcache.New(testTempDir, mtimeClock)
-	f, err := fsutil.AnonymousFile(testTempDir)
-	AssertEq(err, nil)
+	contentCache := contentcache.New(tempDir, mtimeClock)
+	f, err := fsutil.AnonymousFile(tempDir)
+	require.NoError(t, err)
+	defer func() { _ = f.Close() }()
+
 	objectMetadata := contentcache.CacheFileObjectMetadata{
 		CacheFileNameOnDisk: f.Name(),
 		BucketName:          "foo",
@@ -72,27 +76,28 @@ func TestReadWriteMetadataCheckpointFile(t *testing.T) {
 		Generation:          testGeneration,
 		MetaGeneration:      testMetaGeneration,
 	}
-	metadataFileName, err := contentCache.WriteMetadataCheckpointFile(objectMetadata.ObjectName, &objectMetadata)
-	AssertEq(err, nil)
+	// Write the checkpoint file to the temp directory instead of the working directory
+	metadataFileName, err := contentCache.WriteMetadataCheckpointFile(filepath.Join(tempDir, objectMetadata.ObjectName), &objectMetadata)
+	require.NoError(t, err)
 	newObjectMetadata := contentcache.CacheFileObjectMetadata{}
 	contents, err := os.ReadFile(metadataFileName)
-	AssertEq(err, nil)
+	require.NoError(t, err)
 	err = json.Unmarshal(contents, &newObjectMetadata)
-	AssertEq(err, nil)
-	// There is no struct equality support in ExpectEq
-	ExpectEq(objectMetadata.BucketName, newObjectMetadata.BucketName)
-	ExpectEq(objectMetadata.CacheFileNameOnDisk, newObjectMetadata.CacheFileNameOnDisk)
-	ExpectEq(objectMetadata.Generation, newObjectMetadata.Generation)
-	ExpectEq(objectMetadata.MetaGeneration, newObjectMetadata.MetaGeneration)
-	ExpectEq(objectMetadata.ObjectName, newObjectMetadata.ObjectName)
-	os.Remove(metadataFileName)
+	require.NoError(t, err)
+
+	assert.Equal(t, objectMetadata.BucketName, newObjectMetadata.BucketName)
+	assert.Equal(t, objectMetadata.CacheFileNameOnDisk, newObjectMetadata.CacheFileNameOnDisk)
+	assert.Equal(t, objectMetadata.Generation, newObjectMetadata.Generation)
+	assert.Equal(t, objectMetadata.MetaGeneration, newObjectMetadata.MetaGeneration)
+	assert.Equal(t, objectMetadata.ObjectName, newObjectMetadata.ObjectName)
 }
 
 // TestContentCacheAddOrReplace should panic on concurrent map access
 func TestContentCacheAddOrReplace(t *testing.T) {
+	tempDir := t.TempDir()
 	var wg sync.WaitGroup
 	mtimeClock := timeutil.RealClock()
-	contentCache := contentcache.New(testTempDir, mtimeClock)
+	contentCache := contentcache.New(tempDir, mtimeClock)
 	cacheObjectKey := &contentcache.CacheObjectKey{
 		BucketName: "foo",
 		ObjectName: "baz",
@@ -102,51 +107,52 @@ func TestContentCacheAddOrReplace(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			_, err := contentCache.AddOrReplace(cacheObjectKey, 1000, 1, nil)
-			ExpectEq(err, nil)
+			assert.NoError(t, err)
 		}()
 	}
 	wg.Wait()
 }
 
 func TestContentCacheGet(t *testing.T) {
+	tempDir := t.TempDir()
 	var wg sync.WaitGroup
 	mtimeClock := timeutil.RealClock()
-	contentCache := contentcache.New(testTempDir, mtimeClock)
+	contentCache := contentcache.New(tempDir, mtimeClock)
 	cacheObjectKey := &contentcache.CacheObjectKey{
 		BucketName: "foo",
 		ObjectName: "baz",
 	}
 	cacheObject, err := contentCache.AddOrReplace(cacheObjectKey, 1000, 1, nil)
-	ExpectEq(err, nil)
+	require.NoError(t, err)
 	for i := 1; i <= numConcurrentGoRoutines; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			retrievedCacheObject, exists := contentCache.Get(cacheObjectKey)
-			ExpectTrue(exists)
-			ExpectEq(cacheObject.CacheFile, retrievedCacheObject.CacheFile)
-			ExpectEq(cacheObject.CacheFileObjectMetadata, retrievedCacheObject.CacheFileObjectMetadata)
-			ExpectEq(cacheObject.MetadataFileName, retrievedCacheObject.MetadataFileName)
+			assert.True(t, exists)
+			assert.Equal(t, cacheObject.CacheFile, retrievedCacheObject.CacheFile)
+			assert.Equal(t, cacheObject.CacheFileObjectMetadata, retrievedCacheObject.CacheFileObjectMetadata)
+			assert.Equal(t, cacheObject.MetadataFileName, retrievedCacheObject.MetadataFileName)
 		}()
 	}
 	wg.Wait()
 }
 
 func TestContentCacheRemove(t *testing.T) {
+	tempDir := t.TempDir()
 	var wg sync.WaitGroup
 	mtimeClock := timeutil.RealClock()
-	contentCache := contentcache.New(testTempDir, mtimeClock)
+	contentCache := contentcache.New(tempDir, mtimeClock)
 	for i := 1; i <= numConcurrentGoRoutines; i++ {
 		cacheObjectKey := &contentcache.CacheObjectKey{
 			BucketName: "foo",
 			ObjectName: fmt.Sprintf("baz%d", i),
 		}
 		_, err := contentCache.AddOrReplace(cacheObjectKey, 1000, 1, nil)
-		ExpectEq(err, nil)
+		require.NoError(t, err)
 	}
 	for i := 1; i <= numConcurrentGoRoutines; i++ {
 		wg.Add(1)
-		i := i
 		go func() {
 			defer wg.Done()
 			cacheObjectKey := &contentcache.CacheObjectKey{
@@ -157,5 +163,5 @@ func TestContentCacheRemove(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	ExpectEq(contentCache.Size(), 0)
+	assert.Equal(t, 0, contentCache.Size())
 }

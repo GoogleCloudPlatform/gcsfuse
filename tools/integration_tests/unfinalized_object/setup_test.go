@@ -53,31 +53,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.UnfinalizedObject) == 0 {
-		log.Println("No configuration found for unfinalized_object tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.UnfinalizedObject = make([]test_suite.TestConfig, 1)
-		cfg.UnfinalizedObject[0].TestBucket = setup.TestBucket()
-		cfg.UnfinalizedObject[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.UnfinalizedObject[0].LogFile = setup.LogFile()
-		cfg.UnfinalizedObject[0].Configs = make([]test_suite.ConfigItem, 3)
-		cfg.UnfinalizedObject[0].Configs[0].Flags = []string{
-			"--metadata-cache-ttl-secs=-1",
-			"--metadata-cache-ttl-secs=-1 --enable-kernel-reader=false",
-		}
-		cfg.UnfinalizedObject[0].Configs[0].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.UnfinalizedObject[0].Configs[0].Run = "TestUnfinalizedObjectReadTest"
-		cfg.UnfinalizedObject[0].Configs[1].Flags = []string{
-			"--metadata-cache-ttl-secs=0",
-			"--metadata-cache-ttl-secs=0 --enable-kernel-reader=false",
-		}
-		cfg.UnfinalizedObject[0].Configs[1].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.UnfinalizedObject[0].Configs[1].Run = "TestUnfinalizedObjectOperationTest"
-		cfg.UnfinalizedObject[0].Configs[2].Flags = []string{
-			"--metadata-cache-ttl-secs=2",
-			"--metadata-cache-ttl-secs=2 --enable-kernel-reader=false",
-		}
-		cfg.UnfinalizedObject[0].Configs[2].Compatible = map[string]bool{"flat": false, "hns": false, "zonal": true}
-		cfg.UnfinalizedObject[0].Configs[2].Run = "TestUnfinalizedObjectTailingReadTest"
+		log.Fatal("No configuration found for UnfinalizedObject in config file.")
 	}
 
 	testEnv.ctx = context.Background()

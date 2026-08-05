@@ -15,13 +15,19 @@
 package storageutil
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/url"
+	"os"
+	"sync"
 	"testing"
 
+	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/googleapi"
@@ -45,9 +51,9 @@ func TestShouldRetryReturnsTrueWithGoogleApiError(t *testing.T) {
 		Body: "API rate limit exceeded",
 	}
 
-	assert.Equal(t, true, ShouldRetry(&err401))
-	assert.Equal(t, true, ShouldRetry(&err502))
-	assert.Equal(t, true, ShouldRetry(&err429))
+	assert.Equal(t, true, ShouldRetryWithRetryContext(&err401, nil))
+	assert.Equal(t, true, ShouldRetryWithRetryContext(&err502, nil))
+	assert.Equal(t, true, ShouldRetryWithRetryContext(&err429, nil))
 }
 
 func TestShouldRetryReturnsFalseWithGoogleApiError400(t *testing.T) {
@@ -56,15 +62,15 @@ func TestShouldRetryReturnsFalseWithGoogleApiError400(t *testing.T) {
 		Code: 400,
 	}
 
-	assert.Equal(t, false, ShouldRetry(&err400))
+	assert.Equal(t, false, ShouldRetryWithRetryContext(&err400, nil))
 }
 
 func TestShouldRetryReturnsTrueWithUnexpectedEOFError(t *testing.T) {
-	assert.Equal(t, true, ShouldRetry(io.ErrUnexpectedEOF))
+	assert.Equal(t, true, ShouldRetryWithRetryContext(io.ErrUnexpectedEOF, nil))
 }
 
 func TestShouldRetryReturnsTrueWithNetworkError(t *testing.T) {
-	assert.Equal(t, true, ShouldRetry(net.ErrClosed))
+	assert.Equal(t, true, ShouldRetryWithRetryContext(net.ErrClosed, nil))
 }
 
 func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) {
@@ -117,7 +123,7 @@ func TestShouldRetryReturnsTrueForConnectionRefusedAndResetErrors(t *testing.T) 
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualResult := ShouldRetry(tc.err)
+			actualResult := ShouldRetryWithRetryContext(tc.err, nil)
 			assert.Equal(t, tc.expectedResult, actualResult)
 		})
 	}
@@ -143,10 +149,231 @@ func TestShouldRetryReturnsTrueForUnauthenticatedGrpcErrors(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualResult := ShouldRetry(tc.err)
+			actualResult := ShouldRetryWithRetryContext(tc.err, nil)
 			assert.Equal(t, tc.expectedResult, actualResult)
 		})
 	}
+}
+
+func TestShouldRetryWithoutLogging(t *testing.T) {
+	testCases := []struct {
+		name           string
+		err            error
+		expectedResult bool
+	}{
+		{
+			name: "401 error - retryable",
+			err: &googleapi.Error{
+				Code: 401,
+				Body: "Invalid Credential",
+			},
+			expectedResult: true,
+		},
+		{
+			name:           "Unauthenticated error - retryable",
+			err:            status.Error(codes.Unauthenticated, "unauthenticated"),
+			expectedResult: true,
+		},
+		{
+			name: "400 error - non-retryable",
+			err: &googleapi.Error{
+				Code: 400,
+			},
+			expectedResult: false,
+		},
+		{
+			name: "403 error - non-retryable for regular ops",
+			err: &googleapi.Error{
+				Code: 403,
+			},
+			expectedResult: false,
+		},
+		{
+			name: "404 bucket missing error - non-retryable for regular ops",
+			err: &googleapi.Error{
+				Code:    404,
+				Message: "The specified bucket does not exist.",
+			},
+			expectedResult: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf logBuffer
+			logger.SetOutput(&buf)
+			defer logger.SetOutput(os.Stdout)
+
+			// Act
+			actualResult := ShouldRetryWithoutLogging(tc.err)
+
+			// Assert
+			assert.Equal(t, tc.expectedResult, actualResult)
+			assert.Empty(t, buf.String())
+		})
+	}
+}
+
+func TestDetermineRetryAction(t *testing.T) {
+	// Arrange
+	testCases := []struct {
+		name     string
+		err      error
+		expected retryAction
+	}{
+		{
+			name:     "NilError",
+			err:      nil,
+			expected: noRetry,
+		},
+		{
+			name:     "GoogleApiError400",
+			err:      &googleapi.Error{Code: 400},
+			expected: noRetry,
+		},
+		{
+			name:     "GoogleApiError401",
+			err:      &googleapi.Error{Code: 401},
+			expected: retry401,
+		},
+		{
+			name:     "GoogleApiError429",
+			err:      &googleapi.Error{Code: 429},
+			expected: retryTransient,
+		},
+		{
+			name:     "UnauthenticatedGrpcError",
+			err:      status.Error(codes.Unauthenticated, "unauthenticated"),
+			expected: retryUnauthenticated,
+		},
+		{
+			name:     "PermissionDeniedGrpcError",
+			err:      status.Error(codes.PermissionDenied, "permission denied"),
+			expected: retryPermissionDenied,
+		},
+		{
+			name:     "GoogleApiError403",
+			err:      &googleapi.Error{Code: 403},
+			expected: retry403,
+		},
+		{
+			name:     "GoogleApiError404BucketNotExist",
+			err:      &googleapi.Error{Code: 404, Message: "The specified bucket does not exist."},
+			expected: retry404BucketDoesNotExist,
+		},
+		{
+			name:     "GrpcNotFoundBucketNotExist",
+			err:      status.Error(codes.NotFound, "The specified bucket does not exist."),
+			expected: retryNotFoundBucketDoesNotExist,
+		},
+		{
+			name:     "UnexpectedEOF",
+			err:      io.ErrUnexpectedEOF,
+			expected: retryTransient,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Act
+			actual := determineRetryAction(tc.err)
+
+			// Assert
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+// logBuffer is a thread-safe buffer for capturing logs in tests.
+type logBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *logBuffer) Write(p []byte) (n int, err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *logBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+func TestShouldRetryLogsWarning(t *testing.T) {
+	// Arrange
+	var buf logBuffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stdout)
+	var err401 = &googleapi.Error{
+		Code: 401,
+		Body: "Invalid Credential",
+	}
+
+	// Act
+	retry := ShouldRetryWithRetryContext(err401, nil)
+
+	// Assert
+	assert.True(t, retry)
+	assert.Contains(t, buf.String(), "WARNING")
+	assert.Contains(t, buf.String(), "Retrying for error: googleapi: got HTTP response code 401")
+}
+
+func TestShouldRetryLogsWarningWithRetryContext(t *testing.T) {
+	// Arrange
+	var buf logBuffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stdout)
+	var err401 = &googleapi.Error{
+		Code:    401,
+		Message: "Invalid Credential",
+	}
+	retryCtx := &storage.RetryContext{
+		Attempt:      3,
+		InvocationID: "mock-invocation-id-123",
+		Operation:    "GetObject",
+		Bucket:       "my-test-bucket",
+		Object:       "some/file.txt",
+	}
+
+	// Act
+	retry := ShouldRetryWithRetryContext(err401, retryCtx)
+
+	// Assert
+	assert.True(t, retry)
+	logMsg := buf.String()
+	assert.Contains(t, logMsg, "WARNING")
+	assert.Contains(t, logMsg, "Retrying GetObject for")
+	assert.Contains(t, logMsg, "some/file.txt")
+	assert.Contains(t, logMsg, "Invalid Credential")
+	assert.Contains(t, logMsg, "Attempt: 4")
+	assert.Contains(t, logMsg, "InvocationID: mock-invocation-id-123")
+}
+
+func TestShouldRetryLogsWarningWithNilRetryContext(t *testing.T) {
+	// Arrange
+	var buf logBuffer
+	logger.SetOutput(&buf)
+	defer logger.SetOutput(os.Stdout)
+	var err401 = &googleapi.Error{
+		Code:    401,
+		Message: "Invalid Credential",
+	}
+
+	// Act
+	retry := ShouldRetryWithRetryContext(err401, nil)
+
+	// Assert
+	assert.True(t, retry)
+	logMsg := buf.String()
+	assert.Contains(t, logMsg, "WARNING")
+	assert.Contains(t, logMsg, "Retrying for error: googleapi: Error 401: Invalid Credential")
+	assert.NotContains(t, logMsg, "Op:")
+	assert.NotContains(t, logMsg, "Object:")
+	assert.NotContains(t, logMsg, "Attempt:")
+	assert.NotContains(t, logMsg, "InvocationID:")
 }
 
 type fakeMetricHandle struct {
@@ -184,7 +411,7 @@ func TestShouldRetryWithMonitoringForNonRetryableErrors(t *testing.T) {
 				MetricHandle: metrics.NewNoopMetrics(),
 			}
 
-			shouldRetry := ShouldRetryWithMonitoring(context.Background(), tc.err, fakeMetrics)
+			shouldRetry := ShouldRetryWithMonitoringAndRetryContext(context.Background(), tc.err, nil, fakeMetrics)
 
 			assert.False(t, shouldRetry)
 			assert.False(t, fakeMetrics.gcsRetryCountCalled)
@@ -218,12 +445,99 @@ func TestShouldRetryWithMonitoringForRetryableErrors(t *testing.T) {
 				MetricHandle: metrics.NewNoopMetrics(),
 			}
 
-			shouldRetry := ShouldRetryWithMonitoring(context.Background(), tc.err, fakeMetrics)
+			shouldRetry := ShouldRetryWithMonitoringAndRetryContext(context.Background(), tc.err, nil, fakeMetrics)
 
 			assert.True(t, shouldRetry)
 			assert.True(t, fakeMetrics.gcsRetryCountCalled)
 			assert.Equal(t, int64(1), fakeMetrics.gcsRetryCountInc)
 			assert.Equal(t, tc.expectedMetricCategory, fakeMetrics.gcsRetryErrorCategory)
+		})
+	}
+}
+
+func TestShouldRetryOnMount(t *testing.T) {
+	testCases := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "standard transient error 502",
+			err:      &googleapi.Error{Code: 502},
+			expected: true,
+		},
+		{
+			name:     "standard transient error 401",
+			err:      &googleapi.Error{Code: 401},
+			expected: true,
+		},
+		{
+			name:     "HTTP 403 Forbidden",
+			err:      &googleapi.Error{Code: 403, Message: "Permission denied on resource"},
+			expected: true,
+		},
+		{
+			name:     "HTTP 404 missing bucket",
+			err:      &googleapi.Error{Code: 404, Message: "The specified bucket does not exist."},
+			expected: true,
+		},
+		{
+			name:     "HTTP 404 missing bucket mixed case",
+			err:      &googleapi.Error{Code: 404, Message: "The Specified Bucket Does Not Exist."},
+			expected: true,
+		},
+		{
+			name:     "HTTP 404 missing object",
+			err:      &googleapi.Error{Code: 404, Message: "No such object: my-bucket/test-object"},
+			expected: false,
+		},
+		{
+			name:     "gRPC PermissionDenied",
+			err:      status.Error(codes.PermissionDenied, "caller does not have required permission"),
+			expected: true,
+		},
+		{
+			name:     "gRPC NotFound missing bucket",
+			err:      status.Error(codes.NotFound, "The specified bucket does not exist."),
+			expected: true,
+		},
+		{
+			name:     "gRPC NotFound missing bucket mixed case",
+			err:      status.Error(codes.NotFound, "The Specified Bucket Does Not Exist."),
+			expected: true,
+		},
+		{
+			name:     "gRPC NotFound missing object",
+			err:      status.Error(codes.NotFound, "No such object: my-bucket/test-object"),
+			expected: false,
+		},
+		{
+			name:     "permanent error HTTP 400",
+			err:      &googleapi.Error{Code: 400, Message: "Bad Request"},
+			expected: false,
+		},
+		{
+			name:     "permanent error gRPC InvalidArgument",
+			err:      status.Error(codes.InvalidArgument, "invalid bucket name"),
+			expected: false,
+		},
+		{
+			name:     "wrapped gRPC PermissionDenied",
+			err:      fmt.Errorf("mount failed: %w", status.Error(codes.PermissionDenied, "caller does not have required permission")),
+			expected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := ShouldRetryOnMount(tc.err)
+
+			assert.Equal(t, tc.expected, result)
 		})
 	}
 }

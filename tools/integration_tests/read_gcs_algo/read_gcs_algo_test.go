@@ -41,14 +41,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.ReadGCSAlgo) == 0 {
-		log.Println("No configuration found for list large dir tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.ReadGCSAlgo = make([]test_suite.TestConfig, 1)
-		cfg.ReadGCSAlgo[0].TestBucket = setup.TestBucket()
-		cfg.ReadGCSAlgo[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.ReadGCSAlgo[0].Configs = make([]test_suite.ConfigItem, 2)
-		cfg.ReadGCSAlgo[0].Configs[0].Flags = []string{"--implicit-dirs=true"}
-		cfg.ReadGCSAlgo[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		log.Fatal("No configuration found for ReadGCSAlgo in config file.")
 	}
 
 	// 2. Create storage client before running tests.

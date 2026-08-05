@@ -67,7 +67,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 	if !job.fileCacheConfig.EnableODirect {
 		if job.IsExperimentalParallelDownloadsDefaultOn() {
 			for start < end {
-				writeSize := min(end-start, ReadChunkSize)
+				writeSize := min(end-start, job.ReadChunkSize)
 				_, err = io.CopyN(dstWriter, newReader, writeSize)
 				if err != nil {
 					err = fmt.Errorf("downloadRange: error at the time of copying content to cache file %w", err)
@@ -88,7 +88,7 @@ func (job *Job) downloadRange(ctx context.Context, dstWriter io.Writer, start, e
 	} else {
 		if job.IsExperimentalParallelDownloadsDefaultOn() {
 			for start < end {
-				writeSize := min(end-start, ReadChunkSize)
+				writeSize := min(end-start, job.ReadChunkSize)
 				_, err = cacheutil.CopyUsingMemoryAlignedBuffer(ctx, newReader, dstWriter, writeSize,
 					job.fileCacheConfig.WriteBufferSize)
 				// If context is canceled while reading/writing in CopyUsingMemoryAlignedBuffer

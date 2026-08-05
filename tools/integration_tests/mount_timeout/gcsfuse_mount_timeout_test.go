@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
@@ -238,6 +239,9 @@ func unmountAndWait(mountDir string) error {
 }
 
 func (testSuite *NonZBMountTimeoutTest) TestMountMultiRegionUSBucketWithTimeout() {
+	if !client.CheckBucketAccess(gCtx, gStorageClient, multiRegionUSBucket) {
+		testSuite.T().Skipf("Skipping test as bucket %q is not accessible", multiRegionUSBucket)
+	}
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -264,6 +268,9 @@ func (testSuite *NonZBMountTimeoutTest) TestMountMultiRegionUSBucketWithTimeout(
 }
 
 func (testSuite *NonZBMountTimeoutTest) TestMountMultiRegionAsiaBucketWithTimeout() {
+	if !client.CheckBucketAccess(gCtx, gStorageClient, multiRegionAsiaBucket) {
+		testSuite.T().Skipf("Skipping test as bucket %q is not accessible", multiRegionAsiaBucket)
+	}
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -290,6 +297,9 @@ func (testSuite *NonZBMountTimeoutTest) TestMountMultiRegionAsiaBucketWithTimeou
 }
 
 func (testSuite *NonZBMountTimeoutTest) TestMountDualRegionUSBucketWithTimeout() {
+	if !client.CheckBucketAccess(gCtx, gStorageClient, dualRegionUSBucket) {
+		testSuite.T().Skipf("Skipping test as bucket %q is not accessible", dualRegionUSBucket)
+	}
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -316,6 +326,9 @@ func (testSuite *NonZBMountTimeoutTest) TestMountDualRegionUSBucketWithTimeout()
 }
 
 func (testSuite *NonZBMountTimeoutTest) TestMountDualRegionAsiaBucketWithTimeout() {
+	if !client.CheckBucketAccess(gCtx, gStorageClient, dualRegionAsiaBucket) {
+		testSuite.T().Skipf("Skipping test as bucket %q is not accessible", dualRegionAsiaBucket)
+	}
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -342,6 +355,9 @@ func (testSuite *NonZBMountTimeoutTest) TestMountDualRegionAsiaBucketWithTimeout
 }
 
 func (testSuite *NonZBMountTimeoutTest) TestMountSingleRegionUSBucketWithTimeout() {
+	if !client.CheckBucketAccess(gCtx, gStorageClient, singleRegionUSCentralBucket) {
+		testSuite.T().Skipf("Skipping test as bucket %q is not accessible", singleRegionUSCentralBucket)
+	}
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -368,6 +384,9 @@ func (testSuite *NonZBMountTimeoutTest) TestMountSingleRegionUSBucketWithTimeout
 }
 
 func (testSuite *NonZBMountTimeoutTest) TestMountSingleRegionAsiaBucketWithTimeout() {
+	if !client.CheckBucketAccess(gCtx, gStorageClient, singleRegionAsiaEastBucket) {
+		testSuite.T().Skipf("Skipping test as bucket %q is not accessible", singleRegionAsiaEastBucket)
+	}
 	testCases := []struct {
 		name           string
 		clientProtocol cfg.Protocol
@@ -394,6 +413,9 @@ func (testSuite *NonZBMountTimeoutTest) TestMountSingleRegionAsiaBucketWithTimeo
 }
 
 func (testSuite *ZBMountTimeoutTest) TestMountSameZoneZonalBucketWithTimeout() {
+	if !client.CheckBucketAccess(gCtx, gStorageClient, testSuite.config.sameZoneZonalBucket) {
+		testSuite.T().Skipf("Skipping test as bucket %q is not accessible", testSuite.config.sameZoneZonalBucket)
+	}
 	setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, "SameZoneZonalBucket"))
 
 	err := testSuite.mountOrTimeout(testSuite.config.sameZoneZonalBucket, string(cfg.GRPC), testSuite.config.sameZoneMountTimeout)
@@ -401,6 +423,9 @@ func (testSuite *ZBMountTimeoutTest) TestMountSameZoneZonalBucketWithTimeout() {
 }
 
 func (testSuite *ZBMountTimeoutTest) TestMountCrossZoneZonalBucketWithTimeout() {
+	if !client.CheckBucketAccess(gCtx, gStorageClient, testSuite.config.crossZoneZonalBucket) {
+		testSuite.T().Skipf("Skipping test as bucket %q is not accessible", testSuite.config.crossZoneZonalBucket)
+	}
 	setup.SetLogFile(fmt.Sprintf("%s%s.txt", logfilePathPrefix, "CrossZoneZonalBucket"))
 
 	err := testSuite.mountOrTimeout(testSuite.config.crossZoneZonalBucket, string(cfg.GRPC), testSuite.config.crossZoneMountTimeout)

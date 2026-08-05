@@ -16,6 +16,7 @@ package gcs
 
 import (
 	"crypto/md5"
+	"fmt"
 	"time"
 
 	storagev1 "google.golang.org/api/storage/v1"
@@ -86,11 +87,42 @@ type MinObject struct {
 	Size            uint64
 	Generation      int64
 	MetaGeneration  int64
-	Updated         time.Time
-	Finalized       time.Time
+	Updated         int64
+	Finalized       int64
 	Metadata        map[string]string
 	ContentEncoding string
 	CRC32C          *uint32 // Missing for CMEK buckets
+}
+
+func (mo MinObject) UpdatedTime() time.Time {
+	return NSToTime(mo.Updated)
+}
+
+func (mo MinObject) FinalizedTime() time.Time {
+	return NSToTime(mo.Finalized)
+}
+
+// String implements the fmt.Stringer interface to provide a human-readable
+// representation of the MinObject in logs, converting the int64
+// timestamps back into readable time formats.
+func (mo MinObject) String() string {
+	crc := "<nil>"
+	if mo.CRC32C != nil {
+		crc = fmt.Sprintf("0x%08x", *mo.CRC32C)
+	}
+
+	return fmt.Sprintf(
+		"MinObject{Name: %q, Size: %d, Generation: %d, MetaGeneration: %d, Updated: %s, Finalized: %s, Metadata: %v, ContentEncoding: %q, CRC32C: %s}",
+		mo.Name,
+		mo.Size,
+		mo.Generation,
+		mo.MetaGeneration,
+		mo.UpdatedTime().Format(time.RFC3339Nano),
+		mo.FinalizedTime().Format(time.RFC3339Nano),
+		mo.Metadata,
+		mo.ContentEncoding,
+		crc,
+	)
 }
 
 // ExtendedObjectAttributes contains the missing attributes of Object which are not present in MinObject.
@@ -110,10 +142,28 @@ type ExtendedObjectAttributes struct {
 	Acl                []*storagev1.ObjectAccessControl
 }
 
+func (o Object) IsUnfinalized() bool {
+	return o.Finalized.IsZero()
+}
+
 func (mo MinObject) HasContentEncodingGzip() bool {
 	return mo.ContentEncoding == ContentEncodingGzip
 }
 
 func (mo MinObject) IsUnfinalized() bool {
-	return mo.Finalized.IsZero()
+	return mo.Finalized == 0
+}
+
+func TimeToNS(t time.Time) int64 {
+	if t.IsZero() {
+		return 0
+	}
+	return t.UnixNano()
+}
+
+func NSToTime(ns int64) time.Time {
+	if ns == 0 {
+		return time.Time{}
+	}
+	return time.Unix(0, ns).UTC()
 }

@@ -61,13 +61,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.ReadonlyCreds) == 0 {
-		log.Println("No configuration found for readonly_creds tests in config. Using flags instead.")
-		cfg.ReadonlyCreds = make([]test_suite.TestConfig, 1)
-		cfg.ReadonlyCreds[0].TestBucket = setup.TestBucket()
-		cfg.ReadonlyCreds[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.ReadonlyCreds[0].Configs = make([]test_suite.ConfigItem, 1)
-		cfg.ReadonlyCreds[0].Configs[0].Flags = []string{"--implicit-dirs=true", "--implicit-dirs=false"}
-		cfg.ReadonlyCreds[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		log.Fatal("No configuration found for ReadonlyCreds in config file.")
 	}
 
 	testEnv.ctx = context.Background()

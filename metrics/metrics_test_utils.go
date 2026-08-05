@@ -148,3 +148,57 @@ func VerifyHistogramMetric(t *testing.T, ctx context.Context, reader *metric.Man
 	require.True(t, foundMetric, "metric %s not found", metricName)
 	require.Fail(t, "Data point for attributes %v not found in %s metric", attrs, metricName)
 }
+
+// VerifyHistogramFull finds a histogram metric and fully verifies its state including total count, sum, and bucket distribution.
+// expectedBuckets is a map of bucket indices to their expected counts.
+func VerifyHistogramFull[T int64 | float64](t *testing.T, ctx context.Context, reader *metric.ManualReader, metricName string, attrs attribute.Set, expectedCount uint64, expectedSum T, expectedBuckets map[int]uint64, options ...VerifyOption) {
+	t.Helper()
+	cfg := &verifyConfig{}
+	for _, opt := range options {
+		opt(cfg)
+	}
+
+	var rm metricdata.ResourceMetrics
+	err := reader.Collect(ctx, &rm)
+	require.NoError(t, err, "reader.Collect")
+	encoder := attribute.DefaultEncoder()
+
+	foundMetric := false
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			if m.Name == metricName {
+				foundMetric = true
+				data, ok := m.Data.(metricdata.Histogram[T])
+				require.True(t, ok, "metric %s is not of expected histogram type %T, but %T", metricName, data, m.Data)
+
+				for _, dp := range data.DataPoints {
+					if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
+						// Assert total count
+						require.Equal(t, expectedCount, dp.Count, "Total count mismatch for %s", metricName)
+
+						// Assert total sum
+						if !cfg.atLeast {
+							require.Equal(t, expectedSum, dp.Sum, "Total sum mismatch for %s", metricName)
+						}
+
+						// Assert individual bucket counts
+						for bucketIdx, expBucketCount := range expectedBuckets {
+							require.GreaterOrEqual(t, len(dp.BucketCounts), bucketIdx+1, "Bucket index %d out of range for %s", bucketIdx, metricName)
+							require.Equal(t, expBucketCount, dp.BucketCounts[bucketIdx], "Bucket %d count mismatch for %s", bucketIdx, metricName)
+						}
+
+						// Verify that sum of all bucket counts matches total count
+						var totalBucketCount uint64
+						for _, count := range dp.BucketCounts {
+							totalBucketCount += count
+						}
+						require.Equal(t, expectedCount, totalBucketCount, "Sum of bucket counts must equal total count for %s", metricName)
+						return
+					}
+				}
+			}
+		}
+	}
+	require.True(t, foundMetric, "metric %s not found", metricName)
+	require.Fail(t, "Data point for attributes %v not found in %s metric", attrs, metricName)
+}

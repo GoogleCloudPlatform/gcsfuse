@@ -227,21 +227,21 @@ Starting with [version 3.0.0](https://github.com/GoogleCloudPlatform/gcsfuse/rel
 ### Writes still using legacy staged writes even though streaming writes are enabled.
 If you observe that GCSFuse is still utilizing staged writes despite streaming writes being enabled, several factors could be at play.
 
-- **Concurrent Streaming Write Limit Reached:** When the number of concurrent streaming writes exceeds the configured limit (`--write-global-max-blocks`), GCSFuse automatically uses legacy staged writes for concurrent file writes above this limit. You will see an warnining log message when this happens, similar to:
+- **Concurrent Streaming Write Limit Reached:** When the number of concurrent streaming writes exceeds the configured limit (`--write-global-max-blocks`), GCSFuse automatically uses legacy staged writes for concurrent file writes above this limit. When trace logging (`--log-severity=TRACE`) is enabled, you will see a log message similar to:
   > File <var>file_name</var> will use legacy staged writes because concurrent streaming write limit (set by --write-global-max-blocks) has been reached.
 
   This is not an error, but a fallback mechanism to manage memory usage. If your system has sufficient memory, you can increase the number of allowed concurrent streaming writes by adjusting the `--write-global-max-blocks` flag to prevent this warning. For memory usage refer [write semantics](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/semantics.md#writes) doc for more details.
 
 - **Unsupported Streaming Write Operations:** Streaming writes only work for sequential writes to new or empty files. GCSFuse will automatically revert to legacy staged writes for the following scenarios:
-    - **Modifying existing files (non-zero size):** Writing to a file that is not empty will cause that file to use legacy staged writes. You will see an informational log message similar to:
+    - **Modifying existing files (non-zero size):** Writing to a file that is not empty will cause that file to use legacy staged writes. When trace logging (`--log-severity=TRACE`) is enabled, you will see a log message similar to:
       > Existing file <var>file_name</var> of size <var>size</var> bytes (non-zero) will use legacy staged writes.
 
-    - **Performing out-of-order writes:** Streaming writes require data to be written sequentially. If a write occurs at an unexpected offset, GCSFuse will finalize the currently written sequential data and switch to legacy staged writes. You will see an informational log message similar to:
+    - **Performing out-of-order writes:** Streaming writes require data to be written sequentially. If a write occurs at an unexpected offset, GCSFuse will finalize the currently written sequential data and switch to legacy staged writes. When trace logging (`--log-severity=TRACE`) is enabled, you will see a log message similar to:
       > Out of order write detected. File <var>file_name</var> will now use legacy staged writes.
 
     - **Reading from a file while writes are in progress:** Performing a read on a file that is being actively written to using streaming writes will finalizes the object on GCS. Subsequent writes to that file will use the legacy staged writes.
 
-    - **Truncating a file downwards while streaming writes are in progress:** If a file is truncated to a smaller size while being written via streaming writes, the object is finalized on GCS, and subsequent writes will use the legacy staged writes. You will see an informational log message similar to:
+    - **Truncating a file downwards while streaming writes are in progress:** If a file is truncated to a smaller size while being written via streaming writes, the object is finalized on GCS, and subsequent writes will use the legacy staged writes. When trace logging (`--log-severity=TRACE`) is enabled, you will see a log message similar to:
       > Out of order write detected. File <var>file_name</var> will now use legacy staged writes.
 
 ### Issues related to the gcs-fuse-csi-driver

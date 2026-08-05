@@ -102,8 +102,12 @@ func compileRegex(regexString string) *regexp.Regexp {
 }
 
 func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName string) (*os.File, error) {
+	downloadPath, err := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(bucketName, objectName))
+	if err != nil {
+		return nil, fmt.Errorf("createLocalFileReadHandle: %w", err)
+	}
 	fileSpec := data.FileSpec{
-		Path:     util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(bucketName, objectName)),
+		Path:     downloadPath,
 		FilePerm: chr.filePerm,
 		DirPerm:  chr.dirPerm,
 	}
@@ -123,7 +127,10 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 
 	chr.jobManager.InvalidateAndRemoveJob(key.ObjectName, key.BucketName)
 
-	localFilePath := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(key.BucketName, key.ObjectName))
+	localFilePath, err := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(key.BucketName, key.ObjectName))
+	if err != nil {
+		return fmt.Errorf("cleanUpEvictedFile: %w", err)
+	}
 	err = util.TruncateAndRemoveFile(localFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -155,6 +162,11 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 		return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: while creating key: %v", fileInfoKeyName)
 	}
 
+	filePath, err := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(bucket.Name(), object.Name))
+	if err != nil {
+		return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %w", err)
+	}
+
 	addEntryToCache := false
 	fileInfo := chr.fileInfoCache.LookUpWithoutChangingOrder(fileInfoKeyName)
 	if fileInfo == nil {
@@ -162,8 +174,7 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 	} else {
 		// Throw an error, if there is an entry in the file-info cache and cache file doesn't
 		// exist locally.
-		filePath := util.GetDownloadPath(chr.cacheDir, util.GetObjectPath(bucket.Name(), object.Name))
-		_, err := os.Stat(filePath)
+		_, err = os.Stat(filePath)
 		if err != nil && os.IsNotExist(err) {
 			return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %w: %s", util.ErrFileNotPresentInCache, filePath)
 		}
@@ -211,7 +222,10 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 			return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: while inserting into the cache: %w", err)
 		}
 		// Create download job for new entry added to cache.
-		_ = chr.jobManager.CreateJobIfNotExists(object, bucket)
+		_, err = chr.jobManager.CreateJobIfNotExists(object, bucket)
+		if err != nil {
+			return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %w", err)
+		}
 		for _, val := range evictedValues {
 			fileInfo := val.(data.FileInfo)
 			err := chr.cleanUpEvictedFile(&fileInfo)

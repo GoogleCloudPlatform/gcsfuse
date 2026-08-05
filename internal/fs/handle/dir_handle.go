@@ -20,12 +20,13 @@ import (
 	"maps"
 	"slices"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"golang.org/x/net/context"
 )
 
 // DirEntry is a generic interface for directory entries that expose

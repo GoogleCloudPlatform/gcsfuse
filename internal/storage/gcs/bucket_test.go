@@ -24,25 +24,31 @@ func TestBucketType_IsRapid(t *testing.T) {
 	testCases := []struct {
 		name     string
 		zonal    bool
-		pirlo    bool
+		pirlo    PirloState
 		expected bool
 	}{
 		{
 			name:     "Neither Zonal nor Pirlo",
 			zonal:    false,
-			pirlo:    false,
+			pirlo:    PirloStateNone,
 			expected: false,
 		},
 		{
 			name:     "Only Zonal is true",
 			zonal:    true,
-			pirlo:    false,
+			pirlo:    PirloStateNone,
 			expected: true,
 		},
 		{
-			name:     "Only Pirlo is true",
+			name:     "Pirlo Rapid Enabled",
 			zonal:    false,
-			pirlo:    true,
+			pirlo:    PirloStateRapidWritesEnabled,
+			expected: true,
+		},
+		{
+			name:     "Pirlo Rapid Disabled",
+			zonal:    false,
+			pirlo:    PirloStateRapidWritesDisabled,
 			expected: true,
 		},
 	}
@@ -54,6 +60,50 @@ func TestBucketType_IsRapid(t *testing.T) {
 			}
 
 			assert.Equal(t, tc.expected, bt.IsRapid())
+		})
+	}
+}
+
+func TestBucketType_RapidWritesEnabled(t *testing.T) {
+	testCases := []struct {
+		name     string
+		zonal    bool
+		pirlo    PirloState
+		expected bool
+	}{
+		{
+			name:     "Neither Zonal nor Pirlo",
+			zonal:    false,
+			pirlo:    PirloStateNone,
+			expected: false,
+		},
+		{
+			name:     "Only Zonal is true",
+			zonal:    true,
+			pirlo:    PirloStateNone,
+			expected: true,
+		},
+		{
+			name:     "Pirlo Rapid Enabled",
+			zonal:    false,
+			pirlo:    PirloStateRapidWritesEnabled,
+			expected: true,
+		},
+		{
+			name:     "Pirlo Rapid Disabled",
+			zonal:    false,
+			pirlo:    PirloStateRapidWritesDisabled,
+			expected: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			bt := BucketType{
+				Zonal: tc.zonal,
+				Pirlo: tc.pirlo,
+			}
+
+			assert.Equal(t, tc.expected, bt.RapidWritesEnabled())
 		})
 	}
 }

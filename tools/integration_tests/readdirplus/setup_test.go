@@ -129,24 +129,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.ReadDirPlus) == 0 {
-		log.Println("No configuration found for readdirplus tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.ReadDirPlus = make([]test_suite.TestConfig, 1)
-		cfg.ReadDirPlus[0].TestBucket = setup.TestBucket()
-		cfg.ReadDirPlus[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.ReadDirPlus[0].LogFile = setup.LogFile()
-		cfg.ReadDirPlus[0].Configs = make([]test_suite.ConfigItem, 2)
-		cfg.ReadDirPlus[0].Configs[0].Flags = []string{
-			"--implicit-dirs --experimental-enable-readdirplus --experimental-enable-dentry-cache --log-file=/gcsfuse-tmp/TestReaddirplusWithDentryCacheTest.log --log-severity=TRACE",
-		}
-		cfg.ReadDirPlus[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.ReadDirPlus[0].Configs[0].Run = "TestReaddirplusWithDentryCacheTest"
-
-		cfg.ReadDirPlus[0].Configs[1].Flags = []string{
-			"--implicit-dirs --experimental-enable-readdirplus --log-file=/gcsfuse-tmp/TestReaddirplusWithoutDentryCacheTest.log --log-severity=TRACE",
-		}
-		cfg.ReadDirPlus[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.ReadDirPlus[0].Configs[1].Run = "TestReaddirplusWithoutDentryCacheTest"
+		log.Fatal("No configuration found for ReadDirPlus in config file.")
 	}
 
 	testEnv.ctx = context.Background()

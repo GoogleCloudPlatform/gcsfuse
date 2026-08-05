@@ -22,8 +22,9 @@ import (
 	"maps"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"golang.org/x/net/context"
 )
 
 // Create an objectCreator that accepts a source object and the contents that
@@ -137,12 +138,12 @@ func (oc *composeObjectCreator) Create(
 			DstGenerationPrecondition:     &srcObject.Generation,
 			DstMetaGenerationPrecondition: &srcObject.MetaGeneration,
 			Sources: []gcs.ComposeSource{
-				gcs.ComposeSource{
+				{
 					Name:       srcObject.Name,
 					Generation: srcObject.Generation,
 				},
 
-				gcs.ComposeSource{
+				{
 					Name:       tmp.Name,
 					Generation: tmp.Generation,
 				},

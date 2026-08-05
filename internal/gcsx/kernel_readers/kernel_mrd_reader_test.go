@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcsx
+package kernel_readers
 
 import (
 	"bytes"
@@ -25,6 +25,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
@@ -38,25 +39,25 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type MrdKernelReaderTest struct {
+type KernelMRDReaderTest struct {
 	suite.Suite
 	object      *gcs.MinObject
 	bucket      *storage.TestifyMockBucket
 	cache       *lru.Cache
 	inodeID     fuseops.InodeID
 	config      *cfg.Config
-	mrdInstance *MrdInstance
-	reader      *MrdKernelReader
+	mrdInstance *gcsx.MrdInstance
+	reader      *KernelMRDReader
 }
 
-func TestMrdKernelReaderTestSuite(t *testing.T) {
-	suite.Run(t, new(MrdKernelReaderTest))
+func TestKernelMRDReaderTestSuite(t *testing.T) {
+	suite.Run(t, new(KernelMRDReaderTest))
 }
 
-func (t *MrdKernelReaderTest) SetupTest() {
+func (t *KernelMRDReaderTest) SetupTest() {
 	t.object = &gcs.MinObject{
 		Name:       "foo",
-		Size:       1024 * MiB,
+		Size:       1024 * gcsx.MiB,
 		Generation: 1234,
 	}
 	t.bucket = new(storage.TestifyMockBucket)
@@ -64,17 +65,17 @@ func (t *MrdKernelReaderTest) SetupTest() {
 	t.inodeID = 100
 	t.config = &cfg.Config{Mrd: cfg.MrdConfig{PoolSize: 1}}
 
-	t.mrdInstance = NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.config)
-	t.reader = NewMrdKernelReader(t.mrdInstance, metrics.NewNoopMetrics())
+	t.mrdInstance = gcsx.NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.config)
+	t.reader = NewKernelMRDReader(t.mrdInstance, metrics.NewNoopMetrics())
 }
 
-func (t *MrdKernelReaderTest) TestNewMrdKernelReader() {
+func (t *KernelMRDReaderTest) TestNewKernelMRDReader() {
 	assert.NotNil(t.T(), t.reader)
 	assert.Equal(t.T(), t.mrdInstance, t.reader.mrdInstance)
 }
 
-func (t *MrdKernelReaderTest) TestReadAt_EmptyBuffer() {
-	req := &ReadRequest{
+func (t *KernelMRDReaderTest) TestReadAt_EmptyBuffer() {
+	req := &gcsx.ReadRequest{
 		Buffer: []byte{},
 		Offset: 0,
 	}
@@ -85,18 +86,16 @@ func (t *MrdKernelReaderTest) TestReadAt_EmptyBuffer() {
 	assert.Equal(t.T(), 0, resp.Size)
 }
 
-func (t *MrdKernelReaderTest) TestReadAt_Success() {
+func (t *KernelMRDReaderTest) TestReadAt_Success() {
 	data := []byte("hello world")
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, data)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	req := &ReadRequest{
+	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 0,
 	}
 	// Verify initial refCount
-	t.mrdInstance.refCountMu.Lock()
-	assert.Equal(t.T(), int64(0), t.mrdInstance.refCount)
-	t.mrdInstance.refCountMu.Unlock()
+	assert.Equal(t.T(), int64(0), t.mrdInstance.RefCount())
 
 	resp, err := t.reader.ReadAt(context.Background(), req)
 
@@ -104,17 +103,15 @@ func (t *MrdKernelReaderTest) TestReadAt_Success() {
 	assert.Equal(t.T(), 5, resp.Size)
 	assert.Equal(t.T(), "hello", string(req.Buffer))
 	// Verify refCount incremented
-	t.mrdInstance.refCountMu.Lock()
-	assert.Equal(t.T(), int64(1), t.mrdInstance.refCount)
-	t.mrdInstance.refCountMu.Unlock()
+	assert.Equal(t.T(), int64(1), t.mrdInstance.RefCount())
 }
 
-func (t *MrdKernelReaderTest) TestReadAt_MultipleCalls() {
+func (t *KernelMRDReaderTest) TestReadAt_MultipleCalls() {
 	data := []byte("hello world")
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, data)
 	// Expect NewMultiRangeDownloader only once because subsequent reads reuse the instance/pool
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
-	req := &ReadRequest{
+	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 0,
 	}
@@ -128,14 +125,12 @@ func (t *MrdKernelReaderTest) TestReadAt_MultipleCalls() {
 	assert.NoError(t.T(), err)
 
 	// Verify refCount is still 1
-	t.mrdInstance.refCountMu.Lock()
-	assert.Equal(t.T(), int64(1), t.mrdInstance.refCount)
-	t.mrdInstance.refCountMu.Unlock()
+	assert.Equal(t.T(), int64(1), t.mrdInstance.RefCount())
 }
 
-func (t *MrdKernelReaderTest) TestReadAt_NilMrdInstance() {
+func (t *KernelMRDReaderTest) TestReadAt_NilMrdInstance() {
 	t.reader.mrdInstance = nil
-	req := &ReadRequest{
+	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 5),
 		Offset: 0,
 	}
@@ -147,7 +142,7 @@ func (t *MrdKernelReaderTest) TestReadAt_NilMrdInstance() {
 	assert.Equal(t.T(), 0, resp.Size)
 }
 
-func (t *MrdKernelReaderTest) TestReadAt_ShortRead_NoRetry() {
+func (t *KernelMRDReaderTest) TestReadAt_ShortRead_NoRetry() {
 	data := []byte("hello world")
 	// MRD returns short read.
 	fakeMRD := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
@@ -158,7 +153,7 @@ func (t *MrdKernelReaderTest) TestReadAt_ShortRead_NoRetry() {
 	// 4. ReadAt returns the short read without retrying.
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	buf := make([]byte, len(data))
-	req := &ReadRequest{Buffer: buf, Offset: 0}
+	req := &gcsx.ReadRequest{Buffer: buf, Offset: 0}
 
 	resp, err := t.reader.ReadAt(context.Background(), req)
 
@@ -166,13 +161,11 @@ func (t *MrdKernelReaderTest) TestReadAt_ShortRead_NoRetry() {
 	assert.Equal(t.T(), 5, resp.Size) // Short read size
 	assert.Equal(t.T(), "hello", string(buf[:5]))
 	// Verify refCount incremented (only once)
-	t.mrdInstance.refCountMu.Lock()
-	assert.Equal(t.T(), int64(1), t.mrdInstance.refCount)
-	t.mrdInstance.refCountMu.Unlock()
+	assert.Equal(t.T(), int64(1), t.mrdInstance.RefCount())
 	t.bucket.AssertExpectations(t.T())
 }
 
-func (t *MrdKernelReaderTest) TestReadAt_OutOfRange_TriggersRetry() {
+func (t *KernelMRDReaderTest) TestReadAt_OutOfRange_TriggersRetry() {
 	data := []byte("hello world")
 	// First MRD returns OutOfRange error.
 	outOfRangeErr := status.Error(codes.OutOfRange, "Out of range")
@@ -187,7 +180,7 @@ func (t *MrdKernelReaderTest) TestReadAt_OutOfRange_TriggersRetry() {
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
 	// Create the ReadRequest.
 	buf := make([]byte, len(data))
-	req := &ReadRequest{
+	req := &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: 0,
 	}
@@ -198,13 +191,11 @@ func (t *MrdKernelReaderTest) TestReadAt_OutOfRange_TriggersRetry() {
 	assert.Equal(t.T(), len(data), resp.Size)
 	assert.Equal(t.T(), string(data), string(buf))
 	// Verify refCount incremented
-	t.mrdInstance.refCountMu.Lock()
-	assert.Equal(t.T(), int64(1), t.mrdInstance.refCount)
-	t.mrdInstance.refCountMu.Unlock()
+	assert.Equal(t.T(), int64(1), t.mrdInstance.RefCount())
 	t.bucket.AssertExpectations(t.T())
 }
 
-func (t *MrdKernelReaderTest) TestReadAt_OutOfRange_RetryFails() {
+func (t *KernelMRDReaderTest) TestReadAt_OutOfRange_RetryFails() {
 	// First MRD returns OutOfRange error.
 	outOfRangeErr := status.Error(codes.OutOfRange, "Out of range")
 	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte{}, 0, outOfRangeErr)
@@ -215,7 +206,7 @@ func (t *MrdKernelReaderTest) TestReadAt_OutOfRange_RetryFails() {
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
 	// Create the ReadRequest.
 	buf := make([]byte, 10)
-	req := &ReadRequest{
+	req := &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: 0,
 	}
@@ -294,24 +285,22 @@ func TestIsShortRead(t *testing.T) {
 	}
 }
 
-func (t *MrdKernelReaderTest) TestDestroy() {
+func (t *KernelMRDReaderTest) TestDestroy() {
 	// Setup state where refCount is incremented
 	t.reader.mrdInstanceInUse.Store(true)
-	t.mrdInstance.refCount = 1
+	t.mrdInstance.IncrementRefCount()
 
 	t.reader.Destroy()
 
 	assert.Nil(t.T(), t.reader.mrdInstance)
 	assert.False(t.T(), t.reader.mrdInstanceInUse.Load())
 	// Verify refCount decremented
-	t.mrdInstance.refCountMu.Lock()
-	assert.Equal(t.T(), int64(0), t.mrdInstance.refCount)
-	t.mrdInstance.refCountMu.Unlock()
+	assert.Equal(t.T(), int64(0), t.mrdInstance.RefCount())
 	// Verify that calling Destroy again doesn't panic
 	t.reader.Destroy()
 }
 
-func (t *MrdKernelReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
+func (t *KernelMRDReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
 	// First MRD returns OutOfRange error.
 	outOfRangeErr := status.Error(codes.OutOfRange, "Out of range")
 	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte{}, 0, outOfRangeErr)
@@ -323,7 +312,7 @@ func (t *MrdKernelReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, errors.New("recreate failed")).Once()
 	buf := make([]byte, 10)
-	req := &ReadRequest{
+	req := &gcsx.ReadRequest{
 		Buffer: buf,
 		Offset: 0,
 	}
@@ -339,11 +328,9 @@ func (t *MrdKernelReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
 	t.bucket.AssertExpectations(t.T())
 }
 
-func (t *MrdKernelReaderTest) TestDestroy_NoReadAt() {
+func (t *KernelMRDReaderTest) TestDestroy_NoReadAt() {
 	// Check initial refCount
-	t.mrdInstance.refCountMu.Lock()
-	assert.Equal(t.T(), int64(0), t.mrdInstance.refCount)
-	t.mrdInstance.refCountMu.Unlock()
+	assert.Equal(t.T(), int64(0), t.mrdInstance.RefCount())
 	// Capture logs
 	var buf bytes.Buffer
 	logger.SetOutput(&buf)
@@ -353,16 +340,14 @@ func (t *MrdKernelReaderTest) TestDestroy_NoReadAt() {
 	t.reader.Destroy()
 
 	// Assert
-	t.mrdInstance.refCountMu.Lock()
-	assert.Equal(t.T(), int64(0), t.mrdInstance.refCount)
-	t.mrdInstance.refCountMu.Unlock()
+	assert.Equal(t.T(), int64(0), t.mrdInstance.RefCount())
 	assert.NotContains(t.T(), buf.String(), "MrdInstance::DecrementRefCount: Refcount cannot be negative")
 }
 
-func (t *MrdKernelReaderTest) TestReadAt_ContextCanceled() {
+func (t *KernelMRDReaderTest) TestReadAt_ContextCanceled() {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	req := &ReadRequest{
+	req := &gcsx.ReadRequest{
 		Buffer: make([]byte, 10),
 		Offset: 0,
 	}

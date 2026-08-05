@@ -14,6 +14,32 @@
 
 package shared
 
+import (
+	"fmt"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
+
+// BucketTypeList represents a list of bucket types parsed from a comma-separated string (e.g. "zonal" or "zonal, pirlo") in params.yaml.
+type BucketTypeList []string
+
+func (b *BucketTypeList) UnmarshalYAML(value *yaml.Node) error {
+	if value.Kind != yaml.ScalarNode {
+		return fmt.Errorf("bucket-type must be a string (e.g. \"zonal\" or \"zonal, pirlo\"), got %v", value.Kind)
+	}
+
+	var parsed []string
+	for _, part := range strings.Split(value.Value, ",") {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			parsed = append(parsed, trimmed)
+		}
+	}
+	*b = parsed
+	return nil
+}
+
 // ProfileOptimization holds the rules for a single performance profile.
 type ProfileOptimization struct {
 	Name  string `yaml:"name"`
@@ -28,8 +54,8 @@ type MachineBasedOptimization struct {
 
 // BucketTypeOptimization defines a bucket-type-based optimization.
 type BucketTypeOptimization struct {
-	BucketType string `yaml:"bucket-type"`
-	Value      any    `yaml:"value"`
+	BucketTypes BucketTypeList `yaml:"bucket-type"`
+	Value       any            `yaml:"value"`
 }
 
 // OptimizationRules holds all defined optimizations for a single flag.

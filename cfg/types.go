@@ -39,19 +39,20 @@ func (o Octal) MarshalText() ([]byte, error) {
 	return []byte(strconv.FormatInt(int64(o), 8)), nil
 }
 
-// Protocol is the datatype that specifies the type of connection: http1/http2/grpc.
+// Protocol is the datatype that specifies the type of connection: http1/http2/grpc/httpmtls.
 type Protocol string
 
 const (
-	HTTP1 = "http1"
-	HTTP2 = "http2"
-	GRPC  = "grpc"
+	HTTP1    = "http1"
+	HTTP2    = "http2"
+	GRPC     = "grpc"
+	HTTPMtls = "httpmtls"
 )
 
 func (p *Protocol) UnmarshalText(text []byte) error {
 	txtStr := string(text)
 	protocol := strings.ToLower(txtStr)
-	v := []string{"http1", "http2", "grpc"}
+	v := []string{"http1", "http2", "grpc", "httpmtls"}
 	if !slices.Contains(v, protocol) {
 		return fmt.Errorf("invalid protocol value: %s. It can only accept values in the list: %v", txtStr, v)
 	}
@@ -167,3 +168,14 @@ const (
 func (bt BucketType) IsValid() bool {
 	return bt == BucketTypeZonal || bt == BucketTypePirlo || bt == BucketTypeHierarchical || bt == BucketTypeFlat
 }
+
+// StorageClass represents the storage/performance classification of a GCS bucket.
+type StorageClass string
+
+const (
+	// StorageClassRapid represents rapid storage (e.g. zonal and pirlo buckets).
+	StorageClassRapid StorageClass = "rapid"
+
+	// StorageClassStandard represents standard storage (e.g. regional/multi-regional flat and hierarchical buckets).
+	StorageClassStandard StorageClass = "standard"
+)

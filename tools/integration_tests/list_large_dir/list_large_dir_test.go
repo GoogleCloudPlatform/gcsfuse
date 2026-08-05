@@ -57,24 +57,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.ListLargeDir) == 0 {
-		log.Println("No configuration found for list large dir tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.ListLargeDir = make([]test_suite.TestConfig, 1)
-		cfg.ListLargeDir[0].TestBucket = setup.TestBucket()
-		cfg.ListLargeDir[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.ListLargeDir[0].Configs = make([]test_suite.ConfigItem, 2)
-		cfg.ListLargeDir[0].Configs[0].Flags = []string{
-			"--implicit-dirs=true,--stat-cache-ttl=0,--kernel-list-cache-ttl-secs=-1",
-			"--client-protocol=grpc,--implicit-dirs=true,--stat-cache-ttl=0,--kernel-list-cache-ttl-secs=-1",
-		}
-		cfg.ListLargeDir[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.ListLargeDir[0].Configs[0].Run = "TestListLargeDirWithKernelListCache"
-		cfg.ListLargeDir[0].Configs[1].Flags = []string{
-			"--enable-metadata-prefetch --implicit-dirs=true",
-			"--client-protocol=grpc --enable-metadata-prefetch --implicit-dirs=true",
-		}
-		cfg.ListLargeDir[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.ListLargeDir[0].Configs[1].Run = "TestListLargeDirWithoutKernelListCache"
+		log.Fatal("No configuration found for ListLargeDir in config file.")
 	}
 
 	// 2. Create storage client before running tests.

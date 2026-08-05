@@ -15,6 +15,7 @@
 package block
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -95,27 +96,80 @@ func NewGenBlockPool[T GenBlock](blockSize int64, maxBlocks int64, reservedBlock
 
 // Get returns a block. It returns an existing block if it's ready for reuse or
 // creates a new one if required.
-// Not thread-safe, calling from multiple goroutines may lead memory leaks because
+// Not thread-safe, calling from multiple goroutines may lead to memory leaks because
 // of race conditions.
 func (bp *GenBlockPool[T]) Get() (T, error) {
-	for {
+	// Try to get a block immediately (non-blocking).
+	b, err := bp.TryGet()
+	if err == nil {
+		return b, nil
+	}
+	if !errors.Is(err, CantAllocateAnyBlockError) {
+		return b, err
+	}
+
+	// 1. At local pool limit: wait exclusively for a local block to be released.
+	if bp.totalBlocks >= bp.maxBlocks {
+		return bp.waitAndGetFromLocalPool()
+	}
+
+	// 2. At 0 blocks: wait exclusively for a global permit to allocate our first block.
+	if bp.totalBlocks == 0 {
+		return bp.waitAndGetFirstBlock()
+	}
+
+	// 3. Between 0 and local limit: wait for EITHER local release OR global permit.
+	return bp.waitAndGetConcurrent()
+}
+
+func (bp *GenBlockPool[T]) waitAndGetFromLocalPool() (T, error) {
+	b := <-bp.freeBlocksCh
+	b.Reuse()
+	return b, nil
+}
+
+func (bp *GenBlockPool[T]) waitAndGetFirstBlock() (T, error) {
+	if err := bp.globalMaxBlocksSem.Acquire(context.Background(), 1); err != nil {
+		var zero T
+		return zero, err
+	}
+	return bp.allocateNewBlock(true)
+}
+
+func (bp *GenBlockPool[T]) waitAndGetConcurrent() (T, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	acquiredCh := make(chan struct{}) // Unbuffered channel
+
+	go func() {
+		err := bp.globalMaxBlocksSem.Acquire(ctx, 1)
+		if err == nil {
+			select {
+			case acquiredCh <- struct{}{}:
+				// Main thread successfully read the permit signal!
+			case <-ctx.Done():
+				// Main thread took the local block and returned.
+				// We must release the acquired global permit!
+				bp.globalMaxBlocksSem.Release(1)
+			}
+		}
+	}()
+
+	select {
+	case b := <-bp.freeBlocksCh:
+		b.Reuse()
+		return b, nil
+
+	case <-acquiredCh:
+		// Non-blocking check: can we reuse a local block instead of allocating?
 		select {
 		case b := <-bp.freeBlocksCh:
-			// Reset the block for reuse.
+			bp.globalMaxBlocksSem.Release(1)
 			b.Reuse()
 			return b, nil
-
 		default:
-			if bp.canAllocateBlock() {
-				b, err := bp.createBlockFunc(bp.blockSize)
-				if err != nil {
-					var zero T
-					return zero, err
-				}
-
-				bp.totalBlocks++
-				return b, nil
-			}
+			return bp.allocateNewBlock(true)
 		}
 	}
 }
@@ -133,14 +187,7 @@ func (bp *GenBlockPool[T]) TryGet() (T, error) {
 
 	default:
 		if bp.canAllocateBlock() {
-			b, err := bp.createBlockFunc(bp.blockSize)
-			if err != nil {
-				var zero T
-				return zero, err
-			}
-
-			bp.totalBlocks++
-			return b, nil
+			return bp.allocateNewBlock(bp.totalBlocks >= bp.reservedBlocks)
 		}
 		var zero T
 		return zero, CantAllocateAnyBlockError
@@ -162,6 +209,21 @@ func (bp *GenBlockPool[T]) canAllocateBlock() bool {
 	// Otherwise, check if we can acquire a semaphore.
 	semAcquired := bp.globalMaxBlocksSem.TryAcquire(1)
 	return semAcquired
+}
+
+// allocateNewBlock handles the physical allocation of a new block, tracking totalBlocks and returning any system error.
+// If wasPermitAcquired is true, it releases the global semaphore permit on allocation failure.
+func (bp *GenBlockPool[T]) allocateNewBlock(wasPermitAcquired bool) (T, error) {
+	b, err := bp.createBlockFunc(bp.blockSize)
+	if err != nil {
+		if wasPermitAcquired {
+			bp.globalMaxBlocksSem.Release(1)
+		}
+		var zero T
+		return zero, err
+	}
+	bp.totalBlocks++
+	return b, nil
 }
 
 // Release puts the block back into the free blocks channel for reuse.

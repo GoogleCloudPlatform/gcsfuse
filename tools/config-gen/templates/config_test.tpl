@@ -62,7 +62,8 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				{{- if .Optimizations.BucketTypeOptimization }}
 				{{- $bto := index .Optimizations.BucketTypeOptimization 0 }}
-				input:           &OptimizationInput{BucketType: BucketType{{ $bto.BucketType | title }}},
+				{{- $bt := index $bto.BucketTypes 0 }}
+				input:           &OptimizationInput{BucketType: BucketType{{ $bt | title }}},
 				{{- else }}
 				input:           nil,
 				{{- end }}
@@ -91,7 +92,7 @@ func TestApplyOptimizations(t *testing.T) {
 				config:          Config{Profile: "{{.Name}}"},
 				userSetFlags:    map[string]any{},
 				input:           nil,
-				expectOptimized: true,
+				expectOptimized: {{if ne (printf "%v" .Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{.Value}},
 			},
 		{{- end }}
@@ -105,20 +106,23 @@ func TestApplyOptimizations(t *testing.T) {
 					"machine-type": "{{$machineType}}",
 				},
 				input:           nil,
-				expectOptimized: true,
+				expectOptimized: {{if ne (printf "%v" $mbo.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{$mbo.Value}},
 			},
 		{{- end }}
 		{{- range .Optimizations.BucketTypeOptimization }}
 			{{- $bto := . }}
+			{{- range $bto.BucketTypes }}
+			{{- $bt := . }}
 			{
-				name:   "bucket_type_{{$bto.BucketType}}",
+				name:   "bucket_type_{{$bt}}",
 				config: Config{Profile: ""},
 				userSetFlags: map[string]any{},
-				input:           &OptimizationInput{BucketType: BucketType{{ $bto.BucketType | title }}},
-				expectOptimized: true,
+				input:           &OptimizationInput{BucketType: BucketType{{ $bt | title }}},
+				expectOptimized: {{if ne (printf "%v" $bto.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{$bto.Value}},
 			},
+			{{- end }}
 		{{- end }}
 		{{- if and .Optimizations.Profiles .Optimizations.MachineBasedOptimization }}
 			{{- $profile := index .Optimizations.Profiles 0 -}}
@@ -131,19 +135,20 @@ func TestApplyOptimizations(t *testing.T) {
 					"machine-type": "{{$machineType}}",
 				},
 				input:           nil,
-				expectOptimized: true,
+				expectOptimized: {{if ne (printf "%v" $profile.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{$profile.Value}},
 			},
 		{{- end }}
 		{{- if and .Optimizations.Profiles .Optimizations.BucketTypeOptimization }}
 			{{- $profile := index .Optimizations.Profiles 0 -}}
 			{{- $bto := index .Optimizations.BucketTypeOptimization 0 -}}
+			{{- $bt := index $bto.BucketTypes 0 }}
 			{
 				name:   "profile_overrides_bucket_type",
 				config: Config{Profile: "{{$profile.Name}}"},
 				userSetFlags: map[string]any{},
-				input:           &OptimizationInput{BucketType: BucketType{{ $bto.BucketType | title }}},
-				expectOptimized: true,
+				input:           &OptimizationInput{BucketType: BucketType{{ $bt | title }}},
+				expectOptimized: {{if ne (printf "%v" $profile.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{$profile.Value}},
 			},
 		{{- end }}
@@ -151,14 +156,15 @@ func TestApplyOptimizations(t *testing.T) {
 			{{- $mbo := index .Optimizations.MachineBasedOptimization 0 -}}
 			{{- $bto := index .Optimizations.BucketTypeOptimization 0 -}}
 			{{- $machineType := index $.MachineTypeGroups $mbo.Group 0 }}
+			{{- $bt := index $bto.BucketTypes 0 }}
 			{
 				name:   "machine_type_overrides_bucket_type",
 				config: Config{Profile: ""},
 				userSetFlags: map[string]any{
 					"machine-type": "{{$machineType}}",
 				},
-				input:           &OptimizationInput{BucketType: BucketType{{ $bto.BucketType | title }}},
-				expectOptimized: true,
+				input:           &OptimizationInput{BucketType: BucketType{{ $bt | title }}},
+				expectOptimized: {{if ne (printf "%v" $mbo.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{$mbo.Value}},
 			},
 		{{- end }}
@@ -172,7 +178,7 @@ func TestApplyOptimizations(t *testing.T) {
 					"machine-type": "{{$machineType}}",
 				},
 				input:           nil,
-				expectOptimized: true,
+				expectOptimized: {{if ne (printf "%v" $mbo.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{$mbo.Value}},
 			},
 			{{- $unrelatedProfile := "aiml-training" -}}
@@ -190,7 +196,7 @@ func TestApplyOptimizations(t *testing.T) {
 					"machine-type": "{{$machineType}}",
 				},
 				input:           nil,
-				expectOptimized: true,
+				expectOptimized: {{if ne (printf "%v" $mbo.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{$mbo.Value}},
 			},
 			{{- end }}
@@ -205,7 +211,7 @@ func TestApplyOptimizations(t *testing.T) {
 				if tc.name == "user_set" {
 					c.{{$flag.GoPath}} = tc.expectedValue.({{$flag.GoType}})
 				} else {
-					c.{{$flag.GoPath}} = {{$flag.DefaultValue}}
+					c.{{$flag.GoPath}} = {{$flag.GoType}}({{$flag.DefaultValue}})
 				}
 				
 				v := viper.New()

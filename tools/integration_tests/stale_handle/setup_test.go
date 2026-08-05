@@ -56,30 +56,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.StaleHandle) == 0 {
-		log.Println("No configuration found for stale_handle tests in config. Using flags instead.")
-		if setup.MountedDirectory() != "" {
-			log.Println("Skip mounted directory tests if no config file has been passed.")
-			os.Exit(0)
-		}
-		// Populate the config manually.
-		cfg.StaleHandle = make([]test_suite.TestConfig, 1)
-		cfg.StaleHandle[0].TestBucket = setup.TestBucket()
-		cfg.StaleHandle[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.StaleHandle[0].LogFile = setup.LogFile()
-		cfg.StaleHandle[0].Configs = make([]test_suite.ConfigItem, 4)
-		cfg.StaleHandle[0].Configs[0].Flags = []string{
-			"--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1",
-			"--metadata-cache-ttl-secs=0 --write-block-size-mb=1 --write-max-blocks-per-file=1 --client-protocol=grpc",
-		}
-		cfg.StaleHandle[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.StaleHandle[0].Configs[0].Run = "TestStaleHandleStreamingWritesEnabled"
-
-		cfg.StaleHandle[0].Configs[1].Flags = []string{
-			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false",
-			"--metadata-cache-ttl-secs=0 --enable-streaming-writes=false --client-protocol=grpc",
-		}
-		cfg.StaleHandle[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.StaleHandle[0].Configs[1].Run = "TestStaleHandleStreamingWritesDisabled"
+		log.Fatal("No configuration found for StaleHandle in config file.")
 	}
 
 	testEnv.ctx = context.Background()

@@ -120,6 +120,16 @@ func BenchmarkTrace(b *testing.B) {
 			th.EndSpan(span)
 		})
 
+		b.Run(fmt.Sprintf("BenchmarkSetReadFileAttributes_%s", prefix), func(b *testing.B) {
+			ctx := context.Background()
+
+			_, span := th.StartSpan(ctx, "TestSpanName")
+			for b.Loop() {
+				th.SetReadFileAttributes(span, 100, 500)
+			}
+			th.EndSpan(span)
+		})
+
 		b.Run(fmt.Sprintf("BenchmarkSetUploadAttributes_%s", prefix), func(b *testing.B) {
 			ctx := context.Background()
 

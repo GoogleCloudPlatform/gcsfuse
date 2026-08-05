@@ -24,10 +24,11 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	. "github.com/jacobsa/oglematchers"
@@ -105,6 +106,10 @@ func (t *IntegrationTest) TearDown() {
 }
 
 func (t *IntegrationTest) create(o *gcs.Object) {
+	if o.Finalized.IsZero() {
+		o.Finalized = t.clock.Now()
+	}
+
 	// Set up a reader.
 	rc, err := t.bucket.NewReaderWithReadHandle(
 		t.ctx,

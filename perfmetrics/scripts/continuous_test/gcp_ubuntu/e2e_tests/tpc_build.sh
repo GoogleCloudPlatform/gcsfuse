@@ -35,14 +35,28 @@ export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
 # Copy the key file for the TPC service account to use for authentication.
 gcloud storage cp gs://gcsfuse-tpc-tests/creds.json /tmp/sa.key.json
 
-echo "Building and installing gcsfuse..."
-# Get the latest commitId of yesterday in the log file. Build gcsfuse and run
-commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
-./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId
+# Get the branch name that was cloned by Kokoro
+branchName=$(git branch --format='%(refname:short)' | grep -v 'HEAD' | head -n 1)
+# Get the commitId. Build gcsfuse and run.
+# - Automated daily runs (initiated by Kokoro scheduler) will run on the last commit of yesterday on the master branch.
+# - Manual runs (initiated by users) will run on the latest commit of the branch (master or feature branch) provided in the manual trigger.
+if [[ "${KOKORO_BUILD_INITIATOR:-}" == "kokoro" ]]; then
+  commitId=$(git log --before='yesterday 23:59:59' --max-count=1 --pretty=%H)
+else
+  commitId=$(git log -n 1 --pretty=%H)
+fi
+echo "Running E2E tests on branch: ${branchName} at commit ID: ${commitId}"
 
-## To execute tests for a specific commitId, ensure you've checked out that commitId first.
+echo "Building and installing gcsfuse from commit ${commitId}..."
+build_log=$(mktemp)
+if ! ./perfmetrics/scripts/build_and_install_gcsfuse.sh $commitId > "$build_log" 2>&1; then
+    cat "$build_log"
+    exit 1
+fi
+
+echo "Checking out commit ${commitId}."
 git checkout $commitId
-echo "Running e2e tests on installed package...."
+echo "Running TPC e2e tests on installed package...."
 
 # Initiate PRPTST environment to establish a TPC project and associated account.
 gcloud config configurations create prptst

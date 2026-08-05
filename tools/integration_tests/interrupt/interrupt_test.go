@@ -47,22 +47,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.Interrupt) == 0 {
-		log.Println("No configuration found for interrupt tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.Interrupt = make([]test_suite.TestConfig, 1)
-		cfg.Interrupt[0].TestBucket = setup.TestBucket()
-		cfg.Interrupt[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.Interrupt[0].Configs = make([]test_suite.ConfigItem, 2)
-		cfg.Interrupt[0].Configs[0].Flags = []string{
-			"--implicit-dirs=true --enable-streaming-writes=false",
-			"--ignore-interrupts=true --enable-streaming-writes=false",
-			"--ignore-interrupts=false --enable-streaming-writes=false",
-		}
-		cfg.Interrupt[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.Interrupt[0].Configs[1].Flags = []string{
-			"--enable-streaming-writes=true",
-		}
-		cfg.Interrupt[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
+		log.Fatal("No configuration found for Interrupt in config file.")
 	}
 
 	// 2. Create storage client before running tests.

@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
@@ -31,11 +32,18 @@ type ReadRequest struct {
 	// Buffer is provided by jacobsa/fuse and should be filled with data from the object.
 	Buffer []byte
 
+	// BufferPool provides on-demand buffer allocation for vectored reads when Dst is nil.
+	// If BufferPool is non-nil, readers should allocate buffers on demand and set ReadResponse.Callback.
+	BufferPool buffer.Pool
+
 	// Offset specifies the starting position in the object from where data should be read.
 	// Note: This value should not be modified by any reader. It is used by the
 	// read manager to fall back to the next reader and to record the read operation
 	// correctly.
 	Offset int64
+
+	// Size specifies the number of bytes requested to read (corresponding to op.Size).
+	Size int64
 
 	// SkipSizeChecks, when true, instructs the reader to bypass validation of the
 	// read request against the object's cached size. This is necessary for
@@ -45,6 +53,18 @@ type ReadRequest struct {
 
 	// ReadInfo contains metadata about the read pattern.
 	ReadInfo
+}
+
+// GetReadSize calculates the size to read based on the request capacity and the provided limit.
+func (req *ReadRequest) GetReadSize(limit int64) int64 {
+	sizeToRead := req.Size
+	if req.BufferPool == nil {
+		sizeToRead = min(sizeToRead, int64(len(req.Buffer)))
+	}
+	if limit > 0 {
+		sizeToRead = min(sizeToRead, limit)
+	}
+	return sizeToRead
 }
 
 // GCSReaderRequest represents the request parameters needed to read a data from a GCS object.

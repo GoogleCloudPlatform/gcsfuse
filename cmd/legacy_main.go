@@ -34,6 +34,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"golang.org/x/sys/unix"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
@@ -50,7 +52,6 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
 	"github.com/spf13/viper"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -142,35 +143,38 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	}
 	return strings.Join(parts, ":")
 }
-func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle, isGKE bool) (storageHandle storage.StorageHandle, err error) {
+func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle, isGKE bool, isDynamicMount bool) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
-		ClientProtocol:                          newConfig.GcsConnection.ClientProtocol,
-		MaxConnsPerHost:                         int(newConfig.GcsConnection.MaxConnsPerHost),
-		MaxIdleConnsPerHost:                     int(newConfig.GcsConnection.MaxIdleConnsPerHost),
-		HttpClientTimeout:                       newConfig.GcsConnection.HttpClientTimeout,
-		MaxRetrySleep:                           newConfig.GcsRetries.MaxRetrySleep,
-		MaxRetryAttempts:                        int(newConfig.GcsRetries.MaxRetryAttempts),
-		RetryMultiplier:                         newConfig.GcsRetries.Multiplier,
-		UserAgent:                               userAgent,
-		CustomEndpoint:                          newConfig.GcsConnection.CustomEndpoint,
-		KeyFile:                                 string(newConfig.GcsAuth.KeyFile),
-		AnonymousAccess:                         newConfig.GcsAuth.AnonymousAccess,
-		TokenUrl:                                newConfig.GcsAuth.TokenUrl,
-		ReuseTokenFromUrl:                       newConfig.GcsAuth.ReuseTokenFromUrl,
-		ExperimentalNonrapidFolderApiStallRetry: newConfig.GcsRetries.ExperimentalNonrapidFolderApiStallRetry,
-		ExperimentalEnableJsonRead:              newConfig.GcsConnection.ExperimentalEnableJsonRead,
-		GrpcConnPoolSize:                        int(newConfig.GcsConnection.GrpcConnPoolSize),
-		GrpcPathStrategy:                        newConfig.GcsConnection.GrpcPathStrategy,
-		EnableHNS:                               newConfig.EnableHns,
-		EnableGoogleLibAuth:                     newConfig.EnableGoogleLibAuth,
-		ReadStallRetryConfig:                    newConfig.GcsRetries.ReadStall,
-		MetricHandle:                            metricHandle,
-		ExperimentalEnablePirlo:                 newConfig.FileSystem.ExperimentalEnablePirlo,
-		TracingEnabled:                          cfg.IsTracingEnabled(newConfig),
-		EnableHTTPDNSCache:                      newConfig.GcsConnection.EnableHttpDnsCache,
-		LocalSocketAddress:                      newConfig.GcsConnection.ExperimentalLocalSocketAddress,
-		EnableGrpcMetrics:                       newConfig.Metrics.ExperimentalEnableGrpcMetrics,
-		IsGKE:                                   isGKE,
+		ClientProtocol:             newConfig.GcsConnection.ClientProtocol,
+		MaxConnsPerHost:            int(newConfig.GcsConnection.MaxConnsPerHost),
+		MaxIdleConnsPerHost:        int(newConfig.GcsConnection.MaxIdleConnsPerHost),
+		HttpClientTimeout:          newConfig.GcsConnection.HttpClientTimeout,
+		MaxRetrySleep:              newConfig.GcsRetries.MaxRetrySleep,
+		MaxRetryAttempts:           int(newConfig.GcsRetries.MaxRetryAttempts),
+		RetryMultiplier:            newConfig.GcsRetries.Multiplier,
+		EnableMountRetries:         newConfig.GcsRetries.EnableMountRetries && !isDynamicMount,
+		UserAgent:                  userAgent,
+		CustomEndpoint:             newConfig.GcsConnection.CustomEndpoint,
+		KeyFile:                    string(newConfig.GcsAuth.KeyFile),
+		AnonymousAccess:            newConfig.GcsAuth.AnonymousAccess,
+		TokenUrl:                   newConfig.GcsAuth.TokenUrl,
+		ReuseTokenFromUrl:          newConfig.GcsAuth.ReuseTokenFromUrl,
+		ExperimentalEnableJsonRead: newConfig.GcsConnection.ExperimentalEnableJsonRead,
+		GrpcConnPoolSize:           int(newConfig.GcsConnection.GrpcConnPoolSize),
+		GrpcPathStrategy:           newConfig.GcsConnection.GrpcPathStrategy,
+		EnableGrpcReadChecksums:    newConfig.Read.EnableGrpcReadChecksums,
+		EnableHNS:                  newConfig.EnableHns,
+		OnlyDir:                    newConfig.OnlyDir,
+		EnableGoogleLibAuth:        newConfig.EnableGoogleLibAuth,
+		ReadStallRetryConfig:       newConfig.GcsRetries.ReadStall,
+		MetricHandle:               metricHandle,
+		ExperimentalEnablePirlo:    newConfig.FileSystem.ExperimentalEnablePirlo,
+		TracingEnabled:             cfg.IsTracingEnabled(newConfig),
+		EnableHTTPDNSCache:         newConfig.GcsConnection.EnableHttpDnsCache,
+		LocalSocketAddress:         newConfig.GcsConnection.ExperimentalLocalSocketAddress,
+		EnableGrpcMetrics:          newConfig.Metrics.ExperimentalEnableGrpcMetrics,
+		IsGKE:                      isGKE,
+		WriteConfig:                &newConfig.Write,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig, newConfig.GcsConnection.BillingProject)
@@ -201,7 +205,7 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	if bucketName != canned.FakeBucketName {
 		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig), logger.MountInstanceID(fsName(bucketName)))
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(newConfig, userAgent, metricHandle, isGKE)
+		storageHandle, err = createStorageHandle(newConfig, userAgent, metricHandle, isGKE, isDynamicMount(bucketName))
 		if err != nil {
 			err = fmt.Errorf("failed to create storage handle using createStorageHandle: %w", err)
 			return
@@ -324,13 +328,14 @@ func forwardedEnvVars() []string {
 
 	// Forward GOOGLE_APPLICATION_CREDENTIALS, since we document in
 	// mounting.md that it can be used for specifying a key file.
+	// Forward GOOGLE_CLOUD_PROJECT as it can be used for specifying a cloud project ID.
 	// Forward the no_proxy environment variable. Whenever
 	// using the http(s)_proxy environment variables. This should
 	// also be included to know for which hosts the use of proxies
 	// should be ignored.
 	// Forward GCE_METADATA_HOST, GCE_METADATA_ROOT, GCE_METADATA_IP as these are used for mocked metadata services.
 	// Forward GRPC_GO_LOG_VERBOSITY_LEVEL and GRPC_GO_LOG_SEVERITY_LEVEL as these are used to enable grpc debug logs.
-	for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "no_proxy", "GCE_METADATA_HOST", "GCE_METADATA_ROOT", "GCE_METADATA_IP", "GRPC_GO_LOG_VERBOSITY_LEVEL", "GRPC_GO_LOG_SEVERITY_LEVEL"} {
+	for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_PROJECT", "no_proxy", "GCE_METADATA_HOST", "GCE_METADATA_ROOT", "GCE_METADATA_IP", "GRPC_GO_LOG_VERBOSITY_LEVEL", "GRPC_GO_LOG_SEVERITY_LEVEL"} {
 		if envval, ok := os.LookupEnv(envvar); ok {
 			env = append(env, fmt.Sprintf("%s=%s", envvar, envval))
 			fmt.Fprintf(
@@ -380,19 +385,26 @@ func logGCSFuseMountInformation(mountInfo *mountInfo) {
 
 func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	newConfig := mountInfo.config
-	// Ideally this call to UpdateDefaultLogger (which internally creates a
-	// new defaultLogger with user provided log-format and custom attribute 'fsName-MountInstanceID')
-	// should be set as an else to the 'if flags.Foreground' check below, but currently
-	// that means the logs generated by resolveConfigFilePaths below don't honour
-	// the user-provided log-format.
-	logger.UpdateDefaultLogger(newConfig.Logging.Format, fsName(bucketName))
 
+	var logExporterShutdownFn common.ShutdownFn
 	if newConfig.Foreground {
 		err = logger.InitLogFile(newConfig.Logging, fsName(bucketName))
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
+		if newConfig.Logging.ExperimentalEnableOtelLogging {
+			// Set up OTel log exporter early in the foreground (daemon) process to ensure
+			// startup configs and mount flags are captured. This is intentionally skipped
+			// in the ephemeral parent process to avoid double-initialization overhead.
+			// TODO: Update mount-id to use directory name as well in only dir mounting.
+			logExporterShutdownFn, err = monitor.SetupOTelLogExporter(context.Background(), newConfig.Logging.ExperimentalOtelLoggingEndpoint, logger.MountInstanceID(fsName(bucketName)), newConfig.GcsAuth, newConfig.Logging.ExperimentalOtelLoggingProjectId)
+			if err != nil {
+				logger.Errorf("Failed to setup OTel log exporter: %v", err)
+			}
+		}
 	}
+
+	logger.UpdateDefaultLogger(newConfig.Logging.Format, fsName(bucketName))
 
 	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", common.GetVersion(), newConfig.AppName, mountPoint)
 
@@ -441,7 +453,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		var stderrFile *os.File
 		if newConfig.Logging.FilePath != "" {
 			stderrFileName := string(newConfig.Logging.FilePath) + ".stderr"
-			if stderrFile, err = os.OpenFile(stderrFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND|unix.O_NOFOLLOW, 0644); err != nil {
+			if stderrFile, err = os.OpenFile(stderrFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644); err != nil {
 				return err
 			}
 		}
@@ -475,7 +487,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 		traceHandle = tracing.NewOTELTracer()
 	}
 
-	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn)
+	shutdownFn := common.JoinShutdownFunc(metricExporterShutdownFn, shutdownTracingFn, logExporterShutdownFn)
 
 	// No-op if profiler is disabled.
 	if err := profiler.SetupCloudProfiler(&newConfig.CloudProfiler); err != nil {

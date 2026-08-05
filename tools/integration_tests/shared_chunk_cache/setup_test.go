@@ -49,23 +49,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.SharedChunkCache) == 0 {
-		log.Println("No configuration found for shared_chunk_cache tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.SharedChunkCache = make([]test_suite.TestConfig, 1)
-		cfg.SharedChunkCache[0].TestBucket = setup.TestBucket()
-		cfg.SharedChunkCache[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.SharedChunkCache[0].LogFile = setup.LogFile()
-		cfg.SharedChunkCache[0].Configs = make([]test_suite.ConfigItem, 1)
-
-		// TestSharedChunkCacheTestSuite - dual mount with shared cache
-		cfg.SharedChunkCache[0].Configs[0].Flags = []string{
-			"--enable-experimental-shared-chunk-cache --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/shared-cache",
-		}
-		cfg.SharedChunkCache[0].Configs[0].SecondaryFlags = []string{
-			"--enable-experimental-shared-chunk-cache --file-cache-max-size-mb=-1 --cache-dir=/gcsfuse-tmp/shared-cache",
-		}
-		cfg.SharedChunkCache[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.SharedChunkCache[0].Configs[0].Run = "TestSharedChunkCacheTestSuite"
+		log.Fatal("No configuration found for SharedChunkCache in config file.")
 	}
 
 	testEnv.ctx = context.Background()

@@ -17,7 +17,7 @@ package readonly_test
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log"
 	"os"
 	"path"
@@ -74,17 +74,16 @@ func createTestDataForReadOnlyTests(ctx context.Context, storageClient *storage.
 		filePath := path.Join(dirPath, file.filePath)
 		// Create a storage writer for the destination object
 		object := bucketHandle.Object(filePath)
-		writer, err := client.NewWriter(ctx, object, storageClient)
-		if err != nil {
-			return fmt.Errorf("Error opening writer for object %s: %w\n", file.filePath, err)
-		}
+		writer := client.NewWriterWithOptions(ctx, object)
 
 		// Write the text to the object
-		if _, err = writer.Write([]byte(file.fileContent + "\n")); err != nil {
+		if _, writeErr := writer.Write([]byte(file.fileContent + "\n")); writeErr != nil {
+			closeErr := writer.Close()
+			err := errors.Join(writeErr, closeErr)
 			log.Printf("Error writing to object %s: %v\n", file.filePath, err)
+			return err
 		}
-		err = writer.Close()
-		if err != nil {
+		if err := writer.Close(); err != nil {
 			log.Printf("Error in closing writer: %v", err)
 			return err
 		}
@@ -106,19 +105,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.ReadOnly) == 0 {
-		log.Println("No configuration found for readonly tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.ReadOnly = make([]test_suite.TestConfig, 1)
-		cfg.ReadOnly[0].TestBucket = setup.TestBucket()
-		cfg.ReadOnly[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.ReadOnly[0].Configs = make([]test_suite.ConfigItem, 1)
-		cfg.ReadOnly[0].Configs[0].Flags = []string{
-			"--o=ro --implicit-dirs=true",
-			"--file-mode=544 --dir-mode=544 --implicit-dirs=true",
-			"--client-protocol=grpc --o=ro --implicit-dirs=true",
-			"--o=ro --implicit-dirs=true --cache-dir=/gcsfuse-tmp/readonly --file-cache-max-size-mb=3",
-		}
-		cfg.ReadOnly[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
+		log.Fatal("No configuration found for ReadOnly in config file.")
 	}
 
 	// 2. Create storage client before running tests.

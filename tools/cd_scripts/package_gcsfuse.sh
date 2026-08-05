@@ -25,20 +25,13 @@
 # gcsfuse-RELEASE_VERSION-1.x86_64.rpm
 
 set -e
-# create-gcsfuse-packages VM is a fixed VM in GCP project gcs-fuse-test
 
-# Function to fetch metadata value of the key.
+# Function to fetch metadata value of the key from the VM.
 function fetch_meta_data_value() {
   metadata_key=$1
-  # Fetch metadata value of the key
-  gcloud compute instances describe create-gcsfuse-packages --zone us-west1-b --flatten="metadata[$metadata_key]" >>  metadata.txt
-  # cat metadata.txt
-  # ---
-  #   value
-  x=$(sed '2!d' metadata.txt) # fetch 2nd line -> " value"
-  value=$(echo "$x" | sed 's/[[:space:]]//g') # remove preceeding spaces -> "value"
-  rm metadata.txt
-  echo $value
+  # Fetch metadata value directly from the local metadata server
+  value=$(curl -sfS -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$metadata_key")
+  echo "$value"
 }
 
 architecture=$(dpkg --print-architecture)

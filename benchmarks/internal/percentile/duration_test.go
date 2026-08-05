@@ -19,25 +19,10 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/benchmarks/internal/percentile"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestDuration(t *testing.T) { RunTests(t) }
-
-////////////////////////////////////////////////////////////////////////
-// Boilerplate
-////////////////////////////////////////////////////////////////////////
-
-type DurationTest struct {
-}
-
-func init() { RegisterTestSuite(&DurationTest{}) }
-
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
-
-func (t *DurationTest) OneObservation() {
+func TestOneObservation(t *testing.T) {
 	vals := []time.Duration{
 		17,
 	}
@@ -56,14 +41,14 @@ func (t *DurationTest) OneObservation() {
 	}
 
 	for _, tc := range testCases {
-		ExpectEq(
+		assert.Equal(t,
 			tc.expected,
 			percentile.Duration(vals, tc.p),
 			"p: %d", tc.p)
 	}
 }
 
-func (t *DurationTest) TwoObservations() {
+func TestTwoObservations(t *testing.T) {
 	vals := []time.Duration{
 		100,
 		200,
@@ -83,14 +68,14 @@ func (t *DurationTest) TwoObservations() {
 	}
 
 	for _, tc := range testCases {
-		ExpectEq(
+		assert.Equal(t,
 			tc.expected,
 			percentile.Duration(vals, tc.p),
 			"p: %d", tc.p)
 	}
 }
 
-func (t *DurationTest) ThreeObservations() {
+func TestThreeObservations(t *testing.T) {
 	vals := []time.Duration{
 		100,
 		200,
@@ -111,14 +96,14 @@ func (t *DurationTest) ThreeObservations() {
 	}
 
 	for _, tc := range testCases {
-		ExpectEq(
+		assert.Equal(t,
 			tc.expected,
 			percentile.Duration(vals, tc.p),
 			"p: %d", tc.p)
 	}
 }
 
-func (t *DurationTest) FiveObservations() {
+func TestFiveObservations(t *testing.T) {
 	vals := []time.Duration{
 		100,
 		200,
@@ -158,7 +143,7 @@ func (t *DurationTest) FiveObservations() {
 	}
 
 	for _, tc := range testCases {
-		ExpectEq(
+		assert.Equal(t,
 			tc.expected,
 			percentile.Duration(vals, tc.p),
 			"p: %d", tc.p)

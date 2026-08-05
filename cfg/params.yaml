@@ -167,13 +167,6 @@ params:
     default: false
     hide-flag: true
 
-  - config-path: "disable-list-access-check"
-    flag-name: "disable-list-access-check"
-    type: "bool"
-    usage: "Disables the list object based access check during mount operation"
-    default: true
-    hide-flag: true
-
   - config-path: "dummy-io.enable"
     flag-name: "enable-dummy-io"
     type: "bool"
@@ -384,10 +377,10 @@ params:
     hide-flag: true
     optimizations:
       bucket-type-optimization:
-        - bucket-type: "zonal"
-          value: "DefaultCongestionThreshold()"
-        - bucket-type: "pirlo"
-          value: "DefaultCongestionThreshold()"
+        - bucket-type: "zonal, pirlo"
+          value: "StorageClassRapid.DefaultCongestionThreshold()"
+        - bucket-type: "flat, hierarchical"
+          value: "StorageClassStandard.DefaultCongestionThreshold()"
 
   - config-path: "file-system.dir-mode"
     flag-name: "dir-mode"
@@ -405,14 +398,14 @@ params:
   - config-path: "file-system.enable-kernel-reader"
     flag-name: "enable-kernel-reader"
     type: "bool"
-    usage: "Enables kernel reader, disables prefetching gcsfuse side and relies on kernel read-ahead and page-cache."
+    usage: >-
+      Enables the kernel reader and FUSE asynchronous reads. When enabled, GCSFuse-side prefetching is disabled,
+      and file read operations rely entirely on the Linux kernel's native read-ahead and page-cache mechanisms.
     default: false
-    hide-flag: true
+    hide-flag: false
     optimizations:
       bucket-type-optimization:
-        - bucket-type: "zonal"
-          value: true
-        - bucket-type: "pirlo"
+        - bucket-type: "zonal, pirlo"
           value: true
 
   - config-path: "file-system.experimental-enable-dentry-cache"
@@ -453,6 +446,37 @@ params:
     type: "octal"
     usage: "Permissions bits for files, in octal."
     default: "0644"
+
+  - config-path: "file-system.fuse-max-request-size-kb"
+    flag-name: "fuse-max-request-size-kb"
+    type: "int"
+    usage: >-
+      Sets the target maximum request size in KiB that FUSE can process in a single request
+      (currently used to control read requests only). This is translated to the kernel max_pages
+      limit based on host page size. As max_pages_limit is a global, machine-level configuration
+      across all mounts, the host's limit is only updated if the calculated pages value is greater
+      than the current system limit. Note that the FUSE kernel max_pages limit can be set to at most
+      65535 (fuse_max_max_pages), so the value of this parameter must be > 0 and translate to at most 65535 pages. 
+      Additionally, on GKE, the system-wide setting is capped to 16 MiB (16384 KiB) by default by the CSI driver.
+      If needed to be set beyond that on GKE, the user has to manually increase the value on the node before
+      GCSFuse mounting begins. Requires enable-kernel-reader to be set to true, otherwise the value will be ignored. Not supported for rapid buckets for now. Setting this flag on rapid buckets will result in mount failure.
+    default: "StorageClassRapid.DefaultFuseMaxRequestSizeKb()"
+    hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "flat, hierarchical"
+          value: "StorageClassStandard.DefaultFuseMaxRequestSizeKb()"
+
+  - config-path: "file-system.fuse-max-write-size-kb"
+    flag-name: "fuse-max-write-size-kb"
+    type: "int"
+    usage: >-
+      Sets the target maximum write size in KiB that FUSE can process in a single write request.
+      If fuse-max-request-size-kb is less than fuse-max-write-size-kb, we will restrict
+      fuse-max-write-size-kb to fuse-max-request-size-kb. Right now only a maximum value
+      of 1MB is supported.
+    default: 1024
+    hide-flag: true
 
   - config-path: "file-system.fuse-options"
     flag-name: "o"
@@ -519,10 +543,10 @@ params:
     hide-flag: true
     optimizations:
       bucket-type-optimization:
-        - bucket-type: "zonal"
-          value: "DefaultMaxBackground()"
-        - bucket-type: "pirlo"
-          value: "DefaultMaxBackground()"
+        - bucket-type: "zonal, pirlo"
+          value: "StorageClassRapid.DefaultMaxBackground()"
+        - bucket-type: "flat, hierarchical"
+          value: "StorageClassStandard.DefaultMaxBackground()"
 
   - config-path: "file-system.max-read-ahead-kb"
     flag-name: "max-read-ahead-kb"
@@ -535,10 +559,10 @@ params:
     hide-flag: true
     optimizations:
       bucket-type-optimization:
-        - bucket-type: "zonal"
-          value: 16384 # 16 MiB
-        - bucket-type: "pirlo"
-          value: 16384 # 16 MiB
+        - bucket-type: "zonal, pirlo"
+          value: "StorageClassRapid.DefaultMaxReadAheadKb()"
+        - bucket-type: "flat, hierarchical"
+          value: "StorageClassStandard.DefaultMaxReadAheadKb()"
 
   - config-path: "file-system.rename-dir-limit"
     flag-name: "rename-dir-limit"
@@ -552,6 +576,15 @@ params:
       profiles:
         - name: "aiml-checkpointing"
           value: 200000
+
+  - config-path: "file-system.strong-consistency-on-open"
+    flag-name: "strong-consistency-on-open"
+    type: "bool"
+    usage: >-
+      When enabled, during open file, GCSFuse will check with GCS if the file has been modified since it last fetched
+      and fail with ESTALE if the file has been clobbered (externally modified).
+    default: false
+    hide-flag: false
 
   - config-path: "file-system.temp-dir"
     flag-name: "temp-dir"
@@ -609,7 +642,8 @@ params:
     type: "protocol"
     usage: >-
       The protocol used for communicating with the GCS backend.
-      Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2) or 'grpc'.
+      Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2), 'grpc', or 'httpmtls'.
+      'httpmtls' delegates connection creation to the SDK (enabling mTLS) and uses HTTP/2 by default, falling back to HTTP/1.1 if the server doesn't support it.
     default: "http1"
 
   - config-path: "gcs-connection.custom-endpoint"
@@ -721,10 +755,14 @@ params:
     default: "10"
     hide-flag: true
 
-  - config-path: "gcs-retries.experimental-nonrapid-folder-api-stall-retry"
-    flag-name: "experimental-nonrapid-folder-api-stall-retry"
+  - config-path: "gcs-retries.enable-mount-retries"
+    flag-name: "enable-mount-retries"
     type: "bool"
-    usage: "Enables stall-retry-fix for folder APIs for non-rapid buckets."
+    usage: >-
+      If true, enables retry logic in GCSFuse during the mount sequence 
+      for additional errors (such as metadata server readiness delays, IAM propagation 
+      delays, and temporary bucket non-existence). Intended specifically for the 
+      GKE GCSFuse CSI Driver.
     default: false
     hide-flag: true
 
@@ -732,23 +770,25 @@ params:
     flag-name: "max-retry-attempts"
     type: "int"
     usage: >-
-      It sets a limit on the number of times an operation will be retried if it
-      fails, preventing endless retry loops. A value of 0 indicates no limit.
+      It sets a limit on the total number of attempts (including the initial call) made for an operation if it fails,
+      preventing endless retry loops. For example, a value of 5 means up to 5 total attempts (1 initial call plus 4 retries).
+      A value of 0 indicates unlimited attempts.
     default: "0"
 
   - config-path: "gcs-retries.max-retry-sleep"
     flag-name: "max-retry-sleep"
     type: "duration"
     usage: >-
-      The maximum duration allowed to sleep in a retry loop with exponential
-      backoff for failed requests to GCS backend. Once the backoff duration
-      exceeds this limit, the retry continues with this specified maximum value.
+      The maximum backoff sleep duration allowed between retry attempts.
+      Once the exponential backoff exceeds this limit, subsequent retries will use this constant sleep value.
     default: "30s"
 
   - config-path: "gcs-retries.multiplier"
     flag-name: "retry-multiplier"
     type: "float64"
-    usage: Param for exponential backoff algorithm, which is used to increase waiting time b/w two consecutive retries.
+    usage: >-
+      The multiplier factor by which the retry backoff duration increases after each failed attempt.
+      For example, a multiplier of 2.0 doubles the backoff sleep duration for each subsequent retry.
     default: 2
 
   - config-path: "gcs-retries.read-stall.enable"
@@ -823,6 +863,27 @@ params:
       (b) If both ImplicitDirectories and EnableEmptyManagedFolders are true, then all the managed folders are listed including the above-mentioned corner case.
       (c) If ImplicitDirectories is false then no managed folders are listed irrespective of enable-empty-managed-folders flag.
     default: false
+    hide-flag: true
+
+  - config-path: "logging.experimental-enable-otel-logging"
+    flag-name: "experimental-enable-otel-logging"
+    type: "bool"
+    usage: "Enable OpenTelemetry log exporting."
+    default: "false"
+    hide-flag: true
+
+  - config-path: "logging.experimental-otel-logging-endpoint"
+    flag-name: "experimental-otel-logging-endpoint"
+    type: "string"
+    usage: "The OTLP HTTP endpoint for OpenTelemetry logs."
+    default: "telemetry.googleapis.com"
+    hide-flag: true
+
+  - config-path: "logging.experimental-otel-logging-project-id"
+    flag-name: "experimental-otel-logging-project-id"
+    type: "string"
+    usage: "Specify the GCP project id to which OTel logs will be exported. When unset, a project id will be inferred as per the default credential detection process."
+    default: ""
     hide-flag: true
 
   - config-path: "logging.file-path"
@@ -932,7 +993,7 @@ params:
     usage: >-
       Enables background prefetching of object metadata when a directory is first opened. 
       This reduces latency for subsequent file lookups by pre-filling the metadata cache.
-    default: false
+    default: true
     deprecated: false
     hide-flag: false
 
@@ -946,6 +1007,12 @@ params:
       is set, then if we create the same file/node in the meantime using the same
       mount, since we are not refreshing the cache, it will still return nil.
       This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.
+    default: false
+
+  - config-path: "metadata-cache.experimental-enable-optimized-metadata-cache"
+    flag-name: "experimental-enable-optimized-metadata-cache"
+    type: "bool"
+    usage: "This flag enables the radix tree based lru cache"
     default: false
 
   - config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
@@ -1144,6 +1211,13 @@ params:
       Note: Enabling this flag can increase the memory usage significantly.
     default: false
 
+  - config-path: "read.enable-grpc-read-checksums"
+    flag-name: "enable-grpc-read-checksums"
+    type: "bool"
+    usage: "Enables chunk-level CRC32C checksum validation for gRPC read operations. Disabled by default to optimize CPU utilization."
+    default: false
+    hide-flag: true
+
   - config-path: "read.global-max-blocks"
     flag-name: "read-global-max-blocks"
     type: "int"
@@ -1250,10 +1324,11 @@ params:
 
   - config-path: "write.block-size-mb"
     flag-name: "write-block-size-mb"
-    type: "int"
+    type: "float64"
     usage: >-
-      Specifies the block size for streaming writes. The value should be more
-      than 0.
+      Specifies the block size for streaming writes. The value must be greater than
+      0 and a multiple of 0.25 MiB (256 KiB) to align with GCS upload chunk size
+      requirements.
     default: 32
     hide-flag: true
 
@@ -1270,6 +1345,12 @@ params:
     usage: "Enables support for appends to unfinalized object using streaming writes"
     default: true
 
+  - config-path: "write.enable-rapid-writes"
+    flag-name: "enable-rapid-writes"
+    type: "bool"
+    usage: "For pirlo, toggles between using STANDARD class and RAPID class for writes."
+    default: false
+
   - config-path: "write.enable-streaming-writes"
     flag-name: "enable-streaming-writes"
     type: "bool"
@@ -1282,6 +1363,12 @@ params:
     usage: "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files."
     default: false
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "zonal"
+          value: false
+        - bucket-type: "pirlo"
+          value: true
 
   - config-path: "write.global-max-blocks"
     flag-name: "write-global-max-blocks"

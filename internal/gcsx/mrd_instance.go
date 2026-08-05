@@ -272,9 +272,12 @@ func closePoolWithTimeout(pool *MRDPool, caller string, timeout time.Duration) {
 			pool.Close()
 		}()
 
+		timer := time.NewTimer(timeout)
+		defer timer.Stop()
+
 		select {
 		case <-done:
-		case <-time.After(timeout):
+		case <-timer.C:
 			var objectName string
 			if pool.poolConfig != nil && pool.poolConfig.object != nil {
 				objectName = pool.poolConfig.object.Name
@@ -408,4 +411,11 @@ func (mi *MrdInstance) Size() uint64 {
 		return mi.mrdPool.Size()
 	}
 	return 0
+}
+
+// RefCount returns the reference count of the MrdInstance. Used for testing.
+func (mi *MrdInstance) RefCount() int64 {
+	mi.refCountMu.Lock()
+	defer mi.refCountMu.Unlock()
+	return mi.refCount
 }

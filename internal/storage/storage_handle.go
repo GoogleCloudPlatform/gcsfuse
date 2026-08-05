@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,7 @@ import (
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"cloud.google.com/go/storage/experimental"
+	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -56,10 +58,12 @@ const (
 	zonalLocationType = "zone"
 
 	// DirectPath detection parameters - used for fast-fail detection during client creation
-	directPathDetectionMaxAttempts      = 5
-	directPathDetectionTimeout          = 15 * time.Second
-	directPathDetectionMaxBackoff       = 5 * time.Second
-	directPathDetectionMaxRetryDuration = 1 * time.Minute
+	directPathDetectionMaxAttempts = 5
+	directPathDetectionTimeout     = 15 * time.Second
+	directPathDetectionMaxBackoff  = 5 * time.Second
+
+	// nonExistentObjectName is the object name used for bucket existence/access check when HNS feature is disabled by providing "--enable-hns:false". E.g. Using Regional Endpoints which do not support GRPC protocol.
+	nonExistentObjectName = "gcsfuse-nonexistent-object-check"
 )
 
 type StorageHandle interface {
@@ -68,7 +72,7 @@ type StorageHandle interface {
 	// to that project rather than to the bucket's owning project.
 	//
 	// A user-project is required for all operations on Requester Pays buckets.
-	BucketHandle(ctx context.Context, bucketName string, billingProject string, finalizeFileForRapid bool) (bh *bucketHandle, err error)
+	BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error)
 }
 
 type storageClient struct {
@@ -76,10 +80,11 @@ type storageClient struct {
 	grpcClient               *storage.Client
 	grpcClientWithBidiConfig *storage.Client
 	clientConfig             storageutil.StorageClientConfig
-	// rawStorageControlClientWithoutGaxRetries is without any retries.
-	rawStorageControlClientWithoutGaxRetries *control.StorageControlClient
-	// rawStorageControlClientWithGaxRetries is with retry for Folder APIs.
-	rawStorageControlClientWithGaxRetries *control.StorageControlClient
+	// rawStorageControlClient is the underlying base client without any retries configured.
+	// WARNING: Do not mutate this client or its CallOptions in-place after initialization.
+	// It serves as a shared template to derive new control clients (e.g., wrapped with
+	// folder stall retries and billing projects) for each BucketHandle invocation.
+	rawStorageControlClient *control.StorageControlClient
 	// storageControlClient is with retry for GetStorageLayout and with handling for billing project.
 	storageControlClient StorageControlClient
 }
@@ -175,42 +180,22 @@ func setRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *stora
 		storage.WithPolicy(storage.RetryAlways),
 		storage.WithMaxAttempts(clientConfig.MaxRetryAttempts),
 		storage.WithMaxRetryDuration(0),
-		storage.WithErrorFunc(func(err error) bool {
-			return storageutil.ShouldRetryWithMonitoring(ctx, err, clientConfig.MetricHandle)
+		storage.WithErrorFuncWithContext(func(err error, retryCtx *storage.RetryContext) bool {
+			return storageutil.ShouldRetryWithMonitoringAndRetryContext(ctx, err, retryCtx, clientConfig.MetricHandle)
 		})}
 
 	sc.SetRetry(retryOpts...)
 }
 
-// setDPDetectionRetryConfig applies a lenient retry configuration for DirectPath detection phase.
-// This config is designed to fail fast during the initial connection check.
-func setDPDetectionRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *storageutil.StorageClientConfig) {
-	detectionRetryOpts := []storage.RetryOption{
-		storage.WithBackoff(gax.Backoff{
-			Max:        directPathDetectionMaxBackoff,
-			Multiplier: 1.5, // Gentle multiplier for fast detection
-		}),
-		storage.WithMaxAttempts(directPathDetectionMaxAttempts),
-		storage.WithPolicy(storage.RetryAlways),
-		storage.WithErrorFunc(func(err error) bool {
-			// More permissive during detection to allow quick failure
-			return storageutil.ShouldRetryWithMonitoring(ctx, err, clientConfig.MetricHandle)
-		}),
-		storage.WithMaxRetryDuration(directPathDetectionMaxRetryDuration),
-	}
-
-	sc.SetRetry(detectionRetryOpts...)
-}
-
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
-func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isbucketRapid bool, enableBidiConfig bool, bucketName string, billingProject string) (sc *storage.Client, err error) {
+func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isbucketRapid bool, enableBidiConfig bool, bucketName string, billingProject string) (*storage.Client, error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		return nil, fmt.Errorf("error setting direct path env var: %w", err)
 	}
 	defer unSetDirectPathEnvVariable()
 
 	var clientOpts []option.ClientOption
-	clientOpts, err = createClientOptionForGRPCClient(ctx, clientConfig, enableBidiConfig)
+	clientOpts, err := createClientOptionForGRPCClient(ctx, clientConfig, enableBidiConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
@@ -218,10 +203,16 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	// Add DirectPath enforcement - client creation will fail if DirectPath is not available
 	clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
 
-	if sc, err = storage.NewGRPCClient(ctx, clientOpts...); err != nil {
+	sc, err := storage.NewGRPCClient(ctx, clientOpts...)
+	if err != nil {
 		return nil, fmt.Errorf("NewGRPCClient: %w", err)
 	}
-	setRetryConfig(ctx, sc, clientConfig)
+
+	// Set the production level retry config.
+	defer func() {
+		logger.Infof("Applying production retry config after DirectPath verification.")
+		setRetryConfig(ctx, sc, clientConfig)
+	}()
 
 	// Direct-path verification is fatal for regional. Todo(b/503624405): Make it fatal for all after making the dummy-stat reliable.
 	if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
@@ -239,26 +230,33 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil.StorageClientConfig, bucketName string, sc *storage.Client, billingProject string) error {
 	// Verify DirectPath connection by performing an stat call on the bucket
 	logger.Infof("Verifying DirectPath connectivity for bucket %q with stat call", bucketName)
-	// Apply detection retry config for initial verification
-	setDPDetectionRetryConfig(ctx, sc, clientConfig)
 
-	// Restore the production level retry config.
-	defer func() {
-		logger.Infof("Applying production retry config after DirectPath verification.")
-		setRetryConfig(ctx, sc, clientConfig)
-	}()
-
-	verifyCtx, verifyCancel := context.WithTimeout(ctx, directPathDetectionTimeout)
-	defer verifyCancel()
-
-	// Retrieving object attrs through Go Storage Client.
 	var notFoundError *gcs.NotFoundError
 	var testObject = "gcsfuse-dp-object"
+	if clientConfig.OnlyDir != "" {
+		testObject = clientConfig.OnlyDir + testObject
+	}
 	bucketHandle := sc.Bucket(bucketName)
 	if billingProject != "" {
 		bucketHandle = bucketHandle.UserProject(billingProject)
 	}
-	_, statErr := bucketHandle.Object(testObject).Attrs(verifyCtx)
+
+	// Disable Go SDK retries for this call to let ExecuteWithRetry handle it.
+	bucketHandle = bucketHandle.Retryer(storage.WithMaxAttempts(1))
+
+	dpClientConfig := &storageutil.StorageClientConfig{
+		MaxRetrySleep:    directPathDetectionMaxBackoff,
+		RetryMultiplier:  clientConfig.RetryMultiplier,
+		MaxRetryAttempts: directPathDetectionMaxAttempts,
+	}
+	retryConfig := storageutil.NewCustomRetryConfig(dpClientConfig, directPathDetectionTimeout)
+
+	apiCall := func(attemptCtx context.Context) (*storage.ObjectAttrs, error) {
+		return bucketHandle.Object(testObject).Attrs(attemptCtx)
+	}
+
+	_, statErr := storageutil.ExecuteWithRetryAtLogLevel(ctx, retryConfig, "Attrs", testObject, uuid.NewString(), apiCall, logger.LevelInfo)
+
 	// We should get a notFound error and not any error when the object doesn't exist.
 	// Any error other than notFound is treated as dp connection failure.
 	if statErr != nil && !errors.As(gcs.GetGCSError(statErr), &notFoundError) {
@@ -288,17 +286,31 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 			return nil, fmt.Errorf("failed to get client auth options and token: %w", err)
 		}
 		clientOpts = append(clientOpts, authOpts...)
+	} else {
+		tokenSrc, err = storageutil.CreateTokenSource(clientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("while fetching tokenSource: %w", err)
+		}
+	}
+
+	if clientConfig.ClientProtocol == cfg.HTTPMtls {
+		clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
+		// When googleLibAuth is enabled, clientOpts already has tokenSrc.
+		if !clientConfig.EnableGoogleLibAuth && tokenSrc != nil {
+			clientOpts = append(clientOpts, option.WithTokenSource(tokenSrc))
+		}
 	}
 
 	// Add WithHttpClient option.
-	var httpClient *http.Client
-	httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc)
-	if err != nil {
-		err = fmt.Errorf("while creating http endpoint: %w", err)
-		return
+	if clientConfig.ClientProtocol != cfg.HTTPMtls {
+		var httpClient *http.Client
+		httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc)
+		if err != nil {
+			err = fmt.Errorf("while creating http endpoint: %w", err)
+			return
+		}
+		clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 	}
-
-	clientOpts = append(clientOpts, option.WithHTTPClient(httpClient))
 
 	// Create client with JSON read flow, if EnableJasonRead flag is set.
 	if clientConfig.ExperimentalEnableJsonRead {
@@ -342,13 +354,51 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	return
 }
 
+// verifyNonHNSBucketAccess performs an Attrs call on a non-existent object
+// to verify bucket existence and authorization when HNS is disabled.
+func (sh *storageClient) verifyNonHNSBucketAccess(ctx context.Context, bucketHandle *storage.BucketHandle, bucketName string) error {
+	testObject := nonExistentObjectName
+	if sh.clientConfig.OnlyDir != "" {
+		testObject = sh.clientConfig.OnlyDir + testObject
+	}
+
+	apiCall := func(attemptCtx context.Context) (*storage.ObjectAttrs, error) {
+		return bucketHandle.Object(testObject).Attrs(attemptCtx)
+	}
+
+	retryConfig := storageutil.NewRetryConfig(&sh.clientConfig)
+	_, err := storageutil.ExecuteWithCustomShouldRetryAtLogLevel(
+		ctx,
+		retryConfig,
+		"Attrs",
+		fmt.Sprintf("%s/%s", bucketName, testObject),
+		uuid.NewString(),
+		apiCall,
+		storageutil.ShouldRetryOnMount,
+		logger.LevelInfo,
+	)
+
+	if err == nil {
+		return nil
+	}
+
+	// An Object NotFound error indicates that the bucket exists and access is authorized.
+	var notFoundError *gcs.NotFoundError
+	if errors.As(gcs.GetGCSError(err), &notFoundError) && !strings.Contains(strings.ToLower(err.Error()), storageutil.ErrStrBucketNotExist) {
+		return nil
+	}
+
+	return err
+}
+
 func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, error) {
 	if sh.storageControlClient == nil {
 		return &gcs.BucketType{}, nil // Assume defaults
 	}
 
 	startTime := time.Now()
-	logger.Infof("GetStorageLayout <- (%s)", bucketName)
+	prefix := sh.clientConfig.OnlyDir
+	logger.Infof("GetStorageLayout <- (%s, prefix: %q)", bucketName, prefix)
 	storageLayout, err := sh.getStorageLayout(bucketName)
 	duration := time.Since(startTime)
 
@@ -356,73 +406,85 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 		return nil, err
 	}
 
-	logger.Infof("GetStorageLayout -> (%s) %v msec", bucketName, duration.Milliseconds())
+	logger.Infof("GetStorageLayout -> (%s, prefix: %q) %v msec", bucketName, prefix, duration.Milliseconds())
+
+	// TODO (b/483608308): Once GetStorageLayout starts returning Pirlo bucket type,
+	// update this logic to use the response instead of inferring from clientConfig.
+	pirloState := gcs.PirloStateNone
+	if sh.clientConfig.ExperimentalEnablePirlo {
+		if sh.clientConfig.WriteConfig != nil && sh.clientConfig.WriteConfig.EnableRapidWrites {
+			pirloState = gcs.PirloStateRapidWritesEnabled
+		} else {
+			pirloState = gcs.PirloStateRapidWritesDisabled
+		}
+	}
 
 	return &gcs.BucketType{
 		Hierarchical: storageLayout.GetHierarchicalNamespace().GetEnabled(),
 		Zonal:        storageLayout.GetLocationType() == zonalLocationType,
-		Pirlo:        sh.clientConfig.ExperimentalEnablePirlo,
+		Pirlo:        pirloState,
 	}, nil
 }
 
 func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.StorageLayout, error) {
 	var callOptions []gax.CallOption
-	stoargeLayout, err := sh.storageControlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
+
+	storageLayout, err := sh.storageControlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
 		Name:      fmt.Sprintf("projects/_/buckets/%s/storageLayout", bucketName),
-		Prefix:    "",
-		RequestId: "",
+		Prefix:    sh.clientConfig.OnlyDir,
+		RequestId: uuid.NewString(),
 	}, callOptions...)
 
-	return stoargeLayout, err
+	return storageLayout, err
 }
 
 // NewStorageHandle creates control client and stores client config to allow dynamic
 // creation of http or grpc client.
 func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig, billingProject string) (sh StorageHandle, err error) {
+	// Sanitize the onlyDir path for only-dir mounting
+	if clientConfig.OnlyDir != "" {
+		// Treat OnlyDir as absolute path to resolve any leading ".." to root.
+		prefix := path.Clean("/" + clientConfig.OnlyDir)
+		prefix = strings.TrimPrefix(prefix, "/")
+		if prefix != "" {
+			clientConfig.OnlyDir = prefix + "/"
+		} else {
+			clientConfig.OnlyDir = ""
+		}
+	}
 	// The default protocol for the Go Storage control client's folders API is gRPC.
 	// gcsfuse will initially mirror this behavior due to the client's lack of HTTP support.
 	var controlClient StorageControlClient
-	var rawStorageControlClientWithoutGaxRetries *control.StorageControlClient
-	var rawStorageControlClientWithGaxRetries *control.StorageControlClient
+	var rawStorageControlClient *control.StorageControlClient
 	var clientOpts []option.ClientOption
 
 	// Control-client is needed for folder APIs and for getting storage-layout of the bucket.
-	// GetStorageLayout API is not supported for storage-testbench, which are identified by custom-endpoint containing localhost.
-	if clientConfig.EnableHNS && !strings.Contains(clientConfig.CustomEndpoint, "localhost") {
+	// Bypassed for HTTP storage testbenches that inject the legacy REST API path.
+	if clientConfig.EnableHNS && !strings.Contains(clientConfig.CustomEndpoint, "/storage/v1") {
 		// For control client, we don't pass billingProject to avoid setting it globally via option.WithQuotaProject.
 		// The wrapper storageControlClientWithBillingProject will manually add it to the context for supported calls.
 		clientOpts, err = createClientOptionForGRPCClient(ctx, &clientConfig, false)
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}
-		rawStorageControlClientWithoutGaxRetries, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, true)
+		rawStorageControlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, true)
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client without default gax retries: %w", err)
 		}
-		// rawStorageControlClientWithGaxRetries cannot be just a wrapper over rawStorageControlClientWithoutGaxRetries,
-		// as it has its own dedicated array of CallOptions, and we need to keep those independent.
-		rawStorageControlClientWithGaxRetries, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, false)
-		if err != nil {
-			return nil, fmt.Errorf("could not create StorageControl Client with default gax retries: %w", err)
-		}
-		err = addGaxRetriesForFolderAPIs(rawStorageControlClientWithGaxRetries, &clientConfig)
-		if err != nil {
-			return nil, fmt.Errorf("could not add custom gax retries to StorageControl Client: %w", err)
-		}
-		// special handling for mounts created with custom billing projects.
-		controlClientWithBillingProject := withBillingProject(rawStorageControlClientWithoutGaxRetries, billingProject)
-		// Wrap the control client with retry-on-stall logic.
-		// This will retry on only on GetStorageLayout call for all buckets.
-		controlClient = withRetryOnStorageLayout(controlClientWithBillingProject, &clientConfig)
-	} else {
-		logger.Infof("Skipping storage control client creation because custom-endpoint %q was passed, which is assumed to be a storage testbench server because of 'localhost' in it.", clientConfig.CustomEndpoint)
+		// Create a default storage control client with billing project.
+		// This client is used during mount initialization and subsequent bucket type lookups
+		// for GetStorageLayout operations only, and has stall retries enabled by default on GetStorageLayout calls.
+		controlClient = NewStorageControlClient(rawStorageControlClient, &clientConfig,
+			WithBillingProject(billingProject),
+		)
+	} else if clientConfig.EnableHNS {
+		logger.Infof("Skipping storage control client creation for custom-endpoint %q.", clientConfig.CustomEndpoint)
 	}
 
 	sh = &storageClient{
-		rawStorageControlClientWithoutGaxRetries: rawStorageControlClientWithoutGaxRetries,
-		rawStorageControlClientWithGaxRetries:    rawStorageControlClientWithGaxRetries,
-		storageControlClient:                     controlClient,
-		clientConfig:                             clientConfig,
+		rawStorageControlClient: rawStorageControlClient,
+		storageControlClient:    controlClient,
+		clientConfig:            clientConfig,
 	}
 	return
 }
@@ -440,7 +502,7 @@ func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, buck
 		return sh.createNonBidiGRPCClientWithHttpFallback(ctx, bucketName, billingProject)
 	}
 
-	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 {
+	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 || sh.clientConfig.ClientProtocol == cfg.HTTPMtls {
 		if sh.httpClient == nil {
 			sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
 		}
@@ -478,33 +540,7 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 	return sh.httpClient, err
 }
 
-// controlClientForBucketHandle returns a storage control client for the given bucket handle,
-// which takes care of properly adding support for retries and for billing project.
-func (sh *storageClient) controlClientForBucketHandle(bucketType *gcs.BucketType, billingProject string) StorageControlClient {
-	if sh.rawStorageControlClientWithGaxRetries == nil || sh.rawStorageControlClientWithoutGaxRetries == nil {
-		return nil
-	}
-
-	var controlClientWithoutBillingProject StorageControlClient
-	if bucketType.IsRapid() || sh.clientConfig.ExperimentalNonrapidFolderApiStallRetry {
-		// sh.storageControlClient already contains handling for billing project,
-		// and enhanced retries for GetStorageLayout API call. Extending it here for
-		// retries for folder APIs.
-		// For rapid buckets, wrap the control client with retry-on-all-APIs.
-		controlClientWithoutBillingProject = withRetryOnAllAPIs(sh.rawStorageControlClientWithoutGaxRetries, &sh.clientConfig)
-	} else {
-		// Apply GAX retries to the raw storage control client and returns a copy of it,
-		// as it is important to avoid overwriting it,
-		// as it is used with enhanced retries used by zonal buckets.
-		controlClientWithoutBillingProject = withRetryOnStorageLayout(sh.rawStorageControlClientWithGaxRetries, &sh.clientConfig)
-	}
-
-	// Special handling for mounts created with custom billing projects.
-	// Wrap it with billing-project, if there is any.
-	return withBillingProject(controlClientWithoutBillingProject, billingProject)
-}
-
-func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string, finalizeFileForRapid bool) (bh *bucketHandle, err error) {
+func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error) {
 	var client *storage.Client
 	bucketType, err := sh.lookupBucketType(bucketName)
 	if err != nil {
@@ -520,15 +556,37 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	if billingProject != "" {
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
-	controlClient := sh.controlClientForBucketHandle(bucketType, billingProject)
+	if sh.storageControlClient == nil && sh.clientConfig.EnableMountRetries {
+		err = sh.verifyNonHNSBucketAccess(ctx, storageBucketHandle, bucketName)
+		if err != nil {
+			return nil, fmt.Errorf("bucket access check failed for %q: %s", bucketName, err)
+		}
+	}
+
+	var controlClient StorageControlClient
+	if sh.rawStorageControlClient != nil {
+		controlClient = NewStorageControlClient(sh.rawStorageControlClient, &sh.clientConfig,
+			WithRetriesOnFolderAPI(),
+			WithBillingProject(billingProject),
+		)
+	}
+
+	// By default, follow the user's flag
+	disableGrpcReadChecksums := !sh.clientConfig.EnableGrpcReadChecksums
+	// If the user configures an HTTP connection on a Standard (regional) bucket, grpc checksums
+	// do not apply, so we unconditionally disable them regardless of the flag's value.
+	if !bucketType.IsRapid() && sh.clientConfig.ClientProtocol != cfg.GRPC {
+		disableGrpcReadChecksums = true
+	}
 
 	bh = &bucketHandle{
-		bucket:               storageBucketHandle,
-		bucketName:           bucketName,
-		controlClient:        controlClient,
-		bucketType:           bucketType,
-		finalizeFileForRapid: finalizeFileForRapid,
-		billingProject:       billingProject,
+		bucket:                   storageBucketHandle,
+		bucketName:               bucketName,
+		controlClient:            controlClient,
+		bucketType:               bucketType,
+		billingProject:           billingProject,
+		writeConfig:              sh.clientConfig.WriteConfig,
+		disableGrpcReadChecksums: disableGrpcReadChecksums,
 	}
 
 	return

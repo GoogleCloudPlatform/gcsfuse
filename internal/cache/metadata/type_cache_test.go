@@ -20,7 +20,8 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -38,65 +39,26 @@ var (
 	beforeExpiration2 time.Time = expiration2.Add(-time.Nanosecond)
 )
 
-func TestTypeCache(t *testing.T) { RunTests(t) }
-
-////////////////////////////////////////////////////////////////////////
-// Boilerplate
-////////////////////////////////////////////////////////////////////////
-
-type TypeCacheTest struct {
-	cache TypeCache
-	ttl   time.Duration
-}
-
-type ZeroSizeTypeCacheTest struct {
-	cache TypeCache
-	ttl   time.Duration
-}
-
-type ZeroTtlTypeCacheTest struct {
-	cache TypeCache
-}
-
-func init() {
-	RegisterTestSuite(&TypeCacheTest{})
-	RegisterTestSuite(&ZeroSizeTypeCacheTest{})
-	RegisterTestSuite(&ZeroTtlTypeCacheTest{})
-}
-
-func (t *TypeCacheTest) SetUp(ti *TestInfo) {
-	t.ttl = TTL
-	t.cache = createNewTypeCache(TypeCacheMaxSizeMB, t.ttl)
-}
-
-func (t *ZeroSizeTypeCacheTest) SetUp(ti *TestInfo) {
-	t.ttl = TTL
-	t.cache = createNewTypeCache(0, t.ttl)
-}
-
-func (t *ZeroTtlTypeCacheTest) SetUp(ti *TestInfo) {
-	t.cache = createNewTypeCache(TypeCacheMaxSizeMB, 0)
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func createNewTypeCache(maxSizeMB int64, ttl time.Duration) *typeCache {
+func createNewTypeCache(t *testing.T, maxSizeMB int64, ttl time.Duration) *typeCache {
 	tc := NewTypeCache(maxSizeMB, ttl)
 
-	AssertNe(nil, tc)
-	AssertNe(nil, tc.(*typeCache))
+	require.NotNil(t, tc)
+	tcImpl, ok := tc.(*typeCache)
+	require.True(t, ok)
 
-	return tc.(*typeCache)
+	return tcImpl
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Tests for regulat TypeCache - TypeCacheTest
+// Tests for regular TypeCache
 ////////////////////////////////////////////////////////////////////////
 
-func (t *TypeCacheTest) TestNewTypeCache() {
-	input := []struct {
+func TestTypeCache_New(t *testing.T) {
+	inputs := []struct {
 		maxSizeMB          int64
 		ttl                time.Duration
 		entriesShouldBeNil bool
@@ -118,45 +80,55 @@ func (t *TypeCacheTest) TestNewTypeCache() {
 		{
 			maxSizeMB: 1,
 			ttl:       time.Second,
-		}}
+		},
+	}
 
-	for _, input := range input {
-		tc := createNewTypeCache(input.maxSizeMB, input.ttl)
-
-		AssertEq(input.entriesShouldBeNil, tc.entries == nil)
+	for _, input := range inputs {
+		tc := createNewTypeCache(t, input.maxSizeMB, input.ttl)
+		if input.entriesShouldBeNil {
+			assert.Nil(t, tc.entries)
+		} else {
+			assert.NotNil(t, tc.entries)
+		}
 	}
 }
 
-func (t *TypeCacheTest) TestGetFromEmptyTypeCache() {
-	ExpectEq(UnknownType, t.cache.Get(now, "abc"))
+func TestTypeCache_GetFromEmpty(t *testing.T) {
+	cache := createNewTypeCache(t, TypeCacheMaxSizeMB, TTL)
+	assert.Equal(t, UnknownType, cache.Get(now, "abc"))
 }
 
-func (t *TypeCacheTest) TestGetUninsertedEntry() {
-	t.cache.Insert(now, "abcd", RegularFileType)
+func TestTypeCache_GetUninserted(t *testing.T) {
+	cache := createNewTypeCache(t, TypeCacheMaxSizeMB, TTL)
+	cache.Insert(now, "abcd", RegularFileType)
 
-	ExpectEq(UnknownType, t.cache.Get(beforeExpiration, "abc"))
+	assert.Equal(t, UnknownType, cache.Get(beforeExpiration, "abc"))
 }
 
-func (t *TypeCacheTest) TestGetOverwrittenEntry() {
-	t.cache.Insert(now, "abcd", RegularFileType)
-	t.cache.Insert(now, "abcd", ExplicitDirType)
+func TestTypeCache_GetOverwritten(t *testing.T) {
+	cache := createNewTypeCache(t, TypeCacheMaxSizeMB, TTL)
+	cache.Insert(now, "abcd", RegularFileType)
+	cache.Insert(now, "abcd", ExplicitDirType)
 
-	ExpectEq(ExplicitDirType, t.cache.Get(beforeExpiration, "abcd"))
+	assert.Equal(t, ExplicitDirType, cache.Get(beforeExpiration, "abcd"))
 }
 
-func (t *TypeCacheTest) TestGetBeforeTtlExpiration() {
-	t.cache.Insert(now, "abcd", RegularFileType)
+func TestTypeCache_GetBeforeTtlExpiration(t *testing.T) {
+	cache := createNewTypeCache(t, TypeCacheMaxSizeMB, TTL)
+	cache.Insert(now, "abcd", RegularFileType)
 
-	ExpectEq(RegularFileType, t.cache.Get(beforeExpiration, "abcd"))
+	assert.Equal(t, RegularFileType, cache.Get(beforeExpiration, "abcd"))
 }
 
-func (t *TypeCacheTest) TestGetAfterTtlExpiration() {
-	t.cache.Insert(now, "abcd", RegularFileType)
+func TestTypeCache_GetAfterTtlExpiration(t *testing.T) {
+	cache := createNewTypeCache(t, TypeCacheMaxSizeMB, TTL)
+	cache.Insert(now, "abcd", RegularFileType)
 
-	ExpectEq(UnknownType, t.cache.Get(afterExpiration, "abcd"))
+	assert.Equal(t, UnknownType, cache.Get(afterExpiration, "abcd"))
 }
 
-func (t *TypeCacheTest) TestGetAfterSizeExpiration() {
+func TestTypeCache_GetAfterSizeExpiration(t *testing.T) {
+	cache := createNewTypeCache(t, TypeCacheMaxSizeMB, TTL)
 	sizePerEntry := cacheEntry{key: "abcde"}.Size()
 	entriesToBeInserted := int(util.MiBsToBytes(TypeCacheMaxSizeMB) / sizePerEntry)
 	nameOfIthFile := func(i int) string {
@@ -165,58 +137,64 @@ func (t *TypeCacheTest) TestGetAfterSizeExpiration() {
 
 	// adding 1 entry more than can be fit in the cache.
 	for i := 0; i <= entriesToBeInserted; i++ {
-		t.cache.Insert(now, nameOfIthFile(i), RegularFileType)
+		cache.Insert(now, nameOfIthFile(i), RegularFileType)
 	}
 
 	// Verify that Get works, by accessing the last entry inserted.
-	ExpectEq(RegularFileType, t.cache.Get(beforeExpiration, nameOfIthFile(entriesToBeInserted-1)))
+	assert.Equal(t, RegularFileType, cache.Get(beforeExpiration, nameOfIthFile(entriesToBeInserted-1)))
 
 	// The first inserted entry should have been evicted by all the later insertions.
-	ExpectEq(UnknownType, t.cache.Get(beforeExpiration, nameOfIthFile(0)))
+	assert.Equal(t, UnknownType, cache.Get(beforeExpiration, nameOfIthFile(0)))
 
 	// The second entry should not have been evicted
-	ExpectEq(RegularFileType, t.cache.Get(beforeExpiration, nameOfIthFile(1)))
+	assert.Equal(t, RegularFileType, cache.Get(beforeExpiration, nameOfIthFile(1)))
 }
 
-func (t *TypeCacheTest) TestGetErasedEntry() {
-	t.cache.Insert(now, "abcd", RegularFileType)
-	t.cache.Erase("abcd")
+func TestTypeCache_GetErased(t *testing.T) {
+	cache := createNewTypeCache(t, TypeCacheMaxSizeMB, TTL)
+	cache.Insert(now, "abcd", RegularFileType)
+	cache.Erase("abcd")
 
-	ExpectEq(UnknownType, t.cache.Get(beforeExpiration, "abcd"))
+	assert.Equal(t, UnknownType, cache.Get(beforeExpiration, "abcd"))
 }
 
-func (t *TypeCacheTest) TestGetReinsertedEntry() {
-	t.cache.Insert(now, "abcd", RegularFileType)
-	t.cache.Erase("abcd")
-	t.cache.Insert(now2, "abcd", ExplicitDirType)
+func TestTypeCache_GetReinserted(t *testing.T) {
+	cache := createNewTypeCache(t, TypeCacheMaxSizeMB, TTL)
+	cache.Insert(now, "abcd", RegularFileType)
+	cache.Erase("abcd")
+	cache.Insert(now2, "abcd", ExplicitDirType)
 
-	ExpectEq(ExplicitDirType, t.cache.Get(beforeExpiration2, "abcd"))
-}
-
-////////////////////////////////////////////////////////////////////////
-// Tests for TypeCache created with size=0 - ZeroSizeTypeCacheTest
-////////////////////////////////////////////////////////////////////////
-
-func (t *ZeroSizeTypeCacheTest) TestGetFromEmptyTypeCache() {
-	ExpectEq(UnknownType, t.cache.Get(now, "abc"))
-}
-
-func (t *ZeroSizeTypeCacheTest) TestGetInsertedEntry() {
-	t.cache.Insert(now, "abcd", RegularFileType)
-
-	ExpectEq(UnknownType, t.cache.Get(beforeExpiration, "abcd"))
+	assert.Equal(t, ExplicitDirType, cache.Get(beforeExpiration2, "abcd"))
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Tests for TypeCache created with ttl=0 - ZeroTtlTypeCacheTest
+// Tests for TypeCache created with size=0
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ZeroTtlTypeCacheTest) TestGetFromEmptyTypeCache() {
-	ExpectEq(UnknownType, t.cache.Get(now, "abc"))
+func TestZeroSizeTypeCache_GetFromEmpty(t *testing.T) {
+	cache := createNewTypeCache(t, 0, TTL)
+	assert.Equal(t, UnknownType, cache.Get(now, "abc"))
 }
 
-func (t *ZeroTtlTypeCacheTest) TestGetInsertedEntry() {
-	t.cache.Insert(now, "abcd", RegularFileType)
+func TestZeroSizeTypeCache_GetInserted(t *testing.T) {
+	cache := createNewTypeCache(t, 0, TTL)
+	cache.Insert(now, "abcd", RegularFileType)
 
-	ExpectEq(UnknownType, t.cache.Get(beforeExpiration, "abcd"))
+	assert.Equal(t, UnknownType, cache.Get(beforeExpiration, "abcd"))
+}
+
+////////////////////////////////////////////////////////////////////////
+// Tests for TypeCache created with ttl=0
+////////////////////////////////////////////////////////////////////////
+
+func TestZeroTtlTypeCache_GetFromEmpty(t *testing.T) {
+	cache := createNewTypeCache(t, TypeCacheMaxSizeMB, 0)
+	assert.Equal(t, UnknownType, cache.Get(now, "abc"))
+}
+
+func TestZeroTtlTypeCache_GetInserted(t *testing.T) {
+	cache := createNewTypeCache(t, TypeCacheMaxSizeMB, 0)
+	cache.Insert(now, "abcd", RegularFileType)
+
+	assert.Equal(t, UnknownType, cache.Get(beforeExpiration, "abcd"))
 }

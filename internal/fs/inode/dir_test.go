@@ -24,6 +24,8 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
@@ -33,12 +35,12 @@ import (
 	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -125,11 +127,6 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 		dirInodeID,
 		NewDirName(NewRootName(""), dirInodeName),
 		parInodeCtx,
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
 		implicitDirs,
 		enableNonexistentTypeCache,
 		typeCacheTTL,
@@ -173,11 +170,6 @@ func (t *DirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName string
 		5,
 		NewDirName(NewRootName(""), dirInodeName),
 		parInodeCtx,
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
 		false,
 		true,
 		typeCacheTTL,
@@ -255,11 +247,6 @@ func (t *DirTest) createLocalFileInode(parent Name, name string, id fuseops.Inod
 		id,
 		NewFileName(parent, name),
 		nil,
-		fuseops.InodeAttributes{
-			Uid:  123,
-			Gid:  456,
-			Mode: 0712,
-		},
 		&t.bucket,
 		false, // localFileCache
 		contentcache.New("", &t.clock),
@@ -268,7 +255,8 @@ func (t *DirTest) createLocalFileInode(parent Name, name string, id fuseops.Inod
 		&cfg.Config{},
 		semaphore.NewWeighted(math.MaxInt64),
 		nil,
-		tracing.NewNoopTracer()) // mrdCache
+		tracing.NewNoopTracer(),
+		metrics.NewNoopMetrics()) // mrdCache
 	return
 }
 
@@ -317,21 +305,19 @@ func (t *DirTest) TestLookupCount() {
 }
 
 func (t *DirTest) TestAttributes_WithClobberedCheckTrue() {
-	attrs, err := t.in.Attributes(t.ctx, true)
+	size, _, nlink, err := t.in.Attributes(t.ctx, true)
 
 	require.NoError(t.T(), err)
-	assert.EqualValues(t.T(), uid, attrs.Uid)
-	assert.EqualValues(t.T(), gid, attrs.Gid)
-	assert.Equal(t.T(), dirMode|os.ModeDir, attrs.Mode)
+	assert.Equal(t.T(), uint64(0), size)
+	assert.Equal(t.T(), uint32(1), nlink)
 }
 
 func (t *DirTest) TestAttributes_WithClobberedCheckFalse() {
-	attrs, err := t.in.Attributes(t.ctx, false)
+	size, _, nlink, err := t.in.Attributes(t.ctx, false)
 
 	require.NoError(t.T(), err)
-	assert.EqualValues(t.T(), uid, attrs.Uid)
-	assert.EqualValues(t.T(), gid, attrs.Gid)
-	assert.Equal(t.T(), dirMode|os.ModeDir, attrs.Mode)
+	assert.Equal(t.T(), uint64(0), size)
+	assert.Equal(t.T(), uint32(1), nlink)
 }
 
 func (t *DirTest) TestLookUpChild_NonExistent() {
@@ -344,6 +330,53 @@ func (t *DirTest) TestLookUpChild_NonExistent() {
 	if !t.in.IsTypeCacheDeprecated() {
 		assert.Equal(t.T(), metadata.UnknownType, t.getTypeFromCache(name))
 	}
+}
+
+type mockNegativeCacheBucket struct {
+	gcs.Bucket
+}
+
+func (m *mockNegativeCacheBucket) StatObject(ctx context.Context, req *gcs.StatObjectRequest) (*gcs.MinObject, *gcs.ExtendedObjectAttributes, error) {
+	return nil, nil, &gcs.NotFoundError{Err: errors.New("negative cache")}
+}
+
+func (m *mockNegativeCacheBucket) BucketType() gcs.BucketType {
+	return gcs.BucketType{}
+}
+
+func (t *DirTest) TestLookUpChild_NegativeCacheHit() {
+	const name = "qux"
+
+	mockBucket := &mockNegativeCacheBucket{}
+	syncerBucket := gcsx.NewSyncerBucket(
+		1,
+		chunkRetryDeadlineSecs,
+		chunkTransferTimeoutSecs,
+		".gcsfuse_tmp/",
+		mockBucket)
+
+	config := &cfg.Config{
+		EnableTypeCacheDeprecation: true,
+	}
+
+	in := NewDirInode(
+		dirInodeID,
+		NewDirName(NewRootName(""), dirInodeName),
+		context.Background(),
+		false,
+		false,
+		time.Second, // non-zero TTL to enable the caching logic
+		&syncerBucket,
+		&t.clock,
+		&t.clock,
+		semaphore.NewWeighted(10),
+		config,
+	)
+
+	result, err := in.LookUpChild(t.ctx, name)
+
+	require.NoError(t.T(), err)
+	require.Nil(t.T(), result)
 }
 
 func (t *DirTest) TestLookUpChild_FileOnly() {
@@ -1587,11 +1620,6 @@ func (t *DirTest) TestCreateChildSymlink_StandardSymlinkEnabled() {
 		dirInodeID,
 		NewDirName(NewRootName(""), dirInodeName),
 		parInodeCtx,
-		fuseops.InodeAttributes{
-			Uid:  uid,
-			Gid:  gid,
-			Mode: dirMode,
-		},
 		false, // implicitDirs
 		false, // enableNonexistentTypeCache
 		typeCacheTTL,
@@ -2388,7 +2416,6 @@ func (t *DirTest) TestMetadataPrefetcher_InitializationGuards() {
 				dirInodeID,
 				NewDirName(NewRootName(""), dirInodeName),
 				context.Background(),
-				fuseops.InodeAttributes{Mode: dirMode},
 				false, false, time.Second,
 				&t.bucket, &t.clock, &t.clock,
 				semaphore.NewWeighted(10),

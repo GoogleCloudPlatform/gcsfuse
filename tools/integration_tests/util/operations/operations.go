@@ -19,27 +19,27 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
+	"os"
 	"os/exec"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 )
 
 // GenerateRandomData generates random data that can be used to write to a file.
+// The returned slice is memory-aligned to os.Getpagesize() so that it can be
+// safely used for direct I/O (O_DIRECT) operations.
 func GenerateRandomData(sizeInBytes int64) ([]byte, error) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	data := make([]byte, sizeInBytes)
-	_, err := r.Read(data)
+	data, err := util.GetMemoryAlignedBuffer(sizeInBytes, int64(os.Getpagesize()))
+	if err != nil {
+		return nil, fmt.Errorf("util.GetMemoryAlignedBuffer(%d, %d): %w", sizeInBytes, os.Getpagesize(), err)
+	}
+	_, err = r.Read(data)
 	if err != nil {
 		return nil, fmt.Errorf("r.Read(): %v", err)
 	}
 	return data, nil
-}
-
-// Executes any given tool (e.g. gsutil/gcloud) with given args.
-func executeToolCommandf(tool string, format string, args ...any) ([]byte, error) {
-	cmdArgs := tool + " " + fmt.Sprintf(format, args...)
-	cmd := exec.Command("/bin/bash", "-c", cmdArgs)
-
-	return runCommand(cmd)
 }
 
 // Executes any given tool (e.g. gsutil/gcloud).
@@ -72,11 +72,6 @@ func runCommand(cmd *exec.Cmd) ([]byte, error) {
 	}
 
 	return stdout.Bytes(), nil
-}
-
-// ExecuteGcloudCommandf executes any given gcloud command with given args.
-func ExecuteGcloudCommandf(format string, args ...any) ([]byte, error) {
-	return executeToolCommandf("gcloud", format, args...)
 }
 
 // ExecuteGcloudCommand executes any given gcloud command.

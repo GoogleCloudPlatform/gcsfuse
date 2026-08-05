@@ -18,8 +18,9 @@ import (
 	"mime"
 	"path"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"golang.org/x/net/context"
 )
 
 // NewContentTypeBucket creates a wrapper bucket that guesses MIME types for

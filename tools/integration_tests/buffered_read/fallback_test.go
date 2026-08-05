@@ -41,7 +41,7 @@ type fallbackSuiteBase struct {
 }
 
 func (s *fallbackSuiteBase) SetupSuite() {
-	setup.SetUpLogFilePath(s.flags, GKETempDir, "", testEnv.cfg)
+	setup.SetUpLogFilePath(s.T().Name(), s.flags, GKETempDir, "", testEnv.cfg)
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, s.flags, mountFunc)
 	setup.SetMntDir(mountDir)
 }

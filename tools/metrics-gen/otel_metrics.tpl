@@ -38,7 +38,9 @@ var (
 {{- range $combination := (index $.AttrCombinations $metric.Name)}}
 	{{getVarName $metric.Name $combination}} = metric.WithAttributeSet(attribute.NewSet(
 		{{- range $pair := $combination -}}
+			{{- if ne $pair.Value "" -}}
 			attribute.{{if eq $pair.Type "bool"}}Bool{{else}}String{{end}}("{{$pair.Name}}", {{if eq $pair.Type "bool"}}{{$pair.Value}}{{else}}"{{$pair.Value}}"{{end}}),
+			{{- end -}}
 		{{- end -}}
 	))
 {{- end -}}

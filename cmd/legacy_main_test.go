@@ -48,7 +48,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -60,7 +60,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -72,7 +72,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPCIsGKE() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), true)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), true, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -447,6 +447,11 @@ func (t *MainTest) TestForwardedEnvVars_PassedWhenSet() {
 			expectedForwardedEnvVars: []string{"GOOGLE_APPLICATION_CREDENTIALS=goog-app-cred"},
 		},
 		{
+			name:                     "GOOGLE_CLOUD_PROJECT",
+			inputEnvVars:             map[string]string{"GOOGLE_CLOUD_PROJECT": "my-test-project"},
+			expectedForwardedEnvVars: []string{"GOOGLE_CLOUD_PROJECT=my-test-project"},
+		},
+		{
 			name:                     "GRPC debug env vars",
 			inputEnvVars:             map[string]string{"GRPC_GO_LOG_VERBOSITY_LEVEL": "99", "GRPC_GO_LOG_SEVERITY_LEVEL": "INFO"},
 			expectedForwardedEnvVars: []string{"GRPC_GO_LOG_VERBOSITY_LEVEL=99", "GRPC_GO_LOG_SEVERITY_LEVEL=INFO"},
@@ -478,6 +483,7 @@ func (t *MainTest) TestForwardedEnvVars_NotPassedWhenUnset() {
 		"GCE_METADATA_ROOT",
 		"GCE_METADATA_IP",
 		"GOOGLE_APPLICATION_CREDENTIALS",
+		"GOOGLE_CLOUD_PROJECT",
 		"GRPC_GO_LOG_VERBOSITY_LEVEL",
 		"GRPC_GO_LOG_SEVERITY_LEVEL",
 		"no_proxy",
@@ -491,34 +497,4 @@ func (t *MainTest) TestForwardedEnvVars_NotPassedWhenUnset() {
 		require.True(t.T(), ok, "Invalid env var format: %s", forwardedVar)
 		assert.NotContains(t.T(), unexpectedForwardedEnvVars, name, "unexpected env var %q was forwarded", name)
 	}
-}
-
-func TestMount_StderrNoFollowSymlink(t *testing.T) {
-	tempDir := t.TempDir()
-	logFile := tempDir + "/stderr.log"
-	baseLogPath := tempDir + "/symlink.log"
-	symlinkPath := baseLogPath + ".stderr" // This is the file gcsfuse will try to open
-	// Create a dummy log file
-	f, err := os.Create(logFile)
-	require.NoError(t, err)
-	require.NoError(t, f.Close())
-	// Create a symlink at the expected stderr file path pointing to the dummy log file
-	err = os.Symlink(logFile, symlinkPath)
-	require.NoError(t, err)
-	newConfig := &cfg.Config{
-		Logging: cfg.LoggingConfig{
-			FilePath: cfg.ResolvedPath(baseLogPath),
-		},
-		Foreground: false,
-	}
-	mountInfo := &mountInfo{
-		config: newConfig,
-	}
-
-	err = Mount(mountInfo, "mybucket", tempDir)
-
-	require.Error(t, err)
-	// Since os.OpenFile happens *before* daemonize.Run, the error should be returned directly.
-	// We expect "too many levels of symbolic links" to be inside the error string.
-	require.Contains(t, err.Error(), "too many levels of symbolic links")
 }

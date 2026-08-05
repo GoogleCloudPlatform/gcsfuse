@@ -26,12 +26,15 @@ import (
 	"strings"
 	"time"
 
+	gcsstorage "cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func storageControlClientRetryOptions() []gax.CallOption {
@@ -44,6 +47,8 @@ func storageControlClientRetryOptions() []gax.CallOption {
 				codes.DeadlineExceeded,
 				codes.Internal,
 				codes.Unknown,
+				// TODO(b/518674297): Please incorporate the correct fix post resolution of oauth2 issue.
+				codes.Unauthenticated,
 			}, gax.Backoff{
 				Max:        30 * time.Second,
 				Multiplier: 2,
@@ -53,14 +58,22 @@ func storageControlClientRetryOptions() []gax.CallOption {
 }
 
 func CreateControlClient(ctx context.Context) (client *control.StorageControlClient, err error) {
-	client, err = control.NewStorageControlClient(ctx)
+	var opts []option.ClientOption
+	if setup.TestOnTPCEndPoint() {
+		ts, err := getTokenSrc("/tmp/sa.key.json")
+		if err != nil {
+			return nil, fmt.Errorf("unable to fetch token-source for TPC: %w", err)
+		}
+		opts = append(opts, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
+	}
+	client, err = control.NewStorageControlClient(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("control.NewStorageControlClient: %w", err)
+	}
 
 	client.CallOptions.CreateManagedFolder = storageControlClientRetryOptions()
 	client.CallOptions.DeleteManagedFolder = storageControlClientRetryOptions()
 
-	if err != nil {
-		return nil, fmt.Errorf("control.NewStorageControlClient: #{err}")
-	}
 	return client, nil
 }
 
@@ -94,16 +107,23 @@ func DeleteManagedFoldersInBucket(ctx context.Context, client *control.StorageCo
 	}
 }
 
-func CreateManagedFoldersInBucket(ctx context.Context, client *control.StorageControlClient, managedFolderPath, bucket string) {
+// CreateManagedFoldersInBucket creates a managed folder in the specified bucket. It returns true if the managed folder was created successfully, and false if it already exists.
+func CreateManagedFoldersInBucket(ctx context.Context, client *control.StorageControlClient, managedFolderPath, bucket string) bool {
 	mf := &controlpb.ManagedFolder{}
 	req := &controlpb.CreateManagedFolderRequest{
 		Parent:          fmt.Sprintf("projects/_/buckets/%v", bucket),
 		ManagedFolder:   mf,
 		ManagedFolderId: managedFolderPath,
 	}
-	if _, err := client.CreateManagedFolder(ctx, req); err != nil && !strings.Contains(err.Error(), "The specified managed folder already exists") {
-		log.Fatalf("Error while creating managed folder: %v", err)
+	_, err := client.CreateManagedFolder(ctx, req)
+	if err == nil {
+		return true
 	}
+	if status.Code(err) == codes.AlreadyExists || strings.Contains(err.Error(), "The specified managed folder already exists") {
+		return false
+	}
+	log.Fatalf("Error while creating managed folder: %v", err)
+	return true
 }
 
 func CreateFolderInBucket(ctx context.Context, client *control.StorageControlClient, folderPath string) (*controlpb.Folder, error) {
@@ -116,4 +136,22 @@ func CreateFolderInBucket(ctx context.Context, client *control.StorageControlCli
 	f, err := client.CreateFolder(ctx, req)
 
 	return f, err
+}
+
+func DeleteFolderInBucket(ctx context.Context, client *control.StorageControlClient, folderPath string) error {
+	bucket, rootFolder := setup.GetBucketAndObjectBasedOnTypeOfMount("")
+	req := &controlpb.DeleteFolderRequest{
+		Name: fmt.Sprintf("projects/_/buckets/%s/folders/%s", bucket, path.Join(rootFolder, folderPath)),
+	}
+	return client.DeleteFolder(ctx, req)
+}
+
+func DeleteDirOnGCS(ctx context.Context, storageClient *gcsstorage.Client, relativeDirPath string) {
+	bucket, rootFolder := setup.GetBucketAndObjectBasedOnTypeOfMount("")
+	gcsObjName := path.Join(rootFolder, relativeDirPath) + "/"
+	_ = getBucketHandle(storageClient, bucket).Object(gcsObjName).Delete(ctx)
+	if controlClient, err := CreateControlClient(ctx); err == nil && controlClient != nil {
+		_ = DeleteFolderInBucket(ctx, controlClient, relativeDirPath)
+		controlClient.Close()
+	}
 }

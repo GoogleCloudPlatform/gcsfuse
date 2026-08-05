@@ -17,6 +17,7 @@ package fs_test
 import (
 	"context"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -47,10 +48,12 @@ type serverConfigParams struct {
 	enableSparseFileCache bool
 	// enableFileCacheForRangeRead controls if the file cache is used for random reads.
 	enableFileCacheForRangeRead bool
-	// enableKernelReader controls if the MrdKernelReader is enabled.
+	// enableKernelReader controls if the KernelMRDReader is enabled.
 	enableKernelReader              bool
 	enableParallelDownloads         bool
 	enableParallelDownloadsBlocking bool
+	enableStreamingWrites           bool
+	writeGlobalMaxBlocks            int
 }
 
 func defaultServerConfigParams() *serverConfigParams {
@@ -62,6 +65,8 @@ func defaultServerConfigParams() *serverConfigParams {
 		enableKernelReader:              false,
 		enableParallelDownloads:         false,
 		enableParallelDownloadsBlocking: false,
+		enableStreamingWrites:           false,
+		writeGlobalMaxBlocks:            1,
 	}
 }
 
@@ -84,7 +89,10 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 	serverCfg := &fs.ServerConfig{
 		NewConfig: &cfg.Config{
 			Write: cfg.WriteConfig{
-				GlobalMaxBlocks: 1,
+				GlobalMaxBlocks:       int64(params.writeGlobalMaxBlocks),
+				EnableStreamingWrites: params.enableStreamingWrites,
+				BlockSizeMb:           1,
+				MaxBlocksPerFile:      10,
 			},
 			Read: cfg.ReadConfig{
 				EnableBufferedRead: params.enableBufferedRead,
@@ -101,7 +109,7 @@ func createTestFileSystemWithMetrics(ctx context.Context, t *testing.T, params *
 		TraceHandle:  tracing.NewNoopTracer(),
 		CacheClock:   &timeutil.SimulatedClock{},
 		BucketName:   bucketName,
-		BucketManager: &fakeBucketManager{
+		BucketManager: &fakeBucketManagerWithMetrics{
 			buckets: map[string]gcs.Bucket{
 				bucketName: bucket,
 			},
@@ -562,7 +570,7 @@ func TestSparseReadFile_GCSReadMetrics(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(chunkSize))
 }
 
-func TestReadFile_MrdKernelReaderMetrics(t *testing.T) {
+func TestReadFile_KernelMRDReaderMetrics(t *testing.T) {
 	ctx := context.Background()
 	params := defaultServerConfigParams()
 	params.enableKernelReader = true
@@ -599,6 +607,43 @@ func TestReadFile_MrdKernelReaderMetrics(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(), int64(len(content)))
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count", attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader::Add")), int64(1))
 	metrics.VerifyHistogramMetric(t, ctx, reader, "gcs/request_latencies", attribute.NewSet(attribute.String("gcs_method", "MultiRangeDownloader::Add")), uint64(1))
+}
+
+func TestReadFile_KernelRangeReaderMetrics(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableKernelReader = true
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test.txt"
+	content := "test content"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookupOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookupOp)
+	require.NoError(t, err, "LookUpInode")
+	openOp := &fuseops.OpenFileOp{
+		Inode: lookupOp.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err, "OpenFile")
+	readOp := &fuseops.ReadFileOp{
+		Inode:  lookupOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Size:   int64(len(content)),
+		Dst:    make([]byte, len(content)),
+	}
+
+	err = server.ReadFile(ctx, readOp)
+	require.NoError(t, err, "ReadFile")
+	waitForMetricsProcessing()
+
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeParallelAttr))), int64(1))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeParallelAttr))), int64(len(content)))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(), int64(len(content)))
 }
 
 func TestReadFile_GCSReaderSequentialReadMetrics(t *testing.T) {
@@ -644,6 +689,7 @@ func TestReadFile_GCSReaderSequentialReadMetrics(t *testing.T) {
 			require.NoError(t, err, "ReadFile")
 			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(1))
 			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeSequentialAttr))), int64(len(content)))
+			metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(), int64(len(content)))
 		})
 	}
 }
@@ -691,6 +737,7 @@ func TestReadFile_GCSReaderRandomReadMetrics(t *testing.T) {
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(4))
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/download_bytes_count", attribute.NewSet(attribute.String("read_type", string(metrics.ReadTypeRandomAttr))), int64(30))
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/read_bytes_count", attribute.NewSet(), int64(30))
 }
 
 func TestGetInodeAttributes_Metrics(t *testing.T) {
@@ -1381,4 +1428,273 @@ func TestSetInodeAttributes_Metrics(t *testing.T) {
 	attrs := attribute.NewSet(attribute.String("fs_op", "SetInodeAttributes"))
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
 	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+}
+
+func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
+	tests := []struct {
+		name               string
+		readSizes          []int64
+		nilBufferReadCount int
+		expectedSum        int64
+		expectedCount      uint64
+		expectedBuckets    map[int]uint64 // Maps bucket index to expected count
+	}{
+		{
+			name:          "Reads in bucket > 0 and <= 8KB",
+			readSizes:     []int64{1024, 2048, 4096},
+			expectedSum:   7168,
+			expectedCount: 3,
+			expectedBuckets: map[int]uint64{
+				1: 3, // 0 < size <= 8192
+			},
+		},
+		{
+			name:          "Reads spanning different buckets - case 1",
+			readSizes:     []int64{5120, 10240, 20480}, // 5KB, 10KB, 20KB
+			expectedSum:   35840,
+			expectedCount: 3,
+			expectedBuckets: map[int]uint64{
+				1: 1, // 0 < 5KB <= 8KB
+				2: 1, // 8KB < 10KB <= 16KB
+				3: 1, // 16KB < 20KB <= 32KB
+			},
+		},
+		{
+			name:          "Reads spanning different buckets - case 2",
+			readSizes:     []int64{10240, 12288, 20480}, // 10KB, 12KB, 20KB
+			expectedSum:   43008,
+			expectedCount: 3,
+			expectedBuckets: map[int]uint64{
+				2: 2,
+				3: 1,
+			},
+		},
+		{
+			name:          "Reads at exact boundaries",
+			readSizes:     []int64{8192, 16384}, // 8KB, 16KB
+			expectedSum:   24576,
+			expectedCount: 2,
+			expectedBuckets: map[int]uint64{
+				1: 1, // 0 < 8KB <= 8KB
+				2: 1, // 8KB < 16KB <= 16KB
+			},
+		},
+		{
+			name:               "Nil byte read",
+			nilBufferReadCount: 1,
+			expectedSum:        0,
+			expectedCount:      1,
+			expectedBuckets: map[int]uint64{
+				0: 1, // size <= 0
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			params := defaultServerConfigParams()
+			bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+			server = wrappers.WithMonitoring(server, mh)
+			fileName := "test.txt"
+
+			// Find the max read size so we can create a file large enough for all read operations.
+			var maxReadSize int64
+			for _, size := range tc.readSizes {
+				if size > maxReadSize {
+					maxReadSize = size
+				}
+			}
+			content := make([]byte, maxReadSize)
+			createWithContents(ctx, t, bucket, fileName, string(content))
+
+			lookupOp := &fuseops.LookUpInodeOp{
+				Parent: fuseops.RootInodeID,
+				Name:   fileName,
+			}
+			err := server.LookUpInode(ctx, lookupOp)
+			require.NoError(t, err, "LookUpInode")
+			openOp := &fuseops.OpenFileOp{
+				Inode: lookupOp.Entry.Child,
+			}
+			err = server.OpenFile(ctx, openOp)
+			require.NoError(t, err, "OpenFile")
+
+			// Perform reads with nil buffer
+			for i := 0; i < tc.nilBufferReadCount; i++ {
+				readOp := &fuseops.ReadFileOp{
+					Inode:  lookupOp.Entry.Child,
+					Handle: openOp.Handle,
+					Offset: 0,
+					Dst:    nil,
+				}
+				err = server.ReadFile(ctx, readOp)
+				require.NoError(t, err, "ReadFile with nil buffer")
+			}
+
+			// Perform reads of different sizes
+			for _, size := range tc.readSizes {
+				readOp := &fuseops.ReadFileOp{
+					Inode:  lookupOp.Entry.Child,
+					Handle: openOp.Handle,
+					Offset: 0,
+					Dst:    make([]byte, size),
+				}
+				err = server.ReadFile(ctx, readOp)
+				require.NoError(t, err, "ReadFile for size %d", size)
+			}
+
+			waitForMetricsProcessing()
+
+			metrics.VerifyHistogramFull(t, ctx, reader, "read/block_sizes", attribute.NewSet(), tc.expectedCount, tc.expectedSum, tc.expectedBuckets)
+		})
+	}
+}
+
+func TestStreamingWrites_Fallback_ExistingFile(t *testing.T) {
+	// Arrange
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableStreamingWrites = true
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	content := "initial content"
+	createWithContents(ctx, t, bucket, fileName, content)
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	require.NoError(t, err)
+	openOp := &fuseops.OpenFileOp{
+		Inode:     lookUpOp.Entry.Child,
+		OpenFlags: syscall.O_RDWR,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err)
+	op := &fuseops.WriteFileOp{
+		Inode:  lookUpOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Data:   []byte("test"),
+	}
+
+	// Act
+	err = server.WriteFile(ctx, op)
+
+	// Assert
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	attrs := attribute.NewSet(attribute.String("write_fallback_reason", "existing_file"))
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/streaming_write_fallback_count", attrs, 1, metrics.Subset())
+}
+
+func TestStreamingWrites_Fallback_OutOfOrder(t *testing.T) {
+	// Arrange
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableStreamingWrites = true
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName := "test"
+	createWithContents(ctx, t, bucket, fileName, "")
+	lookUpOp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName,
+	}
+	err := server.LookUpInode(ctx, lookUpOp)
+	require.NoError(t, err)
+	openOp := &fuseops.OpenFileOp{
+		Inode:     lookUpOp.Entry.Child,
+		OpenFlags: syscall.O_WRONLY,
+	}
+	err = server.OpenFile(ctx, openOp)
+	require.NoError(t, err)
+	// Write at offset 0.
+	op1 := &fuseops.WriteFileOp{
+		Inode:  lookUpOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 0,
+		Data:   []byte("test"),
+	}
+	err = server.WriteFile(ctx, op1)
+	require.NoError(t, err)
+	// Write at offset 10 (out of order).
+	op2 := &fuseops.WriteFileOp{
+		Inode:  lookUpOp.Entry.Child,
+		Handle: openOp.Handle,
+		Offset: 10,
+		Data:   []byte("data"),
+	}
+
+	// Act
+	err = server.WriteFile(ctx, op2)
+
+	// Assert
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	attrs := attribute.NewSet(attribute.String("open_mode", "write_only"), attribute.String("write_fallback_reason", "out_of_order"))
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/streaming_write_fallback_count", attrs, 1)
+}
+
+func TestStreamingWrites_Fallback_ConcurrencyLimitBreached(t *testing.T) {
+	// Arrange
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableStreamingWrites = true
+	params.writeGlobalMaxBlocks = 1
+	bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+	server = wrappers.WithMonitoring(server, mh)
+	fileName1 := "test1"
+	fileName2 := "test2"
+	createWithContents(ctx, t, bucket, fileName1, "")
+	createWithContents(ctx, t, bucket, fileName2, "")
+	lookupOp1 := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName1,
+	}
+	err := server.LookUpInode(ctx, lookupOp1)
+	require.NoError(t, err)
+	openOp1 := &fuseops.OpenFileOp{
+		Inode:     lookupOp1.Entry.Child,
+		OpenFlags: syscall.O_WRONLY,
+	}
+	err = server.OpenFile(ctx, openOp1)
+	require.NoError(t, err)
+	lookupOp2 := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   fileName2,
+	}
+	err = server.LookUpInode(ctx, lookupOp2)
+	require.NoError(t, err)
+	openOp2 := &fuseops.OpenFileOp{
+		Inode:     lookupOp2.Entry.Child,
+		OpenFlags: syscall.O_RDWR,
+	}
+	err = server.OpenFile(ctx, openOp2)
+	require.NoError(t, err)
+	op1 := &fuseops.WriteFileOp{
+		Inode:  lookupOp1.Entry.Child,
+		Handle: openOp1.Handle,
+		Offset: 0,
+		Data:   []byte("test"),
+	}
+	err = server.WriteFile(ctx, op1)
+	require.NoError(t, err)
+	op2 := &fuseops.WriteFileOp{
+		Inode:  lookupOp2.Entry.Child,
+		Handle: openOp2.Handle,
+		Offset: 0,
+		Data:   []byte("data"),
+	}
+
+	// Act
+	err = server.WriteFile(ctx, op2)
+
+	// Assert
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	attrs := attribute.NewSet(attribute.String("write_fallback_reason", "concurrency_limit_breached"))
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/streaming_write_fallback_count", attrs, 1, metrics.Subset())
 }

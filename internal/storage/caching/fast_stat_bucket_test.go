@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	gostorage "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
@@ -32,7 +34,6 @@ import (
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 )
 
 func TestFastStatBucket(t *testing.T) { RunTests(t) }
@@ -45,6 +46,7 @@ const primaryCacheTTL = time.Second
 const negativeCacheTTL = time.Second * 5
 const isTypeCacheDeprecated = true
 const isImplicitDir = true
+const isEnableEmptyManagedFolders = false
 
 type fastStatBucketTest struct {
 	cache   mock_gcscaching.MockStatCache
@@ -69,7 +71,8 @@ func (t *fastStatBucketTest) SetUp(ti *TestInfo) {
 		t.wrapped,
 		negativeCacheTTL,
 		isTypeCacheDeprecated,
-		isImplicitDir)
+		isImplicitDir,
+		isEnableEmptyManagedFolders)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -999,7 +1002,8 @@ func (t *ListObjectsTest_InsertListing) SetUp(ti *TestInfo) {
 		t.wrapped,
 		negativeCacheTTL,
 		true,
-		true)
+		true,
+		isEnableEmptyManagedFolders)
 }
 
 func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS bool, listing *gcs.Listing, prefix string, expectedInserts []*gcs.MinObject, expectedImplicitDirs []string) {
@@ -1014,6 +1018,9 @@ func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS
 	}
 	for _, dir := range expectedImplicitDirs {
 		ExpectCall(t.cache, "InsertImplicitDir")(dir, Any())
+	}
+	if len(listing.MinObjects) == 0 && len(listing.CollapsedRuns) == 0 && prefix != "" {
+		ExpectCall(t.cache, "AddNegativeEntry")(prefix, Any())
 	}
 
 	// Call
@@ -1136,7 +1143,8 @@ func (t *ListObjectsTest_InsertListing) ImplicitDirFalse_CollapsedRunsNotCached(
 		t.wrapped,
 		negativeCacheTTL,
 		true,
-		false)
+		false,
+		isEnableEmptyManagedFolders)
 	listing := &gcs.Listing{
 		MinObjects: []*gcs.MinObject{
 			{Name: "dir/a", Size: 1},

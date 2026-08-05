@@ -64,33 +64,7 @@ func TestMain(m *testing.M) {
 
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.BufferedRead) == 0 {
-		log.Println("No configuration found for buffered_read tests in config. Using flags instead.")
-		cfg.BufferedRead = make([]test_suite.TestConfig, 1)
-		cfg.BufferedRead[0].TestBucket = setup.TestBucket()
-		cfg.BufferedRead[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.BufferedRead[0].LogFile = setup.LogFile()
-		cfg.BufferedRead[0].Configs = make([]test_suite.ConfigItem, 3)
-
-		cfg.BufferedRead[0].Configs[0].Flags = []string{
-			"--enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=1 --read-min-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestBufferedReadSuite.log --log-severity=TRACE",
-			"--client-protocol=grpc --enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=1 --read-min-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestBufferedReadSuite.log --log-severity=TRACE",
-		}
-		cfg.BufferedRead[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.BufferedRead[0].Configs[0].Run = "TestSequentialReadSuite"
-
-		cfg.BufferedRead[0].Configs[1].Flags = []string{
-			"--enable-buffered-read --read-block-size-mb=8 --read-min-blocks-per-handle=2 --read-global-max-blocks=1 --read-max-blocks-per-handle=10 --read-start-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestInsufficientPoolCreationSuite.log --log-severity=TRACE",
-			"--client-protocol=grpc --enable-buffered-read --read-block-size-mb=8 --read-min-blocks-per-handle=2 --read-global-max-blocks=1 --read-max-blocks-per-handle=10 --read-start-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestInsufficientPoolCreationSuite.log --log-severity=TRACE",
-		}
-		cfg.BufferedRead[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.BufferedRead[0].Configs[1].Run = "TestInsufficientPoolCreationSuite"
-
-		cfg.BufferedRead[0].Configs[2].Flags = []string{
-			"--enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=2 --read-min-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestRandomReadFallbackSuite.log --log-severity=TRACE",
-			"--client-protocol=grpc --enable-buffered-read --read-block-size-mb=8 --read-max-blocks-per-handle=20 --read-start-blocks-per-handle=2 --read-min-blocks-per-handle=2 --enable-kernel-reader=false --log-file=/gcsfuse-tmp/TestRandomReadFallbackSuite.log --log-severity=TRACE",
-		}
-		cfg.BufferedRead[0].Configs[2].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.BufferedRead[0].Configs[2].Run = "TestRandomReadFallbackSuite"
+		log.Fatal("No configuration found for BufferedRead in config file.")
 	}
 
 	testEnv.ctx = context.Background()

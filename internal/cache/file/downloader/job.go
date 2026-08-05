@@ -34,7 +34,8 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 
-	"golang.org/x/net/context"
+	"context"
+
 	"golang.org/x/sync/semaphore"
 )
 
@@ -48,7 +49,7 @@ const (
 	Invalid     jobStatusName = "Invalid"
 )
 
-const ReadChunkSize = 8 * cacheutil.MiB
+const DefaultReadChunkSize = 8 * cacheutil.MiB
 
 // Job downloads the requested object from GCS into the specified local file
 // path with given permissions and ownership.
@@ -64,6 +65,7 @@ type Job struct {
 	fileSpec                data.FileSpec
 	fileCacheConfig         *cfg.FileCacheConfig
 	cacheDirVolumeBlockSize uint64
+	ReadChunkSize           int64
 
 	/////////////////////////
 	// Mutable state
@@ -152,6 +154,7 @@ func NewJob(
 		metricsHandle:           metricHandle,
 		traceHandle:             traceHandle,
 		cacheDirVolumeBlockSize: cacheDirVolumeBlockSize,
+		ReadChunkSize:           DefaultReadChunkSize,
 	}
 	job.mu = locker.New("Job-"+fileSpec.Path, job.checkInvariants)
 	job.init()
@@ -345,7 +348,7 @@ func (job *Job) downloadObjectToFile(cacheFile *os.File) (err error) {
 			metrics.CaptureGCSReadMetrics(job.metricsHandle, metrics.ReadTypeNames[metrics.ReadTypeSequential], newReaderLimit-start)
 		}
 
-		maxRead := min(ReadChunkSize, newReaderLimit-start)
+		maxRead := min(job.ReadChunkSize, newReaderLimit-start)
 
 		// Copy the contents from NewReader to cache file.
 		offsetWriter := io.NewOffsetWriter(cacheFile, start)
@@ -542,8 +545,8 @@ func (job *Job) GetStatus() JobStatus {
 // Compares CRC32 of the downloaded file with the CRC32 from GCS object metadata.
 // In case of mismatch deletes the file and corresponding entry from file cache.
 func (job *Job) validateCRC() (err error) {
-	// Todo (b/446440219): Enable crc check for ZB once it is fixed
-	if !job.fileCacheConfig.EnableCrc || job.bucket.BucketType().Zonal {
+	// Todo (b/446440219): Enable crc check for rapid buckets once it is fixed
+	if !job.fileCacheConfig.EnableCrc || job.bucket.BucketType().IsRapid() {
 		return
 	}
 

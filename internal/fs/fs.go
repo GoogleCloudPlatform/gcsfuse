@@ -42,6 +42,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
@@ -225,6 +226,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		globalMaxWriteBlocksSem:    semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks),
 		globalMaxReadBlocksSem:     semaphore.NewWeighted(serverCfg.NewConfig.Read.GlobalMaxBlocks),
 		globalMetadataPrefetchSem:  semaphore.NewWeighted(serverCfg.NewConfig.MetadataCache.MetadataPrefetchMaxWorkers),
+		readBufferPool:             buffer.NewFixedSizePool(),
 	}
 
 	// Initialize MRD cache if enabled
@@ -267,7 +269,10 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		// for non-dynamic mounts, but they are idempotent, so it's safe.
 		bucketType := syncerBucket.BucketType()
 		if serverCfg.ViperConfig != nil {
-			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.Pirlo)
+			if bucketType.IsRapid() && serverCfg.ViperConfig.IsSet("file-system.fuse-max-request-size-kb") {
+				return nil, fmt.Errorf("fuse-max-request-size-kb flag is not supported for rapid buckets")
+			}
+			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.Pirlo != gcs.PirloStateNone)
 			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.ViperConfig, &cfg.OptimizationInput{
 				BucketType: bucketTypeEnum,
 			})
@@ -281,10 +286,10 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		} else {
 			logger.Warnf("Cannot apply bucket-type optimizations as ViperConfig is nil")
 		}
-		// Write post mount kernel settings for Zonal Buckets when kernel reader is enabled in GKE environments for
+		// Write post mount kernel settings when kernel reader is enabled in GKE environments for
 		// non dynamic mounts before user space mounting in GCSFuse. Mounting in GKE is already done at this point but
 		// writing kernel settings early ensures the asynchronous application of these settings happens as early as possible in GKE.
-		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && bucketType.Zonal && serverCfg.NewConfig.FileSystem.EnableKernelReader {
+		if serverCfg.NewConfig.FileSystem.KernelParamsFile != "" && serverCfg.NewConfig.FileSystem.EnableKernelReader {
 			kernelParams := kernelparams.NewKernelParamsManager()
 			kernelParams.SetReadAheadKb(int(serverCfg.NewConfig.FileSystem.MaxReadAheadKb))
 			kernelParams.SetCongestionWindowThreshold(int(serverCfg.NewConfig.FileSystem.CongestionThreshold))
@@ -414,16 +419,6 @@ func makeRootForBucket(
 		fuseops.RootInodeID,
 		inode.NewRootName(""),
 		nil, // For root buckets, there is no parent and hence no parent context.
-		fuseops.InodeAttributes{
-			Uid:  fs.uid,
-			Gid:  fs.gid,
-			Mode: fs.dirMode,
-
-			// We guarantee only that directory times be "reasonable".
-			Atime: fs.mtimeClock.Now(),
-			Ctime: fs.mtimeClock.Now(),
-			Mtime: fs.mtimeClock.Now(),
-		},
 		fs.implicitDirs,
 		fs.enableNonexistentTypeCache,
 		fs.dirTypeCacheTTL,
@@ -439,16 +434,6 @@ func makeRootForAllBuckets(fs *fileSystem) inode.DirInode {
 	return inode.NewBaseDirInode(
 		fuseops.RootInodeID,
 		inode.NewRootName(""),
-		fuseops.InodeAttributes{
-			Uid:  fs.uid,
-			Gid:  fs.gid,
-			Mode: fs.dirMode,
-
-			// We guarantee only that directory times be "reasonable".
-			Atime: fs.mtimeClock.Now(),
-			Ctime: fs.mtimeClock.Now(),
-			Mtime: fs.mtimeClock.Now(),
-		},
 		fs.bucketManager,
 		fs.metricHandle,
 		fs.newConfig.EnableTypeCacheDeprecation,
@@ -676,6 +661,9 @@ type fileSystem struct {
 
 	// mrdCache manages the cache of inactive MultiRangeDownloaders.
 	mrdCache *lru.Cache
+
+	// readBufferPool is a pool of readPoolBufferSize (1 MiB) buffers.
+	readBufferPool buffer.Pool
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -928,16 +916,6 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 		ic.FullName,
 		parInodeCtx,
 		ic.MinObject,
-		fuseops.InodeAttributes{
-			Uid:  fs.uid,
-			Gid:  fs.gid,
-			Mode: fs.dirMode,
-
-			// We guarantee only that directory times be "reasonable".
-			Atime: fs.mtimeClock.Now(),
-			Ctime: fs.mtimeClock.Now(),
-			Mtime: fs.mtimeClock.Now(),
-		},
 		fs.implicitDirs,
 		fs.enableNonexistentTypeCache,
 		fs.dirTypeCacheTTL,
@@ -971,16 +949,6 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			id,
 			ic.FullName,
 			parInodeCtx,
-			fuseops.InodeAttributes{
-				Uid:  fs.uid,
-				Gid:  fs.gid,
-				Mode: fs.dirMode,
-
-				// We guarantee only that directory times be "reasonable".
-				Atime: fs.mtimeClock.Now(),
-				Ctime: fs.mtimeClock.Now(),
-				Mtime: fs.mtimeClock.Now(),
-			},
 			fs.implicitDirs,
 			fs.enableNonexistentTypeCache,
 			fs.dirTypeCacheTTL,
@@ -998,11 +966,7 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			ic.FullName,
 			ic.Bucket,
 			ic.MinObject,
-			fuseops.InodeAttributes{
-				Uid:  fs.uid,
-				Gid:  fs.gid,
-				Mode: fs.fileMode | os.ModeSymlink,
-			})
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -1012,11 +976,6 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			id,
 			ic.FullName,
 			ic.MinObject,
-			fuseops.InodeAttributes{
-				Uid:  fs.uid,
-				Gid:  fs.gid,
-				Mode: fs.fileMode,
-			},
 			ic.Bucket,
 			fs.localFileCache,
 			fs.contentCache,
@@ -1025,7 +984,8 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			fs.newConfig,
 			fs.globalMaxWriteBlocksSem,
 			fs.mrdCache,
-			fs.traceHandle)
+			fs.traceHandle,
+			fs.metricHandle)
 	}
 
 	// Place it in our map of IDs to inodes.
@@ -1367,9 +1327,10 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 // LOCKS_REQUIRED(f)
 func (fs *fileSystem) promoteToGenerationBacked(f *inode.FileInode) {
 	fs.mu.Lock()
-	delete(fs.localFileInodes, f.Name())
-	if _, ok := fs.generationBackedInodes[f.Name()]; !ok {
-		fs.generationBackedInodes[f.Name()] = f
+	name := f.Name()
+	delete(fs.localFileInodes, name)
+	if _, ok := fs.generationBackedInodes[name]; !ok {
+		fs.generationBackedInodes[name] = f
 	}
 	fs.mu.Unlock()
 
@@ -1410,7 +1371,7 @@ func (fs *fileSystem) flushFile(
 	}
 
 	// Flush the inode.
-	err := f.Flush(ctx)
+	err := f.Flush(ctx, fs.getWriteContext())
 	if err != nil {
 		err = fmt.Errorf("FileInode.Sync: %w", err)
 		// If the inode was local file inode, treat it as unlinked.
@@ -1451,7 +1412,7 @@ func (fs *fileSystem) syncFile(
 	}
 
 	// Sync the inode.
-	gcsSynced, err := f.Sync(ctx)
+	gcsSynced, err := f.Sync(ctx, fs.getWriteContext())
 	if err != nil {
 		err = fmt.Errorf("FileInode.Sync: %w", err)
 		// If the inode was local file inode, treat it as unlinked.
@@ -1491,7 +1452,7 @@ func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
 func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
-	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx, openMode)
+	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx, openMode, fs.getWriteContext())
 	if err != nil {
 		return err
 	}
@@ -1603,8 +1564,26 @@ func (fs *fileSystem) getAttributes(
 	expiration time.Time,
 	err error) {
 	// Call through.
-	attr, err = in.Attributes(ctx, true)
+	size, mtime, nlink, err := in.Attributes(ctx, true)
 	if err != nil {
+		return
+	}
+
+	attr.Size = size
+	attr.Mtime, attr.Atime, attr.Ctime, attr.Crtime = mtime, mtime, mtime, mtime
+	attr.Nlink = nlink
+	attr.Uid = fs.uid
+	attr.Gid = fs.gid
+
+	switch in.(type) {
+	case inode.DirInode:
+		attr.Mode = fs.dirMode
+	case *inode.FileInode:
+		attr.Mode = fs.fileMode
+	case *inode.SymlinkInode:
+		attr.Mode = fs.fileMode | os.ModeSymlink
+	default:
+		err = fmt.Errorf("getAttributes: unknown inode type %T", in)
 		return
 	}
 
@@ -1708,13 +1687,12 @@ func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name,
 	defer child.Unlock()
 
 	// Extract the child's attributes.
-	attributes, err := child.Attributes(ctx, false)
+	attributes, expiration, err := fs.getAttributes(ctx, child)
 	if err != nil {
 		// The inode is valid, but we couldn't get attributes.
 		return nil, fmt.Errorf("coreToDirentPlus: unable to fetch attributes for %s: %w", path.Base(fullName.LocalName()), err)
 	}
 
-	expiration := time.Now().Add(fs.inodeAttributeCacheTTL)
 	entryPlus = &fuseutil.DirentPlus{
 		Dirent: fuseutil.Dirent{
 			Name:  path.Base(fullName.LocalName()),
@@ -1787,7 +1765,7 @@ func (fs *fileSystem) lookupAndFetchAttributesForLocalFileEntriesPlus(parentName
 			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: local file %q disappeared", localEntryName)
 		}
 		// Fetch attributes from the child inode.
-		attrs, err := child.Attributes(context.Background(), false)
+		attrs, expiration, err := fs.getAttributes(context.Background(), child)
 		if err != nil {
 			child.Unlock()
 			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: unable to fetch attributes for %s: %w", localEntryName, err)
@@ -1795,7 +1773,6 @@ func (fs *fileSystem) lookupAndFetchAttributesForLocalFileEntriesPlus(parentName
 		// Unlock the inode after retrieving its attributes.
 		child.Unlock()
 
-		expiration := time.Now().Add(fs.inodeAttributeCacheTTL)
 		childInodeEntry := fuseops.ChildInodeEntry{
 			Child:                child.ID(),
 			Attributes:           attrs,
@@ -1907,6 +1884,15 @@ func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Conte
 	return ctx
 }
 
+func (fs *fileSystem) getWriteContext() *inode.WriteContext {
+	return &inode.WriteContext{
+		Config:             fs.newConfig,
+		GlobalMaxBlocksSem: fs.globalMaxWriteBlocksSem,
+		TraceHandle:        fs.traceHandle,
+		MetricHandle:       fs.metricHandle,
+	}
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
@@ -1992,7 +1978,7 @@ func (fs *fileSystem) SetInodeAttributes(
 		if err != nil {
 			return
 		}
-		gcsSynced, err := file.Truncate(ctx, int64(*op.Size))
+		gcsSynced, err := file.Truncate(ctx, int64(*op.Size), fs.getWriteContext())
 		// Sync the inode if finalize during truncate is successful
 		// even if the truncate operation later resulted error.
 		if gcsSynced {
@@ -2534,7 +2520,7 @@ func (fs *fileSystem) renameFile(ctx context.Context, op *fuseops.RenameOp, chil
 	default:
 		return fmt.Errorf("child inode (id %v) is not a file or symlink inode", child.ID())
 	}
-	if fs.enableAtomicRenameObject || child.Bucket().BucketType().Zonal {
+	if fs.enableAtomicRenameObject || child.Bucket().BucketType().IsRapid() {
 		return fs.atomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
 	}
 	return fs.nonAtomicRename(ctx, oldParent, op.OldName, updatedMinObject, newParent, op.NewName)
@@ -2656,18 +2642,6 @@ func (fs *fileSystem) ensureNoLocalFilesInDirectory(dir inode.BucketOwnedDirInod
 	return nil
 }
 
-func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name string) error {
-	unexpected, err := dir.ReadDescendants(context.Background(), 1)
-	if err != nil {
-		return fmt.Errorf("read descendants of the new directory %q: %w", name, err)
-	}
-
-	if len(unexpected) > 0 {
-		return fuse.ENOTEMPTY
-	}
-	return nil
-}
-
 // Rename an old folder to a new folder in a hierarchical bucket. If the new folder already
 // exists and is non-empty, return ENOTEMPTY. If old folder have open files then return
 // ENOTSUP.
@@ -2698,18 +2672,22 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 	// If the call for getBucketDirInode fails it means directory does not exist.
 	newDirInode, err := fs.getBucketDirInode(ctx, newParent, newName)
 	if err == nil {
-		// If the directory exists, then check if it is empty or not.
-		if err = fs.checkDirNotEmpty(newDirInode, newName); err != nil {
-			return err
-		}
-
-		// This refers to an empty destination directory.
-		// The RenameFolder API does not allow renaming to an existing empty directory.
-		// To make this work, we delete the empty directory first from gcsfuse and then perform rename.
-		newParent.Lock()
-		_ = newParent.DeleteChildDir(ctx, newName, false, newDirInode)
-		newParent.Unlock()
 		pendingInodes = append(pendingInodes, newDirInode)
+
+		// The RenameFolder API does not allow renaming to an empty existing directory.
+		// To make this work, we attempt to delete the destination directory first.
+		// If it is non-empty, this deletion will fail with a PreconditionError,
+		// in which case we immediately return ENOTEMPTY.
+		newParent.Lock()
+		deleteErr := newParent.DeleteChildDir(ctx, newName, false, newDirInode)
+		newParent.Unlock()
+		if deleteErr != nil {
+			var precondErr *gcs.PreconditionError
+			if errors.As(deleteErr, &precondErr) {
+				return fuse.ENOTEMPTY
+			}
+			return fmt.Errorf("DeleteChildDir: %w", deleteErr)
+		}
 	}
 
 	// Note:The renameDirLimit is not utilized in the folder rename operation because there is no user-defined limit on new renames.
@@ -2728,6 +2706,18 @@ func (fs *fileSystem) renameHierarchicalDir(ctx context.Context, oldParent inode
 	}
 
 	return
+}
+
+func (fs *fileSystem) checkDirNotEmpty(dir inode.BucketOwnedDirInode, name string) error {
+	unexpected, err := dir.ReadDescendants(context.Background(), 1)
+	if err != nil {
+		return fmt.Errorf("read descendants of the new directory %q: %w", name, err)
+	}
+
+	if len(unexpected) > 0 {
+		return fuse.ENOTEMPTY
+	}
+	return nil
 }
 
 // Rename an old directory to a new directory in a non-hierarchical bucket. If the new directory already
@@ -3049,6 +3039,13 @@ func (fs *fileSystem) OpenFile(
 	in.Lock()
 	defer in.Unlock()
 
+	if fs.newConfig.FileSystem.StrongConsistencyOnOpen {
+		err = in.CheckClobbered(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Get the fs lock again.
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -3096,16 +3093,12 @@ func (fs *fileSystem) ReadFile(
 	fh.Inode().Lock()
 	if fh.Inode().IsUsingBWH() {
 		// Flush/Sync Pending streaming writes and issue read within same inode lock.
-		if fh.Inode().Bucket().BucketType().IsRapid() {
-			// With rapid buckets, we can read from unfinalized objects as well.
-			// Hence, there is no need to finalize the object from here for rapid buckets.
-			// Hence, if FinalizeFileForRapid is set, then we will call syncFile otherwise
-			// we can call flushFile (as it will not finalize when FinalizeFileForRapid is false) itself.
-			if fs.newConfig.Write.FinalizeFileForRapid {
-				err = fs.syncFile(ctx, fh.Inode())
-			} else {
-				err = fs.flushFile(ctx, fh.Inode())
-			}
+		// With rapid buckets, we can read from unfinalized objects as well.
+		// Hence, there is no need to finalize the object from here for rapid buckets.
+		// Hence, if FinalizeFileForRapid is set, then we will call syncFile otherwise
+		// we can call flushFile (as it will not finalize when FinalizeFileForRapid is false) itself.
+		if fh.Inode().Bucket().BucketType().RapidWritesEnabled() && fs.newConfig.Write.FinalizeFileForRapid {
+			err = fs.syncFile(ctx, fh.Inode())
 		} else {
 			err = fs.flushFile(ctx, fh.Inode())
 		}
@@ -3117,23 +3110,36 @@ func (fs *fileSystem) ReadFile(
 	}
 	// Serve the read.
 
+	req := gcsx.ReadRequest{
+		Offset: op.Offset,
+		Size:   op.Size,
+	}
+
+	useReadBufferPool := op.Size > 0 && op.Dst == nil
+	if useReadBufferPool {
+		if !fs.newConfig.FileSystem.EnableKernelReader || fh.Inode().Bucket().BucketType().IsRapid() {
+			logger.Errorf("ReadFile: buffer pool allocation is only supported for regional buckets with"+
+				" kernel reader enabled (EnableKernelReader: %v, IsRapid: %v)",
+				fs.newConfig.FileSystem.EnableKernelReader,
+				fh.Inode().Bucket().BucketType().IsRapid())
+			fh.Inode().Unlock()
+			return syscall.ENOTSUP
+		}
+
+		req.BufferPool = fs.readBufferPool
+	} else {
+		req.Buffer = op.Dst
+	}
+
 	if fs.newConfig.FileSystem.EnableKernelReader {
 		var resp gcsx.ReadResponse
-		req := &gcsx.ReadRequest{
-			Buffer: op.Dst,
-			Offset: op.Offset,
-		}
-		resp, err = fh.ReadWithMrdKernelReader(ctx, req)
+		resp, err = fh.ReadWithKernelReader(ctx, &req)
 		op.BytesRead = resp.Size
 		op.Data = resp.Data
 		op.Callback = resp.Callback
 	} else if fs.newConfig.EnableNewReader {
 		var resp gcsx.ReadResponse
-		req := &gcsx.ReadRequest{
-			Buffer: op.Dst,
-			Offset: op.Offset,
-		}
-		resp, err = fh.ReadWithReadManager(ctx, req, fs.sequentialReadSizeMb)
+		resp, err = fh.ReadWithReadManager(ctx, &req, fs.sequentialReadSizeMb)
 		op.BytesRead = resp.Size
 		op.Data = resp.Data
 		op.Callback = resp.Callback
@@ -3209,13 +3215,8 @@ func (fs *fileSystem) WriteFile(
 		}
 		return err
 	}
-	if fs.newConfig.Write.EnableRapidAppends {
-		// Serve the request via the file handle.
-		gcsSynced, err = fh.Write(ctx, op.Data, op.Offset)
-	} else {
-		// Serve the request.
-		gcsSynced, err = in.Write(ctx, op.Data, op.Offset, util.NewOpenMode(util.WriteOnly, 0))
-	}
+	// Serve the request.
+	gcsSynced, err = in.Write(ctx, op.Data, op.Offset, fh.OpenMode(), fs.getWriteContext())
 	if err != nil {
 		return
 	}

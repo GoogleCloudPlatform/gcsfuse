@@ -23,6 +23,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -91,8 +92,21 @@ func GetObjectPath(bucketName string, objectName string) string {
 }
 
 // GetDownloadPath gives file path to file in cache for given object path.
-func GetDownloadPath(cacheDir string, objectPath string) string {
-	return path.Join(cacheDir, objectPath)
+// It returns an error if the resolved path is not within the cacheDir.
+func GetDownloadPath(cacheDir string, objectPath string) (string, error) {
+	cleanCacheDir := filepath.Clean(cacheDir)
+	resolvedPath := filepath.Join(cleanCacheDir, objectPath)
+
+	prefix := cleanCacheDir
+	if !strings.HasSuffix(prefix, string(filepath.Separator)) {
+		prefix += string(filepath.Separator)
+	}
+
+	if !strings.HasPrefix(resolvedPath, prefix) || resolvedPath == cleanCacheDir {
+		return "", fmt.Errorf("resolved path %s is outside cache directory %s", resolvedPath, cleanCacheDir)
+	}
+
+	return resolvedPath, nil
 }
 
 // IsCacheHandleInvalid says either the current cacheHandle is invalid or not, based

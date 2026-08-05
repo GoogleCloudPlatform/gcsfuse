@@ -84,7 +84,6 @@ func (t *SymlinkInternalTest) createSymlinkInode(name string, target string, leg
 		NewFileName(NewRootName(""), name),
 		&syncerBucket,
 		m,
-		fuseops.InodeAttributes{},
 	)
 	require.NoError(t.T(), err)
 	return s
@@ -176,7 +175,6 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_Legacy() {
 		NewFileName(NewRootName(""), m.Name),
 		&syncerBucket,
 		m,
-		fuseops.InodeAttributes{},
 	)
 
 	require.NoError(t.T(), err)
@@ -207,7 +205,6 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_Standard() {
 		NewFileName(NewRootName(""), m.Name),
 		&syncerBucket,
 		m,
-		fuseops.InodeAttributes{},
 	)
 
 	require.NoError(t.T(), err)
@@ -238,7 +235,6 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_Standard_ReadError() {
 		NewFileName(NewRootName(""), m.Name),
 		&syncerBucket,
 		m,
-		fuseops.InodeAttributes{},
 	)
 
 	require.Error(t.T(), err)
@@ -263,7 +259,6 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_InvalidMetadata() {
 		NewFileName(NewRootName(""), m.Name),
 		&syncerBucket,
 		m,
-		fuseops.InodeAttributes{},
 	)
 
 	require.Error(t.T(), err)

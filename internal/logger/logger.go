@@ -16,6 +16,7 @@ package logger
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -25,9 +26,10 @@ import (
 	"strings"
 	"sync"
 
+	"go.opentelemetry.io/contrib/bridges/otelslog"
+
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"golang.org/x/sys/unix"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -68,7 +70,7 @@ func InitLogFile(newLogConfig cfg.LoggingConfig, fsName string) error {
 	if newLogConfig.FilePath != "" {
 		f, err = os.OpenFile(
 			string(newLogConfig.FilePath),
-			os.O_WRONLY|os.O_CREATE|os.O_APPEND|unix.O_NOFOLLOW,
+			os.O_WRONLY|os.O_CREATE|os.O_APPEND,
 			0644,
 		)
 		if err != nil {
@@ -96,12 +98,13 @@ func InitLogFile(newLogConfig cfg.LoggingConfig, fsName string) error {
 	}
 
 	defaultLoggerFactory = &loggerFactory{
-		file:       f,
-		sysWriter:  sysWriter,
-		fileWriter: fileWriter,
-		format:     newLogConfig.Format,
-		level:      string(newLogConfig.Severity),
-		logRotate:  newLogConfig.LogRotate,
+		file:              f,
+		sysWriter:         sysWriter,
+		fileWriter:        fileWriter,
+		format:            newLogConfig.Format,
+		level:             string(newLogConfig.Severity),
+		logRotate:         newLogConfig.LogRotate,
+		enableOtelLogging: newLogConfig.ExperimentalEnableOtelLogging,
 	}
 	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(string(newLogConfig.Severity), fsName)
 
@@ -259,12 +262,13 @@ func SetOutput(w io.Writer) {
 
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
-	file       *os.File
-	sysWriter  *syslog.Writer
-	format     string
-	level      string
-	logRotate  cfg.LogRotateLoggingConfig
-	fileWriter *lumberjack.Logger
+	file              *os.File
+	sysWriter         *syslog.Writer
+	format            string
+	level             string
+	logRotate         cfg.LogRotateLoggingConfig
+	fileWriter        *lumberjack.Logger
+	enableOtelLogging bool
 }
 
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
@@ -295,12 +299,70 @@ func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog
 }
 
 func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Handler {
+	var localHandler slog.Handler
 	if f.fileWriter != nil {
-		return f.createJsonOrTextHandler(f.fileWriter, levelVar, prefix)
+		localHandler = f.createJsonOrTextHandler(f.fileWriter, levelVar, prefix)
+	} else if f.sysWriter != nil {
+		localHandler = f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
+	} else {
+		localHandler = f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
 	}
 
-	if f.sysWriter != nil {
-		return f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
+	if f.enableOtelLogging {
+		otelHandler := otelslog.NewHandler("gcsfuse")
+		return &dualHandler{local: localHandler, otel: otelHandler, levelVar: levelVar}
 	}
-	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
+	return localHandler
+}
+
+// dualHandler dispatches logs to a local handler and an OpenTelemetry handler.
+type dualHandler struct {
+	local    slog.Handler
+	otel     slog.Handler
+	levelVar *slog.LevelVar
+}
+
+func (d *dualHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	if level < d.levelVar.Level() {
+		return false
+	}
+	return d.local.Enabled(ctx, level) || d.otel.Enabled(ctx, level)
+}
+
+func (d *dualHandler) Handle(ctx context.Context, r slog.Record) error {
+	if r.Level < d.levelVar.Level() {
+		return nil
+	}
+
+	var err1, err2 error
+	if d.local.Enabled(ctx, r.Level) {
+		err1 = d.local.Handle(ctx, r)
+	}
+	if d.otel.Enabled(ctx, r.Level) {
+		err2 = d.otel.Handle(ctx, r)
+	}
+
+	if err1 != nil {
+		err1 = fmt.Errorf("local err: %w", err1)
+	}
+	if err2 != nil {
+		err2 = fmt.Errorf("otel err: %w", err2)
+	}
+	return errors.Join(err1, err2)
+}
+
+func (d *dualHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &dualHandler{
+		local:    d.local.WithAttrs(attrs),
+		otel:     d.otel.WithAttrs(attrs),
+		levelVar: d.levelVar,
+	}
+}
+
+func (d *dualHandler) WithGroup(name string) slog.Handler {
+	return &dualHandler{
+		local:    d.local.WithGroup(name),
+		otel:     d.otel.WithGroup(name),
+		levelVar: d.levelVar,
+	}
 }

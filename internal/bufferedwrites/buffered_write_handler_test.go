@@ -23,11 +23,13 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
@@ -222,6 +224,26 @@ func (testSuite *BufferedWriteTest) TestWriteAfterTruncateAtCurrentSize() {
 	assert.Equal(testSuite.T(), int64(20), testSuite.bwh.WriteFileInfo().TotalSize)
 }
 
+func (testSuite *BufferedWriteTest) TestOutOfOrderWriteAtStaleTruncatedSize() {
+	err := testSuite.bwh.Write(context.Background(), []byte("hello"), 0)
+	require.Nil(testSuite.T(), err)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	// Truncate to a larger size
+	err = testSuite.bwh.Truncate(10)
+	require.NoError(testSuite.T(), err)
+	// Write past the truncated size (from offset 5, writing 10 bytes -> totalSize = 15)
+	err = testSuite.bwh.Write(context.Background(), []byte("0123456789"), 5)
+	require.Nil(testSuite.T(), err)
+	require.Equal(testSuite.T(), int64(-1), bwhImpl.truncatedSize)
+	require.Equal(testSuite.T(), int64(15), bwhImpl.totalSize)
+
+	// Attempt to seek backwards and write exactly at the stale truncatedSize (10)
+	err = testSuite.bwh.Write(context.Background(), []byte("abc"), 10)
+
+	require.Error(testSuite.T(), err)
+	assert.Equal(testSuite.T(), ErrOutOfOrderWrite, err)
+}
+
 func (testSuite *BufferedWriteTest) TestFlushWithNonNilCurrentBlock() {
 	err := testSuite.bwh.Write(context.Background(), []byte("hi"), 0)
 	require.Nil(testSuite.T(), err)
@@ -262,6 +284,134 @@ func (testSuite *BufferedWriteTest) TestFlushWithSignalUploadFailureDuringWrite(
 	require.Error(testSuite.T(), err)
 	assert.Equal(testSuite.T(), err, errUploadFailure)
 	assert.Nil(testSuite.T(), obj)
+}
+
+func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
+	testCases := []struct {
+		name       string
+		bucketType gcs.BucketType
+		obj        *gcs.Object
+	}{
+		{
+			name:       "non_zonal",
+			bucketType: gcs.BucketType{Zonal: false},
+		},
+		{
+			name:       "zonal_new_file",
+			bucketType: gcs.BucketType{Zonal: true},
+		},
+		{
+			name:       "zonal_append",
+			bucketType: gcs.BucketType{Zonal: true},
+			obj:        &gcs.Object{Name: "testObject", Size: 0},
+		},
+		{
+			name:       "pirlo_new_file_rapid_writes",
+			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+		},
+		{
+			name:       "pirlo_append_rapid_writes",
+			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			obj:        &gcs.Object{Name: "testObject", Size: 0},
+		},
+	}
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			mockBucket := new(storagemock.TestifyMockBucket)
+			mockBucket.On("BucketType").Return(tc.bucketType)
+			writer := &storagemock.Writer{}
+			writer.On("Write", mock.Anything).Return(2, nil)
+			if tc.bucketType.RapidWritesEnabled() && tc.obj != nil {
+				mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(writer, nil)
+			} else {
+				mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+			}
+			mockObj := &gcs.MinObject{Name: "testObject", Size: 0}
+			mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
+			bwh, err := NewBWHandler(&CreateBWHandlerRequest{
+				Object:                   tc.obj,
+				ObjectName:               "testObject",
+				Bucket:                   mockBucket,
+				BlockSize:                blockSize,
+				MaxBlocksPerFile:         10,
+				GlobalMaxBlocksSem:       testSuite.globalSemaphore,
+				ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
+				ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+				TraceHandle:              tracing.NewNoopTracer(),
+			})
+			require.Nil(testSuite.T(), err)
+			err = bwh.Write(context.Background(), []byte("hi"), 0)
+			require.Nil(testSuite.T(), err)
+
+			obj, err := bwh.Flush(context.Background())
+
+			require.Error(testSuite.T(), err)
+			assert.Contains(testSuite.T(), err.Error(), "could not upload entire data, expected size 2, got 0")
+			assert.Nil(testSuite.T(), obj)
+		})
+	}
+}
+
+func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
+	testCases := []struct {
+		name       string
+		bucketType gcs.BucketType
+		obj        *gcs.Object
+	}{
+		{
+			name:       "zonal_new_file",
+			bucketType: gcs.BucketType{Zonal: true},
+		},
+		{
+			name:       "zonal_append",
+			bucketType: gcs.BucketType{Zonal: true},
+			obj:        &gcs.Object{Name: "testObject", Size: 0},
+		},
+		{
+			name:       "pirlo_new_file_rapid_writes",
+			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+		},
+		{
+			name:       "pirlo_append_rapid_writes",
+			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			obj:        &gcs.Object{Name: "testObject", Size: 0},
+		},
+	}
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			mockBucket := new(storagemock.TestifyMockBucket)
+			mockBucket.On("BucketType").Return(tc.bucketType)
+			writer := &storagemock.Writer{}
+			writer.On("Write", mock.Anything).Return(2, nil)
+			if tc.bucketType.RapidWritesEnabled() && tc.obj != nil {
+				mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(writer, nil)
+			} else {
+				mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+			}
+			mockObj := &gcs.MinObject{Name: "testObject", Size: 0}
+			mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(mockObj, nil)
+			bwh, err := NewBWHandler(&CreateBWHandlerRequest{
+				Object:                   tc.obj,
+				ObjectName:               "testObject",
+				Bucket:                   mockBucket,
+				BlockSize:                blockSize,
+				MaxBlocksPerFile:         10,
+				GlobalMaxBlocksSem:       testSuite.globalSemaphore,
+				ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
+				ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+				TraceHandle:              tracing.NewNoopTracer(),
+			})
+			require.Nil(testSuite.T(), err)
+			err = bwh.Write(context.Background(), []byte("hi"), 0)
+			require.Nil(testSuite.T(), err)
+
+			obj, err := bwh.Sync(context.Background())
+
+			require.Error(testSuite.T(), err)
+			assert.Contains(testSuite.T(), err.Error(), "could not upload entire data, expected size 2, got 0")
+			assert.Nil(testSuite.T(), obj)
+		})
+	}
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithMultiBlockWritesAndSignalUploadFailureInBetween() {
@@ -331,6 +481,16 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			bucketType: gcs.BucketType{Zonal: true},
 			numBlocks:  .5,
 		},
+		{
+			name:       "pirlo_bucket_rapid_writes_2.5_blocks",
+			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			numBlocks:  2.5,
+		},
+		{
+			name:       "pirlo_bucket_rapid_writes_.5_blocks",
+			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			numBlocks:  .5,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -352,7 +512,7 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
 			// Read the object from back door.
 			content, err := storageutil.ReadObject(context.Background(), bwhImpl.uploadHandler.bucket, bwhImpl.uploadHandler.objectName)
-			if tc.bucketType.Zonal {
+			if tc.bucketType.RapidWritesEnabled() {
 				require.NotNil(testSuite.T(), o)
 				assert.EqualValues(testSuite.T(), int64(blockSize*tc.numBlocks), o.Size)
 				require.NoError(testSuite.T(), err)
@@ -396,7 +556,8 @@ func (testSuite *BufferedWriteTest) TestFlushWithNonZeroTruncatedLengthForEmptyO
 	_, err := testSuite.bwh.Flush(context.Background())
 
 	assert.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), bwhImpl.truncatedSize, bwhImpl.totalSize)
+	assert.Equal(testSuite.T(), int64(10), bwhImpl.totalSize)
+	assert.Equal(testSuite.T(), int64(-1), bwhImpl.truncatedSize)
 }
 
 func (testSuite *BufferedWriteTest) TestFlushWithTruncatedLengthGreaterThanObjectSize() {
@@ -408,7 +569,8 @@ func (testSuite *BufferedWriteTest) TestFlushWithTruncatedLengthGreaterThanObjec
 	_, err = testSuite.bwh.Flush(context.Background())
 
 	assert.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), bwhImpl.truncatedSize, bwhImpl.totalSize)
+	assert.Equal(testSuite.T(), int64(10), bwhImpl.totalSize)
+	assert.Equal(testSuite.T(), int64(-1), bwhImpl.truncatedSize)
 }
 
 func (testSuite *BufferedWriteTest) TestTruncateWithLesserSize() {

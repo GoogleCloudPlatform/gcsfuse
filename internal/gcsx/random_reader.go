@@ -23,6 +23,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"context"
+
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
@@ -34,7 +36,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
-	"golang.org/x/net/context"
 )
 
 // Min read size in bytes for random reads.
@@ -536,6 +537,7 @@ func (rr *randomReader) startRead(ctx context.Context, start int64, end int64, r
 	//  - The file content was modified leading to different generation number.
 	var notFoundError *gcs.NotFoundError
 	if errors.As(err, &notFoundError) {
+		defer cancel()
 		err = &gcsfuse_errors.FileClobberedError{
 			Err:        fmt.Errorf("NewReader: %w", err),
 			ObjectName: rr.object.Name,
@@ -544,6 +546,7 @@ func (rr *randomReader) startRead(ctx context.Context, start int64, end int64, r
 	}
 
 	if err != nil {
+		defer cancel()
 		err = fmt.Errorf("NewReaderWithReadHandle: %w", err)
 		return
 	}

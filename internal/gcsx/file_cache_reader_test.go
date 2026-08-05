@@ -79,12 +79,18 @@ func TestZonalFileCacheReaderTestSuite(t *testing.T) {
 	suite.Run(t, zonalBucketFileCacheReaderTestSuite)
 }
 
+func TestPirloFileCacheReaderTestSuite(t *testing.T) {
+	pirloBucketFileCacheReaderTestSuite := &fileCacheReaderTest{
+		bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled}}
+	suite.Run(t, pirloBucketFileCacheReaderTestSuite)
+}
+
 func (t *fileCacheReaderTest) SetupTest() {
 	t.object = &gcs.MinObject{
 		Name:       testObject,
 		Size:       17,
 		Generation: 1234,
-		Finalized:  time.Date(2025, time.June, 27, 07, 22, 30, 0, time.UTC),
+		Finalized:  gcs.TimeToNS(time.Date(2025, time.June, 27, 07, 22, 30, 0, time.UTC)),
 	}
 	t.unfinalized_object = &gcs.MinObject{
 		Name:       testObject_unfinalized,
@@ -104,11 +110,19 @@ func (t *fileCacheReaderTest) SetupTest() {
 }
 
 func (t *fileCacheReaderTest) TearDownTest() {
+	if t.reader != nil {
+		t.reader.Destroy()
+	}
+	if t.reader_unfinalized_object != nil {
+		t.reader_unfinalized_object.Destroy()
+	}
+	if t.jobManager != nil {
+		t.jobManager.Destroy()
+	}
 	err := os.RemoveAll(t.cacheDir)
 	if err != nil {
 		t.T().Logf("Failed to clean up test cache directory '%s': %v", t.cacheDir, err)
 	}
-	t.reader.Destroy()
 }
 
 func (t *fileCacheReaderTest) mockNewReaderWithHandleCallForTestBucket(limit uint64, rd gcs.StorageReader) {
@@ -257,7 +271,8 @@ func (t *fileCacheReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCa
 	})
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
 	assert.Zero(t.T(), readResponse.Size)
-	job := t.jobManager.CreateJobIfNotExists(t.object, t.mockBucket)
+	job, err := t.jobManager.CreateJobIfNotExists(t.object, t.mockBucket)
+	assert.Nil(t.T(), err)
 	jobStatus := job.GetStatus()
 	assert.True(t.T(), jobStatus.Name == downloader.NotStarted)
 
@@ -509,7 +524,8 @@ func (t *fileCacheReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
 	assert.NoError(t.T(), err)
 	t.reader.fileCacheHandle = nil
 	// Delete the local cache file.
-	filePath := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.mockBucket.Name(), t.object.Name))
+	filePath, err := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.mockBucket.Name(), t.object.Name))
+	assert.NoError(t.T(), err)
 	err = os.Remove(filePath)
 	assert.NoError(t.T(), err)
 
@@ -537,9 +553,10 @@ func (t *fileCacheReaderTest) Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleO
 	assert.Equal(t.T(), testContent, buf[:readResponse.Size])
 	assert.NotNil(t.T(), t.reader.fileCacheHandle)
 	// Delete the local cache file.
-	filePath := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.mockBucket.Name(), t.object.Name))
+	filePath, err := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.mockBucket.Name(), t.object.Name))
+	assert.NoError(t.T(), err)
 	err = os.Remove(filePath)
-	assert.NoError(nil, err)
+	assert.NoError(t.T(), err)
 	clear(buf)
 
 	// Read via cache only, as we have old fileHandle open and linux
@@ -621,11 +638,11 @@ func (t *fileCacheReaderTest) Test_ReadAt_OffsetBeyondObjectSizeShouldThrowEOFEr
 	assert.ErrorIs(t.T(), err, io.EOF)
 }
 
-func (t *fileCacheReaderTest) skipForNonZonalBucket() {
+func (t *fileCacheReaderTest) skipForNonRapidBucket() {
 	t.T().Helper()
 
-	if !t.bucketType.Zonal {
-		t.T().Skipf("Skipping test for non-zonal bucket type")
+	if !t.bucketType.IsRapid() {
+		t.T().Skipf("Skipping test for non-rapid bucket type")
 	}
 }
 
@@ -656,7 +673,7 @@ func (t *fileCacheReaderTest) waitForDownloadJobToFinish(obj *gcs.MinObject) {
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondCachedSizeAfterSizeIncreasedShouldThrowFallbackError() {
-	t.skipForNonZonalBucket()
+	t.skipForNonRapidBucket()
 	origObjectSize := t.unfinalized_object.Size
 	// First read, which may start a background download job.
 	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize)
@@ -681,7 +698,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondC
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondObjectSizeAfterSizeIncreasedShouldThrowEOFError() {
-	t.skipForNonZonalBucket()
+	t.skipForNonRapidBucket()
 	origObjectSize := t.unfinalized_object.Size
 	// First read, which may start a background download job.
 	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize)
@@ -705,7 +722,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBeyondO
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCachedSizeAndReadBeyondCachedSizeWithIncreasedObjectSizeShouldThrowFallbackError() {
-	t.skipForNonZonalBucket()
+	t.skipForNonRapidBucket()
 	origObjectSize := t.unfinalized_object.Size
 	// First read, which may start a background download job.
 	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize)
@@ -730,7 +747,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCa
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCachedSizeAndReadBeyondObjectSizeWithIncreasedObjectSizeShouldThrowFallbackError() {
-	t.skipForNonZonalBucket()
+	t.skipForNonRapidBucket()
 	origObjectSize := t.unfinalized_object.Size
 	// First read, which may start a background download job.
 	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize)
@@ -755,7 +772,7 @@ func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCa
 }
 
 func (t *fileCacheReaderTest) Test_ReadAt_UnfinalizedObjectReadFromOffsetBelowCachedSizeAndReadBeyondCachedSizeShouldNotThrowError() {
-	t.skipForNonZonalBucket()
+	t.skipForNonRapidBucket()
 	origObjectSize := t.unfinalized_object.Size
 	t.fullyReadOriginalSizeOfUnfinalizedObject(origObjectSize)
 

@@ -19,13 +19,15 @@ import (
 	"os"
 	"time"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/spf13/viper"
-	"golang.org/x/net/context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -34,7 +36,6 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/sys/unix"
 )
 
 // Mount the file system based on the supplied arguments, returning a
@@ -106,11 +107,10 @@ be interacting with the file system.`)
 		ChunkRetryDeadlineSecs:             newConfig.GcsRetries.ChunkRetryDeadlineSecs,
 		ChunkTransferTimeoutSecs:           newConfig.GcsRetries.ChunkTransferTimeoutSecs,
 		TmpObjectPrefix:                    ".gcsfuse_tmp/",
-		FinalizeFileForRapid:               newConfig.Write.FinalizeFileForRapid,
-		DisableListAccessCheck:             newConfig.DisableListAccessCheck,
 		DummyIOCfg:                         newConfig.DummyIo,
 		IsTypeCacheDeprecated:              newConfig.EnableTypeCacheDeprecation,
 		ImplicitDir:                        newConfig.ImplicitDirs,
+		EnableEmptyManagedFolders:          newConfig.List.EnableEmptyManagedFolders,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 
@@ -148,6 +148,16 @@ be interacting with the file system.`)
 	}
 
 	fsName := fsName(bucketName)
+
+	// Apply pre mount kernel settings in non-GKE environments for non dynamic mounts when kernel reader is enabled.
+	if !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) && newConfig.FileSystem.EnableKernelReader {
+		maxPages := cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxRequestSizeKb))
+		kernelparamsManager := kernelparams.NewKernelParamsManager()
+		if kernelparams.ShouldUpdateMaxPagesLimit(maxPages) {
+			kernelparamsManager.SetMaxPagesLimit(maxPages)
+			kernelparamsManager.ApplyNonGKE(mountPoint)
+		}
+	}
 
 	// Mount the file system.
 	logger.Infof("Mounting file system %q...", fsName)
@@ -192,8 +202,21 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
 	}
 
+	mountCfg.MaxWrite = uint32(newConfig.FileSystem.FuseMaxWriteSizeKb * 1024)
+
+	if newConfig.FileSystem.EnableKernelReader && newConfig.FileSystem.FuseMaxRequestSizeKb > 0 {
+		// Ensure MaxWrite does not exceed the maximum request size when the kernel reader is enabled.
+		// MaxPages is explicitly calculated to accommodate the request size for vectored reads.
+		mountCfg.MaxWrite = min(mountCfg.MaxWrite, uint32(newConfig.FileSystem.FuseMaxRequestSizeKb*1024))
+		mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxRequestSizeKb)))
+	} else {
+		// Fallback for the non-kernel reader path, where vectored reads are unsupported.
+		// We restrict MaxPages by tying it to the MaxWrite limit.
+		mountCfg.MaxPages = uint16(cfg.MaxPagesForRequestSizeKb(int(newConfig.FileSystem.FuseMaxWriteSizeKb)))
+	}
+
 	if newConfig.Logging.WireLog != "" {
-		wireLog, err := os.OpenFile(string(newConfig.Logging.WireLog), os.O_WRONLY|os.O_CREATE|os.O_TRUNC|unix.O_NOFOLLOW, 0644)
+		wireLog, err := os.Create(string(newConfig.Logging.WireLog))
 		if err == nil {
 			mountCfg.WireLogger = wireLog
 		} else {

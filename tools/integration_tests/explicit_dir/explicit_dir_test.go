@@ -47,14 +47,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.ExplicitDir) == 0 {
-		log.Println("No configuration found for explicit_dir tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.ExplicitDir = make([]test_suite.TestConfig, 1)
-		cfg.ExplicitDir[0].TestBucket = setup.TestBucket()
-		cfg.ExplicitDir[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.ExplicitDir[0].Configs = make([]test_suite.ConfigItem, 1)
-		cfg.ExplicitDir[0].Configs[0].Flags = []string{"--implicit-dirs=false", "--implicit-dirs=false --client-protocol=grpc"}
-		cfg.ExplicitDir[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": false, "zonal": false}
+		log.Fatal("No configuration found for ExplicitDir in config file.")
 	}
 
 	// 2. Create storage client before running tests.

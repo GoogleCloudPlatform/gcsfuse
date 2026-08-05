@@ -66,16 +66,7 @@ func TestMain(m *testing.M) {
 	// 1. Load and parse the common configuration.
 	cfg := test_suite.ReadConfigFile(setup.ConfigFile())
 	if len(cfg.ImplicitDir) == 0 {
-		log.Println("No configuration found for implicit_dir tests in config. Using flags instead.")
-		// Populate the config manually.
-		cfg.ImplicitDir = make([]test_suite.TestConfig, 1)
-		cfg.ImplicitDir[0].TestBucket = setup.TestBucket()
-		cfg.ImplicitDir[0].GKEMountedDirectory = setup.MountedDirectory()
-		cfg.ImplicitDir[0].Configs = make([]test_suite.ConfigItem, 2)
-		cfg.ImplicitDir[0].Configs[0].Flags = []string{"--implicit-dirs"}
-		cfg.ImplicitDir[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
-		cfg.ImplicitDir[0].Configs[1].Flags = []string{"--implicit-dirs --client-protocol=grpc"}
-		cfg.ImplicitDir[0].Configs[1].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": false}
+		log.Fatal("No configuration found for ImplicitDir in config file.")
 	}
 
 	// 2. Create storage client before running tests.

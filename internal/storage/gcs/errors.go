@@ -35,6 +35,10 @@ func (nfe *NotFoundError) Error() string {
 	return fmt.Sprintf("gcs.NotFoundError: %v", nfe.Err)
 }
 
+func (nfe *NotFoundError) Unwrap() error {
+	return nfe.Err
+}
+
 // A *PreconditionError value is an error that indicates a precondition failed.
 type PreconditionError struct {
 	Err error

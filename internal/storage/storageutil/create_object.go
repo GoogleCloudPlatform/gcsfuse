@@ -17,8 +17,9 @@ package storageutil
 import (
 	"bytes"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"golang.org/x/net/context"
 )
 
 // Create an object with the supplied contents in the given bucket with the

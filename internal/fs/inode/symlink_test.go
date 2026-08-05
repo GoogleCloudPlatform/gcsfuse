@@ -16,50 +16,32 @@ package inode_test
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
-
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestSymlink(t *testing.T) { RunTests(t) }
-
-////////////////////////////////////////////////////////////////////////
-// Boilerplate
-////////////////////////////////////////////////////////////////////////
-
-type SymlinkTest struct {
-	bucket *gcsx.SyncerBucket
-}
-
-var _ SetUpInterface = &CoreTest{}
-var _ TearDownInterface = &CoreTest{}
-
-func init() { RegisterTestSuite(&SymlinkTest{}) }
-
-func (t *SymlinkTest) SetUp(ti *TestInfo) {
+func setupSymlinkTest(t *testing.T) *gcsx.SyncerBucket {
 	bucket := gcsx.NewSyncerBucket(
 		/*appendThreshold=*/ 1,
 		/*chunkRetryDeadlineSecs=*/ 120,
 		/*chunkTransferTimeoutSecs=*/ 10,
-		".gcsfuse_tmp/", fake.NewFakeBucket(timeutil.RealClock(), "some-bucket", gcs.BucketType{}))
-	t.bucket = &bucket
+		".gcsfuse_tmp/",
+		fake.NewFakeBucket(timeutil.RealClock(), "some-bucket", gcs.BucketType{}),
+	)
+	return &bucket
 }
 
-////////////////////////////////////////////////////////////////////////
-// Tests
-////////////////////////////////////////////////////////////////////////
-
-func (t *SymlinkTest) TestIsSymLinkWhenMetadataKeyIsPresent() {
+func TestIsSymlinkWhenMetadataKeyIsPresent(t *testing.T) {
 	metadata := map[string]string{
 		inode.SymlinkMetadataKey: "target",
 	}
@@ -68,18 +50,18 @@ func (t *SymlinkTest) TestIsSymLinkWhenMetadataKeyIsPresent() {
 		Metadata: metadata,
 	}
 
-	AssertEq(true, inode.IsSymlink(&m))
+	assert.True(t, inode.IsSymlink(&m))
 }
 
-func (t *SymlinkTest) TestIsSymLinkWhenMetadataKeyIsNotPresent() {
+func TestIsSymlinkWhenMetadataKeyIsNotPresent(t *testing.T) {
 	m := gcs.MinObject{
 		Name: "test",
 	}
 
-	AssertEq(false, inode.IsSymlink(&m))
+	assert.False(t, inode.IsSymlink(&m))
 }
 
-func (t *SymlinkTest) TestIsSymLinkWhenStandardMetadataKeyIsPresent() {
+func TestIsSymlinkWhenStandardMetadataKeyIsPresent(t *testing.T) {
 	metadata := map[string]string{
 		inode.StandardSymlinkMetadataKey: "true",
 	}
@@ -88,10 +70,10 @@ func (t *SymlinkTest) TestIsSymLinkWhenStandardMetadataKeyIsPresent() {
 		Metadata: metadata,
 	}
 
-	AssertEq(true, inode.IsSymlink(&m))
+	assert.True(t, inode.IsSymlink(&m))
 }
 
-func (t *SymlinkTest) TestIsSymLinkWhenStandardMetadataKeyIsFalse() {
+func TestIsSymlinkWhenStandardMetadataKeyIsFalse(t *testing.T) {
 	metadata := map[string]string{
 		inode.StandardSymlinkMetadataKey: "false",
 	}
@@ -100,14 +82,15 @@ func (t *SymlinkTest) TestIsSymLinkWhenStandardMetadataKeyIsFalse() {
 		Metadata: metadata,
 	}
 
-	AssertEq(false, inode.IsSymlink(&m))
+	assert.False(t, inode.IsSymlink(&m))
 }
 
-func (t *SymlinkTest) TestIsSymLinkForNilObject() {
-	AssertEq(false, inode.IsSymlink(nil))
+func TestIsSymlinkForNilObject(t *testing.T) {
+	assert.False(t, inode.IsSymlink(nil))
 }
 
-func (t *SymlinkTest) TestAttributes() {
+func TestAttributes(t *testing.T) {
+	bucket := setupSymlinkTest(t)
 	metadata := map[string]string{
 		inode.SymlinkMetadataKey: "target",
 	}
@@ -115,14 +98,10 @@ func (t *SymlinkTest) TestAttributes() {
 		Name:     "test",
 		Metadata: metadata,
 	}
-	attrs := fuseops.InodeAttributes{
-		Uid:  1001,
-		Gid:  1002,
-		Mode: 0777 | os.ModeSymlink,
-	}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, t.bucket, m, attrs)
-	AssertEq(nil, err)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m)
+	require.NoError(t, err)
+
 	tests := []struct {
 		name           string
 		clobberedCheck bool
@@ -132,19 +111,97 @@ func (t *SymlinkTest) TestAttributes() {
 	}
 
 	for _, tt := range tests {
-		// Call Attributes
-		extracted, err := s.Attributes(context.TODO(), tt.clobberedCheck)
+		t.Run(tt.name, func(t *testing.T) {
+			// Call Attributes
+			size, _, nlink, err := s.Attributes(context.TODO(), tt.clobberedCheck)
 
-		// Check expected values
-		AssertEq(nil, err)
-		ExpectEq(uint32(1), extracted.Nlink)
-		ExpectEq(attrs.Uid, extracted.Uid)
-		ExpectEq(attrs.Gid, extracted.Gid)
-		ExpectEq(attrs.Mode, extracted.Mode)
+			// Check expected values
+			require.NoError(t, err)
+			assert.Equal(t, uint32(1), nlink)
+			assert.Equal(t, uint64(len("target")), size)
+		})
 	}
 }
 
-func (t *SymlinkTest) TestUpdateSize() {
+func TestAttributesSizeIsTargetLength(t *testing.T) {
+	tests := []struct {
+		name     string
+		target   string
+		metadata map[string]string
+		// objectSize is the size of the backing GCS object, which must not be
+		// what Attributes reports.
+		objectSize uint64
+	}{
+		{
+			name:     "LegacySymlink",
+			target:   "/some/fairly/long/target/path",
+			metadata: map[string]string{inode.SymlinkMetadataKey: "/some/fairly/long/target/path"},
+		},
+		{
+			name:       "LegacySymlinkWithNonZeroObjectSize",
+			target:     "target",
+			metadata:   map[string]string{inode.SymlinkMetadataKey: "target"},
+			objectSize: 100,
+		},
+		{
+			name:     "EmptyTarget",
+			target:   "",
+			metadata: map[string]string{inode.SymlinkMetadataKey: ""},
+		},
+		{
+			name:     "MultiByteTarget",
+			target:   "/tmp/ünïcödé",
+			metadata: map[string]string{inode.SymlinkMetadataKey: "/tmp/ünïcödé"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange.
+			bucket := setupSymlinkTest(t)
+			m := &gcs.MinObject{
+				Name:     "test",
+				Size:     tt.objectSize,
+				Metadata: tt.metadata,
+			}
+			name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
+			s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m)
+			require.NoError(t, err)
+
+			// Act.
+			size, _, _, err := s.Attributes(context.Background(), false)
+
+			// Assert.
+			require.NoError(t, err)
+			assert.Equal(t, uint64(len(tt.target)), size)
+			assert.Equal(t, tt.target, s.Target())
+		})
+	}
+}
+
+func TestAttributesSizeForStandardSymlink(t *testing.T) {
+	// Arrange. A standard symlink keeps its target in the object's content, so
+	// here the backing object size and the target length coincide.
+	const target = "/path/to/target"
+	bucket := setupSymlinkTest(t)
+	obj, err := storageutil.CreateObject(context.Background(), bucket, "test", []byte(target))
+	require.NoError(t, err)
+	m := storageutil.ConvertObjToMinObject(obj)
+	m.Metadata = map[string]string{inode.StandardSymlinkMetadataKey: "true"}
+	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m)
+	require.NoError(t, err)
+
+	// Act.
+	size, _, _, err := s.Attributes(context.Background(), false)
+
+	// Assert.
+	require.NoError(t, err)
+	assert.Equal(t, uint64(len(target)), size)
+}
+
+func TestUpdateSize(t *testing.T) {
+	bucket := setupSymlinkTest(t)
 	m := &gcs.MinObject{
 		Name:           "test",
 		Generation:     1,
@@ -152,38 +209,37 @@ func (t *SymlinkTest) TestUpdateSize() {
 		Size:           100,
 		Metadata:       map[string]string{inode.SymlinkMetadataKey: "target"},
 	}
-	attrs := fuseops.InodeAttributes{}
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, t.bucket, m, attrs)
-	AssertEq(nil, err)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m)
+	require.NoError(t, err)
 
 	s.UpdateSize(200)
 
-	AssertEq(uint64(200), s.SourceGeneration().Size)
+	assert.Equal(t, uint64(200), s.SourceGeneration().Size)
 }
 
-func (t *SymlinkTest) TestSource() {
+func TestSource(t *testing.T) {
+	bucket := setupSymlinkTest(t)
 	obj, err := storageutil.CreateObject(
 		context.Background(),
-		t.bucket,
+		bucket,
 		"test", // The name of the object in GCS
 		[]byte("target_path"),
 	)
-	AssertEq(nil, err)
+	require.NoError(t, err)
 	m := storageutil.ConvertObjToMinObject(obj)
 	m.Metadata = map[string]string{inode.StandardSymlinkMetadataKey: "true"}
-	m.Updated = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC) // Explicitly set Updated time for consistent testing.
-	attrs := fuseops.InodeAttributes{}
+	m.Updated = gcs.TimeToNS(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)) // Explicitly set Updated time for consistent testing.
 	name := inode.NewFileName(inode.NewRootName("some-bucket"), m.Name)
-	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, t.bucket, m, attrs)
-	AssertEq(nil, err)
+	s, err := inode.NewSymlinkInode(context.Background(), fuseops.InodeID(42), name, bucket, m)
+	require.NoError(t, err)
 
 	source := s.Source()
 
-	AssertEq(m.Name, source.Name)
-	AssertEq(m.Generation, source.Generation)
-	AssertEq(m.MetaGeneration, source.MetaGeneration)
-	AssertEq(m.Size, source.Size)
-	AssertEq(m.Metadata, source.Metadata)
-	AssertEq(0, m.Updated.Compare(source.Updated))
+	assert.Equal(t, m.Name, source.Name)
+	assert.Equal(t, m.Generation, source.Generation)
+	assert.Equal(t, m.MetaGeneration, source.MetaGeneration)
+	assert.Equal(t, m.Size, source.Size)
+	assert.Equal(t, m.Metadata, source.Metadata)
+	assert.Equal(t, m.Updated, source.Updated)
 }

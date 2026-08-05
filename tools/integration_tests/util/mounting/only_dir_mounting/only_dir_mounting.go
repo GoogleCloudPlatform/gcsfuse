@@ -19,24 +19,13 @@ import (
 	"log"
 	"testing"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
-	"golang.org/x/net/context"
 )
-
-// Deprecated: Use MountGcsfuseWithOnlyDirMountingWithConfigFile instead.
-// TODO(b/438068132): cleanup deprecated methods after migration is complete.
-func MountGcsfuseWithOnlyDir(flags []string) (err error) {
-	config := &test_suite.TestConfig{
-		TestBucket:              setup.TestBucket(),
-		GKEMountedDirectory:     setup.MountedDirectory(),
-		GCSFuseMountedDirectory: setup.MntDir(),
-		LogFile:                 setup.LogFile(),
-	}
-	return MountGcsfuseWithOnlyDirWithConfigFile(config, flags)
-}
 
 func MountGcsfuseWithOnlyDirWithConfigFile(config *test_suite.TestConfig, flags []string) (err error) {
 	defaultArg := []string{"--only-dir",
@@ -102,18 +91,6 @@ func executeTestsForOnlyDirMounting(config *test_suite.TestConfig, flags [][]str
 	// Reset onlyDirMounted value to empty string after only dir mount tests are done.
 	setup.SetOnlyDirMounted("")
 	return
-}
-
-// Deprecated: Use RunTestsWithConfigFile instead.
-// TODO(b/438068132): cleanup deprecated methods after migration is complete.
-func RunTests(flags [][]string, dirName string, m *testing.M) (successCode int) {
-	config := &test_suite.TestConfig{
-		TestBucket:              setup.TestBucket(),
-		GKEMountedDirectory:     setup.MountedDirectory(),
-		GCSFuseMountedDirectory: setup.MntDir(),
-		LogFile:                 setup.LogFile(),
-	}
-	return RunTestsWithConfigFile(config, flags, dirName, m)
 }
 
 func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, dirName string, m *testing.M) (successCode int) {

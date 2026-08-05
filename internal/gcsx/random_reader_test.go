@@ -28,6 +28,8 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
 
+	"context"
+
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
@@ -44,7 +46,6 @@ import (
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/oglemock"
 	. "github.com/jacobsa/ogletest"
-	"golang.org/x/net/context"
 )
 
 // NOTE: Please add new tests in random_reader_stretchr_test.go file. This file
@@ -672,7 +673,8 @@ func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCache
 	ExpectFalse(objectData.CacheHit)
 	ExpectEq(nil, err)
 	ExpectTrue(reflect.DeepEqual(testContent[start:end], buf))
-	job := t.jobManager.CreateJobIfNotExists(t.object, t.bucket)
+	job, err := t.jobManager.CreateJobIfNotExists(t.object, t.bucket)
+	ExpectEq(nil, err)
 	jobStatus := job.GetStatus()
 	ExpectTrue(jobStatus.Name == downloader.NotStarted)
 
@@ -910,7 +912,8 @@ func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeleted() {
 	AssertEq(nil, err)
 	t.rr.wrapped.fileCacheHandle = nil
 	// Delete the local cache file.
-	filePath := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.bucket.Name(), t.object.Name))
+	filePath, err := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.bucket.Name(), t.object.Name))
+	AssertEq(nil, err)
 	err = os.Remove(filePath)
 	AssertEq(nil, err)
 	// Second reader (rd2) is required, since first reader (rd) is completely read.
@@ -939,7 +942,8 @@ func (t *RandomReaderTest) Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleOpen
 	AssertTrue(reflect.DeepEqual(testContent, buf))
 	AssertNe(nil, t.rr.wrapped.fileCacheHandle)
 	// Delete the local cache file.
-	filePath := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.bucket.Name(), t.object.Name))
+	filePath, err := util.GetDownloadPath(t.cacheDir, util.GetObjectPath(t.bucket.Name(), t.object.Name))
+	AssertEq(nil, err)
 	err = os.Remove(filePath)
 	AssertEq(nil, err)
 
