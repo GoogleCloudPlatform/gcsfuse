@@ -127,8 +127,10 @@ func TestPollLRO_RetryOn429ResourceExhausted(t *testing.T) {
 	err429 := status.Error(codes.ResourceExhausted, "quota exceeded")
 	// Poll 0 (immediate) returns 429
 	poller.On("Poll", ctx).Return("", err429).Once()
+	poller.On("Done").Return(false).Once()
 	// Loop poll 1 returns 429
 	poller.On("Poll", ctx).Return("", err429).Once()
+	poller.On("Done").Return(false).Once()
 	// Loop poll 2 succeeds
 	poller.On("Poll", ctx).Return(expectedResult, nil).Once()
 	poller.On("Done").Return(true).Once()
@@ -153,6 +155,7 @@ func TestPollLRO_RetryOnUnauthenticated(t *testing.T) {
 	errAuth := status.Error(codes.Unauthenticated, "token expired")
 	// Poll 0 (immediate) returns auth error
 	poller.On("Poll", ctx).Return("", errAuth).Once()
+	poller.On("Done").Return(false).Once()
 	// Loop poll 1 succeeds
 	poller.On("Poll", ctx).Return(expectedResult, nil).Once()
 	poller.On("Done").Return(true).Once()
@@ -255,6 +258,15 @@ func TestPollLRO_InvalidConfig(t *testing.T) {
 				FastPhaseWindow: 1 * time.Second,
 				Multiplier:      1.1,
 				Max:             0,
+			},
+		},
+		{
+			name: "invalid_initial_greater_than_max",
+			cfg: LROPollConfig{
+				Initial:         10 * time.Millisecond,
+				FastPhaseWindow: 1 * time.Second,
+				Multiplier:      1.1,
+				Max:             5 * time.Millisecond,
 			},
 		},
 	}

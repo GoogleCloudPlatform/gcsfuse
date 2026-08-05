@@ -84,11 +84,14 @@ func PollLRO[T any](ctx context.Context, op LROPoller[T], cfg LROPollConfig) (T,
 	if cfg.Max <= 0 {
 		return zero, fmt.Errorf("max sleep duration must be greater than 0")
 	}
+	if cfg.Initial > cfg.Max {
+		return zero, fmt.Errorf("initial sleep duration must not exceed max sleep duration")
+	}
 
 	// Poll #0: Immediate status check right after operation creation to handle instantaneous completions.
 	result, err := op.Poll(ctx)
 	if err != nil {
-		if !ShouldRetryWithoutLogging(err) {
+		if !ShouldRetryWithoutLogging(err) || op.Done() {
 			return zero, err
 		}
 		// On transient errors (e.g. 429), fall through and let the normal polling loop take over.
@@ -111,7 +114,7 @@ func PollLRO[T any](ctx context.Context, op LROPoller[T], cfg LROPollConfig) (T,
 
 		result, err = op.Poll(ctx)
 		if err != nil {
-			if !ShouldRetryWithoutLogging(err) {
+			if !ShouldRetryWithoutLogging(err) || op.Done() {
 				return zero, err
 			}
 			// On transient errors (e.g. 429), ignore and proceed to sleep for the next retry interval.
