@@ -202,7 +202,7 @@ func TestPollLRO_FixedFastPhaseWindow(t *testing.T) {
 	poller.On("Done").Return(true).Once()
 	cfg := LROPollConfig{
 		Initial:         1 * time.Millisecond,
-		FastPhaseWindow: 10 * time.Millisecond,
+		FastPhaseWindow: 500 * time.Microsecond,
 		Multiplier:      2.0,
 		Max:             100 * time.Millisecond,
 	}
