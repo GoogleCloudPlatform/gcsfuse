@@ -56,21 +56,21 @@ const tempFileContent = "line 1\nline 2\n"
 // //////////////////////////////////////////////////////////////////////
 // Helpers
 // //////////////////////////////////////////////////////////////////////
-func validateExtendedObjectAttributesNonEmpty(objectName string, t *testing.T) *storage.ObjectAttrs {
+func (w *writeOperationsTest) validateExtendedObjectAttributesNonEmpty(objectName string) *storage.ObjectAttrs {
 	ctx := context.Background()
 	var storageClient *storage.Client
 	closeStorageClient := client.CreateStorageClientWithCancel(&ctx, &storageClient)
 	defer func() {
 		err := closeStorageClient()
-		assert.NoError(t, err, "closeStorageClient failed")
+		assert.NoError(w.T(), err, "closeStorageClient failed")
 	}()
 
 	attrs, err := client.StatObject(ctx, storageClient, objectName)
-	require.NoError(t, err, "Could not fetch object attributes")
+	require.NoError(w.T(), err, "Could not fetch object attributes")
 	o := storageutil.ObjectAttrsToBucketObject(attrs)
 	e := storageutil.ConvertObjToExtendedObjectAttributes(o)
 
-	require.False(t, e == nil || reflect.DeepEqual(*e, gcs.ExtendedObjectAttributes{}), "Received nil/empty extended object attributes.")
+	require.False(w.T(), e == nil || reflect.DeepEqual(*e, gcs.ExtendedObjectAttributes{}), "Received nil/empty extended object attributes.")
 	return attrs
 }
 
@@ -146,7 +146,7 @@ func (w *writeOperationsTest) TestWriteAtEndOfFile() {
 
 	setup.CompareFileContents(w.T(), fileName, "line 1\nline 2\nline 3\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), w.T())
+	w.validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName))
 }
 
 func (w *writeOperationsTest) TestWriteAtStartOfFile() {
@@ -160,7 +160,7 @@ func (w *writeOperationsTest) TestWriteAtStartOfFile() {
 
 	setup.CompareFileContents(w.T(), fileName, "line 4\nline 2\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), w.T())
+	w.validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName))
 }
 
 func (w *writeOperationsTest) TestWriteAtRandom() {
@@ -181,7 +181,7 @@ func (w *writeOperationsTest) TestWriteAtRandom() {
 
 	setup.CompareFileContents(w.T(), fileName, "line 1\nline 5\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), w.T())
+	w.validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName))
 }
 
 func (w *writeOperationsTest) TestCreateFile() {
@@ -196,7 +196,7 @@ func (w *writeOperationsTest) TestCreateFile() {
 
 	setup.CompareFileContents(w.T(), fileName, "line 1\nline 2\n")
 	// Validate that extended object attributes are non nil/ non-empty.
-	validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), w.T())
+	w.validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName))
 }
 
 func (w *writeOperationsTest) TestAppendFileOperationsDoesNotChangeObjectAttributes() {
@@ -205,11 +205,11 @@ func (w *writeOperationsTest) TestAppendFileOperationsDoesNotChangeObjectAttribu
 	fileName := path.Join(testDir, tempFileName)
 
 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, w.T())
-	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), w.T())
+	attr1 := w.validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName))
 	// Append to the file.
 	err := operations.WriteFileInAppendMode(fileName, appendContent)
 	require.NoError(w.T(), err, "Could not append to file")
-	attr2 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), w.T())
+	attr2 := w.validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName))
 
 	// Validate object attributes are as expected.
 	w.validateObjectAttributes(attr1, attr2)
@@ -221,13 +221,13 @@ func (w *writeOperationsTest) TestWriteAtFileOperationsDoesNotChangeObjectAttrib
 	fileName := path.Join(testDir, tempFileName)
 
 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, w.T())
-	attr1 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), w.T())
+	attr1 := w.validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName))
 	// Over-write the file.
 	fh, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)
 	require.NoError(w.T(), err, "Could not open file after creation")
 	operations.WriteAt(tempFileContent+appendContent, 0, fh, w.T())
 	operations.CloseFileShouldNotThrowError(w.T(), fh)
-	attr2 := validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName), w.T())
+	attr2 := w.validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName))
 
 	// Validate object attributes are as expected.
 	w.validateObjectAttributes(attr1, attr2)

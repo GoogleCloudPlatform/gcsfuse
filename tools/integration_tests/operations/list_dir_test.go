@@ -23,7 +23,6 @@ import (
 	"path"
 	"path/filepath"
 	"syscall"
-	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
@@ -32,7 +31,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createDirectoryStructureForTest(t *testing.T) {
+func (s *operationsTestSuite) createDirectoryStructureForTest() {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
 	// Directory structure
@@ -48,29 +47,29 @@ func createDirectoryStructureForTest(t *testing.T) {
 	// testBucket/dirForOperationTests/directoryForListTest
 	// testBucket/dirForOperationTests/directoryForListTest/fileInFirstSubDirectoryForListTest1
 	dirPath := path.Join(testDir, DirectoryForListTest)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryForListTest, dirPath, PrefixFileInDirectoryForListTest, t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInDirectoryForListTest, dirPath, PrefixFileInDirectoryForListTest, s.T())
 
 	// testBucket/dirForOperationTests/directoryForListTest/firstSubDirectoryForListTest
 	// testBucket/dirForOperationTests/directoryForListTest/firstSubDirectoryForListTest/fileInFirstSubDirectoryForListTest1
 	subDirPath := path.Join(dirPath, FirstSubDirectoryForListTest)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInFirstSubDirectoryForListTest, subDirPath, PrefixFileInFirstSubDirectoryForListTest, t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInFirstSubDirectoryForListTest, subDirPath, PrefixFileInFirstSubDirectoryForListTest, s.T())
 
 	// testBucket/dirForOperationTests/directoryForListTest/secondSubDirectoryForListTest
 	// testBucket/dirForOperationTests/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest1
 	// testBucket/dirForOperationTests/directoryForListTest/secondSubDirectoryForListTest/fileInSecondSubDirectoryForListTest2
 	subDirPath = path.Join(dirPath, SecondSubDirectoryForListTest)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInSecondSubDirectoryForListTest, subDirPath, PrefixFileInSecondSubDirectoryForListTest, t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInSecondSubDirectoryForListTest, subDirPath, PrefixFileInSecondSubDirectoryForListTest, s.T())
 
 	// testBucket/dirForOperationTests/directoryForListTest/emptySubDirInDirectoryForListTest
 	subDirPath = path.Join(dirPath, EmptySubDirInDirectoryForListTest)
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInEmptySubDirInDirectoryForListTest, subDirPath, "", t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInEmptySubDirInDirectoryForListTest, subDirPath, "", s.T())
 }
 
 func (s *operationsTestSuite) TestListDirectoryRecursively() {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
 	// Create directory structure for testing.
-	createDirectoryStructureForTest(s.T())
+	s.createDirectoryStructureForTest()
 
 	// Recursively walk into directory and test.
 	err := filepath.WalkDir(testDir, func(path string, dir fs.DirEntry, err error) error {
