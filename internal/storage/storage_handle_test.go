@@ -331,22 +331,6 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefix() {
 	testSuite.runLookupBucketTypeTest("foo/bar", "foo/bar/")
 }
 
-func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefixRoot() {
-	testSuite.runLookupBucketTypeTest("/.", "")
-}
-
-func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefixDotDot() {
-	testSuite.runLookupBucketTypeTest("..", "")
-}
-
-func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefixLeadingDotDot() {
-	testSuite.runLookupBucketTypeTest("../../foo", "foo/")
-}
-
-func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefixInternalDotDot() {
-	testSuite.runLookupBucketTypeTest("foo/../bar", "bar/")
-}
-
 func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile) // by default http1 enabled
 

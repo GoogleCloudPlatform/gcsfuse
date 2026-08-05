@@ -901,3 +901,31 @@ func TestRationalize_MetadataCacheConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveOnlyDir(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"Clean relative path", "foo/bar", "foo/bar"},
+		{"Trailing slash", "foo/bar/", "foo/bar"},
+		{"Leading slash", "/foo/bar", "foo/bar"},
+		{"Leading and trailing slashes", "/foo/bar/", "foo/bar"},
+		{"Relative parent segment", "foo/../bar/", "bar"},
+		{"Root slash", "/", ""},
+		{"Root dot", "/.", ""},
+		{"Parent directory", "..", ""},
+		{"Root parent directory", "/..", ""},
+		{"Current directory prefix", "./foo", "foo"},
+		{"Parent directory prefix", "../foo", "foo"},
+		{"Empty string", "", ""},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &Config{OnlyDir: tc.input}
+			resolveOnlyDir(c)
+			assert.Equal(t, tc.expected, c.OnlyDir)
+		})
+	}
+}

@@ -203,7 +203,7 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	// connection.
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
-		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig), logger.MountInstanceID(fsName(bucketName)))
+		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig), logger.MountInstanceID(fsName(bucketName), newConfig.MountId))
 		logger.Info("Creating Storage handle...")
 		storageHandle, err = createStorageHandle(newConfig, userAgent, metricHandle, isGKE, isDynamicMount(bucketName))
 		if err != nil {
@@ -388,7 +388,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 
 	var logExporterShutdownFn common.ShutdownFn
 	if newConfig.Foreground {
-		err = logger.InitLogFile(newConfig.Logging, fsName(bucketName))
+		err = logger.InitLogFile(newConfig.Logging, fsName(bucketName), newConfig.MountId)
 		if err != nil {
 			return fmt.Errorf("init log file: %w", err)
 		}
@@ -397,14 +397,14 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			// startup configs and mount flags are captured. This is intentionally skipped
 			// in the ephemeral parent process to avoid double-initialization overhead.
 			// TODO: Update mount-id to use directory name as well in only dir mounting.
-			logExporterShutdownFn, err = monitor.SetupOTelLogExporter(context.Background(), newConfig.Logging.ExperimentalOtelLoggingEndpoint, logger.MountInstanceID(fsName(bucketName)), newConfig.GcsAuth, newConfig.Logging.ExperimentalOtelLoggingProjectId)
+			logExporterShutdownFn, err = monitor.SetupOTelLogExporter(context.Background(), newConfig.Logging.ExperimentalOtelLoggingEndpoint, logger.MountInstanceID(fsName(bucketName), newConfig.MountId), newConfig.GcsAuth, newConfig.Logging.ExperimentalOtelLoggingProjectId)
 			if err != nil {
 				logger.Errorf("Failed to setup OTel log exporter: %v", err)
 			}
 		}
 	}
 
-	logger.UpdateDefaultLogger(newConfig.Logging.Format, fsName(bucketName))
+	logger.UpdateDefaultLogger(newConfig.Logging.Format, fsName(bucketName), newConfig.MountId)
 
 	logger.Infof("Start gcsfuse/%s for app %q using mount point: %s\n", common.GetVersion(), newConfig.AppName, mountPoint)
 
@@ -475,12 +475,12 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	var metricExporterShutdownFn common.ShutdownFn
 	metricHandle := metrics.NewNoopMetrics()
 	if cfg.IsMetricsEnabled(&newConfig.Metrics) {
-		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig, logger.MountInstanceID(fsName(bucketName)))
+		metricExporterShutdownFn = monitor.SetupOTelMetricExporters(ctx, newConfig, logger.MountInstanceID(fsName(bucketName), newConfig.MountId))
 		if metricHandle, err = metrics.NewOTelMetrics(ctx, int(newConfig.Metrics.Workers), int(newConfig.Metrics.BufferSize)); err != nil {
 			metricHandle = metrics.NewNoopMetrics()
 		}
 	}
-	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig, logger.MountInstanceID(fsName(bucketName)))
+	shutdownTracingFn := monitor.SetupTracing(ctx, newConfig, logger.MountInstanceID(fsName(bucketName), newConfig.MountId))
 	traceHandle := tracing.NewNoopTracer()
 	if cfg.IsTracingEnabled(newConfig) {
 		traceHandle = tracing.NewOTELTracer()

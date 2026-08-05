@@ -62,7 +62,7 @@ var (
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(newLogConfig cfg.LoggingConfig, fsName string) error {
+func InitLogFile(newLogConfig cfg.LoggingConfig, fsName, customID string) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
 	var fileWriter *lumberjack.Logger
@@ -106,7 +106,7 @@ func InitLogFile(newLogConfig cfg.LoggingConfig, fsName string) error {
 		logRotate:         newLogConfig.LogRotate,
 		enableOtelLogging: newLogConfig.ExperimentalEnableOtelLogging,
 	}
-	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(string(newLogConfig.Severity), fsName)
+	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(string(newLogConfig.Severity), fsName, customID)
 
 	return nil
 }
@@ -164,17 +164,20 @@ func MountUUID() string {
 }
 
 // MountInstanceID returns the InstanceID of current gcsfuse mount.
-// This is combination of `fsName` + MountUUID.
-// Note: fsName is passed here explicitly, as logger package doesn't know about fsName
+// This is combination of `fsName` + optional `customID` + MountUUID.
+// Note: fsName and customID are passed here explicitly, as logger package doesn't know about them
 // when MountInstanceID method is invoked.
-func MountInstanceID(fsName string) string {
+func MountInstanceID(fsName, customID string) string {
+	if customID != "" {
+		return fmt.Sprintf("%s-%s-%s", fsName, customID, MountUUID())
+	}
 	return fmt.Sprintf("%s-%s", fsName, MountUUID())
 }
 
 // UpdateDefaultLogger updates the log format and creates a new logger with MountInstanceID set as custom attribute.
-func UpdateDefaultLogger(format, fsName string) {
+func UpdateDefaultLogger(format, fsName, customID string) {
 	defaultLoggerFactory.format = format
-	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(defaultLoggerFactory.level, fsName)
+	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(defaultLoggerFactory.level, fsName, customID)
 }
 
 // Tracef prints the message with TRACE severity in the specified format.
@@ -279,13 +282,13 @@ func (f *loggerFactory) newLogger(level string) *slog.Logger {
 	return logger
 }
 
-func loggerAttr(fsName string) []slog.Attr {
-	return []slog.Attr{slog.String(MountIDKey, MountInstanceID(fsName))}
+func loggerAttr(fsName, customID string) []slog.Attr {
+	return []slog.Attr{slog.String(MountIDKey, MountInstanceID(fsName, customID))}
 }
 
 // create a new logger with mountInstanceID set as custom attribute on logger.
-func (f *loggerFactory) newLoggerWithMountInstanceID(level, fsName string) *slog.Logger {
-	logger := slog.New(f.handler(programLevel, "").WithAttrs(loggerAttr(fsName)))
+func (f *loggerFactory) newLoggerWithMountInstanceID(level, fsName, customID string) *slog.Logger {
+	logger := slog.New(f.handler(programLevel, "").WithAttrs(loggerAttr(fsName, customID)))
 	slog.SetDefault(logger)
 	setLoggingLevel(level)
 	return logger

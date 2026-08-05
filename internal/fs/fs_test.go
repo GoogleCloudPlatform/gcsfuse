@@ -196,11 +196,11 @@ func (t *fsTest) SetUpTestSuite() {
 
 	// Initialize Fuse Loggers.
 	if mountCfg.ErrorLogger == nil {
-		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse_errors: ", mountCfg.FSName)
+		mountCfg.ErrorLogger = logger.NewLegacyLogger(logger.LevelError, "fuse_errors: ", mountCfg.FSName, "")
 	}
 
 	if *fDebug {
-		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelDebug, "fuse: ", mountCfg.FSName)
+		mountCfg.DebugLogger = logger.NewLegacyLogger(logger.LevelDebug, "fuse: ", mountCfg.FSName, "")
 	}
 	// Mount the file system.
 	mfs, err = fuse.Mount(mntDir, server, &mountCfg)

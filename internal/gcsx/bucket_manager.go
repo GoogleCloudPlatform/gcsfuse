@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -208,7 +207,7 @@ func (bm *bucketManager) SetUpBucket(
 
 	// Limit to a requested prefix of the bucket, if any.
 	if bm.config.OnlyDir != "" {
-		b, err = NewPrefixBucket(path.Clean(bm.config.OnlyDir)+"/", b)
+		b, err = NewPrefixBucket(bm.config.OnlyDir+"/", b)
 		if err != nil {
 			err = fmt.Errorf("NewPrefixBucket: %w", err)
 			return
