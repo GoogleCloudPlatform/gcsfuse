@@ -1114,14 +1114,14 @@ interrupt:
           zonal: true
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--enable-streaming-writes,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--enable-streaming-writes,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--enable-streaming-writes=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--enable-streaming-writes=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--ignore-interrupts,--enable-streaming-writes=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--ignore-interrupts,--enable-streaming-writes=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--ignore-interrupts=false,--enable-streaming-writes=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--ignore-interrupts=false,--enable-streaming-writes=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--enable-streaming-writes"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--enable-streaming-writes"
+          - "--experimental-enable-pirlo,--enable-streaming-writes=false"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--enable-streaming-writes=false"
+          - "--experimental-enable-pirlo,--ignore-interrupts,--enable-streaming-writes=false"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--ignore-interrupts,--enable-streaming-writes=false"
+          - "--experimental-enable-pirlo,--ignore-interrupts=false,--enable-streaming-writes=false"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--ignore-interrupts=false,--enable-streaming-writes=false"
         run_on_pirlo:
           hns:
             same_zone: true
