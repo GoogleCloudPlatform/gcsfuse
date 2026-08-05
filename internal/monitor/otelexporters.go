@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	clientprom "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/otlptranslator"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/prometheus"
@@ -152,8 +153,12 @@ func setupPrometheus(port int64, state *MountState, errorRateThreshold float64) 
 	// share the exact same metric store — avoids relying on DefaultRegisterer.
 	registry := clientprom.NewRegistry()
 	exporter, err := prometheus.New(
-		prometheus.WithoutUnits(),
-		prometheus.WithoutCounterSuffixes(),
+		// WithoutUnits + WithoutCounterSuffixes are deprecated in favor of
+		// WithTranslationStrategy. UnderscoreEscapingWithoutSuffixes keeps the
+		// Prometheus underscore escaping while omitting unit/counter suffixes, so
+		// metric names stay as fs_ops_count / fs_ops_error_count (which the
+		// /readyz error-rate check reads).
+		prometheus.WithTranslationStrategy(otlptranslator.UnderscoreEscapingWithoutSuffixes),
 		prometheus.WithoutScopeInfo(),
 		prometheus.WithoutTargetInfo(),
 		prometheus.WithRegisterer(registry),

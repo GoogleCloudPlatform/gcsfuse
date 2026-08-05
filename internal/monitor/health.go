@@ -48,7 +48,7 @@ func healthzHandler(state *MountState) http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "ok")
+		_, _ = fmt.Fprint(w, "ok")
 	}
 }
 
@@ -71,7 +71,7 @@ func readyzHandler(state *MountState, threshold float64, gatherer prometheus.Gat
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "ok")
+		_, _ = fmt.Fprint(w, "ok")
 	}
 }
 
