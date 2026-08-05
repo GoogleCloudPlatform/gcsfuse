@@ -237,7 +237,7 @@ func WithAppendableAPI(use bool) WriterOption {
 func NewWriterWithOptions(ctx context.Context, o *storage.ObjectHandle, opts ...WriterOption) *storage.Writer {
 	// 1. Set the dynamic defaults first
 	cfg := writerConfig{
-		finalizeOnClose: !setup.IsZonalBucketRun() && !setup.IsPirloBucketRun(),
+		finalizeOnClose: !setup.IsZonalBucketRun(),
 	}
 
 	// 2. Apply any explicit overrides passed by the caller
