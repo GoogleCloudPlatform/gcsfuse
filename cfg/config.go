@@ -707,6 +707,12 @@ type LogRotateLoggingConfig struct {
 }
 
 type LoggingConfig struct {
+	ExperimentalEnableOtelLogging bool `yaml:"experimental-enable-otel-logging"`
+
+	ExperimentalOtelLoggingEndpoint string `yaml:"experimental-otel-logging-endpoint"`
+
+	ExperimentalOtelLoggingProjectId string `yaml:"experimental-otel-logging-project-id"`
+
 	FilePath ResolvedPath `yaml:"file-path"`
 
 	Format string `yaml:"format"`
@@ -1096,6 +1102,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("experimental-enable-optimized-metadata-cache", "", false, "This flag enables the radix tree based lru cache")
 
+	flagSet.BoolP("experimental-enable-otel-logging", "", false, "Enable OpenTelemetry log exporting.")
+
+	if err := flagSet.MarkHidden("experimental-enable-otel-logging"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("experimental-enable-pirlo", "", false, "Enables support for pirlo.")
 
 	if err := flagSet.MarkHidden("experimental-enable-pirlo"); err != nil {
@@ -1129,6 +1141,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-o-direct", "", false, "Experimental: Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse process.")
 
 	if err := flagSet.MarkHidden("experimental-o-direct"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-otel-logging-endpoint", "", "telemetry.googleapis.com", "The OTLP HTTP endpoint for OpenTelemetry logs.")
+
+	if err := flagSet.MarkHidden("experimental-otel-logging-endpoint"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-otel-logging-project-id", "", "", "Specify the GCP project id to which OTel logs will be exported. When unset, a project id will be inferred as per the default credential detection process.")
+
+	if err := flagSet.MarkHidden("experimental-otel-logging-project-id"); err != nil {
 		return err
 	}
 
@@ -1711,6 +1735,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("logging.experimental-enable-otel-logging", flagSet.Lookup("experimental-enable-otel-logging")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("file-system.experimental-enable-pirlo", flagSet.Lookup("experimental-enable-pirlo")); err != nil {
 		return err
 	}
@@ -1732,6 +1760,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.experimental-o-direct", flagSet.Lookup("experimental-o-direct")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.experimental-otel-logging-endpoint", flagSet.Lookup("experimental-otel-logging-endpoint")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.experimental-otel-logging-project-id", flagSet.Lookup("experimental-otel-logging-project-id")); err != nil {
 		return err
 	}
 
