@@ -2190,6 +2190,93 @@ func (t *composeTest) Metadata() {
 	ExpectEq("val1", o.Metadata["key1"])
 }
 
+func (t *composeTest) DeleteSourceObjects() {
+	// Create source objects.
+	sources, err := t.createSources([]string{
+		"taco",
+		"burrito",
+	})
+
+	AssertEq(nil, err)
+
+	// Compose them.
+	o, err := t.bucket.ComposeObjects(
+		t.ctx,
+		&gcs.ComposeObjectsRequest{
+			DstName:             "foo",
+			DeleteSourceObjects: true,
+			Sources: []gcs.ComposeSource{
+				{
+					Name: sources[0].Name,
+				},
+
+				{
+					Name: sources[1].Name,
+				},
+			},
+		})
+
+	t.advanceTime()
+	AssertEq(nil, err)
+
+	// Check the result.
+	AssertEq("foo", o.Name)
+
+	// Verify sources were deleted.
+	_, _, err = t.bucket.StatObject(t.ctx, &gcs.StatObjectRequest{Name: sources[0].Name})
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+
+	_, _, err = t.bucket.StatObject(t.ctx, &gcs.StatObjectRequest{Name: sources[1].Name})
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+}
+
+func (t *composeTest) DeleteSourceObjects_DestinationNameMatchesSource() {
+	// Create source objects.
+	sources, err := t.createSources([]string{
+		"taco",
+		"burrito",
+	})
+
+	AssertEq(nil, err)
+
+	// Compose on top of the first's name with DeleteSourceObjects: true.
+	o, err := t.bucket.ComposeObjects(
+		t.ctx,
+		&gcs.ComposeObjectsRequest{
+			DstName:             sources[0].Name,
+			DeleteSourceObjects: true,
+			Sources: []gcs.ComposeSource{
+				{
+					Name: sources[0].Name,
+				},
+
+				{
+					Name: sources[1].Name,
+				},
+			},
+		})
+
+	t.advanceTime()
+	AssertEq(nil, err)
+
+	// Check the result.
+	AssertEq(sources[0].Name, o.Name)
+	ExpectEq(len("tacoburrito"), o.Size)
+	ExpectEq(2, o.ComponentCount)
+	ExpectLt(sources[0].Generation, o.Generation)
+	ExpectLt(sources[1].Generation, o.Generation)
+
+	// Check contents of destination object.
+	contents, err := storageutil.ReadObject(t.ctx, t.bucket, sources[0].Name)
+
+	AssertEq(nil, err)
+	ExpectEq("tacoburrito", string(contents))
+
+	// Verify sources[1] was deleted.
+	_, _, err = t.bucket.StatObject(t.ctx, &gcs.StatObjectRequest{Name: sources[1].Name})
+	ExpectThat(err, HasSameTypeAs(&gcs.NotFoundError{}))
+}
+
 func (t *composeTest) DestinationNameMatchesSource() {
 	// Create source objects.
 	sources, err := t.createSources([]string{
