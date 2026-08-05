@@ -65,14 +65,20 @@ sudo apt-get install qemu-user-static binfmt-support
 git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse/tools/package_gcsfuse_docker/
 git checkout "$COMMIT_HASH"
-if [[ "$RELEASE_VERSION" == nightly_* || "$RELEASE_VERSION" == dev_* || "$RELEASE_VERSION" == v* ]]; then
+if [[ "$RELEASE_VERSION" == nightly-* || "$RELEASE_VERSION" == dev-* || "$RELEASE_VERSION" == v* ]]; then
   REL_DIR="$RELEASE_VERSION"
 else
   REL_DIR="v$RELEASE_VERSION"
 fi
 
+# Debian packaging (dpkg-deb) requires Version strings to start with a digit (0-9).
+PKG_VERSION="${RELEASE_VERSION}"
+if [[ "${PKG_VERSION}" =~ ^[^0-9] ]]; then
+  PKG_VERSION="0.0.0-${PKG_VERSION}"
+fi
+
 echo "Building docker for ${architecture} ..."
-sudo docker buildx build --load . -t gcsfuse-release-${architecture}:"$RELEASE_VERSION_TAG" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=${architecture} --build-arg BRANCH_NAME="$COMMIT_HASH" &> docker_${architecture}.log
+sudo docker buildx build --load . -t gcsfuse-release-${architecture}:"$RELEASE_VERSION_TAG" --build-arg GCSFUSE_VERSION="$PKG_VERSION" --build-arg ARCHITECTURE=${architecture} --build-arg BRANCH_NAME="$COMMIT_HASH" &> docker_${architecture}.log
 gcloud storage cp docker_${architecture}.log gs://"$UPLOAD_BUCKET"/"$REL_DIR"/
 sudo docker run  -v $HOME/gcsfuse/release:/release gcsfuse-release-${architecture}:"$RELEASE_VERSION_TAG" cp -r /packages/. /release/"$REL_DIR"
 
