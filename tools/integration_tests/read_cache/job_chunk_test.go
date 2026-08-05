@@ -79,7 +79,7 @@ func (s *jobChunkTest) TestJobChunkSizeForSingleFileReads() {
 	expectedOutcome := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, false, s.T())
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
-	structuredJobLogs := read_logs.GetJobLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
+	structuredJobLogs := read_logs.GetJobLogsSortedByTimestamp(setup.LogFile(), s.T())
 	assert.Equal(s.T(), expectedOutcome.BucketName, structuredJobLogs[0].BucketName)
 	assert.Equal(s.T(), expectedOutcome.ObjectName, structuredJobLogs[0].ObjectName)
 
@@ -117,7 +117,7 @@ func (s *jobChunkTest) TestJobChunkSizeForMultipleFileReads() {
 	wg.Wait()
 
 	// Parse the log file and validate cache hit or miss from the structured logs.
-	structuredJobLogs := read_logs.GetJobLogsSortedByTimestamp(testEnv.cfg.LogFile, s.T())
+	structuredJobLogs := read_logs.GetJobLogsSortedByTimestamp(setup.LogFile(), s.T())
 	require.Equal(s.T(), 2, len(structuredJobLogs))
 	// Goroutine execution order isn't guaranteed.
 	// If the object name in expected outcome doesn't align with the logs, swap
