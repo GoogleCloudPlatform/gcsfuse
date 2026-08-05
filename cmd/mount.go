@@ -147,7 +147,7 @@ be interacting with the file system.`)
 		return
 	}
 
-	fsName := fsName(bucketName, newConfig.OnlyDir)
+	fsName := fsName(bucketName)
 
 	// Apply pre mount kernel settings in non-GKE environments for non dynamic mounts when kernel reader is enabled.
 	if !isDynamicMount(bucketName) && !cfg.IsGKEEnvironment(mountPoint) && newConfig.FileSystem.EnableKernelReader {

@@ -590,13 +590,13 @@ func TestMountInstanceID(t *testing.T) {
 			name:                         "WithCustomID",
 			fsName:                       "mybucket",
 			customID:                     "pod-123",
-			expectedMountInstanceIDRegex: "^mybucket-[0-9a-f]{8}-pod-123$",
+			expectedMountInstanceIDRegex: "^mybucket-pod-123-[0-9a-f]{8}$",
 		},
 		{
 			name:                         "WithOnlyDirAndCustomID",
 			fsName:                       "mybucket/somedir",
 			customID:                     "pod-123",
-			expectedMountInstanceIDRegex: "^mybucket/somedir-[0-9a-f]{8}-pod-123$",
+			expectedMountInstanceIDRegex: "^mybucket/somedir-pod-123-[0-9a-f]{8}$",
 		},
 	}
 

@@ -160,15 +160,14 @@ func MountUUID() string {
 }
 
 // MountInstanceID returns the InstanceID of current gcsfuse mount.
-// This is combination of `fsName` + MountUUID + optional `customID`.
+// This is combination of `fsName` + optional `customID` + MountUUID.
 // Note: fsName and customID are passed here explicitly, as logger package doesn't know about them
 // when MountInstanceID method is invoked.
 func MountInstanceID(fsName, customID string) string {
-	baseID := fmt.Sprintf("%s-%s", fsName, MountUUID())
 	if customID != "" {
-		return fmt.Sprintf("%s-%s", baseID, customID)
+		return fmt.Sprintf("%s-%s-%s", fsName, customID, MountUUID())
 	}
-	return baseID
+	return fmt.Sprintf("%s-%s", fsName, MountUUID())
 }
 
 // UpdateDefaultLogger updates the log format and creates a new logger with MountInstanceID set as custom attribute.
