@@ -40,15 +40,15 @@ func TestMaxDirEntriesSuite(t *testing.T) { suite.Run(t, new(MaxDirEntriesTest))
 func (t *MaxDirEntriesTest) SetupSuite() {
 	t.serverCfg.MaxDirEntries = maxDirEntriesLimit
 	t.serverCfg.ImplicitDirectories = true
-	t.fsTest.SetUpTestSuite()
+	t.SetUpTestSuite()
 }
 
 func (t *MaxDirEntriesTest) TearDownSuite() {
-	t.fsTest.TearDownTestSuite()
+	t.TearDownTestSuite()
 }
 
 func (t *MaxDirEntriesTest) TearDownTest() {
-	t.fsTest.TearDown()
+	t.TearDown()
 }
 
 // fillUntilRejected creates files in dir until a create is rejected, and
