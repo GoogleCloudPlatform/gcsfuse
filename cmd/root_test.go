@@ -1814,7 +1814,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 		{
 			name: "cloud-metrics-export-interval-secs-positive",
 			args: []string{"gcsfuse", "--cloud-metrics-export-interval-secs=10", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{
+			expected: &cfg.MetricsConfig{HealthCheckErrorRateThreshold: 0.05,
 				CloudMetricsExportIntervalSecs: 10,
 				Workers:                        3,
 				BufferSize:                     256,
@@ -1824,7 +1824,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 		{
 			name: "stackdriver-export-interval-positive",
 			args: []string{"gcsfuse", "--stackdriver-export-interval=10h", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{
+			expected: &cfg.MetricsConfig{HealthCheckErrorRateThreshold: 0.05,
 				CloudMetricsExportIntervalSecs: 10 * 3600,
 				StackdriverExportInterval:      time.Duration(10) * time.Hour,
 				Workers:                        3,
@@ -1835,7 +1835,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 		{
 			name: "use_new_metric_names",
 			args: []string{"gcsfuse", "--metrics-use-new-names=true", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{
+			expected: &cfg.MetricsConfig{HealthCheckErrorRateThreshold: 0.05,
 				UseNewNames:                   true,
 				Workers:                       3,
 				BufferSize:                    256,
@@ -1845,7 +1845,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 		{
 			name: "metrics_workers_non_default",
 			args: []string{"gcsfuse", "--metrics-workers=10", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{
+			expected: &cfg.MetricsConfig{HealthCheckErrorRateThreshold: 0.05,
 				Workers:                       10,
 				BufferSize:                    256,
 				ExperimentalEnableGrpcMetrics: true,
@@ -1854,7 +1854,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 		{
 			name: "metrics_buffer_size_non_default",
 			args: []string{"gcsfuse", "--metrics-buffer-size=1024", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{
+			expected: &cfg.MetricsConfig{HealthCheckErrorRateThreshold: 0.05,
 				Workers:                       3,
 				BufferSize:                    1024,
 				ExperimentalEnableGrpcMetrics: true,
@@ -1863,7 +1863,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 		{
 			name: "enable_grpc_metrics_non_default",
 			args: []string{"gcsfuse", "--experimental-enable-grpc-metrics=false", "abc", "pqr"},
-			expected: &cfg.MetricsConfig{
+			expected: &cfg.MetricsConfig{HealthCheckErrorRateThreshold: 0.05,
 				Workers:                       3,
 				BufferSize:                    256,
 				ExperimentalEnableGrpcMetrics: false,
@@ -1898,17 +1898,17 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 		{
 			name:     "default",
 			cfgFile:  "empty.yml",
-			expected: &cfg.MetricsConfig{Workers: 3, BufferSize: 256, ExperimentalEnableGrpcMetrics: true},
+			expected: &cfg.MetricsConfig{HealthCheckErrorRateThreshold: 0.05, Workers: 3, BufferSize: 256, ExperimentalEnableGrpcMetrics: true},
 		},
 		{
 			name:     "cloud-metrics-export-interval-secs-positive",
 			cfgFile:  "metrics_export_interval_positive.yml",
-			expected: &cfg.MetricsConfig{CloudMetricsExportIntervalSecs: 100, Workers: 3, BufferSize: 256, ExperimentalEnableGrpcMetrics: true},
+			expected: &cfg.MetricsConfig{HealthCheckErrorRateThreshold: 0.05, CloudMetricsExportIntervalSecs: 100, Workers: 3, BufferSize: 256, ExperimentalEnableGrpcMetrics: true},
 		},
 		{
 			name:    "stackdriver-export-interval-positive",
 			cfgFile: "stackdriver_export_interval_positive.yml",
-			expected: &cfg.MetricsConfig{
+			expected: &cfg.MetricsConfig{HealthCheckErrorRateThreshold: 0.05,
 				CloudMetricsExportIntervalSecs: 12 * 3600,
 				StackdriverExportInterval:      12 * time.Hour,
 				Workers:                        3,

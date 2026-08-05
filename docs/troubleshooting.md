@@ -275,3 +275,36 @@ This error indicates that the GCSFuse process attempted to write a response (suc
 The primary cause is typically a concurrent or premature `unmount` syscall that tears down the mount point while active I/O is still being finalized. When the mount is unmounted, the kernel closes the FUSE device file descriptor, causing subsequent attempts by GCSFuse to send responses back to the kernel to fail with "no such file or directory".
 
 To fix the issue, ensure that unmount operations are only initiated after all application processes have completely finished using the filesystem.
+
+### Health check endpoints (`/healthz`, `/readyz`) are not reachable
+
+**Symptom:** `curl http://localhost:<port>/healthz` returns `connection refused`.
+
+**Cause:** The health endpoints share the Prometheus metrics port. They are only available when `--prometheus-port` is set to a value greater than `0`. If only `--cloud-metrics-export-interval-secs` is configured (without `--prometheus-port`), no HTTP server is started.
+
+**Solution:** Add `--prometheus-port=<port>` to your GCSFuse mount command or config file:
+
+```yaml
+metrics:
+  prometheus-port: 9999
+```
+
+### `/readyz` returns `503` immediately after mount
+
+**Symptom:** `/readyz` returns `503` right after GCSFuse starts, before any workload runs.
+
+**Cause:** This should not happen under normal conditions. When no filesystem operations have been recorded yet, the error rate is `0` and `/readyz` returns `200`. If `/readyz` returns `503` at startup, check whether `/healthz` also returns `503` — that would mean the FUSE mount itself has not yet completed, and the readiness probe `initialDelaySeconds` should be increased.
+
+### `/readyz` returns `503` during normal operation
+
+**Symptom:** `/readyz` returns `503 error rate X.XX exceeds threshold Y.YY` during what appears to be a normal workload.
+
+**Cause:** The filesystem error rate has exceeded `--health-check-error-rate-threshold` (default `0.05`, i.e. 5%). Common triggers:
+- The workload generates expected `ENOENT` or `EACCES` errors (e.g. stat-before-create patterns).
+- A transient GCS connectivity issue caused a burst of errors.
+- The threshold is too tight for the workload's normal error profile.
+
+**Solutions:**
+- Raise the threshold to match your workload's observed error rate: `--health-check-error-rate-threshold=0.10`
+- Check GCSFuse logs (`--log-severity=WARNING`) for the underlying errors driving the rate up.
+- If errors are expected and benign, consider using only `/healthz` for your Kubernetes liveness probe, which checks mount liveness without evaluating error rate.

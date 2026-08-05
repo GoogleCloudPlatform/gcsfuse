@@ -34,7 +34,9 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	clientprom "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/otlptranslator"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -58,11 +60,11 @@ const cloudMonitoringMetricPrefix = "custom.googleapis.com/gcsfuse/"
 var allowedMetricPrefixes = []string{"fs/", "gcs/", "file_cache/", "buffered_read/", "grpc.", "read/"}
 
 // SetupOTelMetricExporters sets up the metrics exporters
-func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string) (shutdownFn common.ShutdownFn) {
+func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string, state *MountState) (shutdownFn common.ShutdownFn) {
 	var shutdownFns []common.ShutdownFn
 	options := make([]metric.Option, 0)
 
-	opts, promShutdownFn := setupPrometheus(c.Metrics.PrometheusPort)
+	opts, promShutdownFn := setupPrometheus(c.Metrics.PrometheusPort, state, c.Metrics.HealthCheckErrorRateThreshold)
 	options = append(options, opts...)
 	shutdownFns = append(shutdownFns, promShutdownFn)
 
@@ -196,18 +198,31 @@ func (e *permissionAwareLogExporter) ForceFlush(ctx context.Context) error {
 func metricFormatter(m metricdata.Metrics) string {
 	return cloudMonitoringMetricPrefix + strings.ReplaceAll(m.Name, ".", "/")
 }
-func setupPrometheus(port int64) ([]metric.Option, common.ShutdownFn) {
+func setupPrometheus(port int64, state *MountState, errorRateThreshold float64) ([]metric.Option, common.ShutdownFn) {
 	if port <= 0 {
 		return nil, nil
 	}
-	exporter, err := prometheus.New(prometheus.WithoutUnits(), prometheus.WithoutCounterSuffixes(), prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
+	// Use a dedicated registry so the OTel exporter, /metrics, and /readyz all
+	// share the exact same metric store — avoids relying on DefaultRegisterer.
+	registry := clientprom.NewRegistry()
+	exporter, err := prometheus.New(
+		// WithoutUnits + WithoutCounterSuffixes are deprecated in favor of
+		// WithTranslationStrategy. UnderscoreEscapingWithoutSuffixes keeps the
+		// Prometheus underscore escaping while omitting unit/counter suffixes, so
+		// metric names stay as fs_ops_count / fs_ops_error_count (which the
+		// /readyz error-rate check reads).
+		prometheus.WithTranslationStrategy(otlptranslator.UnderscoreEscapingWithoutSuffixes),
+		prometheus.WithoutScopeInfo(),
+		prometheus.WithoutTargetInfo(),
+		prometheus.WithRegisterer(registry),
+	)
 	if err != nil {
 		logger.Errorf("Error while creating prometheus exporter:%v", err)
 		return nil, nil
 	}
 	shutdownCh := make(chan context.Context)
 	done := make(chan any)
-	go serveMetrics(port, shutdownCh, done)
+	go serveMetrics(port, registry, state, errorRateThreshold, shutdownCh, done)
 	return []metric.Option{metric.WithReader(exporter)}, func(ctx context.Context) error {
 		shutdownCh <- ctx
 		close(shutdownCh)
@@ -217,10 +232,14 @@ func setupPrometheus(port int64) ([]metric.Option, common.ShutdownFn) {
 	}
 }
 
-func serveMetrics(port int64, shutdownCh <-chan context.Context, done chan<- any) {
-	logger.Infof("Serving metrics at localhost:%d/metrics", port)
+func serveMetrics(port int64, gatherer clientprom.Gatherer, state *MountState, errorRateThreshold float64, shutdownCh <-chan context.Context, done chan<- any) {
+	logger.Infof("Serving metrics at 0.0.0.0:%d/metrics", port)
 	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle("/metrics", promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{}))
+	if state != nil {
+		mux.Handle("/healthz", healthzHandler(state))
+		mux.Handle("/readyz", readyzHandler(state, errorRateThreshold, gatherer))
+	}
 	prometheusServer := &http.Server{
 		Addr:           fmt.Sprintf(":%d", port),
 		Handler:        mux,

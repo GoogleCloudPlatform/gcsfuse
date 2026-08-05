@@ -939,7 +939,7 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 			// Test default values.
 			name:       "empty_config_file",
 			configFile: "testdata/empty_file.yaml",
-			expectedConfig: &cfg.MetricsConfig{
+			expectedConfig: &cfg.MetricsConfig{HealthCheckErrorRateThreshold: 0.05,
 				StackdriverExportInterval:      0,
 				CloudMetricsExportIntervalSecs: 0,
 				PrometheusPort:                 0,
@@ -951,7 +951,7 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 		{
 			name:       "valid_config_file",
 			configFile: "testdata/valid_config.yaml",
-			expectedConfig: &cfg.MetricsConfig{
+			expectedConfig: &cfg.MetricsConfig{HealthCheckErrorRateThreshold: 0.05,
 				CloudMetricsExportIntervalSecs: 10,
 				Workers:                        10,
 				BufferSize:                     128,
