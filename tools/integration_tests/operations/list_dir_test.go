@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
@@ -186,7 +187,7 @@ func (s *operationsTestSuite) TestListDirectoryRecursively() {
 
 func (s *operationsTestSuite) TestReadFileWorksAfterListDir() {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
-	obj1 := s.T().Name() + "-1"
+	obj1 := strings.ReplaceAll(s.T().Name(), "/", "_") + "-1"
 	var objSize int64 = 5
 	client.SetupFileInTestDirectory(ctx, storageClient, DirForOperationTests, obj1, objSize, s.T())
 

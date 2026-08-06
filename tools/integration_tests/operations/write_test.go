@@ -40,6 +40,10 @@ type writeOperationsTest struct {
 	suite.Suite
 }
 
+func (w *writeOperationsTest) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(w.T())
+}
+
 func TestWriteOperationsRapidWritesEnabled(t *testing.T) {
 	if !setup.IsPirloBucketRun() {
 		t.Skip("Rapid writes tests are only applicable to Pirlo buckets")

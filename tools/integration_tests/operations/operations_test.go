@@ -38,6 +38,10 @@ type operationsTestSuite struct {
 	suite.Suite
 }
 
+func (s *operationsTestSuite) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+}
+
 func runOperationsSuite(t *testing.T, runSuiteFunc func()) {
 	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
 	if operationsConfig.GKEMountedDirectory != "" && operationsConfig.TestBucket != "" {
@@ -182,5 +186,7 @@ func TestMain(m *testing.M) {
 	setup.OverrideFilePathsInFlagSet(operationsConfig, setup.TestDir())
 	setup.SetUpTestDirForTestBucket(operationsConfig)
 
-	os.Exit(m.Run())
+	successCode := m.Run()
+	setup.SaveLogFileInCaseOfFailure(successCode)
+	os.Exit(successCode)
 }
