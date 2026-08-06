@@ -632,8 +632,8 @@ func (bh *bucketHandle) RenameFolder(ctx context.Context, folderName string, des
 	}
 
 	// TODO(b/540568787): Remove this custom polling helper when the Go-SDK natively supports polling configurations for initial aggressive polling.
-	// PollLRO polls until the long-running operation completes using a fixed 500ms
-	// initial sleep for the first 30 seconds, followed by 1.1x exponential backoff capping at 30s.
+	// PollLRO polls until the long-running operation completes using a time-based linear
+	// delay schedule, starting at 50ms and scaling proportionally up to 30s over 10 minutes.
 	controlFolder, err = storageutil.PollLRO(ctx, resp, storageutil.DefaultLROPollConfig())
 	if err != nil {
 		err = fmt.Errorf("error in getting result from renaming folder response: %w", err)
