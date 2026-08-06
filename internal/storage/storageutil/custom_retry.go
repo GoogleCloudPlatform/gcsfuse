@@ -17,11 +17,14 @@ package storageutil
 import (
 	"context"
 	"errors"
+	"net/http"
 	"strings"
 
+	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -35,6 +38,8 @@ const (
 	noRetry retryAction = iota
 	// retryTransient indicates the error is transient and retryable as per Go-SDK retry policy.
 	retryTransient
+	// retryTransientMDSError indicates the error is transient and retryable as per MDS/OAuth retry policy.
+	retryTransientMDSError
 	// retry401 indicates a 401 Unauthorized error which requires a retry due to credentials refresh.
 	retry401
 	// retryUnauthenticated indicates a gRPC Unauthenticated error which requires a retry due to credentials refresh.
@@ -50,6 +55,25 @@ const (
 )
 
 const ErrStrBucketNotExist = "bucket does not exist"
+
+func isTransientMDSError(err error) bool {
+	var code int
+	var retrieveErr *oauth2.RetrieveError
+	var metaErr *metadata.Error
+
+	if errors.As(err, &retrieveErr) && retrieveErr.Response != nil {
+		code = retrieveErr.Response.StatusCode
+	} else if errors.As(err, &metaErr) {
+		code = metaErr.Code
+	} else {
+		return false
+	}
+
+	return code == http.StatusBadRequest ||
+		code == http.StatusRequestTimeout ||
+		code == http.StatusTooManyRequests ||
+		(code >= 500 && code <= 599)
+}
 
 func determineRetryAction(err error) retryAction {
 	if storage.ShouldRetry(err) {
@@ -74,6 +98,10 @@ func determineRetryAction(err error) retryAction {
 		if apiErr.Code == 404 && strings.Contains(strings.ToLower(apiErr.Message), ErrStrBucketNotExist) {
 			return retry404BucketDoesNotExist
 		}
+	}
+
+	if isTransientMDSError(err) {
+		return retryTransientMDSError
 	}
 
 	if status, ok := status.FromError(err); ok {

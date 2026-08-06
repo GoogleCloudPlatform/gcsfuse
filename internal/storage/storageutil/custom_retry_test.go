@@ -21,15 +21,18 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"sync"
 	"testing"
 
+	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -270,6 +273,62 @@ func TestDetermineRetryAction(t *testing.T) {
 			name:     "UnexpectedEOF",
 			err:      io.ErrUnexpectedEOF,
 			expected: retryTransient,
+		},
+		{
+			name: "RetrieveError503",
+			err: &oauth2.RetrieveError{
+				Response: &http.Response{StatusCode: http.StatusServiceUnavailable},
+			},
+			expected: retryTransientMDSError,
+		},
+		{
+			name: "RetrieveError429",
+			err: &oauth2.RetrieveError{
+				Response: &http.Response{StatusCode: http.StatusTooManyRequests},
+			},
+			expected: retryTransientMDSError,
+		},
+		{
+			name: "RetrieveError400",
+			err: &oauth2.RetrieveError{
+				Response: &http.Response{StatusCode: http.StatusBadRequest},
+			},
+			expected: retryTransientMDSError,
+		},
+		{
+			name:     "MetadataError500",
+			err:      &metadata.Error{Code: 500},
+			expected: retryTransientMDSError,
+		},
+		{
+			name:     "MetadataError400",
+			err:      &metadata.Error{Code: http.StatusBadRequest},
+			expected: retryTransientMDSError,
+		},
+		{
+			name:     "MetadataError408",
+			err:      &metadata.Error{Code: http.StatusRequestTimeout},
+			expected: retryTransientMDSError,
+		},
+		{
+			name:     "MetadataError429",
+			err:      &metadata.Error{Code: http.StatusTooManyRequests},
+			expected: retryTransientMDSError,
+		},
+		{
+			name:     "MetadataError502",
+			err:      &metadata.Error{Code: http.StatusBadGateway},
+			expected: retryTransientMDSError,
+		},
+		{
+			name:     "MetadataError503",
+			err:      &metadata.Error{Code: http.StatusServiceUnavailable},
+			expected: retryTransientMDSError,
+		},
+		{
+			name:     "MetadataError404",
+			err:      &metadata.Error{Code: 404},
+			expected: noRetry,
 		},
 	}
 
@@ -537,6 +596,63 @@ func TestShouldRetryOnMount(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result := ShouldRetryOnMount(tc.err)
 
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestShouldRetryOnMount_TransientMDSErrors(t *testing.T) {
+	testCases := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name: "oauth2.RetrieveError 503",
+			err: &oauth2.RetrieveError{
+				Response: &http.Response{StatusCode: http.StatusServiceUnavailable},
+			},
+			expected: true,
+		},
+		{
+			name: "oauth2.RetrieveError 429",
+			err: &oauth2.RetrieveError{
+				Response: &http.Response{StatusCode: http.StatusTooManyRequests},
+			},
+			expected: true,
+		},
+		{
+			name: "oauth2.RetrieveError 400",
+			err: &oauth2.RetrieveError{
+				Response: &http.Response{StatusCode: http.StatusBadRequest},
+			},
+			expected: true,
+		},
+		{
+			name:     "metadata.Error 500",
+			err:      &metadata.Error{Code: 500, Message: "Internal Server Error"},
+			expected: true,
+		},
+		{
+			name:     "metadata.Error 429",
+			err:      &metadata.Error{Code: 429, Message: "Too Many Requests"},
+			expected: true,
+		},
+		{
+			name:     "metadata.Error 404",
+			err:      &metadata.Error{Code: 404, Message: "Not Found"},
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := ShouldRetryOnMount(tc.err)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
