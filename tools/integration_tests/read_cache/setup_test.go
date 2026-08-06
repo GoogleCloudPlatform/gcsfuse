@@ -378,6 +378,7 @@ func TestMain(m *testing.M) {
 
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirPrefix))
+	setup.SaveLogFileInCaseOfFailure(successCode)
 	os.Exit(successCode)
 }
 
