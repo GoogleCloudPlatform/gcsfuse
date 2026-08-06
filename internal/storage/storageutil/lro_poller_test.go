@@ -48,10 +48,9 @@ func TestPollLRO_ImmediateSuccess(t *testing.T) {
 	poller.On("Poll", ctx).Return(expectedResult, nil).Once()
 	poller.On("Done").Return(true).Once()
 	cfg := LROPollConfig{
-		Initial:         1 * time.Millisecond,
-		FastPhaseWindow: 1 * time.Second,
-		Multiplier:      1.1,
-		Max:             10 * time.Millisecond,
+		Min:     1 * time.Millisecond,
+		Max:     10 * time.Millisecond,
+		CapTime: 1 * time.Second,
 	}
 
 	result, err := PollLRO(ctx, poller, cfg)
@@ -86,10 +85,9 @@ func TestPollLRO_SuccessAfterRetries(t *testing.T) {
 	poller.On("Poll", ctx).Return(expectedResult, nil).Once()
 	poller.On("Done").Return(true).Once()
 	cfg := LROPollConfig{
-		Initial:         1 * time.Millisecond,
-		FastPhaseWindow: 1 * time.Second,
-		Multiplier:      1.1,
-		Max:             10 * time.Millisecond,
+		Min:     1 * time.Millisecond,
+		Max:     10 * time.Millisecond,
+		CapTime: 1 * time.Second,
 	}
 
 	result, err := PollLRO(ctx, poller, cfg)
@@ -107,10 +105,9 @@ func TestPollLRO_NonRetryableErrorPropagated(t *testing.T) {
 	poller.On("Done").Return(false).Once()
 	poller.On("Poll", ctx).Return("", nonRetryableErr).Once()
 	cfg := LROPollConfig{
-		Initial:         1 * time.Millisecond,
-		FastPhaseWindow: 1 * time.Second,
-		Multiplier:      1.1,
-		Max:             10 * time.Millisecond,
+		Min:     1 * time.Millisecond,
+		Max:     10 * time.Millisecond,
+		CapTime: 1 * time.Second,
 	}
 
 	result, err := PollLRO(ctx, poller, cfg)
@@ -135,10 +132,9 @@ func TestPollLRO_RetryOn429ResourceExhausted(t *testing.T) {
 	poller.On("Poll", ctx).Return(expectedResult, nil).Once()
 	poller.On("Done").Return(true).Once()
 	cfg := LROPollConfig{
-		Initial:         1 * time.Millisecond,
-		FastPhaseWindow: 1 * time.Second,
-		Multiplier:      1.1,
-		Max:             10 * time.Millisecond,
+		Min:     1 * time.Millisecond,
+		Max:     10 * time.Millisecond,
+		CapTime: 1 * time.Second,
 	}
 
 	result, err := PollLRO(ctx, poller, cfg)
@@ -160,10 +156,9 @@ func TestPollLRO_RetryOnUnauthenticated(t *testing.T) {
 	poller.On("Poll", ctx).Return(expectedResult, nil).Once()
 	poller.On("Done").Return(true).Once()
 	cfg := LROPollConfig{
-		Initial:         1 * time.Millisecond,
-		FastPhaseWindow: 1 * time.Second,
-		Multiplier:      1.1,
-		Max:             10 * time.Millisecond,
+		Min:     1 * time.Millisecond,
+		Max:     10 * time.Millisecond,
+		CapTime: 1 * time.Second,
 	}
 
 	result, err := PollLRO(ctx, poller, cfg)
@@ -180,40 +175,15 @@ func TestPollLRO_ContextCancelled(t *testing.T) {
 	poller.On("Done").Return(false).Once()
 	cancel()
 	cfg := LROPollConfig{
-		Initial:         50 * time.Millisecond,
-		FastPhaseWindow: 1 * time.Second,
-		Multiplier:      1.1,
-		Max:             100 * time.Millisecond,
+		Min:     1 * time.Millisecond,
+		Max:     10 * time.Millisecond,
+		CapTime: 1 * time.Second,
 	}
 
 	result, err := PollLRO(ctx, poller, cfg)
 
 	assert.ErrorIs(t, err, context.Canceled)
 	assert.Equal(t, "", result)
-	poller.AssertExpectations(t)
-}
-
-func TestPollLRO_FixedFastPhaseWindow(t *testing.T) {
-	ctx := context.Background()
-	poller := new(mockLROPoller)
-	expectedResult := "success_fast_phase"
-	poller.On("Poll", ctx).Return("", nil).Once()
-	poller.On("Done").Return(false).Once()
-	poller.On("Poll", ctx).Return("", nil).Once()
-	poller.On("Done").Return(false).Once()
-	poller.On("Poll", ctx).Return(expectedResult, nil).Once()
-	poller.On("Done").Return(true).Once()
-	cfg := LROPollConfig{
-		Initial:         1 * time.Millisecond,
-		FastPhaseWindow: 500 * time.Microsecond,
-		Multiplier:      2.0,
-		Max:             100 * time.Millisecond,
-	}
-
-	result, err := PollLRO(ctx, poller, cfg)
-
-	assert.NoError(t, err)
-	assert.Equal(t, expectedResult, result)
 	poller.AssertExpectations(t)
 }
 
@@ -225,48 +195,35 @@ func TestPollLRO_InvalidConfig(t *testing.T) {
 		cfg  LROPollConfig
 	}{
 		{
-			name: "invalid_initial",
+			name: "invalid_min",
 			cfg: LROPollConfig{
-				Initial:         0,
-				FastPhaseWindow: 1 * time.Second,
-				Multiplier:      1.1,
-				Max:             10 * time.Millisecond,
+				Min:     -1 * time.Millisecond,
+				Max:     10 * time.Millisecond,
+				CapTime: 1 * time.Second,
 			},
 		},
 		{
-			name: "invalid_fast_phase",
+			name: "invalid_min_greater_than_max",
 			cfg: LROPollConfig{
-				Initial:         1 * time.Millisecond,
-				FastPhaseWindow: 0,
-				Multiplier:      1.1,
-				Max:             10 * time.Millisecond,
-			},
-		},
-		{
-			name: "invalid_multiplier",
-			cfg: LROPollConfig{
-				Initial:         1 * time.Millisecond,
-				FastPhaseWindow: 1 * time.Second,
-				Multiplier:      0.9,
-				Max:             10 * time.Millisecond,
+				Min:     20 * time.Millisecond,
+				Max:     10 * time.Millisecond,
+				CapTime: 1 * time.Second,
 			},
 		},
 		{
 			name: "invalid_max",
 			cfg: LROPollConfig{
-				Initial:         1 * time.Millisecond,
-				FastPhaseWindow: 1 * time.Second,
-				Multiplier:      1.1,
-				Max:             0,
+				Min:     1 * time.Millisecond,
+				Max:     0,
+				CapTime: 1 * time.Second,
 			},
 		},
 		{
-			name: "invalid_initial_greater_than_max",
+			name: "invalid_cap_time",
 			cfg: LROPollConfig{
-				Initial:         10 * time.Millisecond,
-				FastPhaseWindow: 1 * time.Second,
-				Multiplier:      1.1,
-				Max:             5 * time.Millisecond,
+				Min:     1 * time.Millisecond,
+				Max:     10 * time.Millisecond,
+				CapTime: 0,
 			},
 		},
 	}

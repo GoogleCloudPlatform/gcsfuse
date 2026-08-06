@@ -24,41 +24,34 @@ import (
 )
 
 const (
-	// DefaultLROPollInitial is the fixed sleep duration between retry polls during the initial fast phase.
-	DefaultLROPollInitial = 500 * time.Millisecond
-
-	// DefaultLROPollFastPhase is the duration window during which backoff sleep stays fixed at DefaultLROPollInitial.
-	DefaultLROPollFastPhase = 30 * time.Second
-
-	// DefaultLROPollMultiplier is the backoff factor applied to sleep intervals after the fast phase window expires.
-	DefaultLROPollMultiplier = 1.1
+	// DefaultLROPollMin is the minimum backoff sleep duration for long-running operations.
+	DefaultLROPollMin = 50 * time.Millisecond
 
 	// DefaultLROPollMax is the maximum backoff sleep duration cap for long-running operations.
 	DefaultLROPollMax = 30 * time.Second
+
+	// DefaultLROPollCapTime is the time at which the delay reaches DefaultLROPollMax.
+	DefaultLROPollCapTime = 10 * time.Minute
 )
 
 // LROPollConfig holds configuration parameters for polling long-running operations.
 type LROPollConfig struct {
-	// Initial sleep duration between polls during the fast phase window.
-	Initial time.Duration
-
-	// FastPhaseWindow is the elapsed time duration during which initial sleep duration remains fixed.
-	FastPhaseWindow time.Duration
-
-	// Multiplier is the factor by which the sleep duration increases after FastPhaseWindow expires.
-	Multiplier float64
+	// Min is the minimum backoff sleep duration.
+	Min time.Duration
 
 	// Max is the maximum backoff sleep duration cap.
 	Max time.Duration
+
+	// CapTime is the elapsed time at which the delay reaches Max.
+	CapTime time.Duration
 }
 
 // DefaultLROPollConfig returns the default polling configuration for long-running operations.
 func DefaultLROPollConfig() LROPollConfig {
 	return LROPollConfig{
-		Initial:         DefaultLROPollInitial,
-		FastPhaseWindow: DefaultLROPollFastPhase,
-		Multiplier:      DefaultLROPollMultiplier,
-		Max:             DefaultLROPollMax,
+		Min:     DefaultLROPollMin,
+		Max:     DefaultLROPollMax,
+		CapTime: DefaultLROPollCapTime,
 	}
 }
 
@@ -72,20 +65,17 @@ type LROPoller[T any] interface {
 func PollLRO[T any](ctx context.Context, op LROPoller[T], cfg LROPollConfig) (T, error) {
 	var zero T
 
-	if cfg.Initial <= 0 {
-		return zero, fmt.Errorf("initial sleep duration must be greater than 0")
-	}
-	if cfg.FastPhaseWindow <= 0 {
-		return zero, fmt.Errorf("fast phase window must be greater than 0")
-	}
-	if cfg.Multiplier < 1.0 {
-		return zero, fmt.Errorf("multiplier must be greater than or equal to 1.0")
+	if cfg.Min < 0 {
+		return zero, fmt.Errorf("min sleep duration must be non-negative")
 	}
 	if cfg.Max <= 0 {
 		return zero, fmt.Errorf("max sleep duration must be greater than 0")
 	}
-	if cfg.Initial > cfg.Max {
-		return zero, fmt.Errorf("initial sleep duration must not exceed max sleep duration")
+	if cfg.Min > cfg.Max {
+		return zero, fmt.Errorf("min sleep duration must not exceed max sleep duration")
+	}
+	if cfg.CapTime <= 0 {
+		return zero, fmt.Errorf("cap time must be greater than 0")
 	}
 
 	// Poll #0: Immediate status check right after operation creation to handle instantaneous completions.
@@ -100,14 +90,28 @@ func PollLRO[T any](ctx context.Context, op LROPoller[T], cfg LROPollConfig) (T,
 	}
 
 	startTime := time.Now()
-	backoff := cfg.Initial
 
-	timer := time.NewTimer(backoff)
-	defer timer.Stop()
+	// slope represents the rate of increase of the delay interval per unit of elapsed time.
+	// It is used to calculate a time-based linear delay schedule: delay(t) = slope * elapsed_t,
+	// growing the delay from 0 up to Max over the duration of CapTime.
+	slope := float64(cfg.Max) / float64(cfg.CapTime)
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return zero, err
+		}
+
+		elapsed := time.Since(startTime)
+		ms := min(float64(cfg.Max.Milliseconds()), max(float64(cfg.Min.Milliseconds()), slope*float64(elapsed.Milliseconds())))
+		// Apply ±10% multiplicative jitter (0.9x to 1.1x of the computed delay)
+		// to prevent synchronized retries from multiple operations hitting the API at the same time.
+		jitterFactor := 0.9 + 0.2*rand.Float64()
+		pause := time.Duration(ms*jitterFactor) * time.Millisecond
+
+		timer := time.NewTimer(pause)
 		select {
 		case <-ctx.Done():
+			timer.Stop()
 			return zero, ctx.Err()
 		case <-timer.C:
 		}
@@ -121,15 +125,5 @@ func PollLRO[T any](ctx context.Context, op LROPoller[T], cfg LROPollConfig) (T,
 		} else if op.Done() {
 			return result, nil
 		}
-
-		// Apply exponential backoff after fast phase window.
-		if time.Since(startTime) >= cfg.FastPhaseWindow {
-			backoff = min(cfg.Max, time.Duration(float64(backoff)*cfg.Multiplier))
-		}
-
-		// Add a random jitter (sleeping between 80% and 100% of the backoff) to prevent
-		// multiple retries from other operations from hitting the API at the same time.
-		pause := backoff - time.Duration(rand.Int63n(int64(backoff/5)+1))
-		timer.Reset(pause)
 	}
 }
