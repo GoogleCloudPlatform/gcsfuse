@@ -58,6 +58,10 @@ type implicitDirTestSuite struct {
 	suite.Suite
 }
 
+func (s *implicitDirTestSuite) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+}
+
 func runImplicitDirSuite(t *testing.T, runSuiteFunc func()) {
 	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
@@ -127,6 +131,7 @@ func TestMain(m *testing.M) {
 
 	// 4. Run tests.
 	successCode := m.Run()
+	setup.SaveLogFileInCaseOfFailure(successCode)
 
 	// 5. Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))

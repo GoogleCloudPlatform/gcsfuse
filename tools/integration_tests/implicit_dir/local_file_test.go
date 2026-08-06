@@ -36,6 +36,10 @@ type implicitDirLocalFileTest struct {
 	suite.Suite
 }
 
+func (i *implicitDirLocalFileTest) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(i.T())
+}
+
 func TestImplicitDirLocalFileRapidWritesEnabled(t *testing.T) {
 	if !setup.IsPirloBucketRun() {
 		t.Skip("Rapid writes tests are only applicable to Pirlo buckets")
