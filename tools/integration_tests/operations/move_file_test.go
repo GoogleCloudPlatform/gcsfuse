@@ -19,7 +19,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -29,99 +28,99 @@ import (
 // Create below directory and file.
 // Test               -- Directory
 // Test/move.txt      -- File
-func createSrcDirectoryAndFile(dirPath string, filePath string, t *testing.T) {
+func (s *operationsTestSuite) createSrcDirectoryAndFile(dirPath string, filePath string) {
 	err := os.Mkdir(dirPath, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Mkdir at %q: %v", dirPath, err)
+		s.T().Errorf("Mkdir at %q: %v", dirPath, err)
 		return
 	}
 
 	file, err := os.Create(filePath)
 	if err != nil {
-		t.Errorf("Error in creating file %v:", err)
+		s.T().Errorf("Error in creating file %v:", err)
 	}
 
 	// Closing file at the end.
-	defer operations.CloseFileShouldNotThrowError(t, file)
+	defer operations.CloseFileShouldNotThrowError(s.T(), file)
 
 	err = operations.WriteFile(file.Name(), MoveFileContent)
 	if err != nil {
-		t.Errorf("File at %v", err)
+		s.T().Errorf("File at %v", err)
 	}
 }
 
-func checkIfFileMoveOperationSucceeded(srcFilePath string, destDirPath string, t *testing.T) {
+func (s *operationsTestSuite) checkIfFileMoveOperationSucceeded(srcFilePath string, destDirPath string) {
 	// Move file from Test/move.txt to destination.
 	err := operations.Move(srcFilePath, destDirPath)
 	if err != nil {
-		t.Errorf("Error in moving file: %v", err)
+		s.T().Errorf("Error in moving file: %v", err)
 	}
 
 	// Check if the file content matches.
 	moveFilePath := path.Join(destDirPath, MoveFile)
 	content, err := operations.ReadFile(moveFilePath)
 	if err != nil {
-		t.Errorf("ReadAll: %v", err)
+		s.T().Errorf("ReadAll: %v", err)
 	}
 
 	if got, want := string(content), MoveFileContent; got != want {
-		t.Errorf("File content %q not match %q", got, want)
+		s.T().Errorf("File content %q not match %q", got, want)
 	}
 }
 
 // Move file from Test/move.txt to Test/a/move.txt
-func TestMoveFileWithinSameDirectory(t *testing.T) {
+func (s *operationsTestSuite) TestMoveFileWithinSameDirectory() {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	dirPath := path.Join(testDir, "Test")
 	filePath := path.Join(dirPath, MoveFile)
 
-	createSrcDirectoryAndFile(dirPath, filePath, t)
+	s.createSrcDirectoryAndFile(dirPath, filePath)
 
 	destDirPath := path.Join(dirPath, "a")
 	err := os.Mkdir(destDirPath, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Mkdir at %q: %v", destDirPath, err)
+		s.T().Errorf("Mkdir at %q: %v", destDirPath, err)
 	}
 
-	checkIfFileMoveOperationSucceeded(filePath, destDirPath, t)
+	s.checkIfFileMoveOperationSucceeded(filePath, destDirPath)
 }
 
 // Move file from Test/move.txt to Test1/move.txt
-func TestMoveFileWithinDifferentDirectory(t *testing.T) {
+func (s *operationsTestSuite) TestMoveFileWithinDifferentDirectory() {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	dirPath := path.Join(testDir, "Test")
 	filePath := path.Join(dirPath, MoveFile)
 
-	createSrcDirectoryAndFile(dirPath, filePath, t)
+	s.createSrcDirectoryAndFile(dirPath, filePath)
 
 	destDirPath := path.Join(testDir, "Test2")
 	err := os.Mkdir(destDirPath, setup.FilePermission_0600)
 	if err != nil {
-		t.Errorf("Mkdir at %q: %v", destDirPath, err)
+		s.T().Errorf("Mkdir at %q: %v", destDirPath, err)
 	}
 
-	checkIfFileMoveOperationSucceeded(filePath, destDirPath, t)
+	s.checkIfFileMoveOperationSucceeded(filePath, destDirPath)
 }
 
 // Rename file from Test/move1.txt to Test/move2.txt
-func TestMoveFileWithDestFileExist(t *testing.T) {
+func (s *operationsTestSuite) TestMoveFileWithDestFileExist() {
 	// Set up the test directory.
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 	// Define source and destination file names.
 	srcFilePath := path.Join(testDir, "move1.txt")
 	destFilePath := path.Join(testDir, "move2.txt")
 	// Create the source and dest file with some content.
-	operations.CreateFileWithContent(srcFilePath, setup.FilePermission_0600, Content, t)
-	operations.CreateFileWithContent(destFilePath, setup.FilePermission_0600, "Hello from dest file", t)
+	operations.CreateFileWithContent(srcFilePath, setup.FilePermission_0600, Content, s.T())
+	operations.CreateFileWithContent(destFilePath, setup.FilePermission_0600, "Hello from dest file", s.T())
 
 	// Move the file.
 	err := operations.Move(srcFilePath, destFilePath)
 
-	assert.NoError(t, err, "error in file moving")
+	assert.NoError(s.T(), err, "error in file moving")
 	// Verify the file was renamed and content is preserved.
-	setup.CompareFileContents(t, destFilePath, Content)
+	setup.CompareFileContents(s.T(), destFilePath, Content)
 	// Verify the old file is removed.
 	_, err = os.Stat(srcFilePath)
-	assert.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "no such file or directory"))
+	assert.Error(s.T(), err)
+	assert.True(s.T(), strings.Contains(err.Error(), "no such file or directory"))
 }

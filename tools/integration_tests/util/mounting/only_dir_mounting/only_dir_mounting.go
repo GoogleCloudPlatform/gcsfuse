@@ -15,16 +15,17 @@
 package only_dir_mounting
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"testing"
 
-	"context"
-
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"github.com/stretchr/testify/require"
 )
 
 func MountGcsfuseWithOnlyDirWithConfigFile(config *test_suite.TestConfig, flags []string) (err error) {
@@ -98,4 +99,23 @@ func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, 
 	log.Printf("GCSFuse Log File for test: %s\n", config.LogFile)
 	successCode = executeTestsForOnlyDirMounting(config, flagsSet, dirName, m)
 	return successCode
+}
+
+func RunSuiteForOnlyDirMounting(ctx context.Context, storageClient *storage.Client, config *test_suite.TestConfig, flags []string, dirName string, t *testing.T, runSuiteFunc func()) {
+	setup.SetOnlyDirMounted(dirName)
+	client.SetupTestDirectory(ctx, storageClient, dirName)
+	defer func() {
+		if err := client.DeleteAllObjectsWithPrefix(ctx, storageClient, dirName); err != nil {
+			log.Printf("Error deleting object on GCS: %v", err)
+		}
+		setup.SetOnlyDirMounted("")
+		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+		setup.UnmountGCSFuseWithConfig(config)
+	}()
+
+	log.Printf("Running only dir mounting %s with flags: %s", t.Name(), flags)
+	err := MountGcsfuseWithOnlyDirWithConfigFile(config, flags)
+	require.NoError(t, err, "Only dir mount failed")
+
+	runSuiteFunc()
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"github.com/stretchr/testify/require"
 )
 
 func MountGcsfuseWithDynamicMountingWithConfig(cfg *test_suite.TestConfig, flags []string) (err error) {
@@ -86,4 +87,26 @@ func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, 
 	log.Printf("GCSFuse Log File for test: %s\n", config.LogFile)
 	successCode = executeTestsForDynamicMounting(config, flagsSet, m)
 	return successCode
+}
+
+func RunSuiteForDynamicMounting(config *test_suite.TestConfig, flags []string, t *testing.T, runSuiteFunc func()) {
+	rootMntDir := config.GCSFuseMountedDirectory
+	setup.SetDynamicBucketMounted(config.TestBucket)
+
+	log.Printf("Running dynamic mounting %s with flags: %s", t.Name(), flags)
+	err := MountGcsfuseWithDynamicMountingWithConfig(config, flags)
+	require.NoError(t, err, "Dynamic mount failed")
+	defer func() {
+		setup.SetMntDir(rootMntDir)
+		config.GCSFuseMountedDirectory = rootMntDir
+		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+		setup.UnmountGCSFuseWithConfig(config)
+		setup.SetDynamicBucketMounted("")
+	}()
+
+	mntDirOfTestBucket := path.Join(rootMntDir, config.TestBucket)
+	config.GCSFuseMountedDirectory = mntDirOfTestBucket
+	setup.SetMntDir(mntDirOfTestBucket)
+
+	runSuiteFunc()
 }
