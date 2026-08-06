@@ -22,8 +22,12 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/wrappers"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
@@ -1697,4 +1701,213 @@ func TestStreamingWrites_Fallback_ConcurrencyLimitBreached(t *testing.T) {
 	waitForMetricsProcessing()
 	attrs := attribute.NewSet(attribute.String("write_fallback_reason", "concurrency_limit_breached"))
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/streaming_write_fallback_count", attrs, 1, metrics.Subset())
+}
+
+type fakeBucketManagerForStatCache struct {
+	bucket    gcs.Bucket
+	statCache metadata.StatCache
+	clock     timeutil.Clock
+}
+
+func (bm *fakeBucketManagerForStatCache) SetUpBucket(
+	ctx context.Context,
+	name string,
+	isMultibucketMount bool,
+	mh metrics.MetricHandle) (sb gcsx.SyncerBucket, err error) {
+
+	fastBucket := caching.NewFastStatBucket(
+		1*time.Minute,
+		bm.statCache,
+		bm.clock,
+		bm.bucket,
+		1*time.Minute,
+		true,  // IsTypeCacheDeprecated
+		false, // isImplicitDir
+		true,  // enableEmptyManagedFolders
+	)
+
+	sb = gcsx.NewSyncerBucket(
+		0,
+		10,
+		10,
+		".gcsfuse_tmp/",
+		gcsx.NewContentTypeBucket(fastBucket),
+	)
+	return sb, nil
+}
+
+func (bm *fakeBucketManagerForStatCache) ShutDown() {}
+
+func TestMetadataCache_ReadCount_Integration(t *testing.T) {
+	// Arrange
+	ctx := context.Background()
+	origProvider := otel.GetMeterProvider()
+	t.Cleanup(func() { otel.SetMeterProvider(origProvider) })
+	reader := metric.NewManualReader()
+	provider := metric.NewMeterProvider(metric.WithReader(reader))
+	otel.SetMeterProvider(provider)
+
+	mh, err := metrics.NewOTelMetrics(ctx, 1, 100)
+	require.NoError(t, err)
+
+	clock := &timeutil.SimulatedClock{}
+	clock.SetTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+
+	bucketName := "test-bucket"
+	bucket := fake.NewFakeBucket(clock, bucketName, gcs.BucketType{})
+
+	lruCache := lru.NewCache(100000)
+	statCache := metadata.NewStatCacheBucketView(lruCache, bucketName, mh)
+
+	serverCfg := &fs.ServerConfig{
+		NewConfig: &cfg.Config{
+			Write:           cfg.WriteConfig{GlobalMaxBlocks: 1},
+			Read:            cfg.ReadConfig{GlobalMaxBlocks: 1},
+			EnableNewReader: true,
+			MetadataCache: cfg.MetadataCacheConfig{
+				TtlSecs:         60,
+				NegativeTtlSecs: 60,
+			},
+		},
+		MetricHandle: mh,
+		TraceHandle:  tracing.NewNoopTracer(),
+		CacheClock:   clock,
+		BucketName:   bucketName,
+		BucketManager: &fakeBucketManagerForStatCache{
+			bucket:    bucket,
+			statCache: statCache,
+			clock:     clock,
+		},
+	}
+
+	server, err := fs.NewFileSystem(ctx, serverCfg)
+	require.NoError(t, err)
+	server = wrappers.WithMonitoring(server, mh)
+
+	// --- Step 1: Lookup nonexistent file (Miss: NotFound) ---
+	lookupOp1 := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "nonexistent.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOp1)
+	assert.Equal(t, fuse.ENOENT, err)
+	waitForMetricsProcessing()
+
+	attrsMissNotFound := attribute.NewSet(
+		attribute.Bool("cache_hit", false),
+		attribute.String("lookup_detail", "not_found"),
+	)
+	// Expect 2 lookups: one for "nonexistent.txt/", one for "nonexistent.txt"
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 2)
+
+	// --- Step 2: Lookup nonexistent file again (Hit: Negative Found) ---
+	lookupOp2 := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "nonexistent.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOp2)
+	assert.Equal(t, fuse.ENOENT, err)
+	waitForMetricsProcessing()
+
+	attrsHitNegative := attribute.NewSet(
+		attribute.Bool("cache_hit", true),
+		attribute.String("entry_status", "negative"),
+		attribute.String("lookup_detail", "found"),
+	)
+	// Expect 2 lookups: one for "nonexistent.txt/", one for "nonexistent.txt"
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 2)
+
+	// --- Step 3: Lookup existent file first time (Miss: NotFound + Hit: Positive on attribute refresh) ---
+	createWithContents(ctx, t, bucket, "existent.txt", "hello")
+	lookupOp3 := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "existent.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOp3)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// Expect 4 lookups total: 2 from nonexistent lookup, 2 from existent lookup
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 4)
+
+	attrsHitPositive := attribute.NewSet(
+		attribute.Bool("cache_hit", true),
+		attribute.String("entry_status", "positive"),
+		attribute.String("lookup_detail", "found"),
+	)
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 1)
+
+	// --- Step 4: Lookup existent file again (Hit: Positive Found) ---
+	lookupOp4 := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "existent.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOp4)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// Expect 3 positive lookups total: 1 from step 3 attribute refresh, 2 from step 4 lookup + attribute refresh
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 3)
+	// Verifying that negative hit also got incremented by 1 (due to checking "existent.txt/")
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 3)
+
+	// --- Step 5: ReadDir does not increment metadata_cache/read_count ---
+	openDirOp := &fuseops.OpenDirOp{
+		Inode: fuseops.RootInodeID,
+	}
+	err = server.OpenDir(ctx, openDirOp)
+	require.NoError(t, err)
+	readDirOp := &fuseops.ReadDirOp{
+		Inode:  fuseops.RootInodeID,
+		Handle: openDirOp.Handle,
+		Dst:    make([]byte, 4096),
+	}
+	err = server.ReadDir(ctx, readDirOp)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// Verify metrics unchanged after ReadDir
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 4)
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 3)
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 3)
+
+	// --- Step 6: Advance clock past TTL and lookup nonexistent file (Miss: Negative TTL Expired) ---
+	clock.AdvanceTime(2 * time.Minute)
+
+	lookupOp5 := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "nonexistent.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOp5)
+	assert.Equal(t, fuse.ENOENT, err)
+	waitForMetricsProcessing()
+
+	attrsExpiredNegative := attribute.NewSet(
+		attribute.Bool("cache_hit", false),
+		attribute.String("entry_status", "negative"),
+		attribute.String("lookup_detail", "ttl_expired"),
+	)
+	// Expect 2 lookups expired: "nonexistent.txt/" and "nonexistent.txt"
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsExpiredNegative, 2)
+
+	// --- Step 7: Lookup existent file after TTL expired (Miss: Positive and Negative TTL Expired) ---
+	lookupOp6 := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "existent.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOp6)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	attrsExpiredPositive := attribute.NewSet(
+		attribute.Bool("cache_hit", false),
+		attribute.String("entry_status", "positive"),
+		attribute.String("lookup_detail", "ttl_expired"),
+	)
+	// Expect 1 positive TTL expired (for "existent.txt")
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsExpiredPositive, 1)
+	// Expect negative TTL expired to increment by 1 (for "existent.txt/") -> total 3
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsExpiredNegative, 3)
+	// Post-fetch attribute check hits positive cache -> total 4
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 4)
 }
