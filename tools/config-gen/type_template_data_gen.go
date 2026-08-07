@@ -225,6 +225,9 @@ func constructTypeTemplateData(paramsConfig []Param, existingTags map[string]map
 
 		for i := range compacted {
 			fName := compacted[i].ProtoFieldName
+			if fName == "" {
+				continue
+			}
 			if tag, exists := messageTags[fName]; exists {
 				compacted[i].ProtoTag = tag
 			} else {

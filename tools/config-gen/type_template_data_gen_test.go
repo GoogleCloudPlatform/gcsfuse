@@ -115,7 +115,7 @@ message Config {
 		{
 			FlagName:       "logging-severity",
 			ConfigPath:     "logging.severity",
-			ProtoType:      "int32",
+			ProtoType:      "string",
 			ProtoFieldName: "severity",
 		},
 	}

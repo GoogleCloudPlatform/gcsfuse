@@ -86,6 +86,9 @@ func populateProtoMetadata(params []Param) error {
 	// Assign proto type and field name
 	for i := range params {
 		param := &params[i]
+		if param.FlagName == "app-name" {
+			continue
+		}
 		fieldName := param.FlagName
 		if param.ConfigPath != "" {
 			segments := strings.Split(param.ConfigPath, ".")
@@ -106,7 +109,7 @@ func populateProtoMetadata(params []Param) error {
 			case "float64":
 				param.ProtoType = "double"
 			case "protocol", "directPathStrategy", "logSeverity":
-				param.ProtoType = "int32" // Mapped to enums
+				param.ProtoType = "string" // Mapped as string directly
 			case "[]int":
 				param.ProtoType = "repeated int32"
 			default:

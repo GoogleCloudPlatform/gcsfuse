@@ -16,7 +16,7 @@
 
 syntax = "proto3";
 
-package cfg;
+package gcsfuse.cfg.v1;
 
 option go_package = "github.com/googlecloudplatform/gcsfuse/v3/cfg/pb";
 
@@ -33,7 +33,6 @@ message CloudProfilerConfig {
 }
 
 message Config {
-  bool is_app_name_set = 1;
   bool is_cache_dir_set = 2;
   CloudProfilerConfig cloud_profiler = 3;
   DebugConfig debug = 4;
@@ -134,13 +133,13 @@ message GcsAuthConfig {
 
 message GcsConnectionConfig {
   bool is_billing_project_set = 1;
-  int32 client_protocol = 2;
+  string client_protocol = 2;
   bool is_custom_endpoint_set = 3;
   bool enable_http_dns_cache = 4;
   bool experimental_enable_json_read = 5;
   bool is_experimental_local_socket_address_set = 6;
   int32 grpc_conn_pool_size = 7;
-  int32 grpc_path_strategy = 8;
+  string grpc_path_strategy = 8;
   int64 http_client_timeout = 9;
   double limit_bytes_per_sec = 10;
   double limit_ops_per_sec = 11;
@@ -173,7 +172,7 @@ message LoggingConfig {
   bool is_file_path_set = 1;
   bool is_format_set = 2;
   LogRotateLoggingConfig log_rotate = 3;
-  int32 severity = 4;
+  string severity = 4;
   bool is_wire_log_set = 5;
 }
 

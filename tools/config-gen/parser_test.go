@@ -324,9 +324,9 @@ params:
 		param := parsedYAML.Params[0]
 		assert.Equal(t, "app-name", param.ConfigPath)
 		assert.Nil(t, param.Optimizations)
-		// Check proto metadata for a string field (privacy booleanization)
-		assert.Equal(t, "bool", param.ProtoType)
-		assert.Equal(t, "is_app_name_set", param.ProtoFieldName)
+		// Check that app-name is excluded from proto generation
+		assert.Empty(t, param.ProtoType)
+		assert.Empty(t, param.ProtoFieldName)
 	})
 }
 
@@ -529,13 +529,13 @@ params:
 		protoFieldName string
 	}{
 		{"bool", "type_bool"},
-		{"int32", "type_direct_path_strategy"},
+		{"string", "type_direct_path_strategy"},
 		{"int64", "type_duration"},
 		{"double", "type_float"},
 		{"int32", "type_int"},
-		{"int32", "type_log_severity"},
+		{"string", "type_log_severity"},
 		{"int32", "type_octal"},
-		{"int32", "type_protocol"},
+		{"string", "type_protocol"},
 		{"bool", "is_type_resolved_path_set"},
 		{"repeated int32", "type_slice_int"},
 		{"bool", "is_type_slice_string_set"},
