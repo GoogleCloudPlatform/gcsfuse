@@ -34,10 +34,11 @@ import (
 // Boilerplate
 // //////////////////////////////////////////////////////////////////////
 type localModificationTest struct {
-	flags         []string
-	storageClient *storage.Client
-	ctx           context.Context
-	baseTestName  string
+	flags                []string
+	storageClient        *storage.Client
+	ctx                  context.Context
+	baseTestName         string
+	isRapidWritesEnabled bool
 	suite.Suite
 }
 
@@ -75,14 +76,13 @@ func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss() {
 	expectedOutcome1 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize, true, s.T())
 	// Append data in the same file to change object generation.
 	smallContent, err := operations.GenerateRandomData(smallContentSize)
-	if err != nil {
-		s.T().Errorf("TestReadAfterLocalGCSFuseWriteIsCacheMiss: could not generate randomm data: %v", err)
-	}
+	require.NoError(s.T(), err, "TestReadAfterLocalGCSFuseWriteIsCacheMiss: could not generate random data")
+
 	err = operations.WriteFileInAppendMode(path.Join(testEnv.testDirPath, testFileName), string(smallContent))
-	if err != nil {
-		s.T().Errorf("Error in appending data in file: %v", err)
-	}
-	if !setup.IsZonalBucketRun() {
+	require.NoError(s.T(), err, "Error in appending data in file")
+
+	isPirloRapidWrites := setup.IsPirloBucketRun() && s.isRapidWritesEnabled
+	if !setup.IsZonalBucketRun() && !isPirloRapidWrites {
 		// Read file 2nd time.
 		expectedOutcome2 := readFileAndValidateCacheWithGCS(s.ctx, s.storageClient, testFileName, fileSize+smallContentSize, true, s.T())
 
@@ -113,9 +113,7 @@ func (s *localModificationTest) TestReadAfterLocalGCSFuseWriteIsCacheMiss() {
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestLocalModificationTest(t *testing.T) {
-	ts := &localModificationTest{ctx: context.Background(), storageClient: testEnv.storageClient, baseTestName: t.Name()}
-
+func runLocalModificationTest(t *testing.T, ts *localModificationTest) {
 	// Run tests for mounted directory if the flag is set. This assumes that run flag is properly passed by GKE team as per the config.
 	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
 		suite.Run(t, ts)
@@ -125,7 +123,30 @@ func TestLocalModificationTest(t *testing.T) {
 	// Run tests for GCE environment otherwise.
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, ts.flags = range flagsSet {
-		log.Printf("Running tests with flags: %s", ts.flags)
+		log.Printf("Running %s with flags: %s", t.Name(), ts.flags)
 		suite.Run(t, ts)
 	}
+}
+
+func TestLocalModificationBase(t *testing.T) {
+	ts := &localModificationTest{
+		ctx:                  context.Background(),
+		storageClient:        testEnv.storageClient,
+		baseTestName:         t.Name(),
+		isRapidWritesEnabled: false,
+	}
+	runLocalModificationTest(t, ts)
+}
+
+func TestLocalModificationRapidWritesEnabled(t *testing.T) {
+	if !setup.IsPirloBucketRun() {
+		t.Skip("Rapid writes tests are only applicable to Pirlo buckets")
+	}
+	ts := &localModificationTest{
+		ctx:                  context.Background(),
+		storageClient:        testEnv.storageClient,
+		baseTestName:         t.Name(),
+		isRapidWritesEnabled: true,
+	}
+	runLocalModificationTest(t, ts)
 }
