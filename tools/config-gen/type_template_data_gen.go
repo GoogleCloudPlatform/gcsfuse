@@ -249,3 +249,22 @@ func constructTypeTemplateData(paramsConfig []Param, existingTags map[string]map
 	})
 	return ttd, nil
 }
+
+// sortByProtoTag returns a copy of typeTemplateData slice with fields in each type sorted by ProtoTag in ascending order.
+func sortByProtoTag(ttd []typeTemplateData) []typeTemplateData {
+	result := make([]typeTemplateData, len(ttd))
+	for i, td := range ttd {
+		fieldsCopy := slices.Clone(td.Fields)
+		slices.SortFunc(fieldsCopy, func(a, b fieldInfo) int {
+			if a.ProtoTag != b.ProtoTag {
+				return cmp.Compare(a.ProtoTag, b.ProtoTag)
+			}
+			return cmp.Compare(a.FieldName, b.FieldName)
+		})
+		result[i] = typeTemplateData{
+			TypeName: td.TypeName,
+			Fields:   fieldsCopy,
+		}
+	}
+	return result
+}

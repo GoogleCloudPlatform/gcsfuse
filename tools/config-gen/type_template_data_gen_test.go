@@ -162,4 +162,20 @@ message Config {
 	require.Len(t, loggingMsg.Fields, 1)
 	assert.Equal(t, "severity", loggingMsg.Fields[0].ProtoFieldName)
 	assert.Equal(t, 1, loggingMsg.Fields[0].ProtoTag) // Brand new message gets tag 1
+
+	// Verify sortByProtoTag sorts proto fields in ascending tag order (for config.proto)
+	protoTtd := sortByProtoTag(ttd)
+	var protoFileCacheMsg typeTemplateData
+	for _, msg := range protoTtd {
+		if msg.TypeName == "FileCacheConfig" {
+			protoFileCacheMsg = msg
+			break
+		}
+	}
+	require.Equal(t, "FileCacheConfig", protoFileCacheMsg.TypeName)
+	require.Len(t, protoFileCacheMsg.Fields, 2)
+	assert.Equal(t, "max_size_mb", protoFileCacheMsg.Fields[0].ProtoFieldName)
+	assert.Equal(t, 1, protoFileCacheMsg.Fields[0].ProtoTag)
+	assert.Equal(t, "is_cache_dir_set", protoFileCacheMsg.Fields[1].ProtoFieldName)
+	assert.Equal(t, 2, protoFileCacheMsg.Fields[1].ProtoTag)
 }

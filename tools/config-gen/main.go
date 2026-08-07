@@ -148,12 +148,18 @@ func main() {
 		{"config_proto", "config.proto"},
 	}
 
+	protoTd := sortByProtoTag(td)
+
 	for _, file := range outputFiles {
 		generatedFilePath := path.Join(*outDir, file.output)
 		templateFilePath := path.Join(*templateDir, file.template+".tpl")
+		currentTd := td
+		if file.template == "config_proto" {
+			currentTd = protoTd
+		}
 		err = write(templateData{
 			FlagTemplateData:      fd,
-			TypeTemplateData:      td,
+			TypeTemplateData:      currentTd,
 			MachineTypeToGroupMap: machineTypeToGroupMap,
 			MachineTypeGroups:     paramsYAML.MachineTypeGroups,
 			Backticks:             "`",
