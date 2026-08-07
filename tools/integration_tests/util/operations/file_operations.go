@@ -171,8 +171,7 @@ func WriteFile(fileName string, content string) (err error) {
 func CloseFiles(t *testing.T, files []*os.File) {
 	t.Helper()
 	for _, file := range files {
-		err := file.Close()
-		assert.NoError(t, err)
+		CloseFileShouldNotThrowError(t, file)
 	}
 }
 
