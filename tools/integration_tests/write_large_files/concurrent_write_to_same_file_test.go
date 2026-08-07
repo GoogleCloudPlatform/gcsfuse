@@ -69,7 +69,5 @@ func writeToFileSequentially(t *testing.T, filePaths []string, startOffset int, 
 
 		startOffset = startOffset + chunkSize
 	}
-	if setup.IsZonalBucketRun() {
-		operations.SyncFiles(filesToWrite, t)
-	}
+	operations.SyncFiles(filesToWrite, t)
 }
