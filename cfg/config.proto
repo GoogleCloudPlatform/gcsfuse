@@ -57,6 +57,7 @@ message Config {
   bool is_machine_type_set = 23;
   MetadataCacheConfig metadata_cache = 24;
   MetricsConfig metrics = 25;
+  bool is_mount_id_set = 33;
   MrdConfig mrd = 26;
   bool is_only_dir_set = 27;
   bool is_profile_set = 28;
@@ -169,6 +170,9 @@ message LogRotateLoggingConfig {
 }
 
 message LoggingConfig {
+  bool experimental_enable_otel_logging = 6;
+  bool is_experimental_otel_logging_endpoint_set = 7;
+  bool is_experimental_otel_logging_project_id_set = 8;
   bool is_file_path_set = 1;
   bool is_format_set = 2;
   LogRotateLoggingConfig log_rotate = 3;
@@ -209,6 +213,7 @@ message MrdConfig {
 message ReadConfig {
   int32 block_size_mb = 1;
   bool enable_buffered_read = 2;
+  bool enable_grpc_read_checksums = 9;
   int32 global_max_blocks = 3;
   int64 inactive_stream_timeout = 4;
   int32 max_blocks_per_handle = 5;
