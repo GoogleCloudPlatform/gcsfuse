@@ -61,7 +61,7 @@ type LROPoller[T any] interface {
 	Done() bool
 }
 
-// PollLRO polls the given LRO using a two-stage adaptive polling strategy.
+// PollLRO polls the given LRO using a time-based linear delay schedule.
 func PollLRO[T any](ctx context.Context, op LROPoller[T], cfg LROPollConfig) (T, error) {
 	var zero T
 
@@ -102,11 +102,11 @@ func PollLRO[T any](ctx context.Context, op LROPoller[T], cfg LROPollConfig) (T,
 		}
 
 		elapsed := time.Since(startTime)
-		ms := min(float64(cfg.Max.Milliseconds()), max(float64(cfg.Min.Milliseconds()), slope*float64(elapsed.Milliseconds())))
+		ns := min(float64(cfg.Max), max(float64(cfg.Min), slope*float64(elapsed)))
 		// Apply ±10% multiplicative jitter (0.9x to 1.1x of the computed delay)
 		// to prevent synchronized retries from multiple operations hitting the API at the same time.
 		jitterFactor := 0.9 + 0.2*rand.Float64()
-		pause := time.Duration(ms*jitterFactor) * time.Millisecond
+		pause := time.Duration(ns * jitterFactor)
 
 		timer := time.NewTimer(pause)
 		select {
