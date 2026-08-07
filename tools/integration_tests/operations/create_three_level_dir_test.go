@@ -22,13 +22,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
-func TestCreateThreeLevelDirectories(t *testing.T) {
+func (s *operationsTestSuite) TestCreateThreeLevelDirectories() {
 	// Directory structure
 	// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest                                                                       -- Dir
 	// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest                                       -- Dir
@@ -39,19 +38,19 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 
 	dirPath := path.Join(testDir, DirOneInCreateThreeLevelDirTest)
 
-	operations.CreateDirectoryWithNFiles(0, dirPath, "", t)
+	operations.CreateDirectoryWithNFiles(0, dirPath, "", s.T())
 
 	subDirPath := path.Join(dirPath, DirTwoInCreateThreeLevelDirTest)
 
-	operations.CreateDirectoryWithNFiles(0, subDirPath, "", t)
+	operations.CreateDirectoryWithNFiles(0, subDirPath, "", s.T())
 
 	subDirPath2 := path.Join(subDirPath, DirThreeInCreateThreeLevelDirTest)
 
-	operations.CreateDirectoryWithNFiles(1, subDirPath2, PrefixFileInDirThreeInCreateThreeLevelDirTest, t)
+	operations.CreateDirectoryWithNFiles(1, subDirPath2, PrefixFileInDirThreeInCreateThreeLevelDirTest, s.T())
 	filePath := path.Join(subDirPath2, FileInDirThreeInCreateThreeLevelDirTest)
 	err := operations.WriteFileInAppendMode(filePath, ContentInFileInDirThreeInCreateThreeLevelDirTest)
 	if err != nil {
-		t.Errorf("Write file error: %v", err)
+		s.T().Errorf("Write file error: %v", err)
 	}
 
 	// Recursively walk into directory and test.
@@ -75,12 +74,12 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 		if dirPath == testDir {
 			// numberOfObjects - 1
 			if len(objs) != NumberOfObjectsInBucketDirectoryCreateTest {
-				t.Errorf("Incorrect number of objects in the bucket.")
+				s.T().Errorf("Incorrect number of objects in the bucket.")
 			}
 
 			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest   -- Dir
 			if objs[0].Name() != DirOneInCreateThreeLevelDirTest || objs[0].IsDir() != true {
-				t.Errorf("Directory is not created.")
+				s.T().Errorf("Directory is not created.")
 			}
 		}
 
@@ -88,12 +87,12 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 		if dir.IsDir() && dir.Name() == DirOneInCreateThreeLevelDirTest {
 			// numberOfObjects - 1
 			if len(objs) != NumberOfObjectsInDirOneInCreateThreeLevelDirTest {
-				t.Errorf("Incorrect number of objects in the dirOneInCreateThreeLevelDirTest.")
+				s.T().Errorf("Incorrect number of objects in the dirOneInCreateThreeLevelDirTest.")
 			}
 
 			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest    -- Dir
 			if objs[0].Name() != DirTwoInCreateThreeLevelDirTest || objs[0].IsDir() != true {
-				t.Errorf("Directory is not created.")
+				s.T().Errorf("Directory is not created.")
 			}
 			return nil
 		}
@@ -102,12 +101,12 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 		if dir.IsDir() && dir.Name() == DirTwoInCreateThreeLevelDirTest {
 			// numberOfObjects - 1
 			if len(objs) != NumberOfObjectsInDirTwoInCreateThreeLevelDirTest {
-				t.Errorf("Incorrect number of objects in the dirTwoInCreateThreeLevelDirTest.")
+				s.T().Errorf("Incorrect number of objects in the dirTwoInCreateThreeLevelDirTest.")
 			}
 
 			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest    -- Dir
 			if objs[0].Name() != DirThreeInCreateThreeLevelDirTest || objs[0].IsDir() != true {
-				t.Errorf("Directory is not created.")
+				s.T().Errorf("Directory is not created.")
 			}
 			return nil
 		}
@@ -116,23 +115,23 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 		if dir.IsDir() && dir.Name() == DirThreeInCreateThreeLevelDirTest {
 			// numberOfObjects - 1
 			if len(objs) != NumberOfObjectsInDirThreeInCreateThreeLevelDirTest {
-				t.Errorf("Incorrect number of objects in the dirThreeInCreateThreeLevelDirTest.")
+				s.T().Errorf("Incorrect number of objects in the dirThreeInCreateThreeLevelDirTest.")
 			}
 
 			// testBucket/dirForOperationTests/dirOneInCreateThreeLevelDirTest/dirTwoInCreateThreeLevelDirTest/dirThreeInCreateThreeLevelDirTest/fileInDirThreeInCreateThreeLevelDirTest     -- File
 			if objs[0].Name() != FileInDirThreeInCreateThreeLevelDirTest || objs[0].IsDir() != false {
-				t.Errorf("Incorrect object exist in the dirThreeInCreateThreeLevelDirTest directory.")
+				s.T().Errorf("Incorrect object exist in the dirThreeInCreateThreeLevelDirTest directory.")
 			}
 
 			// Check if the content of the file is correct.
 			filePath := path.Join(dirPath, objs[0].Name())
 			content, err := operations.ReadFile(filePath)
 			if err != nil {
-				t.Errorf("Error in reading file:%v", err)
+				s.T().Errorf("Error in reading file:%v", err)
 			}
 
 			if got, want := string(content), ContentInFileInDirThreeInCreateThreeLevelDirTest; got != want {
-				t.Errorf("File content %q not match %q", got, want)
+				s.T().Errorf("File content %q not match %q", got, want)
 			}
 
 			return nil
@@ -141,7 +140,7 @@ func TestCreateThreeLevelDirectories(t *testing.T) {
 		return nil
 	})
 	if err != nil {
-		t.Errorf("error walking the path : %v\n", err)
+		s.T().Errorf("error walking the path : %v\n", err)
 		return
 	}
 }

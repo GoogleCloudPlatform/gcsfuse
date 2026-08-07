@@ -23,6 +23,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"github.com/stretchr/testify/require"
 )
 
 // Change e.g --log_severity=trace to log_severity=trace
@@ -84,4 +85,16 @@ func RunTestsWithConfigFile(config *test_suite.TestConfig, flagsSet [][]string, 
 	log.Printf("GCSFuse Log File for test: %s\n", config.LogFile)
 	successCode = executeTestsForPersistentMountingWithConfigFile(config, flagsSet, m)
 	return successCode
+}
+
+func RunSuiteForPersistentMounting(config *test_suite.TestConfig, flags []string, t *testing.T, runSuiteFunc func()) {
+	log.Printf("Running persistent mounting %s with flags: %s", t.Name(), flags)
+	err := mountGcsfuseWithPersistentMountingWithConfigFile(config, flags)
+	require.NoError(t, err, "Persistent mount failed")
+	defer func() {
+		setup.SaveGCSFuseLogFileInCaseOfFailure(t)
+		setup.UnmountGCSFuseWithConfig(config)
+	}()
+
+	runSuiteFunc()
 }

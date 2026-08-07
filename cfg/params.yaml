@@ -865,6 +865,27 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "logging.experimental-enable-otel-logging"
+    flag-name: "experimental-enable-otel-logging"
+    type: "bool"
+    usage: "Enable OpenTelemetry log exporting."
+    default: "false"
+    hide-flag: true
+
+  - config-path: "logging.experimental-otel-logging-endpoint"
+    flag-name: "experimental-otel-logging-endpoint"
+    type: "string"
+    usage: "The OTLP HTTP endpoint for OpenTelemetry logs."
+    default: "telemetry.googleapis.com"
+    hide-flag: true
+
+  - config-path: "logging.experimental-otel-logging-project-id"
+    flag-name: "experimental-otel-logging-project-id"
+    type: "string"
+    usage: "Specify the GCP project id to which OTel logs will be exported. When unset, a project id will be inferred as per the default credential detection process."
+    default: ""
+    hide-flag: true
+
   - config-path: "logging.file-path"
     flag-name: "log-file"
     type: "resolvedPath"
@@ -1144,6 +1165,13 @@ params:
     default: "3"
     hide-flag: true
 
+  - config-path: "mount-id"
+    flag-name: "mount-id"
+    type: "string"
+    usage: "Custom identifier to be appended to the mount ID and printed in all logs."
+    default: ""
+    hide-flag: true
+
   - config-path: "mrd.pool-size"
     flag-name: "mrd-pool-size"
     type: "int"
@@ -1181,6 +1209,13 @@ params:
       data from GCS. This improves performance for large file sequential reads.
       Note: Enabling this flag can increase the memory usage significantly.
     default: false
+
+  - config-path: "read.enable-grpc-read-checksums"
+    flag-name: "enable-grpc-read-checksums"
+    type: "bool"
+    usage: "Enables chunk-level CRC32C checksum validation for gRPC read operations. Disabled by default to optimize CPU utilization."
+    default: false
+    hide-flag: true
 
   - config-path: "read.global-max-blocks"
     flag-name: "read-global-max-blocks"

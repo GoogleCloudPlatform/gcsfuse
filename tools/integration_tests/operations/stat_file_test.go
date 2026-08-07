@@ -17,18 +17,17 @@ package operations_test
 import (
 	"os"
 	"syscall"
-	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestStatWithTrailingNewline(t *testing.T) {
+func (s *operationsTestSuite) TestStatWithTrailingNewline() {
 	testDir := setup.SetupTestDirectory(DirForOperationTests)
 
 	_, err := os.Stat(testDir + "/\n")
 
-	require.Error(t, err)
-	assert.Equal(t, err.(*os.PathError).Err, syscall.ENOENT)
+	require.Error(s.T(), err)
+	assert.Equal(s.T(), err.(*os.PathError).Err, syscall.ENOENT)
 }

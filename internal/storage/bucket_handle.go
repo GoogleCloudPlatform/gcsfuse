@@ -42,12 +42,13 @@ const storageClassRapid = "RAPID"
 
 type bucketHandle struct {
 	gcs.Bucket
-	bucket         *storage.BucketHandle
-	bucketName     string
-	bucketType     *gcs.BucketType
-	controlClient  StorageControlClient
-	billingProject string
-	writeConfig    *cfg.WriteConfig
+	bucket                   *storage.BucketHandle
+	bucketName               string
+	bucketType               *gcs.BucketType
+	controlClient            StorageControlClient
+	billingProject           string
+	writeConfig              *cfg.WriteConfig
+	disableGrpcReadChecksums bool
 }
 
 func (bh *bucketHandle) Name() string {
@@ -100,7 +101,11 @@ func (bh *bucketHandle) NewReaderWithReadHandle(
 	}
 
 	// NewRangeReader creates a "storage.Reader" object which is also io.ReadCloser since it contains both Read() and Close() methods present in io.ReadCloser interface.
-	storageReader, err := obj.NewRangeReader(ctx, start, length)
+	var opts []storage.ReaderOption
+	if bh.disableGrpcReadChecksums {
+		opts = append(opts, storage.WithDisableReaderChecksum())
+	}
+	storageReader, err := obj.NewRangeReader(ctx, start, length, opts...)
 	if err == nil {
 		reader = newGCSFullReadCloser(storageReader)
 	}
@@ -702,7 +707,12 @@ func (bh *bucketHandle) NewMultiRangeDownloader(
 		obj = obj.ReadHandle(req.ReadHandle)
 	}
 
-	mrd, err = obj.NewMultiRangeDownloader(ctx)
+	var opts []storage.MRDOption
+	if bh.disableGrpcReadChecksums {
+		opts = append(opts, storage.WithDisableMRDReadChecksum())
+	}
+
+	mrd, err = obj.NewMultiRangeDownloader(ctx, opts...)
 	return
 }
 

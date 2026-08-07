@@ -16,6 +16,7 @@ package logger
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -54,7 +55,7 @@ func expectedLogRegex(t *testing.T, format, severity, message string) string {
 
 func redirectLogsToGivenBuffer(buf *bytes.Buffer, level string) {
 	handler := defaultLoggerFactory.createJsonOrTextHandler(buf, programLevel, "TestLogs: ")
-	handler = handler.WithAttrs(loggerAttr(testFsName))
+	handler = handler.WithAttrs(loggerAttr(testFsName, ""))
 	defaultLogger = slog.New(handler)
 	setLoggingLevel(level)
 }
@@ -336,9 +337,10 @@ func TestInitLogFile(t *testing.T) {
 			BackupFileCount: backupFileCount,
 			Compress:        true,
 		},
+		ExperimentalEnableOtelLogging: true,
 	}
 
-	err := InitLogFile(newLogConfig, testFsName)
+	err := InitLogFile(newLogConfig, testFsName, "")
 
 	require.NoError(t, err)
 	require.NotNil(t, defaultLoggerFactory.file)
@@ -352,6 +354,7 @@ func TestInitLogFile(t *testing.T) {
 	assert.Equal(t, fileSize, defaultLoggerFactory.logRotate.MaxFileSizeMb)
 	assert.Equal(t, backupFileCount, defaultLoggerFactory.logRotate.BackupFileCount)
 	assert.True(t, defaultLoggerFactory.logRotate.Compress)
+	assert.True(t, defaultLoggerFactory.enableOtelLogging)
 }
 
 func TestUpdateDefaultLogger(t *testing.T) {
@@ -387,7 +390,7 @@ func TestUpdateDefaultLogger(t *testing.T) {
 				logRotate: logConfig.LogRotate,
 			}
 
-			UpdateDefaultLogger(tc.format, testFsName)
+			UpdateDefaultLogger(tc.format, testFsName, "")
 			var buf bytes.Buffer
 			redirectLogsToGivenBuffer(&buf, defaultLoggerFactory.level)
 			Infof("www.infoExample.com")
@@ -565,4 +568,187 @@ func TestGetLogFHandler(t *testing.T) {
 		expectedTraceRegex := expectedLogRegex(t, "text", "TRACE", message)
 		assert.Regexp(t, expectedTraceRegex, logs[1])
 	})
+}
+
+func TestMountInstanceID(t *testing.T) {
+	testCases := []struct {
+		name                         string
+		fsName                       string
+		customID                     string
+		expectedMountInstanceIDRegex string
+	}{
+		{
+			name:                         "NoCustomID",
+			fsName:                       "mybucket",
+			customID:                     "",
+			expectedMountInstanceIDRegex: "^mybucket-[0-9a-f]{8}$",
+		},
+		{
+			name:                         "WithOnlyDirInFSNameAndNoCustomID",
+			fsName:                       "mybucket/somedir",
+			customID:                     "",
+			expectedMountInstanceIDRegex: "^mybucket/somedir-[0-9a-f]{8}$",
+		},
+		{
+			name:                         "WithCustomID",
+			fsName:                       "mybucket",
+			customID:                     "pod-123",
+			expectedMountInstanceIDRegex: "^mybucket-pod-123-[0-9a-f]{8}$",
+		},
+		{
+			name:                         "WithOnlyDirAndCustomID",
+			fsName:                       "mybucket/somedir",
+			customID:                     "pod-123",
+			expectedMountInstanceIDRegex: "^mybucket/somedir-pod-123-[0-9a-f]{8}$",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := MountInstanceID(tc.fsName, tc.customID)
+			assert.Regexp(t, tc.expectedMountInstanceIDRegex, result)
+		})
+	}
+}
+
+type mockHandler struct {
+	enabled bool
+	err     error
+	handled bool
+	attrs   []slog.Attr
+	group   string
+}
+
+func (m *mockHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return m.enabled
+}
+
+func (m *mockHandler) Handle(ctx context.Context, r slog.Record) error {
+	m.handled = true
+	return m.err
+}
+
+func (m *mockHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &mockHandler{
+		enabled: m.enabled,
+		err:     m.err,
+		handled: m.handled,
+		attrs:   attrs,
+		group:   m.group,
+	}
+}
+
+func (m *mockHandler) WithGroup(name string) slog.Handler {
+	return &mockHandler{
+		enabled: m.enabled,
+		err:     m.err,
+		handled: m.handled,
+		attrs:   m.attrs,
+		group:   name,
+	}
+}
+
+func TestDualHandler_Enabled(t *testing.T) {
+	tests := []struct {
+		name         string
+		localEnabled bool
+		otelEnabled  bool
+		want         bool
+	}{
+		{"both disabled", false, false, false},
+		{"local enabled", true, false, true},
+		{"otel enabled", false, true, true},
+		{"both enabled", true, true, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			local := &mockHandler{enabled: tc.localEnabled}
+			otel := &mockHandler{enabled: tc.otelEnabled}
+			dh := &dualHandler{local: local, otel: otel, levelVar: new(slog.LevelVar)}
+			ctx := context.Background()
+
+			// Act
+			got := dh.Enabled(ctx, slog.LevelInfo)
+
+			// Assert
+			if got != tc.want {
+				t.Errorf("dualHandler.Enabled() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestDualHandler_Handle(t *testing.T) {
+	err1 := fmt.Errorf("local error")
+	err2 := fmt.Errorf("otel error")
+	tests := []struct {
+		name         string
+		localEnabled bool
+		otelEnabled  bool
+		localErr     error
+		otelErr      error
+		wantErr      bool
+	}{
+		{"both successful", true, true, nil, nil, false},
+		{"local error", true, true, err1, nil, true},
+		{"otel error", true, true, nil, err2, true},
+		{"both error", true, true, err1, err2, true},
+		{"only local enabled", true, false, err1, nil, true},
+		{"only otel enabled", false, true, nil, err2, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			local := &mockHandler{enabled: tc.localEnabled, err: tc.localErr}
+			otel := &mockHandler{enabled: tc.otelEnabled, err: tc.otelErr}
+			dh := &dualHandler{local: local, otel: otel, levelVar: new(slog.LevelVar)}
+			ctx := context.Background()
+			record := slog.Record{Level: slog.LevelInfo}
+
+			// Act
+			err := dh.Handle(ctx, record)
+
+			// Assert
+			if (err != nil) != tc.wantErr {
+				t.Errorf("dualHandler.Handle() error = %v, wantErr %v", err, tc.wantErr)
+			}
+			if tc.localEnabled && !local.handled {
+				t.Errorf("local handler not called")
+			}
+			if tc.otelEnabled && !otel.handled {
+				t.Errorf("otel handler not called")
+			}
+		})
+	}
+}
+
+func TestDualHandler_WithAttrs(t *testing.T) {
+	// Arrange
+	local := &mockHandler{}
+	otel := &mockHandler{}
+	dh := &dualHandler{local: local, otel: otel, levelVar: new(slog.LevelVar)}
+	attrs := []slog.Attr{slog.String("key", "value")}
+
+	// Act
+	dh2 := dh.WithAttrs(attrs).(*dualHandler)
+
+	// Assert
+	assert.Equal(t, attrs, dh2.local.(*mockHandler).attrs)
+	assert.Equal(t, attrs, dh2.otel.(*mockHandler).attrs)
+}
+
+func TestDualHandler_WithGroup(t *testing.T) {
+	// Arrange
+	local := &mockHandler{}
+	otel := &mockHandler{}
+	dh := &dualHandler{local: local, otel: otel, levelVar: new(slog.LevelVar)}
+	groupName := "mygroup"
+
+	// Act
+	dh2 := dh.WithGroup(groupName).(*dualHandler)
+
+	// Assert
+	assert.Equal(t, groupName, dh2.local.(*mockHandler).group)
+	assert.Equal(t, groupName, dh2.otel.(*mockHandler).group)
 }

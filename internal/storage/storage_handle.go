@@ -232,10 +232,16 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 
 	var notFoundError *gcs.NotFoundError
 	var testObject = "gcsfuse-dp-object"
+	if clientConfig.OnlyDir != "" {
+		testObject = clientConfig.OnlyDir + testObject
+	}
 	bucketHandle := sc.Bucket(bucketName)
 	if billingProject != "" {
 		bucketHandle = bucketHandle.UserProject(billingProject)
 	}
+
+	// Disable Go SDK retries for this call to let ExecuteWithRetry handle it.
+	bucketHandle = bucketHandle.Retryer(storage.WithMaxAttempts(1))
 
 	dpClientConfig := &storageutil.StorageClientConfig{
 		MaxRetrySleep:    directPathDetectionMaxBackoff,
@@ -247,9 +253,6 @@ func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil
 	apiCall := func(attemptCtx context.Context) (*storage.ObjectAttrs, error) {
 		return bucketHandle.Object(testObject).Attrs(attemptCtx)
 	}
-
-	// Disable Go SDK retries for this call to let ExecuteWithRetry handle it.
-	sc.SetRetry(storage.WithMaxAttempts(1))
 
 	_, statErr := storageutil.ExecuteWithRetryAtLogLevel(ctx, retryConfig, "Attrs", testObject, uuid.NewString(), apiCall, logger.LevelInfo)
 
@@ -353,8 +356,13 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 // verifyNonHNSBucketAccess performs an Attrs call on a non-existent object
 // to verify bucket existence and authorization when HNS is disabled.
 func (sh *storageClient) verifyNonHNSBucketAccess(ctx context.Context, bucketHandle *storage.BucketHandle, bucketName string) error {
+	testObject := nonExistentObjectName
+	if sh.clientConfig.OnlyDir != "" {
+		testObject = sh.clientConfig.OnlyDir + testObject
+	}
+
 	apiCall := func(attemptCtx context.Context) (*storage.ObjectAttrs, error) {
-		return bucketHandle.Object(nonExistentObjectName).Attrs(attemptCtx)
+		return bucketHandle.Object(testObject).Attrs(attemptCtx)
 	}
 
 	retryConfig := storageutil.NewRetryConfig(&sh.clientConfig)
@@ -362,7 +370,7 @@ func (sh *storageClient) verifyNonHNSBucketAccess(ctx context.Context, bucketHan
 		ctx,
 		retryConfig,
 		"Attrs",
-		fmt.Sprintf("%s/%s", bucketName, nonExistentObjectName),
+		fmt.Sprintf("%s/%s", bucketName, testObject),
 		uuid.NewString(),
 		apiCall,
 		storageutil.ShouldRetryOnMount,
@@ -388,7 +396,8 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 	}
 
 	startTime := time.Now()
-	logger.Infof("GetStorageLayout <- (%s)", bucketName)
+	prefix := sh.clientConfig.OnlyDir
+	logger.Infof("GetStorageLayout <- (%s, prefix: %q)", bucketName, prefix)
 	storageLayout, err := sh.getStorageLayout(bucketName)
 	duration := time.Since(startTime)
 
@@ -396,7 +405,7 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 		return nil, err
 	}
 
-	logger.Infof("GetStorageLayout -> (%s) %v msec", bucketName, duration.Milliseconds())
+	logger.Infof("GetStorageLayout -> (%s, prefix: %q) %v msec", bucketName, prefix, duration.Milliseconds())
 
 	// TODO (b/483608308): Once GetStorageLayout starts returning Pirlo bucket type,
 	// update this logic to use the response instead of inferring from clientConfig.
@@ -418,18 +427,23 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 
 func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.StorageLayout, error) {
 	var callOptions []gax.CallOption
-	stoargeLayout, err := sh.storageControlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
+
+	storageLayout, err := sh.storageControlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
 		Name:      fmt.Sprintf("projects/_/buckets/%s/storageLayout", bucketName),
-		Prefix:    "",
+		Prefix:    sh.clientConfig.OnlyDir,
 		RequestId: uuid.NewString(),
 	}, callOptions...)
 
-	return stoargeLayout, err
+	return storageLayout, err
 }
 
 // NewStorageHandle creates control client and stores client config to allow dynamic
 // creation of http or grpc client.
 func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClientConfig, billingProject string) (sh StorageHandle, err error) {
+	// Ensure trailing slash for GCS prefix-based API calls.
+	if clientConfig.OnlyDir != "" {
+		clientConfig.OnlyDir += "/"
+	}
 	// The default protocol for the Go Storage control client's folders API is gRPC.
 	// gcsfuse will initially mirror this behavior due to the client's lack of HTTP support.
 	var controlClient StorageControlClient
@@ -549,13 +563,22 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		)
 	}
 
+	// By default, follow the user's flag
+	disableGrpcReadChecksums := !sh.clientConfig.EnableGrpcReadChecksums
+	// If the user configures an HTTP connection on a Standard (regional) bucket, grpc checksums
+	// do not apply, so we unconditionally disable them regardless of the flag's value.
+	if !bucketType.IsRapid() && sh.clientConfig.ClientProtocol != cfg.GRPC {
+		disableGrpcReadChecksums = true
+	}
+
 	bh = &bucketHandle{
-		bucket:         storageBucketHandle,
-		bucketName:     bucketName,
-		controlClient:  controlClient,
-		bucketType:     bucketType,
-		billingProject: billingProject,
-		writeConfig:    sh.clientConfig.WriteConfig,
+		bucket:                   storageBucketHandle,
+		bucketName:               bucketName,
+		controlClient:            controlClient,
+		bucketType:               bucketType,
+		billingProject:           billingProject,
+		writeConfig:              sh.clientConfig.WriteConfig,
+		disableGrpcReadChecksums: disableGrpcReadChecksums,
 	}
 
 	return

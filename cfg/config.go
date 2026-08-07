@@ -523,6 +523,8 @@ type Config struct {
 
 	Metrics MetricsConfig `yaml:"metrics"`
 
+	MountId string `yaml:"mount-id"`
+
 	Mrd MrdConfig `yaml:"mrd"`
 
 	OnlyDir string `yaml:"only-dir"`
@@ -707,6 +709,12 @@ type LogRotateLoggingConfig struct {
 }
 
 type LoggingConfig struct {
+	ExperimentalEnableOtelLogging bool `yaml:"experimental-enable-otel-logging"`
+
+	ExperimentalOtelLoggingEndpoint string `yaml:"experimental-otel-logging-endpoint"`
+
+	ExperimentalOtelLoggingProjectId string `yaml:"experimental-otel-logging-project-id"`
+
 	FilePath ResolvedPath `yaml:"file-path"`
 
 	Format string `yaml:"format"`
@@ -770,6 +778,8 @@ type ReadConfig struct {
 	BlockSizeMb int64 `yaml:"block-size-mb"`
 
 	EnableBufferedRead bool `yaml:"enable-buffered-read"`
+
+	EnableGrpcReadChecksums bool `yaml:"enable-grpc-read-checksums"`
 
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
@@ -1008,6 +1018,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("enable-grpc-read-checksums", "", false, "Enables chunk-level CRC32C checksum validation for gRPC read operations. Disabled by default to optimize CPU utilization.")
+
+	if err := flagSet.MarkHidden("enable-grpc-read-checksums"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-hns", "", true, "Enables support for HNS buckets")
 
 	if err := flagSet.MarkHidden("enable-hns"); err != nil {
@@ -1088,6 +1104,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("experimental-enable-optimized-metadata-cache", "", false, "This flag enables the radix tree based lru cache")
 
+	flagSet.BoolP("experimental-enable-otel-logging", "", false, "Enable OpenTelemetry log exporting.")
+
+	if err := flagSet.MarkHidden("experimental-enable-otel-logging"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("experimental-enable-pirlo", "", false, "Enables support for pirlo.")
 
 	if err := flagSet.MarkHidden("experimental-enable-pirlo"); err != nil {
@@ -1121,6 +1143,18 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-o-direct", "", false, "Experimental: Bypasses the kernel's page cache for file reads and writes. When enabled, all I/O operations are sent directly to the GCSFuse process.")
 
 	if err := flagSet.MarkHidden("experimental-o-direct"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-otel-logging-endpoint", "", "telemetry.googleapis.com", "The OTLP HTTP endpoint for OpenTelemetry logs.")
+
+	if err := flagSet.MarkHidden("experimental-otel-logging-endpoint"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-otel-logging-project-id", "", "", "Specify the GCP project id to which OTel logs will be exported. When unset, a project id will be inferred as per the default credential detection process.")
+
+	if err := flagSet.MarkHidden("experimental-otel-logging-project-id"); err != nil {
 		return err
 	}
 
@@ -1305,6 +1339,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.IntP("metrics-workers", "", 3, "The number of workers that update histogram metrics concurrently.")
 
 	if err := flagSet.MarkHidden("metrics-workers"); err != nil {
+		return err
+	}
+
+	flagSet.StringP("mount-id", "", "", "Custom identifier to be appended to the mount ID and printed in all logs.")
+
+	if err := flagSet.MarkHidden("mount-id"); err != nil {
 		return err
 	}
 
@@ -1627,6 +1667,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("read.enable-grpc-read-checksums", flagSet.Lookup("enable-grpc-read-checksums")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("enable-hns", flagSet.Lookup("enable-hns")); err != nil {
 		return err
 	}
@@ -1699,6 +1743,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("logging.experimental-enable-otel-logging", flagSet.Lookup("experimental-enable-otel-logging")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("file-system.experimental-enable-pirlo", flagSet.Lookup("experimental-enable-pirlo")); err != nil {
 		return err
 	}
@@ -1720,6 +1768,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.experimental-o-direct", flagSet.Lookup("experimental-o-direct")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.experimental-otel-logging-endpoint", flagSet.Lookup("experimental-otel-logging-endpoint")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("logging.experimental-otel-logging-project-id", flagSet.Lookup("experimental-otel-logging-project-id")); err != nil {
 		return err
 	}
 
@@ -1924,6 +1980,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.workers", flagSet.Lookup("metrics-workers")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("mount-id", flagSet.Lookup("mount-id")); err != nil {
 		return err
 	}
 

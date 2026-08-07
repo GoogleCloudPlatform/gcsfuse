@@ -16,6 +16,7 @@ package logger
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -24,6 +25,8 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+
+	"go.opentelemetry.io/contrib/bridges/otelslog"
 
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -59,7 +62,7 @@ var (
 // config.
 // Here, background true means, this InitLogFile has been called for the
 // background daemon.
-func InitLogFile(newLogConfig cfg.LoggingConfig, fsName string) error {
+func InitLogFile(newLogConfig cfg.LoggingConfig, fsName, customID string) error {
 	var f *os.File
 	var sysWriter *syslog.Writer
 	var fileWriter *lumberjack.Logger
@@ -95,14 +98,15 @@ func InitLogFile(newLogConfig cfg.LoggingConfig, fsName string) error {
 	}
 
 	defaultLoggerFactory = &loggerFactory{
-		file:       f,
-		sysWriter:  sysWriter,
-		fileWriter: fileWriter,
-		format:     newLogConfig.Format,
-		level:      string(newLogConfig.Severity),
-		logRotate:  newLogConfig.LogRotate,
+		file:              f,
+		sysWriter:         sysWriter,
+		fileWriter:        fileWriter,
+		format:            newLogConfig.Format,
+		level:             string(newLogConfig.Severity),
+		logRotate:         newLogConfig.LogRotate,
+		enableOtelLogging: newLogConfig.ExperimentalEnableOtelLogging,
 	}
-	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(string(newLogConfig.Severity), fsName)
+	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(string(newLogConfig.Severity), fsName, customID)
 
 	return nil
 }
@@ -160,17 +164,20 @@ func MountUUID() string {
 }
 
 // MountInstanceID returns the InstanceID of current gcsfuse mount.
-// This is combination of `fsName` + MountUUID.
-// Note: fsName is passed here explicitly, as logger package doesn't know about fsName
+// This is combination of `fsName` + optional `customID` + MountUUID.
+// Note: fsName and customID are passed here explicitly, as logger package doesn't know about them
 // when MountInstanceID method is invoked.
-func MountInstanceID(fsName string) string {
+func MountInstanceID(fsName, customID string) string {
+	if customID != "" {
+		return fmt.Sprintf("%s-%s-%s", fsName, customID, MountUUID())
+	}
 	return fmt.Sprintf("%s-%s", fsName, MountUUID())
 }
 
 // UpdateDefaultLogger updates the log format and creates a new logger with MountInstanceID set as custom attribute.
-func UpdateDefaultLogger(format, fsName string) {
+func UpdateDefaultLogger(format, fsName, customID string) {
 	defaultLoggerFactory.format = format
-	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(defaultLoggerFactory.level, fsName)
+	defaultLogger = defaultLoggerFactory.newLoggerWithMountInstanceID(defaultLoggerFactory.level, fsName, customID)
 }
 
 // Tracef prints the message with TRACE severity in the specified format.
@@ -258,12 +265,13 @@ func SetOutput(w io.Writer) {
 
 type loggerFactory struct {
 	// If nil, log to stdout or stderr. Otherwise, log to this file.
-	file       *os.File
-	sysWriter  *syslog.Writer
-	format     string
-	level      string
-	logRotate  cfg.LogRotateLoggingConfig
-	fileWriter *lumberjack.Logger
+	file              *os.File
+	sysWriter         *syslog.Writer
+	format            string
+	level             string
+	logRotate         cfg.LogRotateLoggingConfig
+	fileWriter        *lumberjack.Logger
+	enableOtelLogging bool
 }
 
 func (f *loggerFactory) newLogger(level string) *slog.Logger {
@@ -274,13 +282,13 @@ func (f *loggerFactory) newLogger(level string) *slog.Logger {
 	return logger
 }
 
-func loggerAttr(fsName string) []slog.Attr {
-	return []slog.Attr{slog.String(MountIDKey, MountInstanceID(fsName))}
+func loggerAttr(fsName, customID string) []slog.Attr {
+	return []slog.Attr{slog.String(MountIDKey, MountInstanceID(fsName, customID))}
 }
 
 // create a new logger with mountInstanceID set as custom attribute on logger.
-func (f *loggerFactory) newLoggerWithMountInstanceID(level, fsName string) *slog.Logger {
-	logger := slog.New(f.handler(programLevel, "").WithAttrs(loggerAttr(fsName)))
+func (f *loggerFactory) newLoggerWithMountInstanceID(level, fsName, customID string) *slog.Logger {
+	logger := slog.New(f.handler(programLevel, "").WithAttrs(loggerAttr(fsName, customID)))
 	slog.SetDefault(logger)
 	setLoggingLevel(level)
 	return logger
@@ -294,12 +302,70 @@ func (f *loggerFactory) createJsonOrTextHandler(writer io.Writer, levelVar *slog
 }
 
 func (f *loggerFactory) handler(levelVar *slog.LevelVar, prefix string) slog.Handler {
+	var localHandler slog.Handler
 	if f.fileWriter != nil {
-		return f.createJsonOrTextHandler(f.fileWriter, levelVar, prefix)
+		localHandler = f.createJsonOrTextHandler(f.fileWriter, levelVar, prefix)
+	} else if f.sysWriter != nil {
+		localHandler = f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
+	} else {
+		localHandler = f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
 	}
 
-	if f.sysWriter != nil {
-		return f.createJsonOrTextHandler(f.sysWriter, levelVar, prefix)
+	if f.enableOtelLogging {
+		otelHandler := otelslog.NewHandler("gcsfuse")
+		return &dualHandler{local: localHandler, otel: otelHandler, levelVar: levelVar}
 	}
-	return f.createJsonOrTextHandler(os.Stdout, levelVar, prefix)
+	return localHandler
+}
+
+// dualHandler dispatches logs to a local handler and an OpenTelemetry handler.
+type dualHandler struct {
+	local    slog.Handler
+	otel     slog.Handler
+	levelVar *slog.LevelVar
+}
+
+func (d *dualHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	if level < d.levelVar.Level() {
+		return false
+	}
+	return d.local.Enabled(ctx, level) || d.otel.Enabled(ctx, level)
+}
+
+func (d *dualHandler) Handle(ctx context.Context, r slog.Record) error {
+	if r.Level < d.levelVar.Level() {
+		return nil
+	}
+
+	var err1, err2 error
+	if d.local.Enabled(ctx, r.Level) {
+		err1 = d.local.Handle(ctx, r)
+	}
+	if d.otel.Enabled(ctx, r.Level) {
+		err2 = d.otel.Handle(ctx, r)
+	}
+
+	if err1 != nil {
+		err1 = fmt.Errorf("local err: %w", err1)
+	}
+	if err2 != nil {
+		err2 = fmt.Errorf("otel err: %w", err2)
+	}
+	return errors.Join(err1, err2)
+}
+
+func (d *dualHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &dualHandler{
+		local:    d.local.WithAttrs(attrs),
+		otel:     d.otel.WithAttrs(attrs),
+		levelVar: d.levelVar,
+	}
+}
+
+func (d *dualHandler) WithGroup(name string) slog.Handler {
+	return &dualHandler{
+		local:    d.local.WithGroup(name),
+		otel:     d.otel.WithGroup(name),
+		levelVar: d.levelVar,
+	}
 }

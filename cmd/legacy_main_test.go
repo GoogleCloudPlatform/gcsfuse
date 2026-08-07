@@ -447,6 +447,11 @@ func (t *MainTest) TestForwardedEnvVars_PassedWhenSet() {
 			expectedForwardedEnvVars: []string{"GOOGLE_APPLICATION_CREDENTIALS=goog-app-cred"},
 		},
 		{
+			name:                     "GOOGLE_CLOUD_PROJECT",
+			inputEnvVars:             map[string]string{"GOOGLE_CLOUD_PROJECT": "my-test-project"},
+			expectedForwardedEnvVars: []string{"GOOGLE_CLOUD_PROJECT=my-test-project"},
+		},
+		{
 			name:                     "GRPC debug env vars",
 			inputEnvVars:             map[string]string{"GRPC_GO_LOG_VERBOSITY_LEVEL": "99", "GRPC_GO_LOG_SEVERITY_LEVEL": "INFO"},
 			expectedForwardedEnvVars: []string{"GRPC_GO_LOG_VERBOSITY_LEVEL=99", "GRPC_GO_LOG_SEVERITY_LEVEL=INFO"},
@@ -478,6 +483,7 @@ func (t *MainTest) TestForwardedEnvVars_NotPassedWhenUnset() {
 		"GCE_METADATA_ROOT",
 		"GCE_METADATA_IP",
 		"GOOGLE_APPLICATION_CREDENTIALS",
+		"GOOGLE_CLOUD_PROJECT",
 		"GRPC_GO_LOG_VERBOSITY_LEVEL",
 		"GRPC_GO_LOG_SEVERITY_LEVEL",
 		"no_proxy",

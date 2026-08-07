@@ -101,10 +101,15 @@ func (sccwros *storageControlClientWithRetry) GetStorageLayout(ctx context.Conte
 		return sccwros.raw.GetStorageLayout(attemptCtx, req, opts...)
 	}
 
-	if sccwros.enableRetriesOnMount {
-		return storageutil.ExecuteWithCustomShouldRetryAtLogLevel(ctx, sccwros.retryConfig, "GetStorageLayout", req.Name, req.RequestId, apiCall, storageutil.ShouldRetryOnMount, logger.LevelInfo)
+	desc := req.Name
+	if req.Prefix != "" {
+		desc = fmt.Sprintf("%s (prefix: %q)", req.Name, req.Prefix)
 	}
-	return storageutil.ExecuteWithRetryAtLogLevel(ctx, sccwros.retryConfig, "GetStorageLayout", req.Name, req.RequestId, apiCall, logger.LevelInfo)
+
+	if sccwros.enableRetriesOnMount {
+		return storageutil.ExecuteWithCustomShouldRetryAtLogLevel(ctx, sccwros.retryConfig, "GetStorageLayout", desc, req.RequestId, apiCall, storageutil.ShouldRetryOnMount, logger.LevelInfo)
+	}
+	return storageutil.ExecuteWithRetryAtLogLevel(ctx, sccwros.retryConfig, "GetStorageLayout", desc, req.RequestId, apiCall, logger.LevelInfo)
 }
 
 func (sccwros *storageControlClientWithRetry) DeleteFolder(ctx context.Context,
