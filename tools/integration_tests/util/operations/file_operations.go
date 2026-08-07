@@ -249,14 +249,6 @@ func WriteChunkOfRandomBytesToFiles(files []*os.File, chunkSize int, offset int6
 		if n != chunkSize {
 			return fmt.Errorf("incorrect number of bytes written in the file %s actual %d, expected %d", file.Name(), n, chunkSize)
 		}
-
-		if !setup.IsZonalBucketRun() && !setup.IsPirloBucketRun() {
-			err = file.Sync()
-			if err != nil {
-				return fmt.Errorf("error in syncing file: %v", err)
-			}
-			WaitForSizeUpdate(WaitDurationAfterFlushRapid)
-		}
 	}
 
 	return nil
