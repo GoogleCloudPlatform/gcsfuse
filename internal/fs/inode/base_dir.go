@@ -185,6 +185,13 @@ func (d *baseDirInode) ReadDescendants(ctx context.Context, limit int) (map[Name
 	return nil, fuse.ENOSYS
 }
 
+// CountDirEntriesUpTo always reports 0 for the base directory. It holds only
+// the buckets' root directories, not user-created entries, and mutating
+// operations on it already fail with ENOSYS via the normal create path.
+func (d *baseDirInode) CountDirEntriesUpTo(ctx context.Context, limit int) (int, error) {
+	return 0, nil
+}
+
 // LOCKS_REQUIRED(d)
 func (d *baseDirInode) ReadEntries(
 	ctx context.Context,

@@ -629,6 +629,8 @@ type FileSystemConfig struct {
 
 	MaxBackground int64 `yaml:"max-background"`
 
+	MaxDirEntries int64 `yaml:"max-dir-entries"`
+
 	MaxReadAheadKb int64 `yaml:"max-read-ahead-kb"`
 
 	RenameDirLimit int64 `yaml:"rename-dir-limit"`
@@ -1298,6 +1300,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("max-conns-per-host", "", 0, "The max number of TCP connections allowed per server. This is effective when client-protocol is set to 'http1'. A value of 0 indicates no limit on TCP connections (limited by the machine specifications).")
 
+	flagSet.IntP("max-dir-entries", "", 0, "If greater than zero, block creating new files in a directory that already contains at least this many entries, returning ENOSPC and logging a warning. 0 (the default) disables the guard.")
+
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
 
 	flagSet.IntP("max-read-ahead-kb", "", 0, "Sets max kernel-read-ahead for the mount in KiB. 0 means system default. Requires sudo permission to set this value, otherwise the value will be ignored and system default will be used.")
@@ -1936,6 +1940,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.max-conns-per-host", flagSet.Lookup("max-conns-per-host")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.max-dir-entries", flagSet.Lookup("max-dir-entries")); err != nil {
 		return err
 	}
 
