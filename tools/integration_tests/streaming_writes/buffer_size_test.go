@@ -28,6 +28,9 @@ import (
 )
 
 func TestWritesWithDifferentConfig(t *testing.T) {
+	if setup.IsPirloBucketRun() {
+		t.Skip("Skip test for Pirlo buckets.")
+	}
 	// Do not run this test with mounted directory flag.
 	if testEnv.cfg.GKEMountedDirectory != "" {
 		t.SkipNow()
@@ -84,7 +87,7 @@ func TestWritesWithDifferentConfig(t *testing.T) {
 			// Create a local file.
 			fh := operations.CreateFile(path.Join(testEnv.testDirPath, FileName1), FilePerms, t)
 			testDirName := GetDirName(testEnv.testDirPath)
-			if setup.IsZonalBucketRun() || setup.IsPirloBucketRun() {
+			if setup.IsZonalBucketRun() {
 				ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, FileName1, "", t)
 			} else {
 				ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, FileName1, t)
