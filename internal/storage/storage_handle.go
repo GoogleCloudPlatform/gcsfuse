@@ -142,6 +142,14 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithStatsHandler(otelgrpc.NewClientHandler())))
 	}
 
+	// Flow control and buffer optimizations for high-throughput DirectPath streaming
+	clientOpts = append(clientOpts,
+		option.WithGRPCDialOption(grpc.WithInitialWindowSize(16*1024*1024)),
+		option.WithGRPCDialOption(grpc.WithInitialConnWindowSize(64*1024*1024)),
+		option.WithGRPCDialOption(grpc.WithReadBufferSize(4*1024*1024)),
+		option.WithGRPCDialOption(grpc.WithWriteBufferSize(4*1024*1024)),
+	)
+
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
 	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
 

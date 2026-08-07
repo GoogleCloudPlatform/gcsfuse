@@ -166,6 +166,31 @@ func resolveGCSRetriesConfig(c *GcsRetriesConfig) {
 	}
 }
 
+func isCt6eMachineType(machineType string) bool {
+	return machineType == "ct6e-standard-4t" || machineType == "ct6e-standard-4t-tpu" || strings.HasPrefix(machineType, "ct6e-standard-4t")
+}
+
+func resolveProtocolOptimizations(v *viper.Viper, c *Config) {
+	machineType, _ := getMachineType(v)
+
+	// Optimizations (512 max-background, 512 congestion-threshold, 1024MB sequential read chunk, 128 gRPC connection pool)
+	// are applied specifically to Regional buckets on ct6e-standard-4t machine type with gRPC.
+	if c.GcsConnection.ClientProtocol == GRPC && isCt6eMachineType(machineType) {
+		if !v.IsSet("file-system.max-background") {
+			c.FileSystem.MaxBackground = 512
+		}
+		if !v.IsSet("file-system.congestion-threshold") {
+			c.FileSystem.CongestionThreshold = 512
+		}
+		if !v.IsSet("gcs-connection.sequential-read-size-mb") {
+			c.GcsConnection.SequentialReadSizeMb = 1024
+		}
+		if !v.IsSet("gcs-connection.grpc-conn-pool-size") {
+			c.GcsConnection.GrpcConnPoolSize = 128
+		}
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	var err error
@@ -187,6 +212,7 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	resolveParallelDownloadsValue(v, &c.FileCache, c)
 	resolveFileCacheAndBufferedReadConflict(v, c)
 	resolveGCSRetriesConfig(&c.GcsRetries)
+	resolveProtocolOptimizations(v, c)
 
 	return nil
 }

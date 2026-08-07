@@ -901,3 +901,126 @@ func TestRationalize_MetadataCacheConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveProtocolOptimizations(t *testing.T) {
+	testCases := []struct {
+		name                        string
+		protocol                    Protocol
+		userSetFlags                map[string]any
+		initialConfig               *Config
+		expectedMaxBackground       int64
+		expectedCongestionThreshold int64
+		expectedSeqReadSizeMb       int64
+		expectedGrpcConnPoolSize    int64
+	}{
+		{
+			name:     "grpc_on_ct6e_machine_type_defaults_applied",
+			protocol: GRPC,
+			userSetFlags: map[string]any{
+				"machine-type": "ct6e-standard-4t",
+			},
+			initialConfig: &Config{
+				GcsConnection: GcsConnectionConfig{
+					ClientProtocol:       GRPC,
+					SequentialReadSizeMb: 200,
+					GrpcConnPoolSize:     1,
+				},
+				FileSystem: FileSystemConfig{
+					MaxBackground:       0,
+					CongestionThreshold: 0,
+				},
+			},
+			expectedMaxBackground:       512,
+			expectedCongestionThreshold: 512,
+			expectedSeqReadSizeMb:       1024,
+			expectedGrpcConnPoolSize:    128,
+		},
+		{
+			name:     "grpc_on_ct6e_user_override_preserved",
+			protocol: GRPC,
+			userSetFlags: map[string]any{
+				"machine-type":                     "ct6e-standard-4t",
+				"file-system.max-background":       int64(256),
+				"file-system.congestion-threshold": int64(128),
+				"gcs-connection.sequential-read-size-mb": int64(512),
+				"gcs-connection.grpc-conn-pool-size":     int64(64),
+			},
+			initialConfig: &Config{
+				GcsConnection: GcsConnectionConfig{
+					ClientProtocol:       GRPC,
+					SequentialReadSizeMb: 512,
+					GrpcConnPoolSize:     64,
+				},
+				FileSystem: FileSystemConfig{
+					MaxBackground:       256,
+					CongestionThreshold: 128,
+				},
+			},
+			expectedMaxBackground:       256,
+			expectedCongestionThreshold: 128,
+			expectedSeqReadSizeMb:       512,
+			expectedGrpcConnPoolSize:    64,
+		},
+		{
+			name:     "http1_on_ct6e_machine_type_keeps_defaults",
+			protocol: HTTP1,
+			userSetFlags: map[string]any{
+				"machine-type": "ct6e-standard-4t",
+			},
+			initialConfig: &Config{
+				GcsConnection: GcsConnectionConfig{
+					ClientProtocol:       HTTP1,
+					SequentialReadSizeMb: 200,
+					GrpcConnPoolSize:     1,
+				},
+				FileSystem: FileSystemConfig{
+					MaxBackground:       96,
+					CongestionThreshold: 72,
+				},
+			},
+			expectedMaxBackground:       96,
+			expectedCongestionThreshold: 72,
+			expectedSeqReadSizeMb:       200,
+			expectedGrpcConnPoolSize:    1,
+		},
+		{
+			name:     "grpc_on_non_ct6e_machine_type_keeps_defaults",
+			protocol: GRPC,
+			userSetFlags: map[string]any{
+				"machine-type": "n2-standard-64",
+			},
+			initialConfig: &Config{
+				GcsConnection: GcsConnectionConfig{
+					ClientProtocol:       GRPC,
+					SequentialReadSizeMb: 200,
+					GrpcConnPoolSize:     1,
+				},
+				FileSystem: FileSystemConfig{
+					MaxBackground:       96,
+					CongestionThreshold: 72,
+				},
+			},
+			expectedMaxBackground:       96,
+			expectedCongestionThreshold: 72,
+			expectedSeqReadSizeMb:       200,
+			expectedGrpcConnPoolSize:    1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := viper.New()
+			for key, val := range tc.userSetFlags {
+				v.Set(key, val)
+			}
+
+			err := Rationalize(v, tc.initialConfig, []string{})
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedMaxBackground, tc.initialConfig.FileSystem.MaxBackground)
+			assert.Equal(t, tc.expectedCongestionThreshold, tc.initialConfig.FileSystem.CongestionThreshold)
+			assert.Equal(t, tc.expectedSeqReadSizeMb, tc.initialConfig.GcsConnection.SequentialReadSizeMb)
+			assert.Equal(t, tc.expectedGrpcConnPoolSize, tc.initialConfig.GcsConnection.GrpcConnPoolSize)
+		})
+	}
+}
