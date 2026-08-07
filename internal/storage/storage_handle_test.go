@@ -1213,3 +1213,22 @@ func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_AccessCheck_WithPref
 		testSuite.T().Fatal("Timeout waiting for request")
 	}
 }
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_RapidBucket() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	// For rapid buckets (isBucketRapid = true), createGRPCClientHandle should omit WithDirectConnectivityEnforced
+	// and skip verifyDirectPathConnectivity entirely.
+	client, err := createGRPCClientHandle(testSuite.ctx, &sc, true, true, TestBucketName, "")
+	require.NoError(testSuite.T(), err)
+	require.NotNil(testSuite.T(), client)
+	defer client.Close()
+}
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_NonRapidBucket() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	// For non-rapid buckets (isbucketRapid = false), createGRPCClientHandle includes WithDirectConnectivityEnforced
+	// and returns an error when verifyDirectPathConnectivity fails in unit test environment.
+	client, err := createGRPCClientHandle(testSuite.ctx, &sc, false, false, TestBucketName, "")
+	assert.Error(testSuite.T(), err)
+	assert.Nil(testSuite.T(), client)
+}
