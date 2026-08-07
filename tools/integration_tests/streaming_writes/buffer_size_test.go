@@ -84,7 +84,7 @@ func TestWritesWithDifferentConfig(t *testing.T) {
 			// Create a local file.
 			fh := operations.CreateFile(path.Join(testEnv.testDirPath, FileName1), FilePerms, t)
 			testDirName := GetDirName(testEnv.testDirPath)
-			if setup.IsZonalBucketRun() {
+			if setup.IsZonalBucketRun() || setup.IsPirloBucketRun() {
 				ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, FileName1, "", t)
 			} else {
 				ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, FileName1, t)
