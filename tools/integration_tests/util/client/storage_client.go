@@ -294,7 +294,7 @@ func CreateObjectWithOptions(ctx context.Context, client *storage.Client, object
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("wc.Close failed for object %q: %w", object, err)
 	}
-	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
+	operations.WaitForSizeUpdate(operations.WaitDurationAfterCloseRapid)
 	return nil
 }
 
@@ -408,7 +408,7 @@ func UploadGcsObjectWithPreconditions(ctx context.Context, client *storage.Clien
 		if err := w.Close(); err != nil {
 			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
 		}
-		operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
+		operations.WaitForSizeUpdate(operations.WaitDurationAfterCloseRapid)
 	}()
 
 	filePathToUpload := localPath

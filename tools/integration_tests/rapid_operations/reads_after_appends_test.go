@@ -41,7 +41,7 @@ func (t *SingleMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerif
 	for i := range numAppends {
 		// Wait for a minute for stat to return the correct file size, which is needed by appendToFile.
 		if i > 0 {
-			time.Sleep(operations.WaitDurationAfterFlushZB)
+			time.Sleep(operations.WaitDurationAfterFlushRapid)
 		}
 
 		t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
@@ -89,7 +89,7 @@ func (t *DualMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerifyF
 			// Wait for metadata cache to expire to fetch the latest size for the next read.
 			// Metadata update for appends in current iteration itself takes a minute, so the
 			// cached size will expire in ttl-60 secs from now, so wait accordingly.
-			time.Sleep(time.Duration(metadataCacheTTLSecs*time.Second - operations.WaitDurationAfterFlushZB))
+			time.Sleep(time.Duration(metadataCacheTTLSecs*time.Second - operations.WaitDurationAfterFlushRapid))
 			// Expect read up to the latest file size which is the size after the append.
 			verifyFunc(t.T(), readPath, []byte(t.fileContent[:sizeAfterAppend]))
 		}
