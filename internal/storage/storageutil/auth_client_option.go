@@ -30,13 +30,19 @@ import (
 
 // GetClientAuthOptionsAndToken returns client options and a token source using either a token URL or fallback to key file/ADC.
 func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConfig) ([]option.ClientOption, oauth2.TokenSource, error) {
+	retryConfig := NewRetryConfig(config)
+
 	// If Token URL is provided, attempt to fetch token source directly.
 	if config.TokenUrl != "" {
-		tokenSrc, err := auth2.NewTokenSourceFromURL(ctx, config.TokenUrl, config.ReuseTokenFromUrl)
+		apiCall := func(attemptCtx context.Context) (oauth2.TokenSource, error) {
+			return auth2.NewTokenSourceFromURL(attemptCtx, config.TokenUrl, config.ReuseTokenFromUrl)
+		}
+		tokenSrc, err := ExecuteWithCustomShouldRetry(ctx, retryConfig, "NewTokenSourceFromURL", "token-init", uuid.NewString(), apiCall, func(err error) bool { return true })
 		if err != nil {
 			return nil, nil, fmt.Errorf("while fetching token source: %w", err)
 		}
 
+		tokenSrc = WrapTokenSource(config, tokenSrc)
 		clientOpts := []option.ClientOption{option.WithTokenSource(tokenSrc)}
 		return clientOpts, tokenSrc, nil
 	}
@@ -47,7 +53,7 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 		return nil, nil, fmt.Errorf("while fetching credentials: %w", err)
 	}
 
-	tokenSrc := oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
+	tokenSrc := WrapTokenSource(config, oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider))
 
 	var domain string
 
@@ -58,19 +64,17 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 		logger.Infof("Bypassing UniverseDomain metadata server lookup on standard commercial GCP setup")
 		domain = auth2.UniverseDomainDefault
 	} else {
-		retryConfig := NewRetryConfig(config)
-
 		apiCall := func(attemptCtx context.Context) (string, error) {
-			d, err := cred.UniverseDomain(attemptCtx)
-			return d, err
+			return cred.UniverseDomain(attemptCtx)
 		}
 
-		domain, err = ExecuteWithRetryAtLogLevel(ctx, retryConfig, "cred.UniverseDomain", "credentials", uuid.NewString(), apiCall, logger.LevelInfo)
+		d, err := ExecuteWithCustomShouldRetry(ctx, retryConfig, "cred.UniverseDomain", "credentials", uuid.NewString(), apiCall, func(err error) bool { return true })
 		if err != nil {
 			logger.Errorf("failed to get UniverseDomain: %v, setting default universe domain", err)
 			// Setting default universe domain to googleapis.com in case we are unable to fetch the domain.
 			domain = auth2.UniverseDomainDefault
 		} else {
+			domain = d
 			logger.Infof("Success in fetching cred.UniverseDomain: %s", domain)
 		}
 	}
@@ -79,7 +83,7 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 	// to bypass a known issue (b/442805436) in the current authentication library.
 	// TODO: Remove this workaround once issue b/442805436 is resolved in the library.
 	newCreds := auth.NewCredentials(&auth.CredentialsOptions{
-		TokenProvider:          cred.TokenProvider,
+		TokenProvider:          oauth2adapt.TokenProviderFromTokenSource(tokenSrc),
 		UniverseDomainProvider: auth.CredentialsPropertyFunc(func(_ context.Context) (string, error) { return domain, nil }),
 	})
 	clientOpts := []option.ClientOption{option.WithUniverseDomain(domain), option.WithAuthCredentials(newCreds)}
