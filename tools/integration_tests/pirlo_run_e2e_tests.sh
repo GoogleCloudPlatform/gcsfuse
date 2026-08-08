@@ -17,17 +17,11 @@
 usage() {
   echo "Usage: $0 [options]"
   echo "Options:"
-  echo "    --bucket-location             <location>     Google Cloud Storage bucket location (e.g, 'us-central1') (Defaults to VM region if not provided)."
-  echo "    --project-id                  <project-id>   Google Cloud Project ID in which the bucket should be created. (e.g., 'gcs-fuse-test')"
-  echo "                                                 (Defaults to VM project if not provided or gcs-fuse-test if running on cloudtop)."
   echo "    --test-installed-package                     Test installed gcsfuse package. (Default: false)"
   echo "    --install-package-from-path   <path>         Google Cloud Storage bucket path for GCSFuse package for testing (e.g. gs://<bucket-name>/my-gcsfuse-package.rpm)"
   echo "                                                 This option is mutually exclusive with --test-installed-package. (Default: "")"
   echo "    --skip-non-essential-tests                   Skip non-essential tests inside packages. (Default: false)"
-  echo "    --test-on-tpc-endpoint                       Run tests on TPC endpoint. (Default: false)"
   echo "    --presubmit                                  Run tests with presubmit flag. (Default: false)"
-  echo "    --zonal                                      Run tests with zonal bucket in --bucket-location region."
-  echo "                                                 The placement for Zonal buckets by deafault is Zone A of --bucket-location. (Default: false)"
   echo "    --no-build-binary-in-script                  To disable building gcsfuse binary in script. (Default: false)"
   echo "    --package-level-parallelism   <parallelism>  To adjust the number of packages to execute in parallel. (Default: 10)"
   echo "    --track-resource-usage                       To track resource(cpu/mem/disk) usage during e2e run. (Default: false)"
@@ -35,10 +29,7 @@ usage() {
   echo "    --run-package                 <regex>        Regex for packages to run. Supports '!' prefix for exclusion."
   echo "                                                 Example: 'cloud_profiler|operations' to run only cloud_profiler and operations test packages."
   echo "                                                 Example: '!cloud_profiler|operations' to run all test packages except cloud_profiler and operations."
-  echo "    --skip-emulator                              Skip running emulator tests. (Default: false)"
   echo "    --flake-attempts              <number>       Number of attempts to run a package if it fails. (Default: 1)"
-  echo "    --hns                                        Run tests with HNS enabled. (Default: true)"
-  echo "    --pirlo                                      Run tests with Pirlo flag enabled. (Default: true)"
   echo "    --help                                       Display this help and exit."
   exit "$1"
 }
@@ -81,19 +72,9 @@ fi
 log_info "Bash version: ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
 
 # Constants
-readonly GO_VERSION=$(cat .go-version)
-readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
-readonly TPC_BUCKET_LOCATION="u-us-prp1"
-readonly BUCKET_PREFIX="gcsfuse-e2e"
+readonly GO_VERSION=$(cat "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../.go-version")
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
 readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=90 
-readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
-# 6 second delay between creating buckets as both hns and flat runs create buckets in parallel.
-# Ref: https://cloud.google.com/storage/quotas#buckets
-readonly DELAY_BETWEEN_BUCKET_CREATION=6 
-readonly ZONAL="zonal"
-readonly FLAT="flat"
-readonly HNS="hns"
 readonly SUCCESS_DIR_NAME="success_package_logs"
 readonly FAILED_DIR_NAME="failed_package_logs"
 
@@ -127,24 +108,17 @@ fi
 # Set default values for optional arguments
 SKIP_NON_ESSENTIAL_TESTS_ON_PACKAGE=false
 TEST_INSTALLED_PACKAGE=false
-BUCKET_LOCATION=""
-PROJECT_ID=""
 INSTALL_PACKAGE_FROM_PATH=""
-RUN_TEST_ON_TPC_ENDPOINT=false
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
-RUN_TESTS_WITH_ZONAL_BUCKET=false
 BUILD_BINARY_IN_SCRIPT=true
 TRACK_RESOURCE_USAGE=false
 PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
 RUN_PACKAGE_REGEX=""
-SKIP_EMULATOR=false
 FLAKE_ATTEMPTS=1
-RUN_TESTS_WITH_HNS=true
-RUN_TESTS_WITH_PIRLO=true
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator,flake-attempts:,hns,pirlo
+LONG=test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,presubmit,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,flake-attempts:
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -160,14 +134,6 @@ eval set -- "$PARSED"
 # Loop through the options and assign values to our variables
 while (( $# >= 1 )); do
     case "$1" in
-        --bucket-location)
-            BUCKET_LOCATION="$2"
-            shift 2
-            ;;
-        --project-id)
-            PROJECT_ID="$2"
-            shift 2
-            ;;
         --package-level-parallelism)
             PACKAGE_LEVEL_PARALLELISM="$2"
             shift 2
@@ -188,16 +154,8 @@ while (( $# >= 1 )); do
             BUILD_BINARY_IN_SCRIPT=false
             shift
             ;;
-        --test-on-tpc-endpoint)
-            RUN_TEST_ON_TPC_ENDPOINT=true
-            shift
-            ;;
         --presubmit)
             RUN_TESTS_WITH_PRESUBMIT_FLAG=true
-            shift
-            ;;
-        --zonal)
-            RUN_TESTS_WITH_ZONAL_BUCKET=true
             shift
             ;;
         --track-resource-usage)
@@ -212,21 +170,9 @@ while (( $# >= 1 )); do
             RUN_PACKAGE_REGEX="$2"
             shift 2
             ;;
-        --skip-emulator)
-            SKIP_EMULATOR=true
-            shift
-            ;;
         --flake-attempts)
             FLAKE_ATTEMPTS="$2"
             shift 2
-            ;;
-        --hns)
-            RUN_TESTS_WITH_HNS=true
-            shift
-            ;;
-        --pirlo)
-            RUN_TESTS_WITH_PIRLO=true
-            shift
             ;;
         --help)
             usage 0
@@ -262,27 +208,10 @@ OUTPUT_DIR=$(mktemp -d "${BASE_PATH%/}/gcsfuse-e2e-run-XXXXXXXX") || {
     log_error "Failed to create unique output directory in '$BASE_PATH'";
     exit 1
 }
+OUTPUT_DIR=$(realpath "$OUTPUT_DIR")
 log_info "Output directory for the e2e run is set to '$OUTPUT_DIR'"
 
-if [[ -z "$BUCKET_LOCATION" ]]; then
-  log_info "Bucket Location is not provided, using GCE VM Location '$GCE_VM_LOCATION' as bucket location."
-  BUCKET_LOCATION="$GCE_VM_LOCATION"
-fi
-
-if [[ -z "$PROJECT_ID" ]]; then 
-  log_info "Project ID is not provided, using GCE VM Project ID '$GCE_VM_PROJECT_ID' as Project ID."
-  PROJECT_ID="$GCE_VM_PROJECT_ID"
-fi
-
-# Check if it contains "cloudtop"
-if [[ "$PROJECT_ID" == *"cloudtop"* ]]; then
-  log_info "You are running this script on cloudtop. Manually overriding the Project ID to 'gcs-fuse-test'."
-  PROJECT_ID="gcs-fuse-test"
-fi
-
 # Validate long options which need values(default or user provided).
-validate_option_value "--bucket-location" "$BUCKET_LOCATION"
-validate_option_value "--project-id" "$PROJECT_ID"
 validate_option_value "--package-level-parallelism" "$PACKAGE_LEVEL_PARALLELISM"
 validate_option_value "--flake-attempts" "$FLAKE_ATTEMPTS"
 
@@ -290,21 +219,6 @@ validate_option_value "--flake-attempts" "$FLAKE_ATTEMPTS"
 if ${TEST_INSTALLED_PACKAGE} && [[ -n "$INSTALL_PACKAGE_FROM_PATH" ]]; then 
   log_error "Option --test-installed-package and --install-package-from-path are mutually exclusive. Please set only one"
   usage 1
-fi
-
-# Zonal Bucket location validation.
-if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-  supported_bucket=false
-  for location in "${ZONAL_BUCKET_SUPPORTED_LOCATIONS[@]}"; do
-    if [[ "$BUCKET_LOCATION" == "$location" ]]; then
-      supported_bucket=true
-      break
-    fi
-  done
-  if ! ${supported_bucket}; then
-    log_error "Unsupported Bucket Location ${BUCKET_LOCATION} for Zonal Run. Supported Locations are: ${ZONAL_BUCKET_SUPPORTED_LOCATIONS[*]}"
-    exit 1
-  fi
 fi
 
 # Create file helper creates a file in the output directory.
@@ -331,21 +245,18 @@ create_file_helper() {
 }
 
 LOG_LOCK_FILE=$(create_file_helper "logging.lock")
-BUCKET_CREATION_LOCK_FILE=$(create_file_helper "bucket_creation.lock")
 PACKAGE_RUNTIME_STATS=$(create_file_helper "package_runtime_stats.txt")
 RESOURCE_USAGE_FILE=$(create_file_helper "system_resource_usage.txt")
-CREATED_BUCKETS_LIST_FILE=$(create_file_helper "created_buckets_list.txt")
 
-# Test packages which can be run for both Zonal and Regional buckets.
+# Test packages which can be run for Pirlo buckets.
 # Sorted list descending run times. (Longest Processing Time first strategy) 
-TEST_PACKAGES_COMMON=(
+TEST_PACKAGES=(
   "managed_folders"
   "operations"
   "read_large_files"
   "concurrent_operations"
   "read_cache"
   "list_large_dir"
-  "mount_timeout"
   "write_large_files"
   "implicit_dir"
   "interrupt"
@@ -362,7 +273,6 @@ TEST_PACKAGES_COMMON=(
   "monitoring"
   "mounting"
   "unsupported_path"
-  # "grpc_validation"
   "negative_stat_cache"
   "stale_handle"
   "release_version"
@@ -371,6 +281,8 @@ TEST_PACKAGES_COMMON=(
   "buffered_read"
   "flag_optimizations"
   "symlink_handling"
+  "rapid_operations"
+  "unfinalized_object"
 )
 
 # filter_array: Filters an array in place keeping only elements matching the regex.
@@ -394,17 +306,9 @@ filter_array() {
   mapfile -t arr < <(printf '%s\n' "${arr[@]}" | grep $invert -E "$regex")
 }
 
-# Test packages for regional buckets.
-TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cloud_profiler" "requester_pays_bucket")
-# Test packages for zonal buckets.
-TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_operations" "unfinalized_object")
-# Test packages for TPC buckets.
-TEST_PACKAGES_FOR_TPC=("operations")
-
 # Parse and apply --run-package filters if provided
 if [[ -n "$RUN_PACKAGE_REGEX" ]]; then
-  filter_array TEST_PACKAGES_FOR_RB "$RUN_PACKAGE_REGEX"
-  filter_array TEST_PACKAGES_FOR_ZB "$RUN_PACKAGE_REGEX"
+  filter_array TEST_PACKAGES "$RUN_PACKAGE_REGEX"
 fi
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
@@ -490,113 +394,6 @@ organize_test_logfile() {
   rm -f "$log_file"
 }
 
-# Helper method to create "flat", "hns" or "zonal" bucket.
-create_bucket() {
-  if [[ $# -ne 2 ]]; then
-    log_error "create_bucket() called with incorrect number of arguments."
-    return 1
-  fi
-  local package="$1"
-  local bucket_type="$2"
-  local bucket_name="${BUCKET_PREFIX}-${package}-${bucket_type}-$(date +%s%N)"
-  local bucket_cmd_parts=("gcloud" "alpha" "storage" "buckets" "create" "gs://${bucket_name}" "--project=${PROJECT_ID}" "--location=${BUCKET_LOCATION}" "--uniform-bucket-level-access")
-  if [[ "$bucket_type" == "$HNS" ]]; then
-    bucket_cmd_parts+=("--enable-hierarchical-namespace")
-  elif [[ "$bucket_type" == "$ZONAL" ]]; then
-    bucket_cmd_parts+=("--enable-hierarchical-namespace" "--placement=${BUCKET_LOCATION}-a" "--default-storage-class=RAPID")
-  elif [[ "$bucket_type" != "$FLAT" ]]; then
-    log_error "Invalid bucket type: $bucket_type."
-    return 1
-  fi
-  local bucket_cmd bucket_cmd_log attempt=5
-  bucket_cmd=$(printf "%q " "${bucket_cmd_parts[@]}")
-  bucket_cmd_log=$(create_file_helper "bucket_creation_logs/${bucket_name}.txt")
-  while : ; do
-    attempt=$((attempt - 1))
-    if [ $attempt -lt 0 ]; then
-      log_error "Unable to create bucket [${bucket_name}] after 5 attempts." 
-      cat "$bucket_cmd_log"
-      return 1
-    fi
-    acquire_lock "$BUCKET_CREATION_LOCK_FILE"
-    eval "$bucket_cmd" > "$bucket_cmd_log" 2>&1
-    local status=$?
-    sleep "$DELAY_BETWEEN_BUCKET_CREATION" # have 6 seconds gap between creating buckets.
-    release_lock "$BUCKET_CREATION_LOCK_FILE"
-    if [ $status -eq 0 ]; then
-      break
-    fi
-  done
-  echo "$bucket_name"
-  # Append to created buckets list file for cleanup
-  acquire_lock "$BUCKET_CREATION_LOCK_FILE"
-  echo "$bucket_name" >> "$CREATED_BUCKETS_LIST_FILE"
-  release_lock "$BUCKET_CREATION_LOCK_FILE"
-  rm -rf "$bucket_cmd_log"
-  return 0
-}
-
-# Helper method to cleanup buckets created during this run.
-cleanup_created_buckets() {
-    if [ ! -f "$CREATED_BUCKETS_LIST_FILE" ]; then
-        return 0
-    fi
-
-    local -a bucket_uris
-    mapfile -t bucket_uris < "$CREATED_BUCKETS_LIST_FILE"
-
-    if [ ${#bucket_uris[@]} -eq 0 ]; then
-        log_info "No buckets were created to cleanup."
-        return 0
-    fi
-
-    log_info "Found ${#bucket_uris[@]} buckets created during run to cleanup."
-
-    local batch_count=0
-    local start_index=0
-    local total_buckets=${#bucket_uris[@]}
-    # Number of buckets to delete in a single batch.
-    local bucket_deletion_batch_size=10
-
-    while [ "$start_index" -lt "$total_buckets" ]; do
-        # Calculate end index for the current batch
-        local end_index=$((start_index + bucket_deletion_batch_size))
-        if [ "$end_index" -gt "$total_buckets" ]; then
-            end_index=$total_buckets
-        fi
-
-        # Extract batch slice
-        local length=$((end_index - start_index))
-        local batch=("${bucket_uris[@]:$start_index:$length}")
-        
-        # Add gs:// prefix if missing (bucket names are stored as name only)
-        local batch_uris=()
-        local batch_names_str=""
-        for b in "${batch[@]}"; do
-            batch_uris+=("gs://$b")
-            if [ -z "$batch_names_str" ]; then
-                batch_names_str="$b"
-            else
-                batch_names_str="$batch_names_str, $b"
-            fi
-        done
-
-        batch_count=$((batch_count + 1))
-        log_info "Deleting bucket batch: $batch_count ..."
-
-        # Delete batch
-        if ! gcloud storage rm -r "${batch_uris[@]}" --no-user-output-enabled --verbosity=error; then
-            log_error "Failed to delete one or more buckets in batch: $batch_count. These buckets would be cleaned up by the periodic cleanup job."
-            # We continue here to try deleting other batches if one fails
-        fi
-
-        start_index=$end_index
-    done
-    
-    rm -f "$CREATED_BUCKETS_LIST_FILE"
-    log_info "Bucket cleanup complete."
-}
-
 # Get command of the PID and check if it contains the string. Kill if it does.
 safe_kill() {
   local pid=$1
@@ -623,7 +420,6 @@ clean_up() {
     log_info "Cleaning up GCSFuse build directory created by script: ${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
     rm -rf "${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}"
   fi
-  cleanup_created_buckets
 }
 
 # run_package_parallel: Executes test packages in parallel.
@@ -714,18 +510,10 @@ create_bucket_and_run_package() {
   local bucket_type="$1"
   local package_name="$2"
   local attempt_number="$3"
-  local bucket_name
 
-  if [[ ("${RUN_TESTS_WITH_HNS}" == "true" && "${RUN_TESTS_WITH_PIRLO}" == "true") || "$bucket_type" == "hns_pirlo" ]]; then
-    local package_slug="${package_name//_/-}"
-    bucket_name="gcsfuse-test-hns-pirlo-${package_slug}"
-    log_info_locked "Using HNS Pirlo bucket: gs://${bucket_name} for package ${package_name}"
-  else
-    if ! bucket_name=$(create_bucket "$package_name" "$bucket_type"); then
-      log_error_locked "Failed to create bucket of type ${bucket_type} for package ${package_name}. Bucket creation output: ${bucket_name}"
-      return 1
-    fi
-  fi
+  local bucket_name="gcsfuse-test-hns-pirlo-${package_name}"
+  log_info_locked "Using HNS Pirlo bucket: gs://${bucket_name} for package ${package_name}"
+
   test_package "$package_name" "$bucket_name" "$bucket_type" "$attempt_number"
 }
 
@@ -767,21 +555,13 @@ test_package() {
   if ${RUN_TESTS_WITH_PRESUBMIT_FLAG}; then
     go_test_cmd_parts+=("--presubmit")
   fi
-  if [[ "$bucket_type" == "$ZONAL" ]]; then
-    go_test_cmd_parts+=("--zonal")
-  fi
-  if ${RUN_TEST_ON_TPC_ENDPOINT}; then
-    go_test_cmd_parts+=("--testOnTPCEndPoint")
-  fi
-  if ${RUN_TESTS_WITH_PIRLO}; then
-    go_test_cmd_parts+=("--pirlo")
-  fi
-  if ${RUN_TESTS_WITH_HNS}; then
-    go_test_cmd_parts+=("--hns")
-  fi
+  go_test_cmd_parts+=("--pirlo")
   if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then 
     go_test_cmd_parts+=("--gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}")
   fi
+
+  # Pass the custom endpoint flag to the test runner
+  go_test_cmd_parts+=("--custom-endpoint=storage-preprod-test-grpc.googleusercontent.com:443")
 
   local go_test_cmd test_package_log_file start=$SECONDS exit_code=0 
   # Use printf %q to quote each argument safely for eval
@@ -894,19 +674,19 @@ build_gcsfuse_once() {
 
   local gcsfuse_src_dir
   # Determine GCSFuse source directory
-  # If this script is in tools/integration_tests, project root is ../../
-  SCRIPT_DIR_REALPATH=$(realpath "$(dirname "${BASH_SOURCE[0]}")")
-  gcsfuse_src_dir=$(realpath "${SCRIPT_DIR_REALPATH}/../../")
+  # We are already at the repository root due to the cd in main()
+  gcsfuse_src_dir="$(pwd)"
 
   if [[ ! -f "${gcsfuse_src_dir}/go.mod" ]]; then
-    log_error "Could not reliably determine GCSFuse project root from ${SCRIPT_DIR_REALPATH}. Expected go.mod at ${gcsfuse_src_dir}" >&2
+    log_error "Could not reliably determine GCSFuse project root. Expected go.mod at ${gcsfuse_src_dir}" >&2
     rm -rf "${build_output_dir}"
     exit 1
   fi
   log_info "Using GCSFuse source directory: ${gcsfuse_src_dir}"
 
   log_info "Building GCSFuse using 'go run ./tools/build_gcsfuse/main.go'..."
-  (cd "${gcsfuse_src_dir}" && go run ./tools/build_gcsfuse/main.go . "${build_output_dir}" "0.0.0")
+  # Ensure dependencies are tidy and vendored to avoid "inconsistent vendoring" errors
+  (cd "${gcsfuse_src_dir}" && go mod tidy && go mod vendor && go run ./tools/build_gcsfuse/main.go . "${build_output_dir}" "0.0.0")
   if [ $? -ne 0 ]; then
     log_error "Building GCSFuse binaries using 'go run ./tools/build_gcsfuse/main.go' failed."
     rm -rf "${build_output_dir}" # Clean up created temp dir
@@ -921,36 +701,70 @@ build_gcsfuse_once() {
 }
 
 install_packages() {
-  local os_id
+  local arch
   
-  # Determine the absolute location of THIS script
-  SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+  # We are already at the repository root due to the cd in main()
+  local REPO_ROOT="$(pwd)"
 
-  # Calculate the Repo Root
-  REPO_ROOT="${SCRIPT_DIR}/../.."
-
-  source "${REPO_ROOT}/perfmetrics/scripts/os_utils.sh"
-  
-  if ! os_id=$(get_os_id); then
-    log_error "Failed to detect OS ID."
+  # Identify the OS and Architecture
+  if [ -f /etc/os-release ]; then
+    # We source in a subshell to prevent variable pollution, 
+    # then capture only the ID and ID_LIKE fields.
+    DISTRO_DATA=$( (source /etc/os-release; echo "${ID:-} ${ID_LIKE:-}") )
+    
+    # Check for debian or ubuntu in the ID or the ID_LIKE chain
+    if [[ "$DISTRO_DATA" == *"debian"* ]] || [[ "$DISTRO_DATA" == *"ubuntu"* ]]; then
+      arch=$(dpkg --print-architecture)
+      log_info "Detected Debian/Ubuntu-based OS. Architecture: $arch"
+      
+      local os_id="debian"
+      [[ "$DISTRO_DATA" == *"ubuntu"* ]] && os_id="ubuntu"
+      
+      # Fix broken Docker apt repositories to match current OS
+      sudo sed -i "s|download.docker.com/linux/[a-z]*|download.docker.com/linux/$os_id|g" /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+      
+      # Prevent interactive prompts during package installation
+      export DEBIAN_FRONTEND=noninteractive
+      echo 'Dpkg::Options { "--force-confdef"; "--force-confold"; };' | sudo tee /etc/apt/apt.conf.d/90force-confold > /dev/null
+      
+      sudo apt-get update -y
+      sudo apt-get install -y python3 gcc python3-dev python3-setuptools python3-crcmod fuse3 wget tar
+      
+    elif [[ "$DISTRO_DATA" == *"rhel"* ]] || [[ "$DISTRO_DATA" == *"centos"* ]]; then
+      arch=$(uname -m)
+      if [[ "$arch" == "x86_64" ]]; then arch="amd64"; elif [[ "$arch" == "aarch64" ]]; then arch="arm64"; fi
+      log_info "Detected RHEL/CentOS-based OS. Architecture: $arch"
+      
+      sudo yum makecache
+      sudo yum -y update
+      sudo yum -y install python3 gcc python3-devel python3-setuptools fuse3 wget tar
+    else
+        log_error "This script only supports Debian/Ubuntu/rhel/centos based distributions."
+        log_info "Your distribution is:"
+        cat /etc/os-release
+        exit 1
+    fi
+  else
+    log_error "/etc/os-release not found. Unable to determine distribution."
     exit 1
   fi
-  log_info "Detected OS ID: $os_id"
 
-  install_packages_by_os "$os_id" "python3" "gcc" "python3-dev" "python3-setuptools" "python3-crcmod"  "fuse3" || {
-    log_error "Failed to install required packages."
-    exit 1
-  }
-
-  # Execute install_go.sh using the absolute path
-  bash "${REPO_ROOT}/perfmetrics/scripts/install_go.sh" "$GO_VERSION"
+  log_info "Installing Go version ${GO_VERSION} for linux-${arch}..."
+  wget -qO /tmp/go_tar.tar.gz "https://go.dev/dl/go${GO_VERSION}.linux-${arch}.tar.gz"
+  sudo rm -rf /usr/local/go
+  sudo tar -C /usr/local -xzf /tmp/go_tar.tar.gz
+  rm -f /tmp/go_tar.tar.gz
   export PATH="/usr/local/go/bin:$PATH"
   
   # Install latest gcloud version.
-  bash "${REPO_ROOT}/perfmetrics/scripts/install_latest_gcloud.sh"
+  log_info "Installing the latest Google Cloud SDK..."
+  wget -qO /tmp/gcloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz
+  sudo tar -C /usr/local -xzf /tmp/gcloud.tar.gz
+  rm -f /tmp/gcloud.tar.gz
+  sudo /usr/local/google-cloud-sdk/install.sh --quiet
+  
   export PATH="/usr/local/google-cloud-sdk/bin:$PATH"
-  export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
-  export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
+  export CLOUDSDK_PYTHON="$(which python3)"
   if ${KOKORO_DIR_AVAILABLE} ; then
     # Install go-junit-report to generate XML test reports from go logs.
     go install github.com/jstemmer/go-junit-report/v2@latest
@@ -982,48 +796,11 @@ run_test_group() {
   return 0
 }
 
-run_e2e_tests_for_emulator() {
-  local package_name="emulator_tests"
-  local bucket_type="emulator"
-
-  local exit_code=0
-  local attempt=1
-
-  while :; do
-    local start=$SECONDS
-    emulator_test_log=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}_attempt_${attempt}.txt")
-
-    log_info_locked "Started running test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt)"
-
-    if ! ./tools/integration_tests/emulator_tests/emulator_tests.sh "$TEST_INSTALLED_PACKAGE" "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" > "$emulator_test_log" 2>&1; then
-      exit_code=1
-      if [[ "$attempt" -lt "$FLAKE_ATTEMPTS" ]]; then
-        log_info_locked "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt). Will retry."
-      else
-        log_info_locked "Failed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt). No more retries."
-      fi
-    else
-      log_info_locked "Passed test package [$package_name] for bucket type [$bucket_type] (Attempt: $attempt)"
-      exit_code=0
-    fi
-
-    # Call the helper to organize logs and cleanup the original file
-    organize_test_logfile "$exit_code" "$emulator_test_log" "${package_name}_attempt_${attempt}" "$bucket_type"
-
-    local end=$SECONDS
-    echo "${package_name} ${bucket_type} ${exit_code} ${start} ${end}" >> "$PACKAGE_RUNTIME_STATS"
-
-    if [[ "$exit_code" -eq 0 || "$attempt" -ge "$FLAKE_ATTEMPTS" ]]; then
-      break
-    fi
-
-    attempt=$((attempt + 1))
-  done
-
-  return "$exit_code"
-}
-
 main() {
+  # Change directory to the root of the repository so go tests and relative paths work correctly
+  local script_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+  cd "${script_dir}/../.." || exit 1
+
   # Clean up everything on exit.
   trap clean_up EXIT
   log_info ""
@@ -1071,23 +848,7 @@ main() {
 
   local pids=()
   local overall_exit_code=0
-  if (${RUN_TESTS_WITH_HNS} && ${RUN_TESTS_WITH_PIRLO}) || ${RUN_TESTS_WITH_PIRLO}; then
-    run_test_group "PIRLO" "hns_pirlo" "${TEST_PACKAGES_FOR_ZB[@]}" & pids+=($!)
-  elif ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
-    run_test_group "ZONAL" "$ZONAL" "${TEST_PACKAGES_FOR_ZB[@]}" & pids+=($!)
-  elif ${RUN_TEST_ON_TPC_ENDPOINT}; then
-    # Override PROJECT_ID and BUCKET_LOCATION for TPC tests
-    PROJECT_ID="$TPCZERO_PROJECT_ID"
-    BUCKET_LOCATION="$TPC_BUCKET_LOCATION"
-    run_test_group "TPC" "$HNS" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
-    run_test_group "TPC" "$FLAT" "${TEST_PACKAGES_FOR_TPC[@]}" & pids+=($!)
-  else
-    run_test_group "REGIONAL" "$HNS" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
-    run_test_group "REGIONAL" "$FLAT" "${TEST_PACKAGES_FOR_RB[@]}" & pids+=($!)
-    if ! ${SKIP_EMULATOR}; then
-      run_e2e_tests_for_emulator & pids+=($!) # Emulator tests are a separate group
-    fi
-  fi
+  run_test_group "PIRLO" "hns_pirlo" "${TEST_PACKAGES[@]}" & pids+=($!)
   # Wait for all background processes to complete and aggregate their exit codes
   for pid in "${pids[@]}"; do
     wait "$pid"
