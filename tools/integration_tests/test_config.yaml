@@ -36,13 +36,23 @@ implicit_dir:
           hns: true
           zonal: true
         run_on_gke: true
+        run: TestImplicitDirBase
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=true"
         run_on_pirlo:
           hns:
             same_zone: true
             different_zone: false
-        run_on_gke: true
+        run_on_gke: false
+        run: TestImplicitDirRapidWritesEnabled
+      - flags:
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false"
+        run_on_pirlo:
+          hns:
+            same_zone: true
+            different_zone: false
+        run_on_gke: false
+        run: TestImplicitDirBase
       - flags:
           - "--implicit-dirs,--client-protocol=grpc"
         compatible:
@@ -50,6 +60,7 @@ implicit_dir:
           hns: true
           zonal: false
         run_on_gke: true
+        run: TestImplicitDirBase
 
 list_large_dir:
   - mounted_directory: "${MOUNTED_DIR}"
