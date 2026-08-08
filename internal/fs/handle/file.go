@@ -430,7 +430,7 @@ func (fh *FileHandle) isValidReader() bool {
 	// can use it otherwise we must throw it away.
 	if fh.reader != nil && fh.reader.Object().Generation == fh.inode.SourceGeneration().Object {
 		// Update reader object size to source object size.
-		fh.reader.Object().Size = fh.inode.SourceGeneration().Size
+		fh.reader.UpdateObjectSize(fh.inode.SourceGeneration().Size)
 		return true
 	}
 	return false

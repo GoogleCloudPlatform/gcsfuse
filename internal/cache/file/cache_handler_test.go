@@ -411,13 +411,12 @@ func Test_addFileInfoEntryAndCreateDownloadJob_WhenJobHasFailed(t *testing.T) {
 	cacheDir := path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir")
 	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true}, cacheDir)
 	existingJob := getDownloadJobForTestObject(t, chTestArgs)
-	// Hack to fail the async job
-	correctSize := chTestArgs.object.Size
-	chTestArgs.object.Size = 2
+	// Fail the job by deleting the object from the bucket
+	err := chTestArgs.bucket.DeleteObject(context.Background(), &gcs.DeleteObjectRequest{Name: chTestArgs.object.Name})
+	require.NoError(t, err)
 	jobStatus, err := existingJob.Download(context.Background(), 1, true)
 	require.NoError(t, err)
 	require.Equal(t, downloader.Failed, jobStatus.Name)
-	chTestArgs.object.Size = correctSize
 
 	// Because the job has been failed and file info entry is still present with
 	// size less than the object's size (because the async job failed), new job
@@ -455,13 +454,12 @@ func Test_GetCacheHandle_WhenAsyncDownloadJobHasFailed(t *testing.T) {
 	cacheDir := path.Join(os.Getenv("HOME"), "CacheHandlerTest/dir")
 	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true}, cacheDir)
 	existingJob := getDownloadJobForTestObject(t, chTestArgs)
-	// Hack to fail the async job
-	correctSize := chTestArgs.object.Size
-	chTestArgs.object.Size = 2
+	// Fail the job by deleting the object from the bucket
+	err := chTestArgs.bucket.DeleteObject(context.Background(), &gcs.DeleteObjectRequest{Name: chTestArgs.object.Name})
+	require.NoError(t, err)
 	jobStatus, err := existingJob.Download(context.Background(), 1, true)
 	require.NoError(t, err)
 	require.Equal(t, downloader.Failed, jobStatus.Name)
-	chTestArgs.object.Size = correctSize
 
 	newCacheHandle, err := chTestArgs.cacheHandler.GetCacheHandle(chTestArgs.object, chTestArgs.bucket, false, 0)
 
