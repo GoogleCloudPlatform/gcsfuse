@@ -53,6 +53,7 @@ var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] 
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
 var gcsfusePreBuiltDir = flag.String("gcsfuse_prebuilt_dir", "", "Path to the pre-built GCSFuse directory containing bin/gcsfuse and sbin/mount.gcsfuse.")
 var configFile = flag.String("config-file", "", "Common GCSFuse config file to run tests with.")
+var customEndpoint = flag.String("custom-endpoint", "", "To specify a custom storage endpoint for integration tests.")
 
 const (
 	FilePermission_0600               = 0600
@@ -392,6 +393,10 @@ func ConfigFile() string {
 		log.Fatalf("error decoding config file path: %v", err)
 	}
 	return absPath
+}
+
+func CustomEndpoint() string {
+	return *customEndpoint
 }
 
 func IgnoreTestIfIntegrationTestFlagIsSet(t *testing.T) {
