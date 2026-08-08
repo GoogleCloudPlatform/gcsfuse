@@ -294,7 +294,7 @@ func CreateObjectWithOptions(ctx context.Context, client *storage.Client, object
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("wc.Close failed for object %q: %w", object, err)
 	}
-	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
+	operations.WaitForSizeUpdate(operations.WaitDurationAfterCloseRapid)
 	return nil
 }
 
@@ -408,7 +408,7 @@ func UploadGcsObjectWithPreconditions(ctx context.Context, client *storage.Clien
 		if err := w.Close(); err != nil {
 			log.Printf("Failed to close GCS object gs://%s/%s: %v", bucketName, objectName, err)
 		}
-		operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
+		operations.WaitForSizeUpdate(operations.WaitDurationAfterCloseRapid)
 	}()
 
 	filePathToUpload := localPath
@@ -515,7 +515,7 @@ func DeleteBucket(ctx context.Context, client *storage.Client, bucketName string
 	return nil
 }
 
-func NewWriterWithPreconditionsSet(ctx context.Context, client *storage.Client, object string, precondition storage.Conditions) (*storage.Writer, error) {
+func NewWriterWithPreconditionsSet(ctx context.Context, client *storage.Client, object string, precondition storage.Conditions, opts ...WriterOption) (*storage.Writer, error) {
 	bucket, object := setup.GetBucketAndObjectBasedOnTypeOfMount(object)
 
 	o := getBucketHandle(client, bucket).Object(object)
@@ -524,7 +524,7 @@ func NewWriterWithPreconditionsSet(ctx context.Context, client *storage.Client, 
 	}
 
 	// Upload an object with storage.Writer.
-	wc := NewWriterWithOptions(ctx, o)
+	wc := NewWriterWithOptions(ctx, o, opts...)
 	return wc, nil
 }
 

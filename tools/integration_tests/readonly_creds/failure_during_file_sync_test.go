@@ -15,11 +15,13 @@
 package readonly_creds
 
 import (
+	"log"
 	"os"
 	"path"
 	"strings"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/creds_tests"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +34,8 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 type readOnlyCredsTest struct {
-	testDirPath string
+	testDirPath          string
+	isRapidWritesEnabled bool
 	suite.Suite
 }
 
@@ -41,6 +44,7 @@ func (r *readOnlyCredsTest) SetupTest() {
 }
 
 func (r *readOnlyCredsTest) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(r.T())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -72,10 +76,11 @@ func (r *readOnlyCredsTest) TestEmptyCreateFileFails_FailedFileNotInListing() {
 	filePath := path.Join(r.testDirPath, testFileName)
 
 	fh, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, operations.FilePermission_0777)
-	if setup.IsZonalBucketRun() {
+	if setup.IsZonalBucketRun() || (setup.IsPirloBucketRun() && r.isRapidWritesEnabled) {
 		require.Error(r.T(), err)
 		assert.True(r.T(), strings.Contains(err.Error(), permissionDeniedError))
 	} else {
+		require.NoError(r.T(), err)
 		r.assertFileSyncFailsWithPermissionError(fh, r.T())
 	}
 
@@ -86,10 +91,11 @@ func (r *readOnlyCredsTest) TestNonEmptyCreateFileFails_FailedFileNotInListing()
 	filePath := path.Join(r.testDirPath, testFileName)
 
 	fh, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, operations.FilePermission_0777)
-	if setup.IsZonalBucketRun() {
+	if setup.IsZonalBucketRun() || (setup.IsPirloBucketRun() && r.isRapidWritesEnabled) {
 		require.Error(r.T(), err)
 		assert.True(r.T(), strings.Contains(err.Error(), permissionDeniedError))
 	} else {
+		require.NoError(r.T(), err)
 		operations.WriteWithoutClose(fh, content, r.T())
 		operations.WriteWithoutClose(fh, content, r.T())
 		r.assertFileSyncFailsWithPermissionError(fh, r.T())
@@ -102,9 +108,27 @@ func (r *readOnlyCredsTest) TestNonEmptyCreateFileFails_FailedFileNotInListing()
 // Test Function (Runs once before all tests)
 ////////////////////////////////////////////////////////////////////////
 
-func TestReadOnlyTest(t *testing.T) {
-	ts := &readOnlyCredsTest{}
+func runReadOnlyCredsTest(t *testing.T, ts *readOnlyCredsTest) {
+	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
+	for _, flags := range flagsSet {
+		t.Run(strings.Join(flags, "_"), func(t *testing.T) {
+			log.Printf("Running %s with flags: %s", t.Name(), flags)
+			creds_tests.RunSuiteForDifferentAuthMethods(testEnv.ctx, testEnv.cfg, testEnv.storageClient, flags, "objectViewer", t, func() {
+				suite.Run(t, ts)
+			})
+		})
+	}
+}
 
-	// Run tests.
-	suite.Run(t, ts)
+func TestReadOnlyCredsBase(t *testing.T) {
+	ts := &readOnlyCredsTest{isRapidWritesEnabled: false}
+	runReadOnlyCredsTest(t, ts)
+}
+
+func TestReadOnlyCredsRapidWritesEnabled(t *testing.T) {
+	if !setup.IsPirloBucketRun() {
+		t.Skip("Rapid writes tests are only applicable to Pirlo buckets")
+	}
+	ts := &readOnlyCredsTest{isRapidWritesEnabled: true}
+	runReadOnlyCredsTest(t, ts)
 }

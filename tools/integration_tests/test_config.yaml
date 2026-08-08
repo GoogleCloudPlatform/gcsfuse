@@ -36,13 +36,23 @@ implicit_dir:
           hns: true
           zonal: true
         run_on_gke: true
+        run: TestImplicitDirBase
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=true"
         run_on_pirlo:
           hns:
             same_zone: true
             different_zone: false
-        run_on_gke: true
+        run_on_gke: false
+        run: TestImplicitDirRapidWritesEnabled
+      - flags:
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false"
+        run_on_pirlo:
+          hns:
+            same_zone: true
+            different_zone: false
+        run_on_gke: false
+        run: TestImplicitDirBase
       - flags:
           - "--implicit-dirs,--client-protocol=grpc"
         compatible:
@@ -50,6 +60,7 @@ implicit_dir:
           hns: true
           zonal: false
         run_on_gke: true
+        run: TestImplicitDirBase
 
 list_large_dir:
   - mounted_directory: "${MOUNTED_DIR}"
@@ -65,7 +76,7 @@ list_large_dir:
         run_on_gke: true
         run: TestListLargeDirWithKernelListCache
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--stat-cache-ttl=0,--kernel-list-cache-ttl-secs=-1,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--stat-cache-ttl=0,--kernel-list-cache-ttl-secs=-1,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -82,7 +93,7 @@ list_large_dir:
         run_on_gke: true
         run: TestListLargeDirWithoutKernelListCache
       - flags:
-          - "--experimental-enable-pirlo,--enable-metadata-prefetch,--implicit-dirs,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--enable-metadata-prefetch,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -141,7 +152,6 @@ operations:
           zonal: true
         tpc: true
         run_on_gke: false
-        run: TestOperationsBase
 
 write_large_files:
   - mounted_directory: "${MOUNTED_DIR}"
@@ -190,7 +200,7 @@ gzip:
           zonal: true
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--sequential-read-size-mb=1,--implicit-dirs,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--sequential-read-size-mb=1,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -221,10 +231,10 @@ read_large_files:
           zonal: true
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--implicit-dirs,--file-cache-max-size-mb=700,--file-cache-cache-file-for-range-read,--cache-dir=/gcsfuse-tmp/read_large_files,--enable-kernel-reader=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--implicit-dirs,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/read_large_files,--enable-kernel-reader=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--implicit-dirs,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--file-cache-max-size-mb=700,--file-cache-cache-file-for-range-read,--cache-dir=/gcsfuse-tmp/read_large_files,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/read_large_files,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--enable-kernel-reader=false,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -246,9 +256,9 @@ readonly:
           zonal: true
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--o=ro,--implicit-dirs,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--file-mode=544,--dir-mode=544,--implicit-dirs,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--o=ro,--implicit-dirs,--cache-dir=/gcsfuse-tmp/readonly,--file-cache-max-size-mb=3,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--o=ro,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--file-mode=544,--dir-mode=544,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--o=ro,--cache-dir=/gcsfuse-tmp/readonly,--file-cache-max-size-mb=3,--enable-kernel-reader=false,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -307,8 +317,8 @@ local_file:
           zonal: false
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--implicit-dirs,--rename-dir-limit=3,--enable-streaming-writes=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--implicit-dirs,--rename-dir-limit=3,--enable-streaming-writes=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--rename-dir-limit=3,--enable-streaming-writes=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--rename-dir-limit=3,--enable-streaming-writes=false,--client-protocol=http1"
           - "--experimental-enable-pirlo,--enable-rapid-writes=true,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=0,--client-protocol=http1"
           - "--experimental-enable-pirlo,--enable-rapid-writes=false,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=0,--client-protocol=http1"
           - "--experimental-enable-pirlo,--enable-rapid-writes=true,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1,--client-protocol=http1"
@@ -393,7 +403,7 @@ read_cache:
         run: TestSmallCacheTTLTest
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--metadata-cache-ttl-secs=10,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest,--log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log,--log-severity=TRACE,--implicit-dirs,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--metadata-cache-ttl-secs=10,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest,--log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
           - "--experimental-enable-pirlo,--metadata-cache-ttl-secs=10,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest,--log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
         run_on_pirlo:
           hns:
@@ -417,9 +427,9 @@ read_cache:
         run: TestReadOnlyTest
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--file-cache-max-size-mb=9,--file-cache-cache-file-for-range-read,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--file-cache-enable-parallel-downloads=false,--implicit-dirs,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--file-cache-max-size-mb=9,--file-cache-cache-file-for-range-read,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--file-cache-enable-parallel-downloads=false,--enable-kernel-reader=false,--client-protocol=http1"
           - "--experimental-enable-pirlo,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--file-cache-max-size-mb=9,--file-cache-cache-file-for-range-read,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--file-cache-enable-parallel-downloads=false,--implicit-dirs,--o=ro,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--file-cache-max-size-mb=9,--file-cache-cache-file-for-range-read,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--file-cache-enable-parallel-downloads=false,--o=ro,--enable-kernel-reader=false,--client-protocol=http1"
           - "--experimental-enable-pirlo,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--o=ro,--enable-kernel-reader=false,--client-protocol=http1"
         run_on_pirlo:
           hns:
@@ -437,7 +447,7 @@ read_cache:
         run: TestRangeReadTest
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--file-cache-max-size-mb=15,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestRangeReadTest,--log-file=/gcsfuse-tmp/TestRangeReadTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--file-cache-max-size-mb=15,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestRangeReadTest,--log-file=/gcsfuse-tmp/TestRangeReadTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -454,7 +464,7 @@ read_cache:
         run: TestRangeReadWithParallelDownloadsTest
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--file-cache-max-size-mb=15,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest,--log-file=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--file-cache-max-size-mb=15,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest,--log-file=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -462,25 +472,34 @@ read_cache:
         run_on_gke: true
         run: TestRangeReadWithParallelDownloadsTest
       - flags:
-          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--implicit-dirs,--enable-kernel-reader=false,--client-protocol=http1"
-          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
-          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--implicit-dirs,--client-protocol=grpc,--enable-kernel-reader=false"
-          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--client-protocol=grpc,--enable-kernel-reader=false"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationBase,--log-file=/gcsfuse-tmp/TestLocalModificationBase.log,--log-severity=TRACE,--implicit-dirs,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestLocalModificationBase,--log-file=/gcsfuse-tmp/TestLocalModificationBase.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationBase,--log-file=/gcsfuse-tmp/TestLocalModificationBase.log,--log-severity=TRACE,--implicit-dirs,--client-protocol=grpc,--enable-kernel-reader=false"
+          - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestLocalModificationBase,--log-file=/gcsfuse-tmp/TestLocalModificationBase.log,--log-severity=TRACE,--client-protocol=grpc,--enable-kernel-reader=false"
         compatible:
           flat: true
           hns: true
           zonal: true
-        run: TestLocalModificationTest
+        run: TestLocalModificationBase
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--implicit-dirs,--enable-kernel-reader=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationRapidWritesEnabled,--log-file=/gcsfuse-tmp/TestLocalModificationRapidWritesEnabled.log,--log-severity=TRACE,--enable-kernel-reader=false"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestLocalModificationRapidWritesEnabled,--log-file=/gcsfuse-tmp/TestLocalModificationRapidWritesEnabled.log,--log-severity=TRACE,--enable-kernel-reader=false"
         run_on_pirlo:
           hns:
             same_zone: true
             different_zone: false
-        run_on_gke: true
-        run: TestLocalModificationTest
+        run_on_gke: false
+        run: TestLocalModificationRapidWritesEnabled
+      - flags:
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationBase,--log-file=/gcsfuse-tmp/TestLocalModificationBase.log,--log-severity=TRACE,--enable-kernel-reader=false"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestLocalModificationBase,--log-file=/gcsfuse-tmp/TestLocalModificationBase.log,--log-severity=TRACE,--enable-kernel-reader=false"
+        run_on_pirlo:
+          hns:
+            same_zone: true
+            different_zone: false
+        run_on_gke: false
+        run: TestLocalModificationBase
       - flags:
           - "--stat-cache-ttl=0s,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest,--log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log,--log-severity=TRACE,--implicit-dirs,--enable-kernel-reader=false,--client-protocol=http1"
           - "--stat-cache-ttl=0s,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest,--log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
@@ -493,7 +512,7 @@ read_cache:
         run: TestDisabledCacheTTLTest
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--stat-cache-ttl=0s,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest,--log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log,--log-severity=TRACE,--implicit-dirs,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--stat-cache-ttl=0s,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest,--log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
           - "--experimental-enable-pirlo,--stat-cache-ttl=0s,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest,--log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
         run_on_pirlo:
           hns:
@@ -515,7 +534,7 @@ read_cache:
         run: TestCacheFileForRangeReadTrueTest
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log,--log-severity=TRACE,--implicit-dirs,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
           - "--experimental-enable-pirlo,--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
           - "--experimental-enable-pirlo,--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log,--log-severity=TRACE,--file-cache-enable-o-direct,--enable-kernel-reader=false,--client-protocol=http1"
         run_on_pirlo:
@@ -548,7 +567,7 @@ read_cache:
         run: TestCacheFileForRangeReadFalseTest
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -678,8 +697,8 @@ read_cache:
         run: TestRemountTest
         run_on_gke: false
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestRemountTest,--log-file=/gcsfuse-tmp/TestRemountTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--implicit-dirs,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestRemountTest,--log-file=/gcsfuse-tmp/TestRemountTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestRemountTest,--log-file=/gcsfuse-tmp/TestRemountTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestRemountTest,--log-file=/gcsfuse-tmp/TestRemountTest.log,--log-severity=TRACE,--enable-kernel-reader=false,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -819,7 +838,7 @@ readdirplus:
         run: TestReaddirplusWithDentryCacheTest
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--experimental-enable-readdirplus,--experimental-enable-dentry-cache,--log-file=/gcsfuse-tmp/TestReaddirplusWithDentryCacheTest.log,--log-severity=TRACE,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--experimental-enable-readdirplus,--experimental-enable-dentry-cache,--log-file=/gcsfuse-tmp/TestReaddirplusWithDentryCacheTest.log,--log-severity=TRACE,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -836,7 +855,7 @@ readdirplus:
         run: TestReaddirplusWithoutDentryCacheTest
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--experimental-enable-readdirplus,--log-file=/gcsfuse-tmp/TestReaddirplusWithoutDentryCacheTest.log,--log-severity=TRACE,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--experimental-enable-readdirplus,--log-file=/gcsfuse-tmp/TestReaddirplusWithoutDentryCacheTest.log,--log-severity=TRACE,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -953,7 +972,7 @@ dentry_cache:
         run: TestStatWithDentryCacheEnabledTest
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=2,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=2,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -970,7 +989,7 @@ dentry_cache:
         run: TestDeleteOperationTest
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -987,7 +1006,7 @@ dentry_cache:
         run: TestNotifierTest
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -1009,7 +1028,7 @@ read_gcs_algo:
           zonal: true
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--enable-kernel-reader=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--enable-kernel-reader=false,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -1097,14 +1116,14 @@ interrupt:
           zonal: true
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--enable-streaming-writes,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--enable-streaming-writes,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--implicit-dirs,--enable-streaming-writes=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--implicit-dirs,--enable-streaming-writes=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--ignore-interrupts,--enable-streaming-writes=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--ignore-interrupts,--enable-streaming-writes=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=true,--ignore-interrupts=false,--enable-streaming-writes=false,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--ignore-interrupts=false,--enable-streaming-writes=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--enable-streaming-writes"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--enable-streaming-writes"
+          - "--experimental-enable-pirlo,--enable-streaming-writes=false"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--enable-streaming-writes=false"
+          - "--experimental-enable-pirlo,--ignore-interrupts,--enable-streaming-writes=false"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--ignore-interrupts,--enable-streaming-writes=false"
+          - "--experimental-enable-pirlo,--ignore-interrupts=false,--enable-streaming-writes=false"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false,--ignore-interrupts=false,--enable-streaming-writes=false"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -1146,14 +1165,23 @@ readonly_creds:
           hns: true
           zonal: true
         run_on_gke: false
+        run: TestReadOnlyCredsBase
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs=true,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--implicit-dirs=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=true"
         run_on_pirlo:
           hns:
             same_zone: true
             different_zone: false
         run_on_gke: false
+        run: TestReadOnlyCredsRapidWritesEnabled
+      - flags:
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false"
+        run_on_pirlo:
+          hns:
+            same_zone: true
+            different_zone: false
+        run_on_gke: false
+        run: TestReadOnlyCredsBase
 
 mount_timeout:
   - mounted_directory: "${MOUNTED_DIR}"
@@ -1165,13 +1193,6 @@ mount_timeout:
           flat: true
           hns: true
           zonal: true
-        run_on_gke: false
-      - flags:
-          - "--experimental-enable-pirlo,--client-protocol=http1"
-        run_on_pirlo:
-          hns:
-            same_zone: true
-            different_zone: false
         run_on_gke: false
 
 release_version:
@@ -1326,7 +1347,7 @@ flag_optimizations:
         run_on_gke: false
       - run: TestZonalBucketOptimizations_ExplicitOverrides
         flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--max-read-ahead-kb=2048,--max-background=50,--congestion-threshold=30,--log-severity=trace,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--max-read-ahead-kb=2048,--max-background=50,--congestion-threshold=30,--log-severity=trace,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -1362,10 +1383,10 @@ flag_optimizations:
         run_on_gke: false
       - run: TestKernelReader_DefaultAndPrecedence
         flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--log-severity=trace,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--implicit-dirs,--log-severity=trace,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_FileCache,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--implicit-dirs,--log-severity=trace,--enable-buffered-read=true,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--implicit-dirs,--log-severity=trace,--enable-buffered-read=true,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_Both,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--log-severity=trace,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--log-severity=trace,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_FileCache,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--log-severity=trace,--enable-buffered-read=true,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--log-severity=trace,--enable-buffered-read=true,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_Both,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -1382,7 +1403,7 @@ flag_optimizations:
         run_on_gke: false
       - run: TestFileCache_KernelReaderDisabled
         flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestFileCache_KernelReaderDisabled,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--log-severity=trace,--enable-kernel-reader=false,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestFileCache_KernelReaderDisabled,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -1399,7 +1420,7 @@ flag_optimizations:
         run_on_gke: false
       - run: TestBufferedReader_KernelReaderDisabled
         flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--log-severity=trace,--enable-kernel-reader=false,--enable-buffered-read,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--log-severity=trace,--enable-kernel-reader=false,--enable-buffered-read,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -1415,7 +1436,7 @@ flag_optimizations:
         run_on_gke: false
       - run: TestKernelReader_Dynamic
         flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--log-severity=trace,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--log-severity=trace,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -1441,7 +1462,7 @@ unsupported_path:
           zonal: true
         run_on_gke: true
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--enable-unsupported-path-support,--rename-dir-limit=200,--metadata-cache-negative-ttl-secs=0,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--enable-unsupported-path-support,--rename-dir-limit=200,--metadata-cache-negative-ttl-secs=0,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -1979,7 +2000,7 @@ managed_folders:
         run_on_gke: false
       - run: TestManagedFolders_FolderViewPermission
         flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--key-file=${KEY_FILE},--rename-dir-limit=3,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--key-file=${KEY_FILE},--rename-dir-limit=3,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -1995,7 +2016,7 @@ managed_folders:
         run_on_gke: false
       - run: TestEnableEmptyManagedFoldersTrue
         flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--enable-empty-managed-folders,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--enable-empty-managed-folders,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -2011,7 +2032,7 @@ managed_folders:
         run_on_gke: false
       - run: TestManagedFolders_FolderAdminPermission
         flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
@@ -2027,7 +2048,7 @@ managed_folders:
         run_on_gke: false
       - run: TestManagedFolders_RestrictedPermission
         flags:
-          - "--experimental-enable-pirlo,--implicit-dirs,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0,--client-protocol=http1"
         run_on_pirlo:
           hns:
             same_zone: true
