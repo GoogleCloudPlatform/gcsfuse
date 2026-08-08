@@ -17,7 +17,6 @@ package implicit_dir_test
 
 import (
 	"path"
-	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup/implicit_and_explicit_dir_setup"
@@ -28,14 +27,14 @@ import (
 // testBucket/dirForImplicitDirTests/testDir/implicitDirectory/fileInImplicitDir1                               -- File
 // testBucket/dirForImplicitDirTests/testDir/implicitDirectory/implicitSubDirectory                             -- Dir
 // testBucket/dirForImplicitDirTests/testDir/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
-func TestDeleteNonEmptyImplicitDir(t *testing.T) {
+func (s *implicitDirTestSuite) TestDeleteNonEmptyImplicitDir() {
 	testDirName := "testDeleteNonEmptyImplicitDir"
 	testDirPath := setupTestDir(testDirName)
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, s.T(), testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
 
 	dirPath := path.Join(testDirPath, implicit_and_explicit_dir_setup.ImplicitDirectory)
 
-	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
+	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, s.T())
 }
 
 // Directory Structure
@@ -43,14 +42,14 @@ func TestDeleteNonEmptyImplicitDir(t *testing.T) {
 // testBucket/dirForImplicitDirTests/testDir/implicitDirectory/fileInImplicitDir1                               -- File
 // testBucket/dirForImplicitDirTests/testDir/implicitDirectory/implicitSubDirectory                             -- Dir
 // testBucket/dirForImplicitDirTests/testDir/implicitDirectory/implicitSubDirectory/fileInImplicitDir2          -- File
-func TestDeleteNonEmptyImplicitSubDir(t *testing.T) {
+func (s *implicitDirTestSuite) TestDeleteNonEmptyImplicitSubDir() {
 	testDirName := "testDeleteNonEmptyImplicitSubDir"
 	testDirPath := setupTestDir(testDirName)
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, s.T(), testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
 
 	subDirPath := path.Join(testDirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory)
 
-	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(subDirPath, implicit_and_explicit_dir_setup.ImplicitSubDirectory, t)
+	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(subDirPath, implicit_and_explicit_dir_setup.ImplicitSubDirectory, s.T())
 }
 
 // Directory Structure
@@ -60,18 +59,18 @@ func TestDeleteNonEmptyImplicitSubDir(t *testing.T) {
 // testBucket/dirForImplicitDirTests/testDir/implicitDirectory/fileInImplicitDir1                                                 -- File
 // testBucket/dirForImplicitDirTests/testDir/implicitDirectory/implicitSubDirectory                                               -- Dir
 // testBucket/dirForImplicitDirTests/testDir/implicitDirectory/implicitSubDirectory/fileInImplicitDir2                            -- File
-func TestDeleteImplicitDirWithExplicitSubDir(t *testing.T) {
+func (s *implicitDirTestSuite) TestDeleteImplicitDirWithExplicitSubDir() {
 	testDirName := "testDeleteImplicitDirWithExplicitSubDir"
 	testDirPath := setupTestDir(testDirName)
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, s.T(), testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
 
 	explicitDirPath := path.Join(testDirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, ExplicitDirInImplicitDir)
 
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirInImplicitDir, explicitDirPath, PrefixFileInExplicitDirInImplicitDir, t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirInImplicitDir, explicitDirPath, PrefixFileInExplicitDirInImplicitDir, s.T())
 
 	dirPath := path.Join(testDirPath, implicit_and_explicit_dir_setup.ImplicitDirectory)
 
-	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
+	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, s.T())
 }
 
 // Directory Structure
@@ -81,17 +80,17 @@ func TestDeleteImplicitDirWithExplicitSubDir(t *testing.T) {
 // testBucket/dirForImplicitDirTests/testDir/implicitDirectory/implicitSubDirectory/fileInImplicitDir2                                                 -- File
 // testBucket/dirForImplicitDirTests/testDir/implicitDirectory/implicitSubDirectory/explicitDirInImplicitDir                                           -- Dir
 // testBucket/dirForImplicitDirTests/testDir/implicitDirectory/implicitSubDirectory/explicitDirInImplicitDir/fileInExplicitDirInImplicitDir            -- File
-func TestDeleteImplicitDirWithImplicitSubDirContainingExplicitDir(t *testing.T) {
+func (s *implicitDirTestSuite) TestDeleteImplicitDirWithImplicitSubDirContainingExplicitDir() {
 	testDirName := "testDeleteImplicitDirWithImplicitSubDirContainingExplicitDir"
 	testDirPath := setupTestDir(testDirName)
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryStructureUsingStorageClient(testEnv.ctx, s.T(), testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
 	explicitDirPath := path.Join(testDirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, implicit_and_explicit_dir_setup.ImplicitSubDirectory, ExplicitDirInImplicitSubDir)
 
-	operations.CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirInImplicitSubDir, explicitDirPath, PrefixFileInExplicitDirInImplicitSubDir, t)
+	operations.CreateDirectoryWithNFiles(NumberOfFilesInExplicitDirInImplicitSubDir, explicitDirPath, PrefixFileInExplicitDirInImplicitSubDir, s.T())
 
 	dirPath := path.Join(testDirPath, implicit_and_explicit_dir_setup.ImplicitDirectory)
 
-	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
+	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, s.T())
 }
 
 // Directory Structure
@@ -103,14 +102,14 @@ func TestDeleteImplicitDirWithImplicitSubDirContainingExplicitDir(t *testing.T) 
 // testBucket/dirForImplicitDirTests/testDir/explicitDirectory/implicitDirectory/fileInImplicitDir1                              -- File
 // testBucket/dirForImplicitDirTests/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory                            -- Dir
 // testBucket/dirForImplicitDirTests/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
-func TestDeleteImplicitDirInExplicitDir(t *testing.T) {
+func (s *implicitDirTestSuite) TestDeleteImplicitDirInExplicitDir() {
 	testDirName := "testDeleteImplicitDirInExplicitDir"
 	testDirPath := setupTestDir(testDirName)
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(testEnv.ctx, s.T(), testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
 
 	dirPath := path.Join(testDirPath, implicit_and_explicit_dir_setup.ExplicitDirectory, implicit_and_explicit_dir_setup.ImplicitDirectory)
 
-	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, t)
+	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ImplicitDirectory, s.T())
 }
 
 // Directory Structure
@@ -122,12 +121,12 @@ func TestDeleteImplicitDirInExplicitDir(t *testing.T) {
 // testBucket/dirForImplicitDirTests/testDir/explicitDirectory/implicitDirectory/fileInImplicitDir1                              -- File
 // testBucket/dirForImplicitDirTests/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory                            -- Dir
 // testBucket/dirForImplicitDirTests/testDir/explicitDirectory/implicitDirectory/implicitSubDirectory/fileInImplicitDir2         -- File
-func TestDeleteExplicitDirContainingImplicitSubDir(t *testing.T) {
+func (s *implicitDirTestSuite) TestDeleteExplicitDirContainingImplicitSubDir() {
 	testDirName := "testDeleteExplicitDirContainingImplicitSubDir"
 	testDirPath := setupTestDir(testDirName)
-	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(testEnv.ctx, t, testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
+	implicit_and_explicit_dir_setup.CreateImplicitDirectoryInExplicitDirectoryStructureUsingStorageClient(testEnv.ctx, s.T(), testEnv.storageClient, path.Join(DirForImplicitDirTests, testDirName))
 
 	dirPath := path.Join(testDirPath, implicit_and_explicit_dir_setup.ExplicitDirectory)
 
-	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ExplicitDirectory, t)
+	implicit_and_explicit_dir_setup.RemoveAndCheckIfDirIsDeleted(dirPath, implicit_and_explicit_dir_setup.ExplicitDirectory, s.T())
 }
