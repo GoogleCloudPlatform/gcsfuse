@@ -50,7 +50,7 @@ func (dt *parallelDownloaderTest) SetUp(*TestInfo) {
 		ExperimentalParallelDownloadsDefaultOn: true,
 		EnableParallelDownloads:                true,
 		ParallelDownloadsPerFile:               3,
-		DownloadChunkSizeMb:                    3,
+		DownloadChunkSizeMb:                    1, // 1MB chunks
 		EnableCrc:                              true,
 		WriteBufferSize:                        4 * 1024 * 1024,
 	}
@@ -60,7 +60,7 @@ func (dt *parallelDownloaderTest) SetUp(*TestInfo) {
 func (dt *parallelDownloaderTest) Test_downloadRange() {
 	// Create object in fake GCS
 	objectName := "path/in/gcs/foo.txt"
-	objectSize := 10 * util.MiB
+	objectSize := 2 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	var callbackExecuted atomic.Bool
 	removeCallback := func() { callbackExecuted.Store(true) }
@@ -80,8 +80,8 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 		AssertTrue(reflect.DeepEqual(objectContent[start:end], buf), fmt.Sprintf("content didn't match for start: %v and end: %v", start, end))
 	}
 
-	// Download end 1MiB of object
-	start, end := int64(9*util.MiB), int64(10*util.MiB)
+	// Download end 248KiB of object
+	start, end := int64(1800*util.KiB), int64(2048*util.KiB)
 	offsetWriter := io.NewOffsetWriter(file, start)
 	rangeMap := make(map[int64]int64)
 
@@ -89,34 +89,34 @@ func (dt *parallelDownloaderTest) Test_downloadRange() {
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
 
-	// Download start 4MiB of object
-	start, end = int64(0*util.MiB), int64(4*util.MiB)
+	// Download start 800KiB of object
+	start, end = int64(0), int64(800*util.KiB)
 	offsetWriter = io.NewOffsetWriter(file, start)
 	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, rangeMap)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
-	AssertEq(int64(4*util.MiB), rangeMap[start])
+	AssertEq(int64(800*util.KiB), rangeMap[start])
 
 	// Download middle 1B of object
-	start, end = int64(5*util.MiB), int64(5*util.MiB+1)
+	start, end = int64(1024*util.KiB), int64(1024*util.KiB+1)
 	offsetWriter = io.NewOffsetWriter(file, start)
 	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, rangeMap)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
-	AssertEq(int64(5*util.MiB+1), rangeMap[start])
+	AssertEq(int64(1024*util.KiB+1), rangeMap[start])
 
 	// Download 0B of object
-	start, end = int64(5*util.MiB), int64(5*util.MiB)
+	start, end = int64(1024*util.KiB), int64(1024*util.KiB)
 	offsetWriter = io.NewOffsetWriter(file, start)
 	_, err = dt.job.downloadRange(context.Background(), offsetWriter, start, end, nil, rangeMap)
 	AssertEq(nil, err)
 	verifyContentAtOffset(file, start, end)
-	AssertEq(int64(5*util.MiB+1), rangeMap[start])
+	AssertEq(int64(1024*util.KiB+1), rangeMap[start])
 }
 
 func (dt *parallelDownloaderTest) Test_parallelDownloadObjectToFile() {
 	objectName := "path/in/gcs/foo.txt"
-	objectSize := 10 * util.MiB
+	objectSize := 2 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
 	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
