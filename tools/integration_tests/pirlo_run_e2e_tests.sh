@@ -560,6 +560,9 @@ test_package() {
     go_test_cmd_parts+=("--gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}")
   fi
 
+  # Pass the custom endpoint flag to the test runner
+  go_test_cmd_parts+=("--custom-endpoint=storage-preprod-test-grpc.googleusercontent.com:443")
+
   local go_test_cmd test_package_log_file start=$SECONDS exit_code=0 
   # Use printf %q to quote each argument safely for eval
   # This ensures spaces and special characters within arguments are handled correctly.
