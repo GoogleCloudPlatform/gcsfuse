@@ -79,22 +79,14 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 		}
 	}
 
-	res, err := getResource(ctx, mountID)
+	projectID := ""
+	if c.Metrics.ExperimentalEnableOtelMetrics {
+		projectID = getProjectID(ctx, c.GcsAuth, c.Metrics.ExperimentalOtelMetricsProjectId)
+	}
+	res, err := getOtelResource(ctx, mountID, projectID)
 	if err != nil {
 		logger.Errorf("Error while fetching resource: %v", err)
 	} else {
-		if c.Metrics.ExperimentalEnableOtelMetrics {
-			projectID := getProjectID(ctx, c.GcsAuth, c.Metrics.ExperimentalOtelMetricsProjectId)
-			if projectID != "" {
-				projRes, _ := resource.New(ctx,
-					resource.WithSchemaURL(res.SchemaURL()),
-					resource.WithAttributes(
-						attribute.String("gcp.project_id", projectID),
-					),
-				)
-				res, _ = resource.Merge(res, projRes)
-			}
-		}
 		options = append(options, metric.WithResource(res))
 	}
 
@@ -225,20 +217,16 @@ func setupOtelMetricsEndpoint(ctx context.Context, endpoint string, authConfig c
 		otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
 	}
 
-	// For local testing and e2e test.
-	if strings.Contains(endpoint, "localhost") || strings.Contains(endpoint, "127.0.0.1") || strings.Contains(endpoint, "0.0.0.0") || strings.Contains(endpoint, "[::1]") {
+	if isOtelEndpointInsecure(endpoint) {
 		opts = append(opts, otlpmetrichttp.WithInsecure())
 	}
 
-	// Use authenticated client for GCP endpoints.
 	if strings.Contains(endpoint, "googleapis.com") {
-		ts, err := auth.GetTokenSourceWithScope(ctx, string(authConfig.KeyFile), authConfig.TokenUrl, authConfig.ReuseTokenFromUrl, "https://www.googleapis.com/auth/monitoring.write")
+		client, err := getGcpOtelHttpClient(ctx, authConfig, "https://www.googleapis.com/auth/monitoring.write")
 		if err != nil {
 			logger.Errorf("Error getting GCP authenticated token source for metrics: %v", err)
 			return nil, err
 		}
-		client := oauth2.NewClient(ctx, ts)
-		client.Timeout = 30 * time.Second
 		opts = append(opts, otlpmetrichttp.WithHTTPClient(client))
 	}
 
@@ -355,43 +343,27 @@ func getProjectID(ctx context.Context, authConfig cfg.GcsAuthConfig, configuredP
 // SetupOTelLogExporter initializes the OpenTelemetry Log provider.
 func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string, authConfig cfg.GcsAuthConfig, configuredProjectID string) (common.ShutdownFn, error) {
 	projectID := getProjectID(ctx, authConfig, configuredProjectID)
-	res, err := getResource(ctx, mountID)
+	res, err := getOtelResource(ctx, mountID, projectID)
 	if err != nil {
 		logger.Errorf("Error while fetching resource for logs: %v", err)
 		return nil, err
-	}
-
-	if projectID != "" {
-		projRes, _ := resource.New(ctx,
-			resource.WithSchemaURL(res.SchemaURL()),
-			resource.WithAttributes(
-				attribute.String("gcp.project_id", projectID),
-			),
-		)
-		res, err = resource.Merge(res, projRes)
-		if err != nil {
-			logger.Errorf("Error merging project ID into resource: %v", err)
-		}
 	}
 
 	opts := []otlploghttp.Option{
 		otlploghttp.WithEndpoint(endpoint),
 		otlploghttp.WithCompression(otlploghttp.GzipCompression),
 	}
-	// For local testing and e2e test.
-	if strings.Contains(endpoint, "localhost") || strings.Contains(endpoint, "127.0.0.1") || strings.Contains(endpoint, "0.0.0.0") || strings.Contains(endpoint, "[::1]") {
+
+	if isOtelEndpointInsecure(endpoint) {
 		opts = append(opts, otlploghttp.WithInsecure())
 	}
 
-	// Use authenticated client for GCP endpoints.
 	if strings.Contains(endpoint, "googleapis.com") {
-		ts, err := auth.GetTokenSourceWithScope(ctx, string(authConfig.KeyFile), authConfig.TokenUrl, authConfig.ReuseTokenFromUrl, "https://www.googleapis.com/auth/logging.write")
+		client, err := getGcpOtelHttpClient(ctx, authConfig, "https://www.googleapis.com/auth/logging.write")
 		if err != nil {
 			logger.Errorf("Error getting GCP authenticated token source for logs: %v", err)
 			return nil, err
 		}
-		client := oauth2.NewClient(ctx, ts)
-		client.Timeout = 30 * time.Second
 		opts = append(opts, otlploghttp.WithHTTPClient(client))
 	}
 
@@ -423,4 +395,44 @@ func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string, 
 	return func(ctx context.Context) error {
 		return provider.Shutdown(ctx)
 	}, nil
+}
+
+// getOtelResource creates a base OTel resource and merges the GCP project ID if provided.
+func getOtelResource(ctx context.Context, mountID string, projectID string) (*resource.Resource, error) {
+	res, err := getResource(ctx, mountID)
+	if err != nil {
+		logger.Errorf("Error while fetching resource: %v", err)
+		if res == nil {
+			return nil, err
+		}
+	}
+	if projectID != "" {
+		projRes, _ := resource.New(ctx,
+			resource.WithSchemaURL(res.SchemaURL()),
+			resource.WithAttributes(
+				attribute.String("gcp.project_id", projectID),
+			),
+		)
+		res, err = resource.Merge(res, projRes)
+		if err != nil {
+			logger.Errorf("Error merging project ID into resource: %v", err)
+		}
+	}
+	return res, nil
+}
+
+// isOtelEndpointInsecure returns true if the endpoint is determined to be a local testing endpoint.
+func isOtelEndpointInsecure(endpoint string) bool {
+	return strings.Contains(endpoint, "localhost") || strings.Contains(endpoint, "127.0.0.1") || strings.Contains(endpoint, "0.0.0.0") || strings.Contains(endpoint, "[::1]")
+}
+
+// getGcpOtelHttpClient creates an authenticated HTTP client for a specific GCP scope.
+func getGcpOtelHttpClient(ctx context.Context, authConfig cfg.GcsAuthConfig, scope string) (*http.Client, error) {
+	ts, err := auth.GetTokenSourceWithScope(ctx, string(authConfig.KeyFile), authConfig.TokenUrl, authConfig.ReuseTokenFromUrl, scope)
+	if err != nil {
+		return nil, err
+	}
+	client := oauth2.NewClient(ctx, ts)
+	client.Timeout = 30 * time.Second
+	return client, nil
 }
