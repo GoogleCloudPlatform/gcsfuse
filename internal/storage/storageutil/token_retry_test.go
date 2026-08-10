@@ -218,3 +218,23 @@ func TestRetryingTokenSource_ExhaustedAttempts_Fails(t *testing.T) {
 	assert.Nil(t, token)
 	assert.Equal(t, 3, mock.calls)
 }
+
+func TestRetryingTokenSource_CancelledContext_FastFail(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	mock := &mockTokenSource{
+		tokens: []*oauth2.Token{{AccessToken: "valid-token"}},
+	}
+	ts := &retryingTokenSource{
+		ctx:         ctx,
+		base:        mock,
+		retryConfig: fastRetryConfig(),
+	}
+
+	token, err := ts.Token()
+
+	assert.Error(t, err)
+	assert.Nil(t, token)
+	assert.True(t, errors.Is(err, context.Canceled))
+}

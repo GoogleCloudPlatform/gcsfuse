@@ -61,6 +61,7 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 
 		if config.EnableMountRetries {
 			tokenSrc = &retryingTokenSource{
+				ctx:         ctx,
 				base:        tokenSrc,
 				retryConfig: retryConfig,
 			}
