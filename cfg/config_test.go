@@ -284,8 +284,10 @@ func TestApplyOptimizations(t *testing.T) {
 			expectedValue   any
 		}{
 			{
-				name:   "user_set",
-				config: Config{},
+				name: "user_set",
+				config: Config{
+					Profile: "aiml-checkpointing",
+				},
 				userSetFlags: map[string]any{
 					"write.finalize-file-for-rapid": true,
 					"machine-type":                  "a2-megagpu-16g",
@@ -305,6 +307,14 @@ func TestApplyOptimizations(t *testing.T) {
 				expectedValue:   false,
 			},
 			{
+				name:            "profile_aiml-checkpointing",
+				config:          Config{Profile: "aiml-checkpointing"},
+				userSetFlags:    map[string]any{},
+				input:           nil,
+				expectOptimized: true,
+				expectedValue:   true,
+			},
+			{
 				name:            "bucket_type_zonal",
 				config:          Config{Profile: ""},
 				userSetFlags:    map[string]any{},
@@ -317,6 +327,14 @@ func TestApplyOptimizations(t *testing.T) {
 				config:          Config{Profile: ""},
 				userSetFlags:    map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypePirlo},
+				expectOptimized: true,
+				expectedValue:   true,
+			},
+			{
+				name:            "profile_overrides_bucket_type",
+				config:          Config{Profile: "aiml-checkpointing"},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
 				expectedValue:   true,
 			},
