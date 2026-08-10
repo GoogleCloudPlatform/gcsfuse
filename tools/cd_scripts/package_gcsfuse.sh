@@ -25,25 +25,13 @@
 # gcsfuse-RELEASE_VERSION-1.x86_64.rpm
 
 set -e
-# create-gcsfuse-packages VM is a fixed VM in GCP project gcs-fuse-test
 
-# Function to fetch metadata value of the key.
+# Function to fetch metadata value of the key from the VM.
 function fetch_meta_data_value() {
   metadata_key=$1
-  # Fetch metadata value of the key
-  gcloud compute instances describe create-gcsfuse-packages --zone us-west1-b --flatten="metadata[$metadata_key]" >>  metadata.txt
-  # cat metadata.txt.txt
-  # ---
-  #   value
-  x=$(sed '2!d' metadata.txt)
-  #   value(contains preceding spaces)
-  # Remove spaces
-  # value
-  value=$(echo "$x" | sed 's/[[:space:]]//g')
-  # echo $value
-  # value
-  rm metadata.txt
-  echo $value
+  # Fetch metadata value directly from the local metadata server
+  value=$(curl -sfS -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$metadata_key")
+  echo "$value"
 }
 
 architecture=$(dpkg --print-architecture)
@@ -59,6 +47,10 @@ echo RELEASE_VERSION_TAG="$RELEASE_VERSION_TAG"
 UPLOAD_BUCKET=$(fetch_meta_data_value "UPLOAD_BUCKET")
 echo UPLOAD_BUCKET="$UPLOAD_BUCKET"
 
+# Fetch metadata value of the key "COMMIT_HASH"
+COMMIT_HASH=$(fetch_meta_data_value "COMMIT_HASH")
+echo COMMIT_HASH="$COMMIT_HASH"
+
 sudo apt-get update
 echo Install docker
 sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
@@ -72,11 +64,11 @@ sudo apt-get install git -y
 sudo apt-get install qemu-user-static binfmt-support
 git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse/tools/package_gcsfuse_docker/
-git checkout "v$RELEASE_VERSION_TAG"
+git checkout "$COMMIT_HASH"
 echo "Building docker for ${architecture} ..."
-sudo docker buildx build --load . -t gcsfuse-release-${architecture}:"$RELEASE_VERSION_TAG" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=${architecture} --build-arg BRANCH_NAME="v$RELEASE_VERSION_TAG" &> docker_${architecture}.log
-gsutil cp docker_${architecture}.log gs://"$UPLOAD_BUCKET"/v"$RELEASE_VERSION"/
+sudo docker buildx build --load . -t gcsfuse-release-${architecture}:"$RELEASE_VERSION_TAG" --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" --build-arg ARCHITECTURE=${architecture} --build-arg BRANCH_NAME="$COMMIT_HASH" &> docker_${architecture}.log
+gcloud storage cp docker_${architecture}.log gs://"$UPLOAD_BUCKET"/v"$RELEASE_VERSION"/
 sudo docker run  -v $HOME/gcsfuse/release:/release gcsfuse-release-${architecture}:"$RELEASE_VERSION_TAG" cp -r /packages/. /release/v"$RELEASE_VERSION"
 
 echo "Upload files in the bucket ..."
-gsutil cp -r $HOME/gcsfuse/release/v"$RELEASE_VERSION" gs://"$UPLOAD_BUCKET"/
+gcloud storage cp --recursive $HOME/gcsfuse/release/v"$RELEASE_VERSION" gs://"$UPLOAD_BUCKET"/
