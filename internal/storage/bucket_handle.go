@@ -204,9 +204,10 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// If rapid writes are disabled, we explicitly clear the storage class to prevent
 	// inheriting the RAPID storage class from an overwritten object and write it to
 	// the bucket's default storage class.
-	if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesEnabled {
+	switch bh.BucketType().Pirlo {
+	case gcs.PirloStateRapidWritesEnabled:
 		req.StorageClass = storageClassRapid
-	} else if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesDisabled {
+	case gcs.PirloStateRapidWritesDisabled:
 		req.StorageClass = ""
 	}
 
@@ -258,9 +259,10 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	// If rapid writes are disabled, we explicitly clear the storage class to prevent
 	// inheriting the RAPID storage class from an overwritten object and write it to
 	// the bucket's default storage class.
-	if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesEnabled {
+	switch bh.BucketType().Pirlo {
+	case gcs.PirloStateRapidWritesEnabled:
 		req.StorageClass = storageClassRapid
-	} else if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesDisabled {
+	case gcs.PirloStateRapidWritesDisabled:
 		req.StorageClass = ""
 	}
 
