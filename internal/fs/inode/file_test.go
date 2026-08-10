@@ -2074,3 +2074,184 @@ func getWriteConfigWithEnabledRapidAppends() *cfg.WriteConfig {
 		EnableRapidAppends:    true,
 	}
 }
+
+func TestFileInode_KernelReaderInitializationAndUpdates(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		bucketType              gcs.BucketType
+		protocol                cfg.Protocol
+		enableKernelReader      bool
+		expectMRD               bool
+		expectKernelRangeReader bool
+	}{
+		{
+			name:                    "Regional_GRPC_KernelReaderEnabled",
+			bucketType:              gcs.BucketType{},
+			protocol:                cfg.GRPC,
+			enableKernelReader:      true,
+			expectMRD:               true,
+			expectKernelRangeReader: false,
+		},
+		{
+			name:                    "Regional_HTTP1_KernelReaderEnabled",
+			bucketType:              gcs.BucketType{},
+			protocol:                cfg.HTTP1,
+			enableKernelReader:      true,
+			expectMRD:               false,
+			expectKernelRangeReader: true,
+		},
+		{
+			name:                    "Regional_HTTP2_KernelReaderEnabled",
+			bucketType:              gcs.BucketType{},
+			protocol:                cfg.HTTP2,
+			enableKernelReader:      true,
+			expectMRD:               false,
+			expectKernelRangeReader: true,
+		},
+		{
+			name:                    "Regional_GRPC_KernelReaderDisabled",
+			bucketType:              gcs.BucketType{},
+			protocol:                cfg.GRPC,
+			enableKernelReader:      false,
+			expectMRD:               false,
+			expectKernelRangeReader: true,
+		},
+		{
+			name:                    "Regional_HTTP1_KernelReaderDisabled",
+			bucketType:              gcs.BucketType{},
+			protocol:                cfg.HTTP1,
+			enableKernelReader:      false,
+			expectMRD:               false,
+			expectKernelRangeReader: true,
+		},
+		{
+			name:                    "HierarchicalRegional_GRPC_KernelReaderEnabled",
+			bucketType:              gcs.BucketType{Hierarchical: true},
+			protocol:                cfg.GRPC,
+			enableKernelReader:      true,
+			expectMRD:               true,
+			expectKernelRangeReader: false,
+		},
+		{
+			name:                    "HierarchicalRegional_HTTP1_KernelReaderEnabled",
+			bucketType:              gcs.BucketType{Hierarchical: true},
+			protocol:                cfg.HTTP1,
+			enableKernelReader:      true,
+			expectMRD:               false,
+			expectKernelRangeReader: true,
+		},
+		{
+			name:                    "Zonal_GRPC_KernelReaderEnabled",
+			bucketType:              gcs.BucketType{Zonal: true},
+			protocol:                cfg.GRPC,
+			enableKernelReader:      true,
+			expectMRD:               true,
+			expectKernelRangeReader: false,
+		},
+		{
+			name:                    "Zonal_HTTP1_KernelReaderEnabled",
+			bucketType:              gcs.BucketType{Zonal: true},
+			protocol:                cfg.HTTP1,
+			enableKernelReader:      true,
+			expectMRD:               true,
+			expectKernelRangeReader: false,
+		},
+		{
+			name:                    "Zonal_HTTP1_KernelReaderDisabled",
+			bucketType:              gcs.BucketType{Zonal: true},
+			protocol:                cfg.HTTP1,
+			enableKernelReader:      false,
+			expectMRD:               true,
+			expectKernelRangeReader: false,
+		},
+		{
+			name:                    "Pirlo_GRPC_KernelReaderEnabled",
+			bucketType:              gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			protocol:                cfg.GRPC,
+			enableKernelReader:      true,
+			expectMRD:               true,
+			expectKernelRangeReader: false,
+		},
+		{
+			name:                    "Pirlo_HTTP1_KernelReaderDisabled",
+			bucketType:              gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
+			protocol:                cfg.HTTP1,
+			enableKernelReader:      false,
+			expectMRD:               true,
+			expectKernelRangeReader: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var clock timeutil.SimulatedClock
+			clock.SetTime(time.Now())
+			fakeBucket := fake.NewFakeBucket(&clock, "test_bucket", tc.bucketType)
+			syncerBucket := gcsx.NewSyncerBucket(
+				1, 120, 10, ".gcsfuse_tmp/", fakeBucket,
+			)
+			minObj := &gcs.MinObject{
+				Name:           "test_file",
+				Size:           100,
+				Generation:     1,
+				MetaGeneration: 1,
+				Updated:        clock.Now(),
+			}
+			mountConfig := &cfg.Config{
+				FileSystem:    cfg.FileSystemConfig{EnableKernelReader: tc.enableKernelReader},
+				GcsConnection: cfg.GcsConnectionConfig{ClientProtocol: tc.protocol},
+			}
+
+			in := NewFileInode(
+				1,
+				NewFileName(NewRootName(""), "test_file"),
+				minObj,
+				fuseops.InodeAttributes{Size: 100},
+				&syncerBucket,
+				false,
+				contentcache.New("", &clock),
+				&clock,
+				false,
+				mountConfig,
+				semaphore.NewWeighted(100),
+				nil,
+				tracing.NewNoopTracer(),
+				metrics.NewNoopMetrics(),
+			)
+			require.NotNil(t, in)
+
+			if tc.expectMRD {
+				assert.NotNil(t, in.GetMRDInstance())
+				assert.NotNil(t, in.MRDWrapper)
+				assert.Nil(t, in.GetKernelRangeReaderInstance())
+				assert.Equal(t, uint64(100), in.GetMRDInstance().GetMinObject().Size)
+				assert.Equal(t, uint64(100), in.MRDWrapper.GetMinObject().Size)
+			} else {
+				assert.Nil(t, in.GetMRDInstance())
+				assert.Nil(t, in.MRDWrapper)
+			}
+
+			if tc.expectKernelRangeReader {
+				assert.NotNil(t, in.GetKernelRangeReaderInstance())
+				assert.Equal(t, uint64(100), in.GetKernelRangeReaderInstance().GetMinObject().Size)
+			}
+
+			// Test updateReaders via UpdateSize
+			newSize := uint64(250)
+			in.UpdateSize(newSize)
+
+			if tc.expectMRD {
+				assert.Equal(t, newSize, in.GetMRDInstance().GetMinObject().Size)
+				assert.Equal(t, newSize, in.MRDWrapper.GetMinObject().Size)
+			}
+			if tc.expectKernelRangeReader {
+				assert.Equal(t, newSize, in.GetKernelRangeReaderInstance().GetMinObject().Size)
+			}
+
+			// Test Destroy
+			err := in.Destroy()
+			assert.NoError(t, err)
+		})
+	}
+}
+

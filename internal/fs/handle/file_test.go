@@ -654,16 +654,32 @@ func (m *mockStorageReader) ReadHandle() storagev2.ReadHandle {
 
 func (t *fileTest) Test_ReadWithKernelReader_Success() {
 	testCases := []struct {
-		name    string
-		isZonal bool
+		name           string
+		isZonal        bool
+		protocol       cfg.Protocol
+		expectedReader string
+		usesMRD        bool
 	}{
 		{
-			name:    "Zonal_KernelMRDReader",
-			isZonal: true,
+			name:           "Zonal_KernelMRDReader",
+			isZonal:        true,
+			protocol:       cfg.HTTP1,
+			expectedReader: "KernelMRDReader",
+			usesMRD:        true,
 		},
 		{
-			name:    "Standard_KernelRangeReader",
-			isZonal: false,
+			name:           "Standard_KernelRangeReader",
+			isZonal:        false,
+			protocol:       cfg.HTTP1,
+			expectedReader: "KernelRangeReader",
+			usesMRD:        false,
+		},
+		{
+			name:           "Regional_KernelMRDReader_gRPC",
+			isZonal:        false,
+			protocol:       cfg.GRPC,
+			expectedReader: "KernelMRDReader",
+			usesMRD:        true,
 		},
 	}
 
@@ -683,17 +699,22 @@ func (t *fileTest) Test_ReadWithKernelReader_Success() {
 				".gcsfuse_tmp/", mockBucket,
 			)
 			parent := createDirInode(&mockSyncerBucket, &t.clock)
+			config := &cfg.Config{
+				FileSystem:    cfg.FileSystemConfig{EnableKernelReader: true},
+				GcsConnection: cfg.GcsConnectionConfig{ClientProtocol: tc.protocol},
+			}
 			// Create the file inode and file handle. Setting EnableKernelReader to true initializes fh.kernelReader.
-			in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, &cfg.Config{}, parent, objectName, expectedData, false)
-			fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
+			in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, config, parent, objectName, expectedData, false)
+			fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
 			require.NotNil(t.T(), fh.kernelReader)
-			// Create mock readers based on bucket type.
-			if tc.isZonal {
-				// Zonal buckets utilize the Multi-Range Downloader under the hood.
+			assert.Equal(t.T(), tc.expectedReader, fh.kernelReader.ReaderName())
+			// Create mock readers based on reader type.
+			if tc.usesMRD {
+				// Buckets using KernelMRDReader utilize the Multi-Range Downloader under the hood.
 				fakeMRD := fake.NewFakeMultiRangeDownloader(in.Source(), expectedData)
 				mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 			} else {
-				// Standard/Regional buckets utilize the standard storage Range Reader.
+				// Buckets using KernelRangeReader utilize the standard storage Range Reader.
 				mockReader := &mockStorageReader{io.NopCloser(bytes.NewReader(expectedData))}
 				mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(mockReader, nil).Once()
 			}
@@ -877,17 +898,30 @@ func (t *fileTest) Test_ReadWithKernelReader_ReadAtError() {
 	testCases := []struct {
 		name        string
 		isZonal     bool
+		protocol    cfg.Protocol
+		usesMRD     bool
 		expectedErr string
 	}{
 		{
 			name:        "Zonal_KernelMRDReader",
 			isZonal:     true,
+			protocol:    cfg.HTTP1,
+			usesMRD:     true,
 			expectedErr: "mrd read error",
 		},
 		{
 			name:        "Standard_KernelRangeReader",
 			isZonal:     false,
+			protocol:    cfg.HTTP1,
+			usesMRD:     false,
 			expectedErr: "failed to create range reader",
+		},
+		{
+			name:        "Regional_KernelMRDReader_gRPC",
+			isZonal:     false,
+			protocol:    cfg.GRPC,
+			usesMRD:     true,
+			expectedErr: "mrd read error",
 		},
 	}
 
@@ -905,13 +939,17 @@ func (t *fileTest) Test_ReadWithKernelReader_ReadAtError() {
 				/*chunkTransferTimeoutSecs=*/ 10,
 				".gcsfuse_tmp/", mockBucket,
 			)
+			config := &cfg.Config{
+				FileSystem:    cfg.FileSystemConfig{EnableKernelReader: true},
+				GcsConnection: cfg.GcsConnectionConfig{ClientProtocol: tc.protocol},
+			}
 			// Create file inode & file handle with kernel reader enabled.
 			parent := createDirInode(&mockSyncerBucket, &t.clock)
-			in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, parent, objectName, expectedData, false)
-			fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}, nil, nil, 0)
+			in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, config, parent, objectName, expectedData, false)
+			fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
 			require.NotNil(t.T(), fh.kernelReader)
-			// Create mock readers based on bucket type.
-			if tc.isZonal {
+			// Create mock readers based on reader type.
+			if tc.usesMRD {
 				// Mock a Multi-Range Downloader read failure.
 				expectedErr := errors.New("mrd read error")
 				fakeMRD := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(in.Source(), expectedData, 0, expectedErr)

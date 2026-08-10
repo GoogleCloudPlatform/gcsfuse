@@ -158,7 +158,7 @@ func NewFileInode(
 	contentCache *contentcache.ContentCache,
 	mtimeClock timeutil.Clock,
 	localFile bool,
-	cfg *cfg.Config,
+	c *cfg.Config,
 	globalMaxBlocksSem *semaphore.Weighted,
 	mrdCache *lru.Cache,
 	traceHandle tracing.TraceHandle,
@@ -179,16 +179,16 @@ func NewFileInode(
 		src:                     minObj,
 		local:                   localFile,
 		unlinked:                false,
-		config:                  cfg,
+		config:                  c,
 		globalMaxWriteBlocksSem: globalMaxBlocksSem,
 		traceHandle:             traceHandle,
 		metricHandle:            metricHandle,
 	}
 
-	if f.bucket.BucketType().IsRapid() {
+	if f.bucket.BucketType().IsRapid() || (c != nil && c.FileSystem.EnableKernelReader && c.GcsConnection.ClientProtocol == cfg.GRPC) {
 		var err error
-		f.mrdInstance = gcsx.NewMrdInstance(&minObj, bucket, mrdCache, id, cfg)
-		f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg, mrdCache)
+		f.mrdInstance = gcsx.NewMrdInstance(&minObj, bucket, mrdCache, id, c)
+		f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, c, mrdCache)
 		if err != nil {
 			logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 		}
@@ -1102,23 +1102,22 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	}
 }
 
-// Updates the min object stored in MRDWrapper & MRDInstance corresponding to the inode.
+// Updates the min object stored in MRDWrapper, MRDInstance & KernelRangeReaderInstance corresponding to the inode.
 // Should be called when minObject associated with inode is updated.
 func (f *FileInode) updateReaders() {
 	minObj := f.Source()
 	if f.kernelRangeReaderInstance != nil {
 		f.kernelRangeReaderInstance.SetMinObject(minObj)
 	}
-
-	// This will be a noop for regional bucket.
-	if !f.bucket.BucketType().IsRapid() {
-		return
+	if f.mrdInstance != nil {
+		if err := f.mrdInstance.SetMinObject(minObj); err != nil {
+			logger.Errorf("FileInode::updateReaders Error in setting minObject for MrdInstance %v", err)
+		}
 	}
-	if err := f.mrdInstance.SetMinObject(minObj); err != nil {
-		logger.Errorf("FileInode::updateReaders Error in setting minObject for MrdInstance %v", err)
-	}
-	if err := f.MRDWrapper.SetMinObject(minObj); err != nil {
-		logger.Errorf("FileInode::updateReaders Error in setting minObject for MRDWrapper %v", err)
+	if f.MRDWrapper != nil {
+		if err := f.MRDWrapper.SetMinObject(minObj); err != nil {
+			logger.Errorf("FileInode::updateReaders Error in setting minObject for MRDWrapper %v", err)
+		}
 	}
 }
 
