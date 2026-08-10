@@ -29,7 +29,7 @@ import (
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func Test_GetClientAuthOptionsAndToken_TokenUrlSuccess(t *testing.T) {
+func Test_GetClientAuthOptionsAndTokenSource_TokenUrlSuccess(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintln(w, `{"access_token":"dummy-token","token_type":"Bearer"}`)
@@ -41,41 +41,41 @@ func Test_GetClientAuthOptionsAndToken_TokenUrlSuccess(t *testing.T) {
 		KeyFile:           "testdata/key.json",
 	}
 
-	clientOpts, tokenSrc, err := GetClientAuthOptionsAndToken(context.TODO(), config)
+	clientOpts, tokenSrc, err := GetClientAuthOptionsAndTokenSource(context.TODO(), config)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, tokenSrc)
 	assert.Len(t, clientOpts, 1) // Only tokenSource option attached
 }
 
-func Test_GetClientAuthOptionsAndToken_TokenUrlError(t *testing.T) {
+func Test_GetClientAuthOptionsAndTokenSource_TokenUrlError(t *testing.T) {
 	config := &StorageClientConfig{TokenUrl: ":"}
 
-	clientOpts, tokenSrc, err := GetClientAuthOptionsAndToken(context.TODO(), config)
+	clientOpts, tokenSrc, err := GetClientAuthOptionsAndTokenSource(context.TODO(), config)
 
 	assert.Error(t, err)
 	assert.Nil(t, tokenSrc)
 	assert.Empty(t, clientOpts)
 }
 
-func Test_GetClientAuthOptionsAndToken_FallbackToKeyFileSuccess(t *testing.T) {
+func Test_GetClientAuthOptionsAndTokenSource_FallbackToKeyFileSuccess(t *testing.T) {
 	config := &StorageClientConfig{
 		TokenUrl: "", // triggers fallback
 		KeyFile:  "testdata/key.json",
 	}
 
-	clientOpts, tokenSrc, err := GetClientAuthOptionsAndToken(context.TODO(), config)
+	clientOpts, tokenSrc, err := GetClientAuthOptionsAndTokenSource(context.TODO(), config)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, tokenSrc)
 	assert.Len(t, clientOpts, 2) // UniverseDomain + AuthCredentials
 }
 
-func Test_GetClientAuthOptionsAndToken_FallbackToKeyFileError(t *testing.T) {
+func Test_GetClientAuthOptionsAndTokenSource_FallbackToKeyFileError(t *testing.T) {
 	config := &StorageClientConfig{TokenUrl: "", KeyFile: "fake-key"}
 	var clientOpts []option.ClientOption
 
-	clientOpts, tokenSrc, err := GetClientAuthOptionsAndToken(context.TODO(), config)
+	clientOpts, tokenSrc, err := GetClientAuthOptionsAndTokenSource(context.TODO(), config)
 
 	assert.Error(t, err)
 	assert.Nil(t, tokenSrc)

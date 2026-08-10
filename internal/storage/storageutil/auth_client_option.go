@@ -28,33 +28,12 @@ import (
 	"google.golang.org/api/option"
 )
 
-// GetClientAuthOptionsAndToken returns client options and a token source using either a token URL or fallback to key file/ADC.
-func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConfig) ([]option.ClientOption, oauth2.TokenSource, error) {
+// GetClientAuthOptionsAndTokenSource returns client options and a token source using either a token URL or fallback to key file/ADC.
+func GetClientAuthOptionsAndTokenSource(ctx context.Context, config *StorageClientConfig) ([]option.ClientOption, oauth2.TokenSource, error) {
 	retryConfig := NewRetryConfig(config)
-
 	// If Token URL is provided, attempt to fetch token source directly.
 	if config.TokenUrl != "" {
-		var tokenSrc oauth2.TokenSource
-		var err error
-
-		if config.EnableMountRetries {
-			apiCall := func(attemptCtx context.Context) (oauth2.TokenSource, error) {
-				return auth2.NewTokenSourceFromURL(attemptCtx, config.TokenUrl, config.ReuseTokenFromUrl)
-			}
-			tokenSrc, err = ExecuteWithCustomShouldRetryAtLogLevel(
-				ctx,
-				retryConfig,
-				"NewTokenSourceFromURL",
-				"token-source",
-				uuid.NewString(),
-				apiCall,
-				ShouldRetryOnMount,
-				logger.LevelInfo,
-			)
-		} else {
-			tokenSrc, err = auth2.NewTokenSourceFromURL(ctx, config.TokenUrl, config.ReuseTokenFromUrl)
-		}
-
+		tokenSrc, err := auth2.NewTokenSourceFromURL(ctx, config.TokenUrl, config.ReuseTokenFromUrl)
 		if err != nil {
 			return nil, nil, fmt.Errorf("while fetching token source: %w", err)
 		}
@@ -72,27 +51,7 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 	}
 
 	// Fallback: Use key file credentials.
-	var cred *auth.Credentials
-	var err error
-
-	if config.EnableMountRetries {
-		apiCall := func(_ context.Context) (*auth.Credentials, error) {
-			return auth2.GetCredentials(config.KeyFile)
-		}
-		cred, err = ExecuteWithCustomShouldRetryAtLogLevel(
-			ctx,
-			retryConfig,
-			"GetCredentials",
-			"credentials",
-			uuid.NewString(),
-			apiCall,
-			ShouldRetryOnMount,
-			logger.LevelInfo,
-		)
-	} else {
-		cred, err = auth2.GetCredentials(config.KeyFile)
-	}
-
+	cred, err := auth2.GetCredentials(config.KeyFile)
 	if err != nil {
 		return nil, nil, fmt.Errorf("while fetching credentials: %w", err)
 	}
@@ -122,9 +81,9 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 		}
 
 		if config.EnableMountRetries {
-			domain, err = ExecuteWithCustomShouldRetryAtLogLevel(ctx, retryConfig, "cred.UniverseDomain", "credentials", uuid.NewString(), apiCall, ShouldRetryOnMount, logger.LevelInfo)
+			domain, err = ExecuteWithCustomShouldRetry(ctx, retryConfig, "cred.UniverseDomain", "credentials", uuid.NewString(), apiCall, ShouldRetryOnMount)
 		} else {
-			domain, err = ExecuteWithRetryAtLogLevel(ctx, retryConfig, "cred.UniverseDomain", "credentials", uuid.NewString(), apiCall, logger.LevelInfo)
+			domain, err = ExecuteWithRetry(ctx, retryConfig, "cred.UniverseDomain", "credentials", uuid.NewString(), apiCall)
 		}
 		if err != nil {
 			logger.Errorf("failed to get UniverseDomain: %v, setting default universe domain", err)

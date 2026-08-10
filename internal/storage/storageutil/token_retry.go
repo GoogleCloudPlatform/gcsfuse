@@ -19,7 +19,6 @@ import (
 
 	"cloud.google.com/go/auth"
 	"github.com/google/uuid"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"golang.org/x/oauth2"
 )
 
@@ -34,7 +33,7 @@ func (r *retryingTokenProvider) Token(ctx context.Context) (*auth.Token, error) 
 		return r.base.Token(attemptCtx)
 	}
 
-	return ExecuteWithCustomShouldRetryAtLogLevel(
+	return ExecuteWithCustomShouldRetry(
 		ctx,
 		r.retryConfig,
 		"TokenProvider.Token",
@@ -42,7 +41,6 @@ func (r *retryingTokenProvider) Token(ctx context.Context) (*auth.Token, error) 
 		uuid.NewString(),
 		apiCall,
 		ShouldRetryOnMount,
-		logger.LevelInfo,
 	)
 }
 
@@ -63,7 +61,7 @@ func (r *retryingTokenSource) Token() (*oauth2.Token, error) {
 		ctx = context.Background()
 	}
 
-	return ExecuteWithCustomShouldRetryAtLogLevel(
+	return ExecuteWithCustomShouldRetry(
 		ctx,
 		r.retryConfig,
 		"Token",
@@ -71,6 +69,5 @@ func (r *retryingTokenSource) Token() (*oauth2.Token, error) {
 		uuid.NewString(),
 		apiCall,
 		ShouldRetryOnMount,
-		logger.LevelInfo,
 	)
 }
