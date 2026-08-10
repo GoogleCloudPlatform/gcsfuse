@@ -42,7 +42,7 @@
 #   - /packages/gcsfuse_{VERSION}_{ARCH}.deb
 #   - /packages/gcsfuse-{VERSION}-1.x86_64.rpm (or aarch64 for arm64)
 
-FROM golang:1.24.5 as builder
+FROM golang:1.26.4 as builder
 
 RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential && gem install --no-document bundler -v "2.4.12"
 RUN apt-get install -y rpm wget
@@ -61,7 +61,7 @@ RUN git clone ${GCSFUSE_REPO} && \
 RUN echo "Building from branch/commit/tag: ${BRANCH_NAME}"
 
 RUN rm -rf /usr/local/go && \
-    GO_VERSION=1.26.1 && \
+    GO_VERSION=1.26.4 && \
     wget -O go_tar.tar.gz https://go.dev/dl/go${GO_VERSION}.linux-${ARCHITECTURE}.tar.gz -q && \
     tar -C /usr/local -xzf go_tar.tar.gz && \
     rm go_tar.tar.gz
