@@ -30,11 +30,40 @@ import (
 
 // GetClientAuthOptionsAndToken returns client options and a token source using either a token URL or fallback to key file/ADC.
 func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConfig) ([]option.ClientOption, oauth2.TokenSource, error) {
+	retryConfig := NewRetryConfig(config)
+
 	// If Token URL is provided, attempt to fetch token source directly.
 	if config.TokenUrl != "" {
-		tokenSrc, err := auth2.NewTokenSourceFromURL(ctx, config.TokenUrl, config.ReuseTokenFromUrl)
+		var tokenSrc oauth2.TokenSource
+		var err error
+
+		if config.EnableMountRetries {
+			apiCall := func(attemptCtx context.Context) (oauth2.TokenSource, error) {
+				return auth2.NewTokenSourceFromURL(attemptCtx, config.TokenUrl, config.ReuseTokenFromUrl)
+			}
+			tokenSrc, err = ExecuteWithCustomShouldRetryAtLogLevel(
+				ctx,
+				retryConfig,
+				"NewTokenSourceFromURL",
+				"token-source",
+				uuid.NewString(),
+				apiCall,
+				ShouldRetryOnMount,
+				logger.LevelInfo,
+			)
+		} else {
+			tokenSrc, err = auth2.NewTokenSourceFromURL(ctx, config.TokenUrl, config.ReuseTokenFromUrl)
+		}
+
 		if err != nil {
 			return nil, nil, fmt.Errorf("while fetching token source: %w", err)
+		}
+
+		if config.EnableMountRetries {
+			tokenSrc = &retryingTokenSource{
+				base:        tokenSrc,
+				retryConfig: retryConfig,
+			}
 		}
 
 		clientOpts := []option.ClientOption{option.WithTokenSource(tokenSrc)}
@@ -42,12 +71,40 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 	}
 
 	// Fallback: Use key file credentials.
-	cred, err := auth2.GetCredentials(config.KeyFile)
+	var cred *auth.Credentials
+	var err error
+
+	if config.EnableMountRetries {
+		apiCall := func(_ context.Context) (*auth.Credentials, error) {
+			return auth2.GetCredentials(config.KeyFile)
+		}
+		cred, err = ExecuteWithCustomShouldRetryAtLogLevel(
+			ctx,
+			retryConfig,
+			"GetCredentials",
+			"credentials",
+			uuid.NewString(),
+			apiCall,
+			ShouldRetryOnMount,
+			logger.LevelInfo,
+		)
+	} else {
+		cred, err = auth2.GetCredentials(config.KeyFile)
+	}
+
 	if err != nil {
 		return nil, nil, fmt.Errorf("while fetching credentials: %w", err)
 	}
 
-	tokenSrc := oauth2adapt.TokenSourceFromTokenProvider(cred.TokenProvider)
+	tokenProvider := cred.TokenProvider
+	if config.EnableMountRetries {
+		tokenProvider = &retryingTokenProvider{
+			base:        cred.TokenProvider,
+			retryConfig: retryConfig,
+		}
+	}
+
+	tokenSrc := oauth2adapt.TokenSourceFromTokenProvider(tokenProvider)
 
 	var domain string
 
@@ -58,14 +115,16 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 		logger.Infof("Bypassing UniverseDomain metadata server lookup on standard commercial GCP setup")
 		domain = auth2.UniverseDomainDefault
 	} else {
-		retryConfig := NewRetryConfig(config)
-
 		apiCall := func(attemptCtx context.Context) (string, error) {
 			d, err := cred.UniverseDomain(attemptCtx)
 			return d, err
 		}
 
-		domain, err = ExecuteWithRetryAtLogLevel(ctx, retryConfig, "cred.UniverseDomain", "credentials", uuid.NewString(), apiCall, logger.LevelInfo)
+		if config.EnableMountRetries {
+			domain, err = ExecuteWithCustomShouldRetryAtLogLevel(ctx, retryConfig, "cred.UniverseDomain", "credentials", uuid.NewString(), apiCall, ShouldRetryOnMount, logger.LevelInfo)
+		} else {
+			domain, err = ExecuteWithRetryAtLogLevel(ctx, retryConfig, "cred.UniverseDomain", "credentials", uuid.NewString(), apiCall, logger.LevelInfo)
+		}
 		if err != nil {
 			logger.Errorf("failed to get UniverseDomain: %v, setting default universe domain", err)
 			// Setting default universe domain to googleapis.com in case we are unable to fetch the domain.
@@ -79,7 +138,7 @@ func GetClientAuthOptionsAndToken(ctx context.Context, config *StorageClientConf
 	// to bypass a known issue (b/442805436) in the current authentication library.
 	// TODO: Remove this workaround once issue b/442805436 is resolved in the library.
 	newCreds := auth.NewCredentials(&auth.CredentialsOptions{
-		TokenProvider:          cred.TokenProvider,
+		TokenProvider:          tokenProvider,
 		UniverseDomainProvider: auth.CredentialsPropertyFunc(func(_ context.Context) (string, error) { return domain, nil }),
 	})
 	clientOpts := []option.ClientOption{option.WithUniverseDomain(domain), option.WithAuthCredentials(newCreds)}
