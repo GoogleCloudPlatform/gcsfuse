@@ -42,19 +42,36 @@
 #   - /packages/gcsfuse_{VERSION}_{ARCH}.deb
 #   - /packages/gcsfuse-{VERSION}-1.x86_64.rpm (or aarch64 for arm64)
 
-FROM golang:1.24.5 as builder
+ARG GO_VERSION=1.24.5
+
+FROM golang:${GO_VERSION}-bookworm AS builder
+
+# Build arguments
+ARG ARCHITECTURE="amd64"
+# GCSFUSE_VERSION: The release version string (e.g. "2.5.4") embedded in package filenames, control files, changelogs, and RPM specs.
+ARG GCSFUSE_VERSION
+ARG GCSFUSE_REPO="https://github.com/googlecloudplatform/gcsfuse/"
+# BRANCH_NAME: The Git commit hash, branch, or tag used to build gcsfuse. Defaults to "v${GCSFUSE_VERSION}".
+ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
+ARG GCSFUSE_PATH="/go/gcsfuse"
+ARG GCSFUSE_BIN="/gcsfuse_${GCSFUSE_VERSION}_${ARCHITECTURE}"
+ARG GCSFUSE_DOC="${GCSFUSE_BIN}/usr/share/doc/gcsfuse"
+ARG GCSFUSE_PKG="/packages"
+
+# Environment variables
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+ENV GO111MODULE=auto
+ENV PATH="/usr/local/go/bin:${PATH}"
 
 RUN apt-get update -qq && apt-get install -y ruby ruby-dev rubygems build-essential && gem install --no-document bundler -v "2.4.12"
 RUN apt-get install -y rpm wget
-ARG ARCHITECTURE="amd64"
+
 RUN if [ "${ARCHITECTURE}" != "amd64" ] && [ "${ARCHITECTURE}" != "arm64" ]; then \
     echo "Architecture should be amd64 or arm64"; \
     exit 1; \
     fi
 
-ARG GCSFUSE_VERSION
-ARG GCSFUSE_REPO="https://github.com/googlecloudplatform/gcsfuse/"
-ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
 RUN git clone ${GCSFUSE_REPO} && \
     cd gcsfuse && \
     git checkout ${BRANCH_NAME}
@@ -65,24 +82,13 @@ RUN rm -rf /usr/local/go && \
     wget -O go_tar.tar.gz https://go.dev/dl/go${GO_VERSION}.linux-${ARCHITECTURE}.tar.gz -q && \
     tar -C /usr/local -xzf go_tar.tar.gz && \
     rm go_tar.tar.gz
-RUN PATH=$PATH:/usr/local/go/bin
 RUN go version
 
-ENV CGO_ENABLED=0
-ENV GOOS=linux
-ENV GO111MODULE=auto
-
-ARG GCSFUSE_PATH=${GOPATH}/gcsfuse
 WORKDIR ${GCSFUSE_PATH}
-
-ARG DEBEMAIL="gcs-fuse-maintainers@google.com"
-ARG DEBFULLNAME="GCSFuse Team"
 
 # Install fpm package using bundle
 RUN bundle install --gemfile=${GCSFUSE_PATH}/tools/gem_dependency/Gemfile
 
-ARG GCSFUSE_BIN="/gcsfuse_${GCSFUSE_VERSION}_${ARCHITECTURE}"
-ARG GCSFUSE_DOC="${GCSFUSE_BIN}/usr/share/doc/gcsfuse"
 WORKDIR ${GCSFUSE_PATH}/tools/build_gcsfuse
 RUN go install
 RUN mkdir -p ${GCSFUSE_BIN}
@@ -108,7 +114,6 @@ RUN gzip -9 -n ${GCSFUSE_DOC}/changelog
 RUN strip --strip-unneeded ${GCSFUSE_BIN}/usr/bin/gcsfuse && \
     strip --strip-unneeded ${GCSFUSE_BIN}/sbin/mount.gcsfuse
 
-ARG GCSFUSE_PKG="/packages"
 RUN mkdir -p ${GCSFUSE_PKG}
 WORKDIR ${GCSFUSE_PKG}
 # Build the package
@@ -125,5 +130,5 @@ RUN fpm \
     --rpm-digest sha256 \
     --license Apache-2.0 \
     --vendor "" \
-    --url "https://$GCSFUSE_REPO" \
+    --url "$GCSFUSE_REPO" \
     --description "A user-space file system for Google Cloud Storage."
