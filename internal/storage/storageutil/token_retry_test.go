@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -75,166 +75,155 @@ func fastRetryConfig() *RetryConfig {
 	}
 }
 
-func TestRetryingTokenProvider_SuccessOnFirstAttempt(t *testing.T) {
-	mock := &mockTokenProvider{
-		tokens: []*auth.Token{{Value: "valid-token"}},
-	}
-	provider := &retryingTokenProvider{
-		base:        mock,
-		retryConfig: fastRetryConfig(),
-	}
-
-	token, err := provider.Token(context.Background())
-
-	assert.NoError(t, err)
-	assert.NotNil(t, token)
-	assert.Equal(t, "valid-token", token.Value)
-	assert.Equal(t, 1, mock.calls)
-}
-
-func TestRetryingTokenProvider_RetryOnTransientMDSError_Success(t *testing.T) {
+func TestRetryingTokenProvider(t *testing.T) {
 	transientErr := &oauth2.RetrieveError{
 		Response: &http.Response{StatusCode: http.StatusServiceUnavailable},
 	}
-	mock := &mockTokenProvider{
-		errs:   []error{transientErr, transientErr, nil},
-		tokens: []*auth.Token{nil, nil, {Value: "recovered-token"}},
-	}
-	provider := &retryingTokenProvider{
-		base:        mock,
-		retryConfig: fastRetryConfig(),
-	}
-
-	token, err := provider.Token(context.Background())
-
-	assert.NoError(t, err)
-	assert.NotNil(t, token)
-	assert.Equal(t, "recovered-token", token.Value)
-	assert.Equal(t, 3, mock.calls)
-}
-
-func TestRetryingTokenProvider_NonTransientError_NoRetry(t *testing.T) {
+	metadata500 := &metadata.Error{Code: 500}
 	permanentErr := errors.New("permanent auth failure")
-	mock := &mockTokenProvider{
-		errs: []error{permanentErr},
-	}
-	provider := &retryingTokenProvider{
-		base:        mock,
-		retryConfig: fastRetryConfig(),
+
+	testCases := []struct {
+		name          string
+		mockTokens    []*auth.Token
+		mockErrors    []error
+		expectError   bool
+		expectedToken string
+		expectedCalls int
+	}{
+		{
+			name:          "SuccessOnFirstAttempt",
+			mockTokens:    []*auth.Token{{Value: "valid-token"}},
+			expectedToken: "valid-token",
+			expectedCalls: 1,
+		},
+		{
+			name:          "RecoveryAfterTransientMDSErrors",
+			mockErrors:    []error{transientErr, transientErr, nil},
+			mockTokens:    []*auth.Token{nil, nil, {Value: "recovered-token"}},
+			expectedToken: "recovered-token",
+			expectedCalls: 3,
+		},
+		{
+			name:          "FastFailOnNonTransientError",
+			mockErrors:    []error{permanentErr},
+			expectError:   true,
+			expectedCalls: 1,
+		},
+		{
+			name:          "ExhaustedRetryAttempts",
+			mockErrors:    []error{metadata500, metadata500, metadata500, metadata500},
+			expectError:   true,
+			expectedCalls: 3,
+		},
 	}
 
-	token, err := provider.Token(context.Background())
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := &mockTokenProvider{
+				tokens: tc.mockTokens,
+				errs:   tc.mockErrors,
+			}
+			provider := &retryingTokenProvider{
+				base:        mock,
+				retryConfig: fastRetryConfig(),
+			}
 
-	assert.Error(t, err)
-	assert.Nil(t, token)
-	assert.Equal(t, 1, mock.calls)
+			token, err := provider.Token(context.Background())
+
+			if tc.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, token)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, token)
+				assert.Equal(t, tc.expectedToken, token.Value)
+			}
+			assert.Equal(t, tc.expectedCalls, mock.calls)
+		})
+	}
 }
 
-func TestRetryingTokenProvider_ExhaustedAttempts_Fails(t *testing.T) {
-	transientErr := &metadata.Error{Code: 500}
-	mock := &mockTokenProvider{
-		errs: []error{transientErr, transientErr, transientErr, transientErr},
-	}
-	provider := &retryingTokenProvider{
-		base:        mock,
-		retryConfig: fastRetryConfig(),
-	}
-
-	token, err := provider.Token(context.Background())
-
-	assert.Error(t, err)
-	assert.Nil(t, token)
-	assert.Equal(t, 3, mock.calls)
-}
-
-func TestRetryingTokenSource_SuccessOnFirstAttempt(t *testing.T) {
-	mock := &mockTokenSource{
-		tokens: []*oauth2.Token{{AccessToken: "valid-token"}},
-	}
-	ts := &retryingTokenSource{
-		base:        mock,
-		retryConfig: fastRetryConfig(),
-	}
-
-	token, err := ts.Token()
-
-	assert.NoError(t, err)
-	assert.NotNil(t, token)
-	assert.Equal(t, "valid-token", token.AccessToken)
-	assert.Equal(t, 1, mock.calls)
-}
-
-func TestRetryingTokenSource_RetryOnTransientMDSError_Success(t *testing.T) {
-	transientErr := &metadata.Error{Code: 503}
-	mock := &mockTokenSource{
-		errs:   []error{transientErr, nil},
-		tokens: []*oauth2.Token{nil, {AccessToken: "recovered-token"}},
-	}
-	ts := &retryingTokenSource{
-		base:        mock,
-		retryConfig: fastRetryConfig(),
-	}
-
-	token, err := ts.Token()
-
-	assert.NoError(t, err)
-	assert.NotNil(t, token)
-	assert.Equal(t, "recovered-token", token.AccessToken)
-	assert.Equal(t, 2, mock.calls)
-}
-
-func TestRetryingTokenSource_NonTransientError_NoRetry(t *testing.T) {
-	permanentErr := errors.New("permanent auth failure")
-	mock := &mockTokenSource{
-		errs: []error{permanentErr},
-	}
-	ts := &retryingTokenSource{
-		base:        mock,
-		retryConfig: fastRetryConfig(),
-	}
-
-	token, err := ts.Token()
-
-	assert.Error(t, err)
-	assert.Nil(t, token)
-	assert.Equal(t, 1, mock.calls)
-}
-
-func TestRetryingTokenSource_ExhaustedAttempts_Fails(t *testing.T) {
+func TestRetryingTokenSource(t *testing.T) {
 	transientErr := &oauth2.RetrieveError{
 		Response: &http.Response{StatusCode: http.StatusTooManyRequests},
 	}
-	mock := &mockTokenSource{
-		errs: []error{transientErr, transientErr, transientErr, transientErr},
-	}
-	ts := &retryingTokenSource{
-		base:        mock,
-		retryConfig: fastRetryConfig(),
-	}
+	metadata503 := &metadata.Error{Code: 503}
+	permanentErr := errors.New("permanent auth failure")
 
-	token, err := ts.Token()
-
-	assert.Error(t, err)
-	assert.Nil(t, token)
-	assert.Equal(t, 3, mock.calls)
-}
-
-func TestRetryingTokenSource_CancelledContext_FastFail(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
-	mock := &mockTokenSource{
-		tokens: []*oauth2.Token{{AccessToken: "valid-token"}},
-	}
-	ts := &retryingTokenSource{
-		ctx:         ctx,
-		base:        mock,
-		retryConfig: fastRetryConfig(),
+	testCases := []struct {
+		name          string
+		ctx           context.Context
+		mockTokens    []*oauth2.Token
+		mockErrors    []error
+		expectError   bool
+		checkCancel   bool
+		expectedToken string
+		expectedCalls int
+	}{
+		{
+			name:          "SuccessOnFirstAttempt",
+			mockTokens:    []*oauth2.Token{{AccessToken: "valid-token"}},
+			expectedToken: "valid-token",
+			expectedCalls: 1,
+		},
+		{
+			name:          "RecoveryAfterTransientMDSError",
+			mockErrors:    []error{metadata503, nil},
+			mockTokens:    []*oauth2.Token{nil, {AccessToken: "recovered-token"}},
+			expectedToken: "recovered-token",
+			expectedCalls: 2,
+		},
+		{
+			name:          "FastFailOnNonTransientError",
+			mockErrors:    []error{permanentErr},
+			expectError:   true,
+			expectedCalls: 1,
+		},
+		{
+			name:          "ExhaustedRetryAttempts",
+			mockErrors:    []error{transientErr, transientErr, transientErr, transientErr},
+			expectError:   true,
+			expectedCalls: 3,
+		},
+		{
+			name:          "FastFailOnCancelledContext",
+			ctx:           cancelledCtx,
+			mockTokens:    []*oauth2.Token{{AccessToken: "valid-token"}},
+			expectError:   true,
+			checkCancel:   true,
+			expectedCalls: 0,
+		},
 	}
 
-	token, err := ts.Token()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := &mockTokenSource{
+				tokens: tc.mockTokens,
+				errs:   tc.mockErrors,
+			}
+			ts := &retryingTokenSource{
+				ctx:         tc.ctx,
+				base:        mock,
+				retryConfig: fastRetryConfig(),
+			}
 
-	assert.Error(t, err)
-	assert.Nil(t, token)
-	assert.True(t, errors.Is(err, context.Canceled))
+			token, err := ts.Token()
+
+			if tc.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, token)
+				if tc.checkCancel {
+					assert.True(t, errors.Is(err, context.Canceled))
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, token)
+				assert.Equal(t, tc.expectedToken, token.AccessToken)
+			}
+			assert.Equal(t, tc.expectedCalls, mock.calls)
+		})
+	}
 }

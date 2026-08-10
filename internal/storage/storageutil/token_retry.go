@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ func (r *retryingTokenProvider) Token(ctx context.Context) (*auth.Token, error) 
 		"token-refresh",
 		uuid.NewString(),
 		apiCall,
-		isTransientMDSError,
+		ShouldRetryOnMount,
 		logger.LevelInfo,
 	)
 }
@@ -70,7 +70,7 @@ func (r *retryingTokenSource) Token() (*oauth2.Token, error) {
 		"token-refresh",
 		uuid.NewString(),
 		apiCall,
-		isTransientMDSError,
+		ShouldRetryOnMount,
 		logger.LevelInfo,
 	)
 }
