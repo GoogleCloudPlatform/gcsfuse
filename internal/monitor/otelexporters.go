@@ -48,6 +48,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	globalLog "go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/sdk/log"
 )
@@ -69,10 +70,31 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 	opts = setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
 	options = append(options, opts...)
 
+	if c.Metrics.ExperimentalEnableOtelMetrics {
+		otelOpts, err := setupOtelMetricsEndpoint(ctx, c.Metrics.ExperimentalOtelMetricsEndpoint, c.GcsAuth)
+		if err != nil {
+			logger.Errorf("Error while creating OTLP metric exporter: %v", err)
+		} else {
+			options = append(options, otelOpts...)
+		}
+	}
+
 	res, err := getResource(ctx, mountID)
 	if err != nil {
 		logger.Errorf("Error while fetching resource: %v", err)
 	} else {
+		if c.Metrics.ExperimentalEnableOtelMetrics {
+			projectID := getProjectID(ctx, c.GcsAuth, c.Metrics.ExperimentalOtelMetricsProjectId)
+			if projectID != "" {
+				projRes, _ := resource.New(ctx,
+					resource.WithSchemaURL(res.SchemaURL()),
+					resource.WithAttributes(
+						attribute.String("gcp.project_id", projectID),
+					),
+				)
+				res, _ = resource.Merge(res, projRes)
+			}
+		}
 		options = append(options, metric.WithResource(res))
 	}
 
@@ -196,6 +218,39 @@ func (e *permissionAwareLogExporter) ForceFlush(ctx context.Context) error {
 func metricFormatter(m metricdata.Metrics) string {
 	return cloudMonitoringMetricPrefix + strings.ReplaceAll(m.Name, ".", "/")
 }
+
+func setupOtelMetricsEndpoint(ctx context.Context, endpoint string, authConfig cfg.GcsAuthConfig) ([]metric.Option, error) {
+	opts := []otlpmetrichttp.Option{
+		otlpmetrichttp.WithEndpoint(endpoint),
+		otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
+	}
+
+	// For local testing and e2e test.
+	if strings.Contains(endpoint, "localhost") || strings.Contains(endpoint, "127.0.0.1") || strings.Contains(endpoint, "0.0.0.0") || strings.Contains(endpoint, "[::1]") {
+		opts = append(opts, otlpmetrichttp.WithInsecure())
+	}
+
+	// Use authenticated client for GCP endpoints.
+	if strings.Contains(endpoint, "googleapis.com") {
+		ts, err := auth.GetTokenSourceWithScope(ctx, string(authConfig.KeyFile), authConfig.TokenUrl, authConfig.ReuseTokenFromUrl, "https://www.googleapis.com/auth/monitoring.write")
+		if err != nil {
+			logger.Errorf("Error getting GCP authenticated token source for metrics: %v", err)
+			return nil, err
+		}
+		client := oauth2.NewClient(ctx, ts)
+		client.Timeout = 30 * time.Second
+		opts = append(opts, otlpmetrichttp.WithHTTPClient(client))
+	}
+
+	exporter, err := otlpmetrichttp.New(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	reader := metric.NewPeriodicReader(exporter, metric.WithInterval(30*time.Second))
+	return []metric.Option{metric.WithReader(reader)}, nil
+}
+
 func setupPrometheus(port int64) ([]metric.Option, common.ShutdownFn) {
 	if port <= 0 {
 		return nil, nil
