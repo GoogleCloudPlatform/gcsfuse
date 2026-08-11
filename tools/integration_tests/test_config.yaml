@@ -2098,3 +2098,15 @@ otel_logs:
           flat: true
           hns: true
         run: "TestOTelLogsTestSuite"
+otel_metrics:
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - flags:
+          - ""
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run_on_gke: false
+        run: "TestOTelMetricsTestSuite"

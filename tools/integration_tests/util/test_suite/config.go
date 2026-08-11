@@ -128,6 +128,7 @@ type Config struct {
 	Mounting              []TestConfig `yaml:"mounting"`
 	NegativeStatCache     []TestConfig `yaml:"negative_stat_cache"`
 	OtelLogs              []TestConfig `yaml:"otel_logs"`
+	OtelMetrics           []TestConfig `yaml:"otel_metrics"`
 }
 
 // ReadConfigFile returns a Config struct from the YAML file.
