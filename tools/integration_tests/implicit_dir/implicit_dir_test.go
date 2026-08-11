@@ -125,11 +125,16 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	// 3. Set up test directory for test bucket.
+	// 3. To run mountedDirectory tests, we need both testBucket and mountedDirectory
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
+	}
+
+	// 4. Set up test directory for test bucket.
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
 	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())
 
-	// 4. Run tests.
+	// 5. Run tests.
 	successCode := m.Run()
 	setup.SaveLogFileInCaseOfFailure(successCode)
 
