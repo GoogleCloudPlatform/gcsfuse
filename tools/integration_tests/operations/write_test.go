@@ -120,8 +120,8 @@ func (w *writeOperationsTest) validateObjectAttributes(attr1, attr2 *storage.Obj
 		w.T().Error("Expected CRC32 attributes to be non 0")
 	}
 	if attr1.MediaLink == "" || attr2.MediaLink == "" {
-		if setup.IsZonalBucketRun() || (setup.IsPirloBucketRun() && w.isRapidWritesEnabled) {
-			w.T().Logf("media link is empty, but it is a known limitation in RAPID/zonal buckets.")
+		if setup.IsZonalBucketRun() || setup.IsPirloBucketRun() {
+			w.T().Logf("media link is empty, but it is a known limitation in gRPC.")
 		} else {
 			w.T().Errorf("Expected media link to be non empty")
 		}
@@ -209,10 +209,14 @@ func (w *writeOperationsTest) TestAppendFileOperationsDoesNotChangeObjectAttribu
 	fileName := path.Join(testDir, tempFileName)
 
 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, w.T())
+	if w.isRapidWritesEnabled {
+		operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
+	}
 	attr1 := w.validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName))
 	// Append to the file.
 	err := operations.WriteFileInAppendMode(fileName, appendContent)
 	require.NoError(w.T(), err, "Could not append to file")
+	operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
 	attr2 := w.validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName))
 
 	// Validate object attributes are as expected.
@@ -225,12 +229,17 @@ func (w *writeOperationsTest) TestWriteAtFileOperationsDoesNotChangeObjectAttrib
 	fileName := path.Join(testDir, tempFileName)
 
 	operations.CreateFileWithContent(fileName, setup.FilePermission_0600, Content, w.T())
+	if w.isRapidWritesEnabled {
+		operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
+	}
 	attr1 := w.validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName))
 	// Over-write the file.
 	fh, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_DIRECT, operations.FilePermission_0600)
 	require.NoError(w.T(), err, "Could not open file after creation")
 	operations.WriteAt(tempFileContent+appendContent, 0, fh, w.T())
 	operations.CloseFileShouldNotThrowError(w.T(), fh)
+	operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
+	operations.WaitForSizeUpdate(2 * time.Minute)
 	attr2 := w.validateExtendedObjectAttributesNonEmpty(path.Join(DirForOperationTests, tempFileName))
 
 	// Validate object attributes are as expected.

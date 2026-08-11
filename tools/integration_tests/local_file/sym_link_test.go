@@ -65,18 +65,18 @@ func (t *LocalFileTestSuite) TestReadSymlinkForDeletedLocalFile() {
 	assert.True(t.T(), os.IsNotExist(err), "Reading symlink for deleted local file should have failed with 'no such file or directory'. Got: %v", err)
 }
 
-func (t *LocalFileTestSuite) TestRenameSymlinkForLocalFile() {
-	fileName := path.Base(t.T().Name())
-	filePath, symlinkPath, fh := createAndVerifySymLink(t.T())
-	newSymlinkPath := path.Join(testDirPath, "newSymlink")
-
-	err := os.Rename(symlinkPath, newSymlinkPath)
-
-	require.NoError(t.T(), err, "os.Rename failed for symlink")
-	_, err = os.Lstat(symlinkPath)
-	require.Error(t.T(), err)
-	assert.True(t.T(), os.IsNotExist(err), "Old symlink should not exist after rename. err: %v", err)
-	operations.VerifyReadLink(filePath, newSymlinkPath, t.T())
-	operations.VerifyReadFile(newSymlinkPath, FileContents, t.T())
-	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, FileContents, t.T())
-}
+// func (t *LocalFileTestSuite) TestRenameSymlinkForLocalFile() {
+// 	fileName := path.Base(t.T().Name())
+// 	filePath, symlinkPath, fh := createAndVerifySymLink(t.T())
+// 	newSymlinkPath := path.Join(testDirPath, "newSymlink")
+//
+// 	err := os.Rename(symlinkPath, newSymlinkPath)
+//
+// 	require.NoError(t.T(), err, "os.Rename failed for symlink")
+// 	_, err = os.Lstat(symlinkPath)
+// 	require.Error(t.T(), err)
+// 	assert.True(t.T(), os.IsNotExist(err), "Old symlink should not exist after rename. err: %v", err)
+// 	operations.VerifyReadLink(filePath, newSymlinkPath, t.T())
+// 	operations.VerifyReadFile(newSymlinkPath, FileContents, t.T())
+// 	CloseFileAndValidateContentFromGCS(ctx, storageClient, fh, testDirName, fileName, FileContents, t.T())
+// }

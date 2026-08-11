@@ -20,7 +20,6 @@ import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
@@ -44,6 +43,10 @@ func (t *unfinalizedObjectTailingReads) SetupTest() {
 	t.fileName = path.Base(t.T().Name()) + setup.GenerateRandomString(5)
 }
 
+func (t *unfinalizedObjectTailingReads) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
+}
+
 func (s *unfinalizedObjectTailingReads) TearDownSuite() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
@@ -59,6 +62,7 @@ func (t *unfinalizedObjectTailingReads) TestTailingRead() {
 	// 1. Create file
 	initialContent := setup.GenerateRandomString(initialSize)
 	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), initialContent)
+	operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
 
 	// 2. Open file for reading
 	readPath := path.Join(t.testDirPath, t.fileName)
@@ -90,9 +94,8 @@ func (t *unfinalizedObjectTailingReads) TestTailingRead() {
 		err = writer.Close()
 		require.NoError(t.T(), err)
 
-		// Wait for metadata cache to expire if needed.
-		// Since we are running with --metadata-cache-ttl-secs=2, we should wait slightly more than that.
-		time.Sleep(3 * time.Second)
+		// Wait for stat size update after flush.
+		operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
 
 		// Check Stat (fstat on the read handle)
 		fi, err := readFile.Stat()

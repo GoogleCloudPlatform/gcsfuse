@@ -39,6 +39,9 @@ func (t *BaseSuite) createGCSFile(useAppendableAPI bool, fileSize int64) (filePa
 		client.WithFinalizeOnClose(true),
 	)
 	require.NoError(t.T(), err)
+	if useAppendableAPI {
+		operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
+	}
 	return filePath, content
 }
 

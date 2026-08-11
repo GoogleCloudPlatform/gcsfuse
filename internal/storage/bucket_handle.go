@@ -203,6 +203,8 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// defaulting to the bucket's default storage class
 	if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesEnabled {
 		req.StorageClass = storageClassRapid
+	} else if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesDisabled {
+		req.StorageClass = ""
 	}
 
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
@@ -252,6 +254,8 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	// defaulting to the bucket's default storage class.
 	if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesEnabled {
 		req.StorageClass = storageClassRapid
+	} else if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesDisabled {
+		req.StorageClass = ""
 	}
 
 	obj := bh.getObjectHandleWithPreconditionsSet(req)

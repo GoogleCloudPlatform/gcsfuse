@@ -68,7 +68,7 @@ func (s *staleFileHandleEmptyGcsFile) TearDownTest() {
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandleError() {
 	// TODO(b/410698332): Remove skip condition once takeover support is available.
-	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
+	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsPirloBucketRun()) {
 		s.T().Skip("Skip test due to takeover support not available.")
 	}
 	// Dirty the file by giving it some contents.
@@ -87,7 +87,7 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandle
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
 	// TODO(b/410698332): Remove skip condition once takeover support is available.
-	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
+	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsPirloBucketRun()) {
 		s.T().Skip("Skip test due to takeover support not available.")
 	}
 	// Clobber file by replacing the underlying object with a new generation.
@@ -106,7 +106,7 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFile
 
 func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
 	// TODO(mohitkyadav): Enable test once fix in b/415713332 is released
-	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
+	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsPirloBucketRun()) {
 		s.T().Skip("Skip test due to bug (b/415713332) in client.")
 	}
 	// Dirty the file by giving it some contents.

@@ -17,6 +17,7 @@ package persistent_mounting
 import (
 	"fmt"
 	"log"
+	"slices"
 	"strings"
 	"testing"
 
@@ -57,6 +58,13 @@ func mountGcsfuseWithPersistentMountingWithConfigFile(config *test_suite.TestCon
 	for i := range persistentMountingArgs {
 		// e.g. -o flag1, -o flag2, ...
 		defaultArg = append(defaultArg, "-o", persistentMountingArgs[i])
+	}
+
+	if ce := setup.CustomEndpoint(); ce != "" {
+		defaultArg = slices.DeleteFunc(defaultArg, func(s string) bool {
+			return strings.HasPrefix(s, "custom_endpoint=") || strings.HasPrefix(s, "custom-endpoint=")
+		})
+		defaultArg = append(defaultArg, "-o", "custom_endpoint="+ce)
 	}
 
 	err = mounting.MountGcsfuse(setup.SbinFile(), defaultArg)
