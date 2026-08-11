@@ -17,6 +17,7 @@ package monitor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -44,6 +45,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -149,7 +151,7 @@ func (e *permissionAwareExporter) Export(ctx context.Context, rm *metricdata.Res
 
 	err := e.Exporter.Export(ctx, rm)
 	// If we get a PermissionDenied error (gRPC) or 403 Forbidden (HTTP), disable the exporter to prevent future attempts.
-	if err != nil && (status.Code(err) == codes.PermissionDenied || strings.Contains(err.Error(), "403")) {
+	if err != nil && isPermissionDenied(err) {
 		if e.disabled.CompareAndSwap(false, true) {
 			logger.Errorf("Disabling metrics exporter due to permission denied error: %v", err)
 		}
@@ -189,7 +191,7 @@ func (e *permissionAwareLogExporter) Export(ctx context.Context, records []log.R
 
 	err := e.Exporter.Export(ctx, records)
 	// If we get a PermissionDenied error (gRPC) or 403 Forbidden (HTTP), disable the exporter to prevent future attempts.
-	if err != nil && (status.Code(err) == codes.PermissionDenied || strings.Contains(err.Error(), "403")) {
+	if err != nil && isPermissionDenied(err) {
 		if e.disabled.CompareAndSwap(false, true) {
 			logger.Errorf("Disabling Cloud Logging exporter due to permission denied error: %v", err)
 		}
@@ -202,6 +204,34 @@ func (e *permissionAwareLogExporter) ForceFlush(ctx context.Context) error {
 		return nil
 	}
 	return e.Exporter.ForceFlush(ctx)
+}
+
+// isPermissionDenied checks whether the error represents a permission denied or HTTP 403 Forbidden error.
+// It avoids matching generic strings containing "403" (e.g., port numbers or IP addresses).
+func isPermissionDenied(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// 1. Check gRPC status code
+	if status.Code(err) == codes.PermissionDenied {
+		return true
+	}
+
+	// 2. Check typed Google API error
+	var gErr *googleapi.Error
+	if errors.As(err, &gErr) && gErr.Code == http.StatusForbidden {
+		return true
+	}
+
+	// 3. Check specific HTTP 403 string patterns (e.g., OTLP HTTP exporter errors)
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "403 forbidden") ||
+		strings.Contains(msg, "status code: 403") ||
+		strings.Contains(msg, "status code 403") ||
+		strings.Contains(msg, "googleapi: error 403") ||
+		strings.Contains(msg, "\"code\": 403") ||
+		strings.Contains(msg, "\"code\":403")
 }
 
 func metricFormatter(m metricdata.Metrics) string {
@@ -418,9 +448,10 @@ func getOtelResource(ctx context.Context, mountID string, projectID string) (*re
 				attribute.String("gcp.project_id", projectID),
 			),
 		)
-		res, err = resource.Merge(res, projRes)
-		if err != nil {
+		if mergedRes, err := resource.Merge(res, projRes); err != nil {
 			logger.Errorf("Error merging project ID into resource: %v", err)
+		} else {
+			res = mergedRes
 		}
 	}
 	return res, nil

@@ -1170,7 +1170,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("experimental-otel-metrics-endpoint", "", "telemetry.googleapis.com", "The OTLP HTTP endpoint for OpenTelemetry metrics.")
+	flagSet.StringP("experimental-otel-metrics-endpoint", "", "", "The OTLP HTTP endpoint for OpenTelemetry metrics.")
 
 	if err := flagSet.MarkHidden("experimental-otel-metrics-endpoint"); err != nil {
 		return err

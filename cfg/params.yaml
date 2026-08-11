@@ -1146,7 +1146,7 @@ params:
     flag-name: "experimental-otel-metrics-endpoint"
     type: "string"
     usage: "The OTLP HTTP endpoint for OpenTelemetry metrics."
-    default: "telemetry.googleapis.com"
+    default: ""
     hide-flag: true
 
   - config-path: "metrics.experimental-otel-metrics-project-id"

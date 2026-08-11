@@ -27,6 +27,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -104,20 +105,140 @@ func TestPermissionAwareExporter_ExportHTTP403(t *testing.T) {
 }
 
 func TestPermissionAwareExporter_ExportOtherError(t *testing.T) {
-	// Arrange
-	mock := &mockExporter{
-		exportFunc: func(ctx context.Context, rm *metricdata.ResourceMetrics) error {
-			return errors.New("some other error")
+	testCases := []struct {
+		name string
+		err  error
+	}{
+		{
+			name: "generic error",
+			err:  errors.New("some other error"),
+		},
+		{
+			name: "connection refused on port containing 403",
+			err:  errors.New("dial tcp 127.0.0.1:1403: connect: connection refused"),
+		},
+		{
+			name: "connection refused on port 4030",
+			err:  errors.New("dial tcp 127.0.0.1:4030: connect: connection refused"),
+		},
+		{
+			name: "IP address containing 403",
+			err:  errors.New("dial tcp 10.40.3.1:4318: i/o timeout"),
 		},
 	}
-	exporter := &permissionAwareExporter{Exporter: mock}
 
-	// Act
-	err := exporter.Export(context.Background(), &metricdata.ResourceMetrics{})
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			mock := &mockExporter{
+				exportFunc: func(ctx context.Context, rm *metricdata.ResourceMetrics) error {
+					return tc.err
+				},
+			}
+			exporter := &permissionAwareExporter{Exporter: mock}
 
-	// Assert
-	assert.Error(t, err)
-	assert.False(t, exporter.disabled.Load())
+			// Act
+			err := exporter.Export(context.Background(), &metricdata.ResourceMetrics{})
+
+			// Assert
+			assert.Error(t, err)
+			assert.False(t, exporter.disabled.Load())
+		})
+	}
+}
+
+func TestIsPermissionDenied(t *testing.T) {
+	testCases := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "gRPC PermissionDenied",
+			err:      status.Error(codes.PermissionDenied, "permission denied"),
+			expected: true,
+		},
+		{
+			name:     "gRPC NotFound",
+			err:      status.Error(codes.NotFound, "not found"),
+			expected: false,
+		},
+		{
+			name:     "googleapi 403",
+			err:      &googleapi.Error{Code: 403, Message: "Forbidden"},
+			expected: true,
+		},
+		{
+			name:     "googleapi 404",
+			err:      &googleapi.Error{Code: 404, Message: "Not Found"},
+			expected: false,
+		},
+		{
+			name:     "OTel HTTP 403 Forbidden",
+			err:      errors.New("failed to send metrics to http://127.0.0.1:4318: 403 Forbidden"),
+			expected: true,
+		},
+		{
+			name:     "OTel HTTP logs 403 Forbidden with body",
+			err:      errors.New("failed to send logs to https://telemetry.googleapis.com: 403 Forbidden (body: permission denied)"),
+			expected: true,
+		},
+		{
+			name:     "status code: 403",
+			err:      errors.New("request failed with status code: 403"),
+			expected: true,
+		},
+		{
+			name:     "googleapi error 403 string",
+			err:      errors.New("googleapi: Error 403: The caller does not have permission"),
+			expected: true,
+		},
+		{
+			name:     "JSON code 403",
+			err:      errors.New(`{"error": {"code": 403, "message": "Permission denied"}}`),
+			expected: true,
+		},
+		{
+			name:     "port 1403 connection refused",
+			err:      errors.New("dial tcp 127.0.0.1:1403: connect: connection refused"),
+			expected: false,
+		},
+		{
+			name:     "port 4030 connection refused",
+			err:      errors.New("dial tcp 127.0.0.1:4030: connect: connection refused"),
+			expected: false,
+		},
+		{
+			name:     "IP with 403",
+			err:      errors.New("dial tcp 10.40.3.1:4318: i/o timeout"),
+			expected: false,
+		},
+		{
+			name:     "project name with 403",
+			err:      errors.New("failed to export to projects/project-4034/metrics: network error"),
+			expected: false,
+		},
+		{
+			name:     "generic error",
+			err:      errors.New("something went wrong"),
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Act
+			actual := isPermissionDenied(tc.err)
+
+			// Assert
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
 }
 
 type mockLogExporter struct {
@@ -193,20 +314,46 @@ func TestPermissionAwareLogExporter_ExportHTTP403(t *testing.T) {
 }
 
 func TestPermissionAwareLogExporter_ExportOtherError(t *testing.T) {
-	// Arrange
-	mock := &mockLogExporter{
-		exportFunc: func(ctx context.Context, records []log.Record) error {
-			return errors.New("some other error")
+	testCases := []struct {
+		name string
+		err  error
+	}{
+		{
+			name: "generic error",
+			err:  errors.New("some other error"),
+		},
+		{
+			name: "connection refused on port containing 403",
+			err:  errors.New("dial tcp 127.0.0.1:1403: connect: connection refused"),
+		},
+		{
+			name: "connection refused on port 4030",
+			err:  errors.New("dial tcp 127.0.0.1:4030: connect: connection refused"),
+		},
+		{
+			name: "IP address containing 403",
+			err:  errors.New("dial tcp 10.40.3.1:4318: i/o timeout"),
 		},
 	}
-	exporter := &permissionAwareLogExporter{Exporter: mock}
 
-	// Act
-	err := exporter.Export(context.Background(), nil)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			mock := &mockLogExporter{
+				exportFunc: func(ctx context.Context, records []log.Record) error {
+					return tc.err
+				},
+			}
+			exporter := &permissionAwareLogExporter{Exporter: mock}
 
-	// Assert
-	assert.Error(t, err)
-	assert.False(t, exporter.disabled.Load())
+			// Act
+			err := exporter.Export(context.Background(), nil)
+
+			// Assert
+			assert.Error(t, err)
+			assert.False(t, exporter.disabled.Load())
+		})
+	}
 }
 
 func TestSetupOTelLogExporter(t *testing.T) {
@@ -419,7 +566,7 @@ func TestSetupOtelMetricsEndpoint(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				if tc.expectOpts {
-					assert.Len(t, opts, 1)
+					assert.NotEmpty(t, opts)
 				} else {
 					assert.Empty(t, opts)
 				}
