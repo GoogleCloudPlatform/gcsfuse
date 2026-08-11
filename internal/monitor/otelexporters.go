@@ -148,10 +148,10 @@ func (e *permissionAwareExporter) Export(ctx context.Context, rm *metricdata.Res
 	}
 
 	err := e.Exporter.Export(ctx, rm)
-	// If we get a PermissionDenied error, disable the exporter to prevent future attempts.
-	if err != nil && status.Code(err) == codes.PermissionDenied {
+	// If we get a PermissionDenied error (gRPC) or 403 Forbidden (HTTP), disable the exporter to prevent future attempts.
+	if err != nil && (status.Code(err) == codes.PermissionDenied || strings.Contains(err.Error(), "403")) {
 		if e.disabled.CompareAndSwap(false, true) {
-			logger.Errorf("Disabling Cloud Monitoring exporter due to permission denied error: %v", err)
+			logger.Errorf("Disabling metrics exporter due to permission denied error: %v", err)
 		}
 	}
 	return err
@@ -235,7 +235,12 @@ func setupOtelMetricsEndpoint(ctx context.Context, endpoint string, authConfig c
 		return nil, err
 	}
 
-	reader := metric.NewPeriodicReader(exporter, metric.WithInterval(time.Duration(intervalSecs)*time.Second))
+	// Wrap the exporter to handle permission denied errors
+	wrappedExporter := &permissionAwareExporter{
+		Exporter: exporter,
+	}
+
+	reader := metric.NewPeriodicReader(wrappedExporter, metric.WithInterval(time.Duration(intervalSecs)*time.Second))
 	return []metric.Option{metric.WithReader(reader)}, nil
 }
 
