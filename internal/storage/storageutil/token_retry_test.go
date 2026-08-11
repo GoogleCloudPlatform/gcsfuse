@@ -82,22 +82,29 @@ func TestRetryingTokenProvider(t *testing.T) {
 	metadata500 := &metadata.Error{Code: 500}
 	permanentErr := errors.New("permanent auth failure")
 
+	cancelledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
 	testCases := []struct {
 		name          string
+		ctx           context.Context
 		mockTokens    []*auth.Token
 		mockErrors    []error
 		expectError   bool
+		checkCancel   bool
 		expectedToken string
 		expectedCalls int
 	}{
 		{
 			name:          "SuccessOnFirstAttempt",
+			ctx:           context.Background(),
 			mockTokens:    []*auth.Token{{Value: "valid-token"}},
 			expectedToken: "valid-token",
 			expectedCalls: 1,
 		},
 		{
 			name:          "RecoveryAfterTransientMDSErrors",
+			ctx:           context.Background(),
 			mockErrors:    []error{transientErr, transientErr, nil},
 			mockTokens:    []*auth.Token{nil, nil, {Value: "recovered-token"}},
 			expectedToken: "recovered-token",
@@ -105,15 +112,25 @@ func TestRetryingTokenProvider(t *testing.T) {
 		},
 		{
 			name:          "FastFailOnNonTransientError",
+			ctx:           context.Background(),
 			mockErrors:    []error{permanentErr},
 			expectError:   true,
 			expectedCalls: 1,
 		},
 		{
 			name:          "ExhaustedRetryAttempts",
+			ctx:           context.Background(),
 			mockErrors:    []error{metadata500, metadata500, metadata500, metadata500},
 			expectError:   true,
 			expectedCalls: 3,
+		},
+		{
+			name:          "FastFailOnCancelledContext",
+			ctx:           cancelledCtx,
+			mockTokens:    []*auth.Token{{Value: "valid-token"}},
+			expectError:   true,
+			checkCancel:   true,
+			expectedCalls: 0,
 		},
 	}
 
@@ -128,11 +145,14 @@ func TestRetryingTokenProvider(t *testing.T) {
 				retryConfig: fastRetryConfig(),
 			}
 
-			token, err := provider.Token(context.Background())
+			token, err := provider.Token(tc.ctx)
 
 			if tc.expectError {
 				assert.Error(t, err)
 				assert.Nil(t, token)
+				if tc.checkCancel {
+					assert.True(t, errors.Is(err, context.Canceled))
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, token)
@@ -150,16 +170,11 @@ func TestRetryingTokenSource(t *testing.T) {
 	metadata503 := &metadata.Error{Code: 503}
 	permanentErr := errors.New("permanent auth failure")
 
-	cancelledCtx, cancel := context.WithCancel(context.Background())
-	cancel() // Cancel immediately
-
 	testCases := []struct {
 		name          string
-		ctx           context.Context
 		mockTokens    []*oauth2.Token
 		mockErrors    []error
 		expectError   bool
-		checkCancel   bool
 		expectedToken string
 		expectedCalls int
 	}{
@@ -188,14 +203,6 @@ func TestRetryingTokenSource(t *testing.T) {
 			expectError:   true,
 			expectedCalls: 3,
 		},
-		{
-			name:          "FastFailOnCancelledContext",
-			ctx:           cancelledCtx,
-			mockTokens:    []*oauth2.Token{{AccessToken: "valid-token"}},
-			expectError:   true,
-			checkCancel:   true,
-			expectedCalls: 0,
-		},
 	}
 
 	for _, tc := range testCases {
@@ -205,7 +212,6 @@ func TestRetryingTokenSource(t *testing.T) {
 				errs:   tc.mockErrors,
 			}
 			ts := &retryingTokenSource{
-				ctx:         tc.ctx,
 				base:        mock,
 				retryConfig: fastRetryConfig(),
 			}
@@ -215,9 +221,6 @@ func TestRetryingTokenSource(t *testing.T) {
 			if tc.expectError {
 				assert.Error(t, err)
 				assert.Nil(t, token)
-				if tc.checkCancel {
-					assert.True(t, errors.Is(err, context.Canceled))
-				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, token)

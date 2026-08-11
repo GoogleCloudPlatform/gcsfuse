@@ -40,7 +40,6 @@ func GetClientAuthOptionsAndTokenSource(ctx context.Context, config *StorageClie
 
 		if config.EnableMountRetries {
 			tokenSrc = &retryingTokenSource{
-				ctx:         ctx,
 				base:        tokenSrc,
 				retryConfig: retryConfig,
 			}
@@ -81,9 +80,9 @@ func GetClientAuthOptionsAndTokenSource(ctx context.Context, config *StorageClie
 		}
 
 		if config.EnableMountRetries {
-			domain, err = ExecuteWithCustomShouldRetry(ctx, retryConfig, "cred.UniverseDomain", "credentials", uuid.NewString(), apiCall, ShouldRetryOnMount)
+			domain, err = ExecuteWithCustomShouldRetryAtLogLevel(ctx, retryConfig, "cred.UniverseDomain", "credentials", uuid.NewString(), apiCall, ShouldRetryOnMount, logger.LevelInfo)
 		} else {
-			domain, err = ExecuteWithRetry(ctx, retryConfig, "cred.UniverseDomain", "credentials", uuid.NewString(), apiCall)
+			domain, err = ExecuteWithRetryAtLogLevel(ctx, retryConfig, "cred.UniverseDomain", "credentials", uuid.NewString(), apiCall, logger.LevelInfo)
 		}
 		if err != nil {
 			logger.Errorf("failed to get UniverseDomain: %v, setting default universe domain", err)

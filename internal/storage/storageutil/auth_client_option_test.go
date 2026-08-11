@@ -58,10 +58,42 @@ func Test_GetClientAuthOptionsAndTokenSource_TokenUrlError(t *testing.T) {
 	assert.Empty(t, clientOpts)
 }
 
+func Test_GetClientAuthOptionsAndTokenSource_TokenUrlWithMountRetries(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintln(w, `{"access_token":"dummy-token","token_type":"Bearer"}`)
+	}))
+	defer server.Close()
+	config := &StorageClientConfig{
+		TokenUrl:           server.URL,
+		EnableMountRetries: true,
+	}
+
+	clientOpts, tokenSrc, err := GetClientAuthOptionsAndTokenSource(context.TODO(), config)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, tokenSrc)
+	assert.IsType(t, &retryingTokenSource{}, tokenSrc)
+	assert.Len(t, clientOpts, 1)
+}
+
 func Test_GetClientAuthOptionsAndTokenSource_FallbackToKeyFileSuccess(t *testing.T) {
 	config := &StorageClientConfig{
 		TokenUrl: "", // triggers fallback
 		KeyFile:  "testdata/key.json",
+	}
+
+	clientOpts, tokenSrc, err := GetClientAuthOptionsAndTokenSource(context.TODO(), config)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, tokenSrc)
+	assert.Len(t, clientOpts, 2) // UniverseDomain + AuthCredentials
+}
+
+func Test_GetClientAuthOptionsAndTokenSource_FallbackToKeyFileWithMountRetries(t *testing.T) {
+	config := &StorageClientConfig{
+		KeyFile:            "testdata/key.json",
+		EnableMountRetries: true,
 	}
 
 	clientOpts, tokenSrc, err := GetClientAuthOptionsAndTokenSource(context.TODO(), config)

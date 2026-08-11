@@ -46,7 +46,6 @@ func (r *retryingTokenProvider) Token(ctx context.Context) (*auth.Token, error) 
 
 // retryingTokenSource wraps an oauth2.TokenSource to retry transient MDS/OAuth errors.
 type retryingTokenSource struct {
-	ctx         context.Context
 	base        oauth2.TokenSource
 	retryConfig *RetryConfig
 }
@@ -56,15 +55,10 @@ func (r *retryingTokenSource) Token() (*oauth2.Token, error) {
 		return r.base.Token()
 	}
 
-	ctx := r.ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	return ExecuteWithCustomShouldRetry(
-		ctx,
+		context.Background(),
 		r.retryConfig,
-		"Token",
+		"TokenSource.Token",
 		"token-refresh",
 		uuid.NewString(),
 		apiCall,
