@@ -89,9 +89,17 @@ Common Spans recorded and what each of them signifies
 | **Read flow traces** | |
 | **buffered_reader** | Indicates the read is served by the in-memory buffered reader, which prefetches data from GCS. |
 | **file_cache_reader** | Indicates the read is served from the on-disk file cache. |
+| **shared_chunk_cache_reader** | Indicates the read is served on-demand from the local shared chunk cache. |
 | **gcs_reader** | Indicates the read is served by making a direct request to GCS. |
 | **file.cache.read** | Tracks read operations specifically from the local file cache. |
-| **file.cache.write** | Tracks write or population operations into the local file cache. |
+| **Write flow traces** | |
+| **write.staged** | Writes data to a local temporary staging file. |
+| **write.staged.sync** | Uploads the staged temporary file to GCS during sync or close. |
+| **write.streaming** | Buffers write data in memory for streaming upload. |
+| **write.streaming.uploader** | Tracks the background worker goroutine uploading buffered blocks. |
+| **write.streaming.upload.block** | Uploads a single data block to GCS. |
+| **write.streaming.upload.finalize** | Finalizes the streaming upload and commits the object in GCS. |
+| **write.streaming.upload.flush** | Flushes in-flight buffered data to GCS during sync or flush. |
 | **GCS Operations (HTTP)** | |
 | **HTTP GET** | An entire end-to-end trace for a client's GET request. |
 | **HTTP POST** | An entire end-to-end trace for a client's POST request. |

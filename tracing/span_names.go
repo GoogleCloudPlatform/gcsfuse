@@ -21,22 +21,10 @@ package tracing
 // operations. Using these constants ensures consistency and better readability and a single source of truth where all the span names are listed.
 
 const (
-	// --- Cache and Prefetching Operations ---
+	// --- Cache Operations ---
 
 	// FileCacheRead tracks read operations specifically from the local file cache.
 	FileCacheRead = "file.cache.read"
-	// FileCacheWrite tracks write or population operations into the local file cache.
-	FileCacheWrite = "file.cache.write"
-	// ReadPrefetchBlockPoolGen monitors the generation/lifecycle of the prefetch block pool.
-	ReadPrefetchBlockPoolGen = "prefetch.block_pool_gen.read"
-	// DownloadPrefetchBlock triggers a network request to pre-fill a specific data block.
-	DownloadPrefetchBlock = "prefetch.block.download"
-	// WaitForPrefetchBlock measures the time a process waits for a prefetch operation to complete.
-	WaitForPrefetchBlock = "prefetch.block.wait"
-	// ReadFromPrefetchBlock executes a read directly from a successfully prefetched data block.
-	ReadFromPrefetchBlock = "prefetch.block.read"
-	// ScheduleBlockForDownload adds a specific file block to the asynchronous download queue.
-	ScheduleBlockForDownload = "download.block.schedule"
 
 	// --- Metadata and Inode Operations ---
 
@@ -117,20 +105,18 @@ const (
 
 	// --- Write Flow traces ---
 
-	// WriteFileStaged traces a write operation using the legacy staged writes.
+	// WriteFileStaged writes data to a local temporary staging file.
 	WriteFileStaged = "write.staged"
-	// SyncFileStaged traces the synchronization of the staged temp file to GCS.
+	// SyncFileStaged uploads the staged temporary file to GCS during sync or close.
 	SyncFileStaged = "write.staged.sync"
-	// WriteFileStreaming traces a write operation using the buffered writes handler.
+	// WriteFileStreaming buffers write data in memory for streaming upload.
 	WriteFileStreaming = "write.streaming"
-	// SyncFileStreaming traces the synchronization of buffered writes to GCS.
-	SyncFileStreaming = "write.streaming.sync"
-	// StreamingUploadBlock traces the upload of a single streaming block to GCS.
+	// StreamingUploadBlock uploads a single data block to GCS.
 	StreamingUploadBlock = "write.streaming.upload.block"
-	// StreamingUploadFinalize traces the finalization of the streaming upload.
+	// StreamingUploadFinalize finalizes the streaming upload and commits the object in GCS.
 	StreamingUploadFinalize = "write.streaming.upload.finalize"
-	// StreamingUploadFlush traces the flushing of pending streaming writes.
+	// StreamingUploadFlush flushes in-flight buffered data to GCS during sync or flush.
 	StreamingUploadFlush = "write.streaming.upload.flush"
-	// Tracks the complete go routine that trigger the async upload of the write blocks received
+	// StreamingUploader tracks the background worker goroutine uploading buffered blocks.
 	StreamingUploader = "write.streaming.uploader"
 )
