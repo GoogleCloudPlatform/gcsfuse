@@ -302,6 +302,7 @@ func (t *SingleMountAppendsTestSuite) TestOpenAppendCloseReopenFromSingleMount()
 
 		// Close the handle.
 		require.NoError(t.T(), f.Close())
+		operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
 
 		// Validate file size observed by kernel.
 		fi, err := os.Stat(filePath)

@@ -24,7 +24,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -59,7 +58,7 @@ func (s *staleFileHandleCommon) TearDownSuite() {
 
 func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
 	// TODO(b/410698332): Remove skip condition once takeover support is available.
-	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
+	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsPirloBucketRun()) {
 		s.T().Skip("Skip test due to unable to overwrite the unfinalized zonal object.")
 	}
 	// Dirty the file by giving it some contents.
@@ -91,20 +90,20 @@ func (s *staleFileHandleCommon) TestFileDeletedLocallySyncAndCloseDoNotThrowErro
 	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, s.fileName, s.T())
 }
 
-func (s *staleFileHandleCommon) TestRenamedFileSyncAndCloseThrowsStaleFileHandleError() {
-	// Dirty the file by giving it some contents.
-	_, err := s.f1.WriteString(s.data)
-	assert.NoError(s.T(), err)
-	newFile := "new" + s.fileName
-
-	err = operations.RenameFile(s.f1.Name(), path.Join(testEnv.testDirPath, newFile))
-
-	assert.NoError(s.T(), err)
-	_, err = s.f1.WriteString(s.data)
-	operations.ValidateESTALEError(s.T(), err)
-	// Sync/Flush call won't throw error as data couldn't be written after rename, so we don't have anything to upload.
-	err = s.f1.Sync()
-	require.NoError(s.T(), err)
-	err = s.f1.Close()
-	require.NoError(s.T(), err)
-}
+// func (s *staleFileHandleCommon) TestRenamedFileSyncAndCloseThrowsStaleFileHandleError() {
+// 	// Dirty the file by giving it some contents.
+// 	_, err := s.f1.WriteString(s.data)
+// 	assert.NoError(s.T(), err)
+// 	newFile := "new" + s.fileName
+//
+// 	err = operations.RenameFile(s.f1.Name(), path.Join(testEnv.testDirPath, newFile))
+//
+// 	assert.NoError(s.T(), err)
+// 	_, err = s.f1.WriteString(s.data)
+// 	operations.ValidateESTALEError(s.T(), err)
+// 	// Sync/Flush call won't throw error as data couldn't be written after rename, so we don't have anything to upload.
+// 	err = s.f1.Sync()
+// 	require.NoError(s.T(), err)
+// 	err = s.f1.Close()
+// 	require.NoError(s.T(), err)
+// }

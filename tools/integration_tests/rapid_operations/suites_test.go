@@ -172,6 +172,7 @@ func (t *BaseSuite) createUnfinalizedObject() {
 	// Create unfinalized object.
 	t.fileContent = setup.GenerateRandomString(unfinalizedObjectSize)
 	client.CreateUnfinalizedObject(testEnv.ctx, t.T(), testEnv.storageClient, path.Join(testDirName, t.fileName), t.fileContent)
+	operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
 }
 
 func (t *BaseSuite) deleteUnfinalizedObject() {

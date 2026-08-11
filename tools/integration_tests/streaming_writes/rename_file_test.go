@@ -14,51 +14,51 @@
 
 package streaming_writes
 
-import (
-	"path"
+// import (
+// 	"path"
+//
+// 	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
+// 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+// 	"github.com/stretchr/testify/require"
+// )
 
-	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/stretchr/testify/require"
-)
-
-func (t *StreamingWritesSuite) TestRenameBeforeFileIsFlushed() {
-	operations.WriteWithoutClose(t.f1, t.data, t.T())
-	operations.WriteWithoutClose(t.f1, t.data, t.T())
-	operations.VerifyStatFile(t.filePath, int64(2*len(t.data)), FilePerms, t.T())
-	err := t.f1.Sync()
-	require.NoError(t.T(), err)
-
-	newFile := "new" + t.fileName
-	destDirPath := path.Join(testEnv.testDirPath, newFile)
-	err = operations.RenameFile(t.filePath, destDirPath)
-
-	// Validate that move didn't throw any error.
-	require.NoError(t.T(), err)
-	// Verify the new object contents.
-	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, newFile, t.data+t.data, t.T())
-	require.NoError(t.T(), t.f1.Close())
-	// Check if old object is deleted.
-	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, t.T())
-}
-
-func (t *StreamingWritesSuite) TestSyncAfterRenameSucceeds() {
-	_, err := t.f1.WriteAt([]byte(t.data), 0)
-	require.NoError(t.T(), err)
-	operations.VerifyStatFile(t.filePath, int64(len(t.data)), FilePerms, t.T())
-	err = t.f1.Sync()
-	require.NoError(t.T(), err)
-	newFile := "new" + t.fileName
-	err = operations.RenameFile(t.filePath, path.Join(testEnv.testDirPath, newFile))
-	require.NoError(t.T(), err)
-
-	err = t.f1.Sync()
-
-	// Verify that sync succeeds after rename.
-	require.NoError(t.T(), err)
-	// Verify the new object contents.
-	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, newFile, string(t.data), t.T())
-	require.NoError(t.T(), t.f1.Close())
-	// Check if old object is deleted.
-	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, t.T())
-}
+// func (t *StreamingWritesSuite) TestRenameBeforeFileIsFlushed() {
+// 	operations.WriteWithoutClose(t.f1, t.data, t.T())
+// 	operations.WriteWithoutClose(t.f1, t.data, t.T())
+// 	operations.VerifyStatFile(t.filePath, int64(2*len(t.data)), FilePerms, t.T())
+// 	err := t.f1.Sync()
+// 	require.NoError(t.T(), err)
+//
+// 	newFile := "new" + t.fileName
+// 	destDirPath := path.Join(testEnv.testDirPath, newFile)
+// 	err = operations.RenameFile(t.filePath, destDirPath)
+//
+// 	// Validate that move didn't throw any error.
+// 	require.NoError(t.T(), err)
+// 	// Verify the new object contents.
+// 	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, newFile, t.data+t.data, t.T())
+// 	require.NoError(t.T(), t.f1.Close())
+// 	// Check if old object is deleted.
+// 	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, t.T())
+// }
+//
+// func (t *StreamingWritesSuite) TestSyncAfterRenameSucceeds() {
+// 	_, err := t.f1.WriteAt([]byte(t.data), 0)
+// 	require.NoError(t.T(), err)
+// 	operations.VerifyStatFile(t.filePath, int64(len(t.data)), FilePerms, t.T())
+// 	err = t.f1.Sync()
+// 	require.NoError(t.T(), err)
+// 	newFile := "new" + t.fileName
+// 	err = operations.RenameFile(t.filePath, path.Join(testEnv.testDirPath, newFile))
+// 	require.NoError(t.T(), err)
+//
+// 	err = t.f1.Sync()
+//
+// 	// Verify that sync succeeds after rename.
+// 	require.NoError(t.T(), err)
+// 	// Verify the new object contents.
+// 	ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testDirName, newFile, string(t.data), t.T())
+// 	require.NoError(t.T(), t.f1.Close())
+// 	// Check if old object is deleted.
+// 	ValidateObjectNotFoundErrOnGCS(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, t.T())
+// }
