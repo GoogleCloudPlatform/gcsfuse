@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 )
 
 // GenerateRandomData generates random data that can be used to write to a file.
@@ -76,13 +77,16 @@ func runCommand(cmd *exec.Cmd) ([]byte, error) {
 
 // ExecuteGcloudCommand executes any given gcloud command.
 func ExecuteGcloudCommand(command string) ([]byte, error) {
-	return executeToolCommand("gcloud", command)
+	cmdArgs := "gcloud " + command
+	cmd := exec.Command("/bin/bash", "-c", cmdArgs)
+	if ce := setup.CustomEndpoint(); ce != "" {
+		cmd.Env = append(os.Environ(), "CLOUDSDK_API_ENDPOINT_OVERRIDES_STORAGE=https://storage-preprod-test-unified.googleusercontent.com:443/storage/v1/")
+	}
+	return runCommand(cmd)
 }
 
-// WaitForSizeUpdate waits for a specified time duration to ensure that stat()
-// call returns correct size for unfinalized object.
-func WaitForSizeUpdate(isZonal bool, duration time.Duration) {
-	if isZonal {
+func WaitForSizeUpdate(duration time.Duration) {
+	if setup.IsZonalBucketRun() || setup.IsPirloBucketRun() {
 		time.Sleep(duration)
 	}
 }

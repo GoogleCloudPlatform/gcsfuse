@@ -58,6 +58,10 @@ func (t *unfinalizedObjectReads) SetupTest() {
 	t.fileName = path.Base(t.T().Name()) + setup.GenerateRandomString(5)
 }
 
+func (t *unfinalizedObjectReads) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
+}
+
 func (s *unfinalizedObjectReads) TearDownSuite() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
 	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
@@ -83,6 +87,7 @@ func (t *unfinalizedObjectReads) setupAndAppend(filePath string, initialSize, ap
 
 	// 1. Create an unfinalized object and open it.
 	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), initialContent)
+	operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
 	fh = operations.OpenFileInMode(t.T(), filePath, openFlags)
 
 	// 2. Read initial content to cache the state.
@@ -103,6 +108,7 @@ func (t *unfinalizedObjectReads) setupAndAppend(filePath string, initialSize, ap
 	assert.Equal(t.T(), appendSize, n)
 	err = writer.Close()
 	require.NoError(t.T(), err)
+	operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
 
 	// Validate that the content was appended to the unfinalized object without changing the object generation.
 	finalObject, err := t.storageClient.Bucket(setup.TestBucket()).Object(path.Join(testDirName, t.fileName)).Attrs(t.ctx)
