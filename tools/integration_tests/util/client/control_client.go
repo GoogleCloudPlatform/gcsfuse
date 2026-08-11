@@ -102,7 +102,7 @@ func DeleteManagedFoldersInBucket(ctx context.Context, client *control.StorageCo
 		Name:          folderPath,
 		AllowNonEmpty: true,
 	}
-	if err := client.DeleteManagedFolder(ctx, req); err != nil && !strings.Contains(err.Error(), "The following URLs matched no objects or files") {
+	if err := client.DeleteManagedFolder(ctx, req); err != nil && !strings.Contains(err.Error(), "The following URLs matched no objects or files") && status.Code(err) != codes.NotFound {
 		log.Fatalf("Error while deleting managed folder: %v", err)
 	}
 }
