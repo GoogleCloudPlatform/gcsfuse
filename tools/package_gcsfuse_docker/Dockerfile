@@ -77,11 +77,35 @@ RUN git clone ${GCSFUSE_REPO} && \
     git checkout ${BRANCH_NAME}
 RUN echo "Building from branch/commit/tag: ${BRANCH_NAME}"
 
-RUN rm -rf /usr/local/go && \
-    GO_VERSION=$(cat gcsfuse/.go-version) && \
-    wget -O go_tar.tar.gz https://go.dev/dl/go${GO_VERSION}.linux-${ARCHITECTURE}.tar.gz -q && \
+# Extract required Go version, determine download URL, and install Go
+RUN set -e; \
+    # Step 1: Extract Go version from .go-version or go.mod \
+    if [ -f gcsfuse/.go-version ]; then \
+        GO_VERSION=$(cat gcsfuse/.go-version); \
+    else \
+        GO_VERSION=$(sed -n 's/^go //p' gcsfuse/go.mod); \
+    fi; \
+    \
+    # Step 2: Determine Go download URL \
+    # Starting with Go 1.21, archives on go.dev/dl require 3-part versions (e.g. 1.21.0 vs 1.20) \
+    case "$GO_VERSION" in \
+        *.*.*) ;; \
+        *.*) \
+            MINOR=$(echo "$GO_VERSION" | cut -d. -f2); \
+            if [ "$MINOR" -ge 21 ] 2>/dev/null; then \
+                GO_VERSION="${GO_VERSION}.0"; \
+            fi \
+            ;; \
+    esac; \
+    GO_URL="https://go.dev/dl/go${GO_VERSION}.linux-${ARCHITECTURE}.tar.gz"; \
+    \
+    # Step 3: Download and install Go \
+    echo "Downloading and installing Go from ${GO_URL}..." && \
+    rm -rf /usr/local/go && \
+    wget -q -O go_tar.tar.gz "${GO_URL}" && \
     tar -C /usr/local -xzf go_tar.tar.gz && \
-    rm go_tar.tar.gz
+    rm -f go_tar.tar.gz
+
 RUN go version
 
 WORKDIR ${GCSFUSE_PATH}
