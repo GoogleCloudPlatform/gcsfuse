@@ -120,8 +120,9 @@ func (w *writeOperationsTest) validateObjectAttributes(attr1, attr2 *storage.Obj
 		w.T().Error("Expected CRC32 attributes to be non 0")
 	}
 	if attr1.MediaLink == "" || attr2.MediaLink == "" {
-		if setup.IsZonalBucketRun() || (setup.IsPirloBucketRun() && w.isRapidWritesEnabled) {
-			w.T().Logf("media link is empty, but it is a known limitation in RAPID/zonal buckets.")
+		// TODO: Align test storage client protocol with the mount protocol. Note that when using gRPC to verify attributes for regional buckets, MediaLink will be empty.
+		if setup.IsZonalBucketRun() || setup.IsPirloBucketRun() {
+			w.T().Logf("media link is empty, but it is a known limitation in gRPC.")
 		} else {
 			w.T().Errorf("Expected media link to be non empty")
 		}
