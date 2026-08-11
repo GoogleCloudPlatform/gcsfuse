@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"os"
@@ -102,9 +103,20 @@ func (cht *cacheHandleTest) verifyContentRead(readStartOffset int64, expectedCon
 	assert.True(cht.T(), reflect.DeepEqual(expectedContent, buf[:len(expectedContent)]))
 }
 
+func createTestCacheDir(t *testing.T, prefix string) string {
+	t.Helper()
+	cleanTestName := strings.ReplaceAll(t.Name(), "/", "_")
+	cacheDir, err := os.MkdirTemp("", fmt.Sprintf("%s_%s_*", prefix, cleanTestName))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = os.RemoveAll(cacheDir)
+	})
+	return cacheDir
+}
+
 func (cht *cacheHandleTest) SetupTest() {
 	locker.EnableInvariantsCheck()
-	cht.cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
+	cht.cacheDir = createTestCacheDir(cht.T(), "cache_handle_test")
 	ctx := context.Background()
 
 	// Create bucket in fake storage.
@@ -919,7 +931,7 @@ func (cht *cacheHandleTest) Test_RandomRead_CacheForRangeReadFalse_And_ParallelD
 
 func Test_GetCacheHandle_PathTraversal(t *testing.T) {
 	// Arrange
-	cacheDir := t.TempDir()
+	cacheDir := createTestCacheDir(t, "cache_handle_test")
 	chTestArgs := initializeCacheHandlerTestArgs(t, &cfg.FileCacheConfig{EnableCrc: true}, cacheDir)
 	// Object name designed to escape the cache directory
 	object := &gcs.MinObject{
