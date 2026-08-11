@@ -98,10 +98,13 @@ func TestCacheFileForExcludeRegexTest(t *testing.T) {
 	// Run tests for GCE environment otherwise.
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	if setup.OnlyDirMounted() != "" {
-		flagsSet = append(flagsSet,
-			[]string{fmt.Sprintf("--file-cache-exclude-regex=^%s/%s/", setup.TestBucket(), onlyDirMounted), "--file-cache-max-size-mb=50", "--file-cache-cache-file-for-range-read=true", "--file-cache-enable-parallel-downloads=false", "--file-cache-enable-o-direct=false", fmt.Sprintf("--cache-dir=%s/gcsfuse-tmp/TestCacheFileForExcludeRegexTest", setup.TestDir()), fmt.Sprintf("--log-file=%s/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log", setup.TestDir()), "--log-severity=TRACE", "--enable-kernel-reader=false"},
-			[]string{fmt.Sprintf("--file-cache-exclude-regex=^%s/%s/", setup.TestBucket(), onlyDirMounted), "--file-cache-max-size-mb=50", "--file-cache-cache-file-for-range-read=true", "--file-cache-enable-parallel-downloads=false", "--file-cache-enable-o-direct=false", fmt.Sprintf("--cache-dir=%s/gcsfuse-tmp/TestCacheFileForExcludeRegexTest", setup.TestDir()), fmt.Sprintf("--log-file=%s/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log", setup.TestDir()), "--log-severity=TRACE", "--client-protocol=grpc", "--enable-kernel-reader=false"},
-		)
+		f1 := []string{fmt.Sprintf("--file-cache-exclude-regex=^%s/%s/", setup.TestBucket(), onlyDirMounted), "--file-cache-max-size-mb=50", "--file-cache-cache-file-for-range-read=true", "--file-cache-enable-parallel-downloads=false", "--file-cache-enable-o-direct=false", fmt.Sprintf("--cache-dir=%s/gcsfuse-tmp/TestCacheFileForExcludeRegexTest", setup.TestDir()), fmt.Sprintf("--log-file=%s/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log", setup.TestDir()), "--log-severity=TRACE", "--enable-kernel-reader=false"}
+		f2 := []string{fmt.Sprintf("--file-cache-exclude-regex=^%s/%s/", setup.TestBucket(), onlyDirMounted), "--file-cache-max-size-mb=50", "--file-cache-cache-file-for-range-read=true", "--file-cache-enable-parallel-downloads=false", "--file-cache-enable-o-direct=false", fmt.Sprintf("--cache-dir=%s/gcsfuse-tmp/TestCacheFileForExcludeRegexTest", setup.TestDir()), fmt.Sprintf("--log-file=%s/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log", setup.TestDir()), "--log-severity=TRACE", "--client-protocol=grpc", "--enable-kernel-reader=false"}
+		if setup.IsPirloBucketRun() {
+			f1 = append([]string{"--experimental-enable-pirlo"}, f1...)
+			f2 = append([]string{"--experimental-enable-pirlo"}, f2...)
+		}
+		flagsSet = append(flagsSet, f1, f2)
 	}
 	for _, ts.flags = range flagsSet {
 		log.Printf("Running tests with flags: %s", ts.flags)

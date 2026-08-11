@@ -64,7 +64,13 @@ func CreateControlClient(ctx context.Context) (client *control.StorageControlCli
 		if err != nil {
 			return nil, fmt.Errorf("unable to fetch token-source for TPC: %w", err)
 		}
-		opts = append(opts, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
+		endpoint := "storage.apis-tpczero.goog:443"
+		if ce := setup.CustomEndpoint(); ce != "" {
+			endpoint = ce
+		}
+		opts = append(opts, option.WithEndpoint(endpoint), option.WithTokenSource(ts))
+	} else if ce := setup.CustomEndpoint(); ce != "" {
+		opts = append(opts, option.WithEndpoint(ce))
 	}
 	client, err = control.NewStorageControlClient(ctx, opts...)
 	if err != nil {
@@ -102,7 +108,7 @@ func DeleteManagedFoldersInBucket(ctx context.Context, client *control.StorageCo
 		Name:          folderPath,
 		AllowNonEmpty: true,
 	}
-	if err := client.DeleteManagedFolder(ctx, req); err != nil && !strings.Contains(err.Error(), "The following URLs matched no objects or files") {
+	if err := client.DeleteManagedFolder(ctx, req); err != nil && !strings.Contains(err.Error(), "The following URLs matched no objects or files") && status.Code(err) != codes.NotFound {
 		log.Fatalf("Error while deleting managed folder: %v", err)
 	}
 }

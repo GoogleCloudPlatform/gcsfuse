@@ -53,6 +53,7 @@ var testInstalledPackage = flag.Bool("testInstalledPackage", false, "[Optional] 
 var testOnTPCEndPoint = flag.Bool("testOnTPCEndPoint", false, "Run tests on TPC endpoint only when the flag value is true.")
 var gcsfusePreBuiltDir = flag.String("gcsfuse_prebuilt_dir", "", "Path to the pre-built GCSFuse directory containing bin/gcsfuse and sbin/mount.gcsfuse.")
 var configFile = flag.String("config-file", "", "Common GCSFuse config file to run tests with.")
+var customEndpoint = flag.String("custom-endpoint", "", "To specify a custom storage endpoint for integration tests.")
 
 const (
 	FilePermission_0600               = 0600
@@ -394,6 +395,10 @@ func ConfigFile() string {
 	return absPath
 }
 
+func CustomEndpoint() string {
+	return *customEndpoint
+}
+
 func IgnoreTestIfIntegrationTestFlagIsSet(t *testing.T) {
 	flag.Parse()
 
@@ -595,7 +600,11 @@ func bucketType(ctx context.Context, testBucket string) (bType string, err error
 		if err != nil {
 			return "", fmt.Errorf("failed to get credentials for TPC: %w", err)
 		}
-		opts = append(opts, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithAuthCredentials(cred), option.WithUniverseDomain("apis-tpczero.goog"))
+		endpoint := "storage.apis-tpczero.goog:443"
+		if ce := CustomEndpoint(); ce != "" {
+			endpoint = ce
+		}
+		opts = append(opts, option.WithEndpoint(endpoint), option.WithAuthCredentials(cred), option.WithUniverseDomain("apis-tpczero.goog"))
 	} else if keyFile != "" {
 		cred, err := auth2.GetCredentials(keyFile)
 		if err != nil {
@@ -603,6 +612,11 @@ func bucketType(ctx context.Context, testBucket string) (bType string, err error
 		}
 		opts = append(opts, option.WithAuthCredentials(cred))
 	}
+
+	if ce := CustomEndpoint(); ce != "" && !TestOnTPCEndPoint() {
+		opts = append(opts, option.WithEndpoint(ce))
+	}
+
 	var storageClient *storage.Client
 	if TestOnTPCEndPoint() {
 		storageClient, err = storage.NewClient(ctx, opts...)

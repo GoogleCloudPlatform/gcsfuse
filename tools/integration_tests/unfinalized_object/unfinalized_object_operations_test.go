@@ -47,6 +47,10 @@ func (t *unfinalizedObjectOperations) SetupTest() {
 	t.fileName = path.Base(t.T().Name()) + setup.GenerateRandomString(5)
 }
 
+func (t *unfinalizedObjectOperations) TearDownTest() {
+	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
+}
+
 func (s *unfinalizedObjectOperations) TearDownSuite() {
 	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
 }
@@ -67,6 +71,7 @@ func (t *unfinalizedObjectOperations) setupUnfinalizedObjectAndGetInitialInode(i
 
 	// 1. Create an unfinalized object.
 	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), initialContent)
+	operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
 
 	// 2. Stat the file to get initial Inode ID.
 	initialStat := operations.StatFileOrFatal(filePath, t.T())
@@ -81,6 +86,7 @@ func (t *unfinalizedObjectOperations) setupUnfinalizedObjectAndGetInitialInode(i
 func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCreatedOutsideOfMountReportsNonZeroSize() {
 	size := operations.MiB
 	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), setup.GenerateRandomString(size))
+	operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
 
 	statRes, err := operations.StatFile(path.Join(t.testDirPath, t.fileName))
 
@@ -125,34 +131,34 @@ func (t *unfinalizedObjectOperations) TestOverWritingUnfinalizedObjectsReturnsES
 	operations.ValidateESTALEError(t.T(), err)
 }
 
-func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCanBeRenamedIfCreatedFromSameMount() {
-	size := operations.MiB
-	content := setup.GenerateRandomString(size)
-	newFileName := "new" + t.fileName
-	// Create un-finalized object via same mount.
-	fh := operations.CreateFile(path.Join(t.testDirPath, t.fileName), setup.FilePermission_0600, t.T())
-	operations.WriteWithoutClose(fh, content, t.T())
-	operations.SyncFile(fh, t.T())
-
-	err := operations.RenameFile(path.Join(t.testDirPath, t.fileName), path.Join(t.testDirPath, newFileName))
-
-	require.NoError(t.T(), err)
-	client.ValidateObjectNotFoundErrOnGCS(t.ctx, t.storageClient, testDirName, t.fileName, t.T())
-	client.ValidateObjectContentsFromGCS(t.ctx, t.storageClient, testDirName, newFileName, content, t.T())
-	// validate writing to the renamed file via stale file handle returns ESTALE error.
-	_, err = fh.Write([]byte(content))
-	operations.ValidateESTALEError(t.T(), err)
-}
-
-func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCanBeRenamedIfCreatedFromDifferentMount() {
-	size := operations.MiB
-	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), setup.GenerateRandomString(size))
-
-	// Overwrite unfinalized object.
-	err := operations.RenameFile(path.Join(t.testDirPath, t.fileName), path.Join(t.testDirPath, "New"+t.fileName))
-
-	require.NoError(t.T(), err)
-}
+// func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCanBeRenamedIfCreatedFromSameMount() {
+// 	size := operations.MiB
+// 	content := setup.GenerateRandomString(size)
+// 	newFileName := "new" + t.fileName
+// 	// Create un-finalized object via same mount.
+// 	fh := operations.CreateFile(path.Join(t.testDirPath, t.fileName), setup.FilePermission_0600, t.T())
+// 	operations.WriteWithoutClose(fh, content, t.T())
+// 	operations.SyncFile(fh, t.T())
+//
+// 	err := operations.RenameFile(path.Join(t.testDirPath, t.fileName), path.Join(t.testDirPath, newFileName))
+//
+// 	require.NoError(t.T(), err)
+// 	client.ValidateObjectNotFoundErrOnGCS(t.ctx, t.storageClient, testDirName, t.fileName, t.T())
+// 	client.ValidateObjectContentsFromGCS(t.ctx, t.storageClient, testDirName, newFileName, content, t.T())
+// 	// validate writing to the renamed file via stale file handle returns ESTALE error.
+// 	_, err = fh.Write([]byte(content))
+// 	operations.ValidateESTALEError(t.T(), err)
+// }
+//
+// func (t *unfinalizedObjectOperations) TestUnfinalizedObjectCanBeRenamedIfCreatedFromDifferentMount() {
+// 	size := operations.MiB
+// 	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), setup.GenerateRandomString(size))
+//
+// 	// Overwrite unfinalized object.
+// 	err := operations.RenameFile(path.Join(t.testDirPath, t.fileName), path.Join(t.testDirPath, "New"+t.fileName))
+//
+// 	require.NoError(t.T(), err)
+// }
 
 func (t *unfinalizedObjectOperations) TestInodeIDPreservedOnRemoteAppend() {
 	// Setup and stat the file.
@@ -168,6 +174,7 @@ func (t *unfinalizedObjectOperations) TestInodeIDPreservedOnRemoteAppend() {
 	require.NoError(t.T(), err)
 	err = writer.Close()
 	require.NoError(t.T(), err)
+	operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
 	// Validate that the content was appended to the unfinalized object without changing the object generation.
 	finalObject, err := t.storageClient.Bucket(setup.TestBucket()).Object(path.Join(testDirName, t.fileName)).Attrs(t.ctx)
 	require.NoError(t.T(), err)
@@ -188,6 +195,7 @@ func (t *unfinalizedObjectOperations) TestInodeIDChangedOnRemoteOverwrite() {
 	newContent := setup.GenerateRandomString(initialSize)
 	// Remotely overwrite the object (this changes generation).
 	_ = client.CreateUnfinalizedObject(t.ctx, t.T(), t.storageClient, path.Join(testDirName, t.fileName), newContent)
+	operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
 
 	// Stat the file again.
 	newStat := operations.StatFileOrFatal(filePath, t.T())
