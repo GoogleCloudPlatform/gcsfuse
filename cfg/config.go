@@ -1116,7 +1116,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("experimental-enable-otel-metrics", "", false, "Enable OpenTelemetry metrics exporting.")
+	flagSet.BoolP("experimental-enable-otel-metrics", "", false, "Enable OpenTelemetry metrics exporting. Must also set cloud-metrics-export-interval-secs > 0 to take effect.")
 
 	if err := flagSet.MarkHidden("experimental-enable-otel-metrics"); err != nil {
 		return err

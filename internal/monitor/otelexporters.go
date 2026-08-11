@@ -67,21 +67,18 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 	options = append(options, opts...)
 	shutdownFns = append(shutdownFns, promShutdownFn)
 
-	opts = setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
-	options = append(options, opts...)
-
+	projectID := ""
 	if c.Metrics.ExperimentalEnableOtelMetrics {
-		otelOpts, err := setupOtelMetricsEndpoint(ctx, c.Metrics.ExperimentalOtelMetricsEndpoint, c.GcsAuth)
+		otelOpts, err := setupOtelMetricsEndpoint(ctx, c.Metrics.ExperimentalOtelMetricsEndpoint, c.GcsAuth, c.Metrics.CloudMetricsExportIntervalSecs)
 		if err != nil {
 			logger.Errorf("Error while creating OTLP metric exporter: %v", err)
 		} else {
 			options = append(options, otelOpts...)
 		}
-	}
-
-	projectID := ""
-	if c.Metrics.ExperimentalEnableOtelMetrics {
 		projectID = getProjectID(ctx, c.GcsAuth, c.Metrics.ExperimentalOtelMetricsProjectId)
+	} else {
+		opts := setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
+		options = append(options, opts...)
 	}
 	res, err := getOtelResource(ctx, mountID, projectID)
 	if err != nil {
@@ -211,7 +208,10 @@ func metricFormatter(m metricdata.Metrics) string {
 	return cloudMonitoringMetricPrefix + strings.ReplaceAll(m.Name, ".", "/")
 }
 
-func setupOtelMetricsEndpoint(ctx context.Context, endpoint string, authConfig cfg.GcsAuthConfig) ([]metric.Option, error) {
+func setupOtelMetricsEndpoint(ctx context.Context, endpoint string, authConfig cfg.GcsAuthConfig, intervalSecs int64) ([]metric.Option, error) {
+	if intervalSecs <= 0 {
+		return nil, nil
+	}
 	opts := []otlpmetrichttp.Option{
 		otlpmetrichttp.WithEndpoint(endpoint),
 		otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
@@ -235,7 +235,7 @@ func setupOtelMetricsEndpoint(ctx context.Context, endpoint string, authConfig c
 		return nil, err
 	}
 
-	reader := metric.NewPeriodicReader(exporter, metric.WithInterval(30*time.Second))
+	reader := metric.NewPeriodicReader(exporter, metric.WithInterval(time.Duration(intervalSecs)*time.Second))
 	return []metric.Option{metric.WithReader(reader)}, nil
 }
 

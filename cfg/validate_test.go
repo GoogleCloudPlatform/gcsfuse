@@ -1055,7 +1055,6 @@ func TestValidateMetrics(t *testing.T) {
 		metricsConfig MetricsConfig
 		wantErr       bool
 	}{
-
 		{
 			name: "both_cloud_metrics_export_interval_secs_and_stackdriver_specified",
 			metricsConfig: MetricsConfig{
@@ -1063,6 +1062,26 @@ func TestValidateMetrics(t *testing.T) {
 				StackdriverExportInterval:      time.Duration(30) * time.Hour,
 			},
 			wantErr: true,
+		},
+		{
+			name: "both_cloud_metrics_export_interval_secs_and_otel_metrics_specified",
+			metricsConfig: MetricsConfig{
+				CloudMetricsExportIntervalSecs: 20,
+				ExperimentalEnableOtelMetrics:  true,
+				Workers:                        10,
+				BufferSize:                     100,
+			},
+			wantErr: false,
+		},
+		{
+			name: "both_stackdriver_and_otel_metrics_specified",
+			metricsConfig: MetricsConfig{
+				StackdriverExportInterval:     time.Duration(30) * time.Hour,
+				ExperimentalEnableOtelMetrics: true,
+				Workers:                       10,
+				BufferSize:                    100,
+			},
+			wantErr: false,
 		},
 		{
 			name: "neg_cloud_metrics_export_interval",

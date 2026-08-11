@@ -1138,7 +1138,7 @@ params:
   - config-path: "metrics.experimental-enable-otel-metrics"
     flag-name: "experimental-enable-otel-metrics"
     type: "bool"
-    usage: "Enable OpenTelemetry metrics exporting."
+    usage: "Enable OpenTelemetry metrics exporting. Must also set cloud-metrics-export-interval-secs > 0 to take effect."
     default: "false"
     hide-flag: true
 
