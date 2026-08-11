@@ -28,6 +28,7 @@ usage() {
   echo "    --presubmit                                  Run tests with presubmit flag. (Default: false)"
   echo "    --zonal                                      Run tests with zonal bucket in --bucket-location region."
   echo "                                                 The placement for Zonal buckets by deafault is Zone A of --bucket-location. (Default: false)"
+  echo "    --npi                                        Run dedicated NPI (Network Protocol Integration / Pirlo) test suite. (Default: false)"
   echo "    --no-build-binary-in-script                  To disable building gcsfuse binary in script. (Default: false)"
   echo "    --package-level-parallelism   <parallelism>  To adjust the number of packages to execute in parallel. (Default: 10)"
   echo "    --track-resource-usage                       To track resource(cpu/mem/disk) usage during e2e run. (Default: false)"
@@ -131,6 +132,7 @@ INSTALL_PACKAGE_FROM_PATH=""
 RUN_TEST_ON_TPC_ENDPOINT=false
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 RUN_TESTS_WITH_ZONAL_BUCKET=false
+RUN_TESTS_FOR_NPI=false
 BUILD_BINARY_IN_SCRIPT=true
 TRACK_RESOURCE_USAGE=false
 PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
@@ -140,7 +142,7 @@ FLAKE_ATTEMPTS=1
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator,flake-attempts:
+LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,npi,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator,flake-attempts:
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -194,6 +196,10 @@ while (( $# >= 1 )); do
             ;;
         --zonal)
             RUN_TESTS_WITH_ZONAL_BUCKET=true
+            shift
+            ;;
+        --npi)
+            RUN_TESTS_FOR_NPI=true
             shift
             ;;
         --track-resource-usage)
@@ -388,11 +394,38 @@ TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cl
 TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_operations" "unfinalized_object")
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
+# Test packages for NPI (Network Protocol Integration / Pirlo) tests.
+# Sorted list descending run times.
+TEST_PACKAGES_FOR_NPI=(
+  "operations"
+  "read_large_files"
+  "concurrent_operations"
+  "read_cache"
+  "list_large_dir"
+  "write_large_files"
+  "implicit_dir"
+  "interrupt"
+  "local_file"
+  "readonly"
+  "rename_dir_limit"
+  "kernel_list_cache"
+  "streaming_writes"
+  "explicit_dir"
+  "gzip"
+  "unsupported_path"
+  "negative_stat_cache"
+  "stale_handle"
+  "readdirplus"
+  "dentry_cache"
+  "buffered_read"
+  "symlink_handling"
+)
 
 # Parse and apply --run-package filters if provided
 if [[ -n "$RUN_PACKAGE_REGEX" ]]; then
   filter_array TEST_PACKAGES_FOR_RB "$RUN_PACKAGE_REGEX"
   filter_array TEST_PACKAGES_FOR_ZB "$RUN_PACKAGE_REGEX"
+  filter_array TEST_PACKAGES_FOR_NPI "$RUN_PACKAGE_REGEX"
 fi
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
@@ -754,6 +787,9 @@ test_package() {
   if ${RUN_TEST_ON_TPC_ENDPOINT}; then
     go_test_cmd_parts+=("--testOnTPCEndPoint")
   fi
+  if ${RUN_TESTS_FOR_NPI}; then
+    go_test_cmd_parts+=("--pirlo")
+  fi
   if [[ -n "$BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR" ]]; then 
     go_test_cmd_parts+=("--gcsfuse_prebuilt_dir=${BUILT_BY_SCRIPT_GCSFUSE_BUILD_DIR}")
   fi
@@ -1046,7 +1082,10 @@ main() {
 
   local pids=()
   local overall_exit_code=0
-  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+  if ${RUN_TESTS_FOR_NPI}; then
+    run_test_group "NPI" "$HNS" "${TEST_PACKAGES_FOR_NPI[@]}" & pids+=($!)
+    run_test_group "NPI" "$FLAT" "${TEST_PACKAGES_FOR_NPI[@]}" & pids+=($!)
+  elif ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
     run_test_group "ZONAL" "$ZONAL" "${TEST_PACKAGES_FOR_ZB[@]}" & pids+=($!)
   elif ${RUN_TEST_ON_TPC_ENDPOINT}; then
     # Override PROJECT_ID and BUCKET_LOCATION for TPC tests
