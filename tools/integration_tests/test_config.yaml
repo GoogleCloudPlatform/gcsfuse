@@ -1146,14 +1146,23 @@ readonly_creds:
           hns: true
           zonal: true
         run_on_gke: false
+        run: TestReadOnlyCredsBase
       - flags:
-          - "--experimental-enable-pirlo,--implicit-dirs=true,--client-protocol=http1"
-          - "--experimental-enable-pirlo,--implicit-dirs=false,--client-protocol=http1"
+          - "--experimental-enable-pirlo,--enable-rapid-writes=true"
         run_on_pirlo:
           hns:
             same_zone: true
             different_zone: false
         run_on_gke: false
+        run: TestReadOnlyCredsRapidWritesEnabled
+      - flags:
+          - "--experimental-enable-pirlo,--enable-rapid-writes=false"
+        run_on_pirlo:
+          hns:
+            same_zone: true
+            different_zone: false
+        run_on_gke: false
+        run: TestReadOnlyCredsBase
 
 mount_timeout:
   - mounted_directory: "${MOUNTED_DIR}"
