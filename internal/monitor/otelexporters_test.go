@@ -84,6 +84,25 @@ func TestPermissionAwareExporter_ExportPermissionDenied(t *testing.T) {
 	assert.NoError(t, err2)
 }
 
+func TestPermissionAwareExporter_ExportHTTP403(t *testing.T) {
+	// Arrange
+	mock := &mockExporter{
+		exportFunc: func(ctx context.Context, rm *metricdata.ResourceMetrics) error {
+			return errors.New("failed to send metrics to http://127.0.0.1:4318: 403 Forbidden")
+		},
+	}
+	exporter := &permissionAwareExporter{Exporter: mock}
+
+	// Act
+	err1 := exporter.Export(context.Background(), &metricdata.ResourceMetrics{})
+	err2 := exporter.Export(context.Background(), &metricdata.ResourceMetrics{})
+
+	// Assert
+	require.Error(t, err1)
+	require.True(t, exporter.disabled.Load())
+	assert.NoError(t, err2)
+}
+
 func TestPermissionAwareExporter_ExportOtherError(t *testing.T) {
 	// Arrange
 	mock := &mockExporter{
@@ -305,6 +324,155 @@ func TestGetProjectID(t *testing.T) {
 
 			// Assert
 			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func TestSetupOTelMetricExporters(t *testing.T) {
+	tests := []struct {
+		name          string
+		cfg           *cfg.Config
+		expectOtel    bool
+		expectMetrics bool
+	}{
+		{
+			name: "OTel Metrics Enabled",
+			cfg: &cfg.Config{
+				Metrics: cfg.MetricsConfig{
+					ExperimentalEnableOtelMetrics:   true,
+					ExperimentalOtelMetricsEndpoint: "localhost:4318",
+					CloudMetricsExportIntervalSecs:  5,
+				},
+			},
+			expectOtel: true,
+		},
+		{
+			name: "OTel Metrics Disabled",
+			cfg: &cfg.Config{
+				Metrics: cfg.MetricsConfig{
+					ExperimentalEnableOtelMetrics:  false,
+					CloudMetricsExportIntervalSecs: 5,
+				},
+			},
+			expectOtel: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			ctx := context.Background()
+
+			// Act
+			shutdown := SetupOTelMetricExporters(ctx, tc.cfg, "mount-id")
+
+			// Assert
+			assert.NotNil(t, shutdown)
+			_ = shutdown(ctx) // Ignoring error as it forces a flush to a nonexistent local port which returns connection refused
+		})
+	}
+}
+
+func TestSetupOtelMetricsEndpoint(t *testing.T) {
+	tests := []struct {
+		name         string
+		endpoint     string
+		intervalSecs int64
+		expectOpts   bool
+		expectErr    bool
+	}{
+		{
+			name:         "Disabled interval",
+			endpoint:     "localhost:4318",
+			intervalSecs: 0,
+			expectOpts:   false,
+			expectErr:    false,
+		},
+		{
+			name:         "Localhost insecure",
+			endpoint:     "localhost:4318",
+			intervalSecs: 10,
+			expectOpts:   true,
+			expectErr:    false,
+		},
+		{
+			name:         "Normal endpoint",
+			endpoint:     "otel-collector.default:4318",
+			intervalSecs: 10,
+			expectOpts:   true,
+			expectErr:    false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			ctx := context.Background()
+
+			// Act
+			opts, err := setupOtelMetricsEndpoint(ctx, tc.endpoint, cfg.GcsAuthConfig{}, tc.intervalSecs)
+
+			// Assert
+			if tc.expectErr {
+				assert.Error(t, err)
+				assert.Nil(t, opts)
+			} else {
+				assert.NoError(t, err)
+				if tc.expectOpts {
+					assert.Len(t, opts, 1)
+				} else {
+					assert.Empty(t, opts)
+				}
+			}
+		})
+	}
+}
+
+func TestGetOtelResource(t *testing.T) {
+	tests := []struct {
+		name        string
+		projectID   string
+		expectFound bool
+	}{
+		{
+			name:        "Without Project ID",
+			projectID:   "",
+			expectFound: false,
+		},
+		{
+			name:        "With Project ID",
+			projectID:   "test-project-123",
+			expectFound: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			ctx := context.Background()
+
+			// Act
+			res, err := getOtelResource(ctx, "mount-1", tc.projectID)
+
+			// Assert
+			assert.NoError(t, err)
+			assert.NotNil(t, res)
+
+			var found bool
+			var val string
+			for _, attr := range res.Attributes() {
+				if string(attr.Key) == "gcp.project_id" {
+					found = true
+					val = attr.Value.AsString()
+				}
+			}
+
+			if tc.expectFound {
+				assert.True(t, found)
+				assert.Equal(t, tc.projectID, val)
+			} else {
+				assert.False(t, found)
+			}
 		})
 	}
 }
