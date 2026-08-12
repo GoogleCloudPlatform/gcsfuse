@@ -293,6 +293,7 @@ func (t *SingleMountAppendsTestSuite) TestOpenAppendCloseReopenFromSingleMount()
 	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
 
 	for i := 0; i < 3; i++ {
+		operations.WaitForSizeUpdate(operations.WaitDurationAfterFlushRapid)
 		// Open file in append mode.
 		f := operations.OpenFileInMode(t.T(), filePath, fileOpenModeAppend|syscall.O_DIRECT)
 

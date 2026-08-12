@@ -36,7 +36,7 @@ const (
 	numAppends            = 2
 	appendSize            = 10
 	unfinalizedObjectSize = 10
-	metadataCacheTTLSecs  = 70
+	metadataCacheTTLSecs  = 300
 	fileOpenModeRPlus     = os.O_RDWR
 	fileOpenModeAppend    = os.O_APPEND | os.O_WRONLY
 )
