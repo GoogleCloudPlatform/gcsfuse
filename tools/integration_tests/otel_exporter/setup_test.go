@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otel_metrics
+package otel_exporter
 
 import (
 	"context"
@@ -38,8 +38,9 @@ import (
 var (
 	mockServerURL        string
 	mockServer           *http.Server
+	logRecords           [][]byte
 	metricRecords        [][]byte
-	metricMu             sync.Mutex
+	recordsMu            sync.Mutex
 	configFileForGCSFuse string
 )
 
@@ -55,11 +56,14 @@ func startMockServer() error {
 		body, _ := io.ReadAll(r.Body)
 		log.Printf("Mock server received request on %s. Content-Type: %s, Body length: %d", r.URL.Path, r.Header.Get("Content-Type"), len(body))
 
-		if r.URL.Path == "/v1/metrics" && len(body) > 0 {
-			metricMu.Lock()
+		recordsMu.Lock()
+		if r.URL.Path == "/v1/logs" && len(body) > 0 {
+			logRecords = append(logRecords, body)
+		} else if r.URL.Path == "/v1/metrics" && len(body) > 0 {
 			metricRecords = append(metricRecords, body)
-			metricMu.Unlock()
 		}
+		recordsMu.Unlock()
+
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -77,7 +81,7 @@ func stopMockServer() {
 }
 
 const (
-	testDirName = "otel_metrics"
+	testDirName = "otel_exporter"
 	gkeTempDir  = "/gcsfuse-tmp"
 )
 
@@ -94,25 +98,26 @@ var (
 	mountFunc func(*test_suite.TestConfig, []string) error
 )
 
-type OTelMetricsTestBase struct {
+type OTelExporterTestBase struct {
 	suite.Suite
 	flags []string
 }
 
-func (p *OTelMetricsTestBase) SetupSuite() {
+func (p *OTelExporterTestBase) SetupSuite() {
 	p.flags = append(p.flags, "--config-file="+configFileForGCSFuse)
 	setup.SetUpLogFilePath(p.T().Name(), p.flags, gkeTempDir, "", testEnv.cfg)
 	mountGCSFuseAndSetupTestDir(p.flags, testEnv.ctx, testEnv.storageClient)
 }
 
-func (p *OTelMetricsTestBase) TearDownSuite() {
+func (p *OTelExporterTestBase) TearDownSuite() {
 	setup.UnmountGCSFuseWithConfig(testEnv.cfg)
 }
 
-func (p *OTelMetricsTestBase) SetupTest() {
-	metricMu.Lock()
+func (p *OTelExporterTestBase) SetupTest() {
+	recordsMu.Lock()
+	logRecords = nil
 	metricRecords = nil
-	metricMu.Unlock()
+	recordsMu.Unlock()
 
 	testName := strings.ReplaceAll(p.T().Name(), "/", "_")
 	gcsDir := path.Join(testDirName, testName)
@@ -120,7 +125,7 @@ func (p *OTelMetricsTestBase) SetupTest() {
 	client.SetupFileInTestDirectory(testEnv.ctx, testEnv.storageClient, gcsDir, "hello.txt", 10, p.T())
 }
 
-func (p *OTelMetricsTestBase) TearDownTest() {
+func (p *OTelExporterTestBase) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(p.T())
 }
 
@@ -141,7 +146,7 @@ func TestMain(m *testing.M) {
 	defer stopMockServer()
 
 	// Create a temp config file for gcsfuse
-	tempFile, err := os.CreateTemp("", "otel_metrics_config_*.yaml")
+	tempFile, err := os.CreateTemp("", "otel_exporter_config_*.yaml")
 	if err != nil {
 		log.Fatalf("Failed to create temp config file: %v", err)
 	}
@@ -154,26 +159,24 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to parse mock server URL: %v", err)
 	}
 	configContent := fmt.Sprintf(`
+logging:
+  experimental-enable-otel-logging: true
+  experimental-otel-logging-endpoint: "localhost:%s"
 metrics:
   experimental-enable-otel-metrics: true
   cloud-metrics-export-interval-secs: 5
   experimental-otel-metrics-endpoint: "localhost:%s"
-`, port)
+`, port, port)
 	if err := os.WriteFile(configFileForGCSFuse, []byte(configContent), 0644); err != nil {
 		log.Fatalf("Failed to write config file: %v", err)
 	}
 	defer func() { _ = os.Remove(configFileForGCSFuse) }()
 
 	configFile := test_suite.ReadConfigFile(setup.ConfigFile())
-	if len(configFile.OtelMetrics) == 0 {
-		log.Fatal("No configuration found for OtelMetrics in config file.")
+	if len(configFile.OtelExporter) == 0 {
+		log.Fatal("No configuration found for OtelExporter in config file.")
 	}
-	testEnv.cfg = &configFile.OtelMetrics[0]
-
-	if testEnv.cfg.GKEMountedDirectory != "" {
-		log.Println("Skipping otel_metrics tests on GKE as requested")
-		os.Exit(0)
-	}
+	testEnv.cfg = &configFile.OtelExporter[0]
 
 	testEnv.ctx = context.Background()
 	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
@@ -183,6 +186,10 @@ metrics:
 		log.Fatalf("client.CreateStorageClient: %v", err)
 	}
 	defer func() { _ = testEnv.storageClient.Close() }()
+
+	if testEnv.cfg.GKEMountedDirectory != "" && testEnv.cfg.TestBucket != "" {
+		os.Exit(setup.RunTestsForMountedDirectory(testEnv.cfg.GKEMountedDirectory, m))
+	}
 
 	setup.SetUpTestDirForTestBucket(testEnv.cfg)
 	setup.OverrideFilePathsInFlagSet(testEnv.cfg, setup.TestDir())

@@ -2088,17 +2088,7 @@ concurrent_operations:
         run: TestConcurrentListing
         run_on_gke: true
 
-otel_logs:
-  - mounted_directory: "${MOUNTED_DIR}"
-    test_bucket: "${BUCKET_NAME}"
-    configs:
-      - flags:
-          - ""
-        compatible:
-          flat: true
-          hns: true
-        run: "TestOTelLogsTestSuite"
-otel_metrics:
+otel_exporter:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
     configs:
@@ -2108,5 +2098,5 @@ otel_metrics:
           flat: true
           hns: true
           zonal: true
-        run_on_gke: false
-        run: "TestOTelMetricsTestSuite"
+        run_on_gke: true
+        run: "TestOTelExporterTestSuite"
