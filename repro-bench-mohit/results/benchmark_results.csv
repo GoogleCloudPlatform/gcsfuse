@@ -1,0 +1,8 @@
+Version,Protocol,Small read (4KB),Small write (4KB),Append — close per record,Append — streaming (64KB),Append — to 1 GB file,Small write (1 thread),Small write (8 threads),Small read (1 thread),Small read (8 threads),Large write (256 MB),Large read cold (1 GB)
+v3.9.1_bug,Default,81.4,93.0,287.8,0.056,2183,10.2,39.2,11.7,57.2,113,847
+v3.11.2,HTTP,41.41,109.96,342.76,0.059,6391.2,9.3,33.2,24.3,177.2,73.7,700.2
+v3.11.2,gRPC (Default),42.24,116.73,340.17,0.055,5292.3,8.6,30.7,19.1,139.7,86.7,685.6
+v3.11.2,gRPC (DP Only),41.75,110.80,330.59,0.058,5486.0,8.6,24.3,20.8,91.1,87.4,700.7
+v3.9.1,HTTP,87.70,119.83,356.52,0.057,5180.7,7.9,26.2,9.6,65.6,75.1,702.0
+v3.9.1,gRPC (Default),82.31,122.95,340.68,0.059,4230.5,8.0,33.9,12.2,75.1,82.5,701.6
+v3.9.1,gRPC (DP Only),77.49,118.46,334.91,0.060,3263.9,8.9,25.9,11.9,69.2,87.0,695.4
