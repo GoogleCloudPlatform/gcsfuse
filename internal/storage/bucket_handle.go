@@ -193,7 +193,7 @@ func (bh *bucketHandle) getObjectHandleWithPreconditionsSet(req *gcs.CreateObjec
 	return obj
 }
 
-func (bh *bucketHandle) overrideStorageClassForPirlo(req *gcs.CreateObjectRequest) {
+func (bh *bucketHandle) getStorageClassForCreateObject(defaultStorageClass string) string {
 	// When rapid writes are enabled on an RCU bucket, objects should be explicitly
 	// created with the RAPID storage class in the zonal cache rather than
 	// defaulting to the bucket's default storage class.
@@ -202,9 +202,11 @@ func (bh *bucketHandle) overrideStorageClassForPirlo(req *gcs.CreateObjectReques
 	// the bucket's default storage class.
 	switch bh.BucketType().Pirlo {
 	case gcs.PirloStateRapidWritesEnabled:
-		req.StorageClass = storageClassRapid
+		return storageClassRapid
 	case gcs.PirloStateRapidWritesDisabled:
-		req.StorageClass = ""
+		return ""
+	default:
+		return defaultStorageClass
 	}
 }
 
@@ -213,7 +215,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 		err = gcs.GetGCSError(err)
 	}()
 
-	bh.overrideStorageClassForPirlo(req)
+	req.StorageClass = bh.getStorageClassForCreateObject(req.StorageClass)
 
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
@@ -257,7 +259,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 }
 
 func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
-	bh.overrideStorageClassForPirlo(req)
+	req.StorageClass = bh.getStorageClassForCreateObject(req.StorageClass)
 
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
