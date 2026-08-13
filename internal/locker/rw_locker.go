@@ -109,8 +109,10 @@ func (d *rwDebugger) Lock() {
 }
 
 func (d *rwDebugger) Unlock() {
-	d.timer.Stop()
-	d.timer = nil
+	if d.timer != nil {
+		d.timer.Stop()
+		d.timer = nil
+	}
 
 	d.locker.Unlock()
 }

@@ -114,8 +114,10 @@ func (d *debugger) Lock() {
 }
 
 func (d *debugger) Unlock() {
-	d.timer.Stop()
-	d.timer = nil
+	if d.timer != nil {
+		d.timer.Stop()
+		d.timer = nil
+	}
 
 	d.locker.Unlock()
 }
