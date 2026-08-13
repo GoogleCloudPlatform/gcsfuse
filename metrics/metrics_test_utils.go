@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/metric"
@@ -62,9 +61,9 @@ func matchesAttributes(dpAttrs attribute.Set, targetAttrs attribute.Set, subset 
 
 func verifyValue[T int64 | uint64](t *testing.T, actual T, expected T, atLeast bool, metricName string, attrs attribute.Set) {
 	if atLeast {
-		assert.GreaterOrEqual(t, actual, expected, "metric value too low for %s with attributes %v", metricName, attrs)
+		require.GreaterOrEqual(t, actual, expected, "metric value too low for %s with attributes %v", metricName, attrs)
 	} else {
-		assert.Equal(t, expected, actual, "metric value mismatch for %s with attributes %v", metricName, attrs)
+		require.Equal(t, expected, actual, "metric value mismatch for %s with attributes %v", metricName, attrs)
 	}
 }
 
@@ -87,18 +86,23 @@ func VerifyCounterMetric(t *testing.T, ctx context.Context, reader *metric.Manua
 	for _, sm := range rm.ScopeMetrics {
 		for _, m := range sm.Metrics {
 			if m.Name == metricName {
-				foundMetric = true
 				data, ok := m.Data.(metricdata.Sum[int64])
 				require.True(t, ok, "metric %s is not a Sum[int64], but %T", metricName, m.Data)
 
 				for _, dp := range data.DataPoints {
 					if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
+						foundMetric = true
 						verifyValue(t, dp.Value, expectedValue, cfg.atLeast, metricName, attrs)
 						return
 					}
 				}
 			}
 		}
+	}
+
+	if expectedValue == 0 {
+		require.False(t, foundMetric, "expected metric %s with attributes %v not to be found, but found", metricName, attrs)
+		return
 	}
 
 	require.True(t, foundMetric, "metric %s not found", metricName)
@@ -124,11 +128,11 @@ func VerifyHistogramMetric(t *testing.T, ctx context.Context, reader *metric.Man
 	for _, sm := range rm.ScopeMetrics {
 		for _, m := range sm.Metrics {
 			if m.Name == metricName {
-				foundMetric = true
 				switch data := m.Data.(type) {
 				case metricdata.Histogram[int64]:
 					for _, dp := range data.DataPoints {
 						if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
+							foundMetric = true
 							verifyValue(t, dp.Count, expectedCount, cfg.atLeast, metricName, attrs)
 							return
 						}
@@ -136,6 +140,7 @@ func VerifyHistogramMetric(t *testing.T, ctx context.Context, reader *metric.Man
 				case metricdata.Histogram[float64]:
 					for _, dp := range data.DataPoints {
 						if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
+							foundMetric = true
 							verifyValue(t, dp.Count, expectedCount, cfg.atLeast, metricName, attrs)
 							return
 						}
@@ -146,6 +151,12 @@ func VerifyHistogramMetric(t *testing.T, ctx context.Context, reader *metric.Man
 			}
 		}
 	}
+
+	if expectedCount == 0 {
+		require.False(t, foundMetric, "expected metric %s with attributes %v not to be found, but found", metricName, attrs)
+		return
+	}
+
 	require.True(t, foundMetric, "metric %s not found", metricName)
 	require.Fail(t, fmt.Sprintf("Data point for attributes %v not found in %s metric", attrs, metricName))
 }

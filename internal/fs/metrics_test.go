@@ -1817,7 +1817,7 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 	// Expect 2 lookups: one for "nonexistent.txt/", one for "nonexistent.txt"
 	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 2)
 
-	// --- Step 3: Lookup existent file first time (Miss: NotFound + Hit: Positive on attribute refresh) ---
+	// --- Step 3: Lookup existent file first time (Cold lookup: 2 misses, 0 spurious positive hits) ---
 	createWithContents(ctx, t, bucket, "existent.txt", "hello")
 	lookupOp3 := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
@@ -1835,9 +1835,10 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 		attribute.String("entry_status", "positive"),
 		attribute.String("lookup_detail", "found"),
 	)
-	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 1)
+	// Post-lookup getAttributes must NOT record a spurious positive hit on cold lookup
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 0)
 
-	// --- Step 4: Lookup existent file again (Hit: Positive Found) ---
+	// --- Step 4: Lookup existent file again (Warm lookup: 1 negative hit on dir check + 1 positive hit on file) ---
 	lookupOp4 := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
 		Name:   "existent.txt",
@@ -1846,9 +1847,9 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 	require.NoError(t, err)
 	waitForMetricsProcessing()
 
-	// Expect 3 positive lookups total: 1 from step 3 attribute refresh, 2 from step 4 lookup + attribute refresh
-	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 3)
-	// Verifying that negative hit also got incremented by 1 (due to checking "existent.txt/")
+	// Expect exactly 1 positive lookup (the file hit in LookUpChild, no duplicate in getAttributes)
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 1)
+	// Verifying that negative hit also got incremented by 1 (due to checking "existent.txt/") -> total 3
 	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 3)
 
 	// --- Step 5: ReadDir does not increment metadata_cache/read_count ---
@@ -1868,7 +1869,7 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 
 	// Verify metrics unchanged after ReadDir
 	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 4)
-	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 3)
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 1)
 	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 3)
 
 	// --- Step 6: Advance clock past TTL and lookup nonexistent file (Miss: Negative TTL Expired) ---
@@ -1890,7 +1891,7 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 	// Expect 2 lookups expired: "nonexistent.txt/" and "nonexistent.txt"
 	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsExpiredNegative, 2)
 
-	// --- Step 7: Lookup existent file after TTL expired (Miss: Positive and Negative TTL Expired) ---
+	// --- Step 7: Lookup existent file after TTL expired (Miss: Positive and Negative TTL Expired, 0 spurious hits) ---
 	lookupOp6 := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
 		Name:   "existent.txt",
@@ -1908,6 +1909,17 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsExpiredPositive, 1)
 	// Expect negative TTL expired to increment by 1 (for "existent.txt/") -> total 3
 	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsExpiredNegative, 3)
-	// Post-fetch attribute check hits positive cache -> total 4
-	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 4)
+	// Post-fetch getAttributes does NOT record a spurious positive hit -> positive hits remain 1
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 1)
+
+	// --- Step 8: GetInodeAttributes on existing cached inode (Hits positive stat cache) ---
+	getAttrOp := &fuseops.GetInodeAttributesOp{
+		Inode: lookupOp6.Entry.Child,
+	}
+	err = server.GetInodeAttributes(ctx, getAttrOp)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// GetInodeAttributes uses clobberedCheck=true, which checks stat cache and saves a GCS call -> positive hits increment to 2
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 2)
 }
