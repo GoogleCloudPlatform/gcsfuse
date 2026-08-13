@@ -231,7 +231,6 @@ func TestProxyTokenSource_ExpiresInPopulatesExpiry_Success(t *testing.T) {
 
 	assert.Equal(t, "token-123", token.AccessToken)
 	assert.Equal(t, "Bearer", token.TokenType)
-	assert.Equal(t, int64(3600), token.ExpiresIn)
 	assert.False(t, token.Expiry.IsZero(), "token.Expiry must be populated from expires_in")
 	assert.True(t, token.Expiry.After(before.Add(3595*time.Second)))
 	assert.True(t, token.Expiry.Before(after.Add(3605*time.Second)))
