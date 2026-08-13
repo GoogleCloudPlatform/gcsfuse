@@ -98,7 +98,6 @@ func (c *checker) Unlock() {
 type debugger struct {
 	locker Locker
 	name   string
-	holder string
 	timer  *time.Timer
 }
 
@@ -107,15 +106,14 @@ func (d *debugger) Lock() {
 
 	buf := make([]byte, 2048)
 	runtime.Stack(buf, false /* all */)
-	d.holder = string(buf)
+	holder := string(buf)
 
 	d.timer = time.AfterFunc(5*time.Second, func() {
-		logger.Tracef("debug_mutex: Potential dead lock detected for a lock %q held by: %v\n", d.name, d.holder)
+		logger.Tracef("debug_mutex: Potential dead lock detected for a lock %q held by: %v\n", d.name, holder)
 	})
 }
 
 func (d *debugger) Unlock() {
-	d.holder = ""
 	d.timer.Stop()
 	d.timer = nil
 
