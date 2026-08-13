@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otel_logs
+package otel_exporter
 
 import (
 	"os"
@@ -26,11 +26,11 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type OTelLogsTest struct {
-	OTelLogsTestBase
+type OTelExporterTest struct {
+	OTelExporterTestBase
 }
 
-func (t *OTelLogsTest) TestLogsAreExported() {
+func (t *OTelExporterTest) TestLogsAreExported() {
 	// Perform a simple FS operation to trigger some logs.
 	filePath := path.Join(testEnv.testDirPath, "hello.txt")
 	_, err := os.Stat(filePath)
@@ -39,20 +39,41 @@ func (t *OTelLogsTest) TestLogsAreExported() {
 	// Since logs are exported asynchronously (batch processor), we need to poll
 	// the mock server to see if logs arrived.
 	assert.Eventually(t.T(), func() bool {
-		logMu.Lock()
-		defer logMu.Unlock()
+		recordsMu.Lock()
+		defer recordsMu.Unlock()
 		return len(logRecords) > 0
 	}, 15*time.Second, 1*time.Second, "Expected to receive OTLP logs, but got none")
 
-	// Print some received records for debugging in case of failure or interest.
-	logMu.Lock()
-	defer logMu.Unlock()
-	// Assert that at least one payload is received.
+	recordsMu.Lock()
+	defer recordsMu.Unlock()
 	assert.Greater(t.T(), len(logRecords), 0, "Expected to receive OTLP logs")
 }
 
-func TestOTelLogsTestSuite(t *testing.T) {
-	ts := &OTelLogsTest{}
+func (t *OTelExporterTest) TestMetricsAreExported() {
+	if testEnv.cfg.GKEMountedDirectory != "" {
+		t.T().Skip("Skipping otel_metrics test on GKE")
+	}
+
+	// Perform a simple FS operation to ensure baseline metrics are gathered.
+	filePath := path.Join(testEnv.testDirPath, "hello.txt")
+	_, err := os.Stat(filePath)
+	require.NoError(t.T(), err)
+
+	// Since metrics are exported periodically (every 5 seconds based on our config),
+	// we need to poll the mock server to see if metrics arrived.
+	assert.Eventually(t.T(), func() bool {
+		recordsMu.Lock()
+		defer recordsMu.Unlock()
+		return len(metricRecords) > 0
+	}, 20*time.Second, 1*time.Second, "Expected to receive OTLP metrics, but got none")
+
+	recordsMu.Lock()
+	defer recordsMu.Unlock()
+	assert.Greater(t.T(), len(metricRecords), 0, "Expected to receive OTLP metrics")
+}
+
+func TestOTelExporterTestSuite(t *testing.T) {
+	ts := &OTelExporterTest{}
 	flagSets := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagSets {
 		ts.flags = flags
