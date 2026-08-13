@@ -1135,6 +1135,27 @@ params:
     default: true
     hide-flag: true
 
+  - config-path: "metrics.experimental-enable-otel-metrics"
+    flag-name: "experimental-enable-otel-metrics"
+    type: "bool"
+    usage: "Enable OpenTelemetry metrics exporting. Must also set cloud-metrics-export-interval-secs > 0 to take effect."
+    default: "false"
+    hide-flag: true
+
+  - config-path: "metrics.experimental-otel-metrics-endpoint"
+    flag-name: "experimental-otel-metrics-endpoint"
+    type: "string"
+    usage: "The OTLP HTTP endpoint for OpenTelemetry metrics."
+    default: ""
+    hide-flag: true
+
+  - config-path: "metrics.experimental-otel-metrics-project-id"
+    flag-name: "experimental-otel-metrics-project-id"
+    type: "string"
+    usage: "Specify the GCP project id to which OTel metrics will be exported. When unset, a project id will be inferred as per the default credential detection process."
+    default: ""
+    hide-flag: true
+
   - config-path: "metrics.prometheus-port"
     flag-name: "prometheus-port"
     type: "int"

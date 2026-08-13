@@ -250,6 +250,7 @@ func isValidMetricsConfig(m *MetricsConfig) error {
 	if m.StackdriverExportInterval != 0 && m.CloudMetricsExportIntervalSecs != 0 {
 		return fmt.Errorf("exactly one of stackdriver-export-interval and cloud-metrics-export-interval-secs must be specified")
 	}
+
 	const maxPortNumber = math.MaxUint16
 	if m.PrometheusPort > maxPortNumber {
 		return fmt.Errorf("prometheus-port must not be higher than the maximum allowed port number: %d but received: %d instead", maxPortNumber, m.PrometheusPort)
