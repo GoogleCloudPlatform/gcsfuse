@@ -93,7 +93,6 @@ func (c *rwChecker) RUnlock() {
 type rwDebugger struct {
 	locker RWLocker
 	name   string
-	holder string
 	timer  *time.Timer
 }
 
@@ -101,18 +100,20 @@ func (d *rwDebugger) Lock() {
 	d.locker.Lock()
 
 	buf := make([]byte, 2048)
-	runtime.Stack(buf, false /* all */)
-	d.holder = string(buf)
+	n := runtime.Stack(buf, false /* all */)
+	// Use only the bytes written to the buffer to avoid uninitialized values in the string.
+	holder := string(buf[:n])
 
 	d.timer = time.AfterFunc(5*time.Second, func() {
-		logger.Tracef("debug_mutex: Potential dead lock detected for a lock %q held by: %v\n", d.name, d.holder)
+		logger.Tracef("debug_mutex: Potential dead lock detected for a lock %q held by: %v\n", d.name, holder)
 	})
 }
 
 func (d *rwDebugger) Unlock() {
-	d.holder = ""
-	d.timer.Stop()
-	d.timer = nil
+	if d.timer != nil {
+		d.timer.Stop()
+		d.timer = nil
+	}
 
 	d.locker.Unlock()
 }
