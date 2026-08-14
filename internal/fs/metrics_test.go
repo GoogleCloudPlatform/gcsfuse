@@ -1721,9 +1721,9 @@ func (bm *fakeBucketManagerForStatCache) SetUpBucket(
 		bm.clock,
 		bm.bucket,
 		1*time.Minute,
-		true,  // IsTypeCacheDeprecated
-		false, // isImplicitDir
-		true,  // enableEmptyManagedFolders
+		true, // IsTypeCacheDeprecated
+		true, // isImplicitDir
+		true, // enableEmptyManagedFolders
 	)
 
 	sb = gcsx.NewSyncerBucket(
@@ -1765,15 +1765,17 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 			Read:                       cfg.ReadConfig{GlobalMaxBlocks: 1},
 			EnableNewReader:            true,
 			EnableTypeCacheDeprecation: true,
+			ImplicitDirs:               true,
 			MetadataCache: cfg.MetadataCacheConfig{
 				TtlSecs:         60,
 				NegativeTtlSecs: 60,
 			},
 		},
-		MetricHandle: mh,
-		TraceHandle:  tracing.NewNoopTracer(),
-		CacheClock:   clock,
-		BucketName:   bucketName,
+		ImplicitDirectories: true,
+		MetricHandle:        mh,
+		TraceHandle:         tracing.NewNoopTracer(),
+		CacheClock:          clock,
+		BucketName:          bucketName,
 		BucketManager: &fakeBucketManagerForStatCache{
 			bucket:    bucket,
 			statCache: statCache,
@@ -1980,4 +1982,223 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 
 	// Stat Deleted File hits negative entry -> negative hits increment to 2 (from 1)
 	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 2)
+
+	// --- Step 11: Cold Stat on Explicit Directory ---
+	createWithContents(ctx, t, bucket, "explicitDir/", "")
+	lookupOpExplicitDir := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "explicitDir",
+	}
+	err = server.LookUpInode(ctx, lookupOpExplicitDir)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	// Cold lookup on explicit directory misses stat cache -> not_found increments to 4 (Step 10 cold lookup was 3)
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 4)
+
+	// --- Step 12: Warm Stat on Explicit Directory ---
+	err = server.LookUpInode(ctx, lookupOpExplicitDir)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	// Warm lookup on explicit directory hits positive stat cache -> positive hits increment to 4
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 4)
+
+	// --- Step 13: Cold Stat on Implicit Directory ---
+	createWithContents(ctx, t, bucket, "implicitDir/nested.txt", "content")
+	lookupOpImplicitDir := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "implicitDir",
+	}
+	err = server.LookUpInode(ctx, lookupOpImplicitDir)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	// Cold lookup on implicit directory misses stat cache -> not_found increments to 5
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 5)
+
+	// --- Step 14: Warm Stat on Implicit Directory ---
+	err = server.LookUpInode(ctx, lookupOpImplicitDir)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	// Warm lookup on implicit directory hits positive stat cache -> positive hits increment to 5
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 5)
+
+	// --- Step 15: Directory TTL Expired ---
+	clock.AdvanceTime(61 * time.Second)
+	err = server.LookUpInode(ctx, lookupOpExplicitDir)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	// Stale directory entry in stat cache -> positive expired increments to 2
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsExpiredPositive, 2)
+
+	// --- Step 16: Directory Creation (MkDir), Stat, Removal (RmDir), Stat Removed Directory ---
+	mkDirOp := &fuseops.MkDirOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "createdDir",
+		Mode:   0755,
+	}
+	err = server.MkDir(ctx, mkDirOp)
+	require.NoError(t, err)
+	lookupOpCreatedDir := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "createdDir",
+	}
+	err = server.LookUpInode(ctx, lookupOpCreatedDir)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	// Stat on newly created directory hits positive stat cache -> positive hits increment to 6
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 6)
+
+	rmDirOp := &fuseops.RmDirOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "createdDir",
+	}
+	err = server.RmDir(ctx, rmDirOp)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// Stat removed directory hits negative cache entry
+	err = server.LookUpInode(ctx, lookupOpCreatedDir)
+	assert.Equal(t, fuse.ENOENT, err)
+	waitForMetricsProcessing()
+	// Negative hit increments to 3
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 3)
+	// RmDir looked up createdDir from stat cache before deleting -> positive hits increment to 7
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 7)
+
+	// --- Step 17: File Rename and Stat Old & New File ---
+	createWithContents(ctx, t, bucket, "rename_src.txt", "abc")
+	lookupOpSrc := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "rename_src.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOpSrc)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	// Cold lookup on rename_src.txt -> not_found increments to 6
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 6)
+
+	renameOp := &fuseops.RenameOp{
+		OldParent: fuseops.RootInodeID,
+		OldName:   "rename_src.txt",
+		NewParent: fuseops.RootInodeID,
+		NewName:   "rename_dst.txt",
+	}
+	err = server.Rename(ctx, renameOp)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// Stat old name -> fails with ENOENT, hits negative cache entry populated on rename
+	err = server.LookUpInode(ctx, lookupOpSrc)
+	assert.Equal(t, fuse.ENOENT, err)
+	waitForMetricsProcessing()
+	// Negative hits increment to 4
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 4)
+
+	// Stat new name -> hits positive cache entry populated on rename
+	lookupOpDst := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "rename_dst.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOpDst)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	// Positive hits increment to 9 (RmDir was 7, Rename source lookup was 8, LookUpInode on rename_dst was 9)
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 9)
+
+	// --- Step 18: Nested Directory Component Traversals ---
+	createWithContents(ctx, t, bucket, "parentDir/subDir/leaf.txt", "deep")
+	lookupOpParent := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "parentDir",
+	}
+	err = server.LookUpInode(ctx, lookupOpParent)
+	require.NoError(t, err)
+
+	lookupOpSub := &fuseops.LookUpInodeOp{
+		Parent: lookupOpParent.Entry.Child,
+		Name:   "subDir",
+	}
+	err = server.LookUpInode(ctx, lookupOpSub)
+	require.NoError(t, err)
+
+	lookupOpLeaf := &fuseops.LookUpInodeOp{
+		Parent: lookupOpSub.Entry.Child,
+		Name:   "leaf.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOpLeaf)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	// Cold lookups for the 2 implicit dir segments (parentDir, subDir) -> not_found increments from 6 to 8.
+	// Leaf file (leaf.txt) was cached during prefix listing of subDir, so its first lookup is a positive hit!
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 8)
+
+	// Now warm traversals of the nested path
+	err = server.LookUpInode(ctx, lookupOpParent)
+	require.NoError(t, err)
+	err = server.LookUpInode(ctx, lookupOpSub)
+	require.NoError(t, err)
+	err = server.LookUpInode(ctx, lookupOpLeaf)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	// Positive hits increment from 9 to 13 (leaf.txt first lookup was +1, plus 3 warm lookups = 9 + 4 = 13)
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 13)
+
+	// --- Step 19: Symlink Creation and Lookup ---
+	symlinkOp := &fuseops.CreateSymlinkOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "symlink_to_file",
+		Target: "existing_file.txt",
+	}
+	err = server.CreateSymlink(ctx, symlinkOp)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	lookupOpSymlink := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "symlink_to_file",
+	}
+	err = server.LookUpInode(ctx, lookupOpSymlink)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	// Lookup on newly created symlink hits positive stat cache -> positive hits increment to 14
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 14)
+
+	// --- Step 20: External Re-creation of Deleted File (Negative Entry Expired) ---
+	createWithContents(ctx, t, bucket, "tmp_file.txt", "recreated content")
+	lookupOpRecreated := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "tmp_file.txt",
+	}
+	// The negative entry from Step 10 has expired (due to Step 15 clock advance) -> negative expired increments to 2
+	err = server.LookUpInode(ctx, lookupOpRecreated)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsExpiredNegative, 2)
+
+	// Subsequent warm lookup hits positive entry -> positive hits increment to 15
+	err = server.LookUpInode(ctx, lookupOpRecreated)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 15)
+
+	// --- Step 21: Open File (Does not perform extra stat cache lookups when not clobbered) ---
+	openFileOp := &fuseops.OpenFileOp{
+		Inode: lookupOpDst.Entry.Child,
+	}
+	err = server.OpenFile(ctx, openFileOp)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	// No additional cache reads recorded during file open
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 15)
+
+	// --- Step 22: SetInodeAttributes (Mtime Update triggers clobbered check) ---
+	newMtime := clock.Now().Add(5 * time.Minute)
+	setAttrOp := &fuseops.SetInodeAttributesOp{
+		Inode: lookupOpDst.Entry.Child,
+		Mtime: &newMtime,
+	}
+	err = server.SetInodeAttributes(ctx, setAttrOp)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+	// SetInodeAttributes runs clobbered check against stat cache -> positive hits increment to 16
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 16)
 }
