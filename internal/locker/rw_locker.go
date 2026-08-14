@@ -29,21 +29,18 @@ type RWLocker interface {
 	RUnlock()
 }
 
-// NewRW returns a RW locker with potential capability for debugging.
-//
-// Note: The deadlock detection is done only for writer lock and not for reader
-// lock.
-func NewRW(name string, check func()) RWLocker {
+// NewRWWithOptions returns an RW locker with potential capability for debugging based on options.
+func NewRWWithOptions(name string, check func(), opts Options) RWLocker {
 	var l RWLocker = &sync.RWMutex{}
 
-	if gEnableInvariantsCheck {
+	if opts.EnableInvariantsCheck {
 		l = &rwChecker{
 			locker: l,
 			check:  check,
 		}
 	}
 
-	if gEnableDebugMessages {
+	if opts.EnableDebugMessages {
 		l = &rwDebugger{
 			locker: l,
 			name:   name,
@@ -51,6 +48,18 @@ func NewRW(name string, check func()) RWLocker {
 	}
 
 	return l
+}
+
+// NewRW returns a RW locker with potential capability for debugging.
+//
+// Note: The deadlock detection is done only for writer lock and not for reader
+// lock.
+// TODO: Deprecate and delete this function once all components migrate to using locker.Options.
+func NewRW(name string, check func()) RWLocker {
+	return NewRWWithOptions(name, check, Options{
+		EnableInvariantsCheck: gEnableInvariantsCheck,
+		EnableDebugMessages:   gEnableDebugMessages,
+	})
 }
 
 type rwChecker struct {
