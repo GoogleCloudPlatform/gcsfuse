@@ -105,7 +105,7 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else if clientConfig.EnableGoogleLibAuth {
 		var authOpts []option.ClientOption
-		authOpts, _, err = storageutil.GetClientAuthOptionsAndToken(ctx, clientConfig)
+		authOpts, _, err = storageutil.GetClientAuthOptionsAndTokenSource(ctx, clientConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get client auth options and token: %w", err)
 		}
@@ -280,7 +280,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else if clientConfig.EnableGoogleLibAuth {
 		var authOpts []option.ClientOption
-		authOpts, tokenSrc, err = storageutil.GetClientAuthOptionsAndToken(ctx, clientConfig)
+		authOpts, tokenSrc, err = storageutil.GetClientAuthOptionsAndTokenSource(ctx, clientConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get client auth options and token: %w", err)
 		}
