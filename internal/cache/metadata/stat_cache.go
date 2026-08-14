@@ -15,6 +15,7 @@
 package metadata
 
 import (
+	"context"
 	"math"
 	"time"
 
@@ -53,6 +54,7 @@ type StatCache interface {
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
 	LookUp(name string, now time.Time) (hit bool, m *gcs.MinObject)
+	LookUpWithContext(ctx context.Context, name string, now time.Time) (hit bool, m *gcs.MinObject)
 
 	// Insert an entry for the given folder resource.
 	//
@@ -67,6 +69,7 @@ type StatCache interface {
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
 	LookUpFolder(folderName string, now time.Time) (bool, *gcs.Folder)
+	LookUpFolderWithContext(ctx context.Context, folderName string, now time.Time) (bool, *gcs.Folder)
 
 	// Set up a negative entry for the given folder name, indicating that the name
 	// doesn't exist. Overwrite any existing entry for the name, positive or
@@ -312,8 +315,15 @@ func (sc *statCacheBucketView) Erase(objectName string) {
 func (sc *statCacheBucketView) LookUp(
 	objectName string,
 	now time.Time) (bool, *gcs.MinObject) {
+	return sc.LookUpWithContext(context.Background(), objectName, now)
+}
+
+func (sc *statCacheBucketView) LookUpWithContext(
+	ctx context.Context,
+	objectName string,
+	now time.Time) (bool, *gcs.MinObject) {
 	// Look up in the LRU cache.
-	hit, entry := sc.sharedCacheLookup(objectName, now)
+	hit, entry := sc.sharedCacheLookup(ctx, objectName, now)
 	if hit {
 		if entry.implicitDir {
 			return true, &gcs.MinObject{Name: objectName}
@@ -327,8 +337,15 @@ func (sc *statCacheBucketView) LookUp(
 func (sc *statCacheBucketView) LookUpFolder(
 	folderName string,
 	now time.Time) (bool, *gcs.Folder) {
+	return sc.LookUpFolderWithContext(context.Background(), folderName, now)
+}
+
+func (sc *statCacheBucketView) LookUpFolderWithContext(
+	ctx context.Context,
+	folderName string,
+	now time.Time) (bool, *gcs.Folder) {
 	// Look up in the LRU cache.
-	hit, entry := sc.sharedCacheLookup(folderName, now)
+	hit, entry := sc.sharedCacheLookup(ctx, folderName, now)
 
 	if hit {
 		return hit, entry.f
@@ -337,11 +354,29 @@ func (sc *statCacheBucketView) LookUpFolder(
 	return false, nil
 }
 
-func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (bool, *entry) {
+func (sc *statCacheBucketView) recordMetric(ctx context.Context, hit bool, entryStatus metrics.EntryStatus, lookupDetail metrics.LookupDetail) {
+	if !metrics.IsMonitoringEnabled(sc.metricHandle) {
+		return
+	}
+	if collector := CollectorFromContext(ctx); collector != nil {
+		collector.Record(hit, entryStatus, lookupDetail)
+	} else {
+		sc.metricHandle.MetadataCacheReadCount(1, hit, entryStatus, lookupDetail)
+	}
+}
+
+func (sc *statCacheBucketView) sharedCacheLookup(ctx context.Context, key string, now time.Time) (bool, *entry) {
 	result, e := sc.lookUpInternal(key, now)
 
+	if !metrics.IsMonitoringEnabled(sc.metricHandle) {
+		if result == lookupMiss || result == lookupExpired {
+			return false, nil
+		}
+		return true, e
+	}
+
 	if result == lookupMiss {
-		sc.metricHandle.MetadataCacheReadCount(1, false, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr)
+		sc.recordMetric(ctx, false, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr)
 		return false, nil
 	}
 
@@ -357,11 +392,11 @@ func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (boo
 	}
 
 	if result == lookupExpired {
-		sc.metricHandle.MetadataCacheReadCount(1, false, entryStatus, metrics.LookupDetailTtlExpiredAttr)
+		sc.recordMetric(ctx, false, entryStatus, metrics.LookupDetailTtlExpiredAttr)
 		return false, nil
 	}
 
-	sc.metricHandle.MetadataCacheReadCount(1, true, entryStatus, metrics.LookupDetailFoundAttr)
+	sc.recordMetric(ctx, true, entryStatus, metrics.LookupDetailFoundAttr)
 	return true, e
 }
 

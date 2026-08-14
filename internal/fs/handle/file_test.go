@@ -115,6 +115,7 @@ func createDirInode(
 		clock,
 		semaphore.NewWeighted(10),
 		config,
+		metrics.NewNoopMetrics(),
 	)
 }
 

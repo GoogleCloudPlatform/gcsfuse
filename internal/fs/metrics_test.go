@@ -1761,9 +1761,10 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 
 	serverCfg := &fs.ServerConfig{
 		NewConfig: &cfg.Config{
-			Write:           cfg.WriteConfig{GlobalMaxBlocks: 1},
-			Read:            cfg.ReadConfig{GlobalMaxBlocks: 1},
-			EnableNewReader: true,
+			Write:                      cfg.WriteConfig{GlobalMaxBlocks: 1},
+			Read:                       cfg.ReadConfig{GlobalMaxBlocks: 1},
+			EnableNewReader:            true,
+			EnableTypeCacheDeprecation: true,
 			MetadataCache: cfg.MetadataCacheConfig{
 				TtlSecs:         60,
 				NegativeTtlSecs: 60,
@@ -1797,8 +1798,8 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 		attribute.Bool("cache_hit", false),
 		attribute.String("lookup_detail", "not_found"),
 	)
-	// Expect 2 lookups: one for "nonexistent.txt/", one for "nonexistent.txt"
-	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 2)
+	// Exactly 1 lookup metric emitted for the LookUpChild operation (aggregating candidate probes)
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 1)
 
 	// --- Step 2: Lookup nonexistent file again (Hit: Negative Found) ---
 	lookupOp2 := &fuseops.LookUpInodeOp{
@@ -1814,10 +1815,10 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 		attribute.String("entry_status", "negative"),
 		attribute.String("lookup_detail", "found"),
 	)
-	// Expect 2 lookups: one for "nonexistent.txt/", one for "nonexistent.txt"
-	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 2)
+	// Exactly 1 negative hit metric emitted for the LookUpChild operation
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 1)
 
-	// --- Step 3: Lookup existent file first time (Cold lookup: 2 misses, 0 spurious positive hits) ---
+	// --- Step 3: Lookup existent file first time (Cold lookup: 1 miss, 0 spurious positive hits) ---
 	createWithContents(ctx, t, bucket, "existent.txt", "hello")
 	lookupOp3 := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
@@ -1827,8 +1828,8 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 	require.NoError(t, err)
 	waitForMetricsProcessing()
 
-	// Expect 4 lookups total: 2 from nonexistent lookup, 2 from existent lookup
-	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 4)
+	// Expect 2 not_found lookups total: 1 from nonexistent lookup, 1 from existent cold lookup
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 2)
 
 	attrsHitPositive := attribute.NewSet(
 		attribute.Bool("cache_hit", true),
@@ -1838,7 +1839,7 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 	// Post-lookup getAttributes must NOT record a spurious positive hit on cold lookup
 	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 0)
 
-	// --- Step 4: Lookup existent file again (Warm lookup: 1 negative hit on dir check + 1 positive hit on file) ---
+	// --- Step 4: Lookup existent file again (Warm lookup: exactly 1 positive hit, 0 negative hits recorded) ---
 	lookupOp4 := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
 		Name:   "existent.txt",
@@ -1847,10 +1848,10 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 	require.NoError(t, err)
 	waitForMetricsProcessing()
 
-	// Expect exactly 1 positive lookup (the file hit in LookUpChild, no duplicate in getAttributes)
+	// Expect exactly 1 positive lookup (the aggregated file hit in LookUpChild)
 	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 1)
-	// Verifying that negative hit also got incremented by 1 (due to checking "existent.txt/") -> total 3
-	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 3)
+	// Negative hits remain 1 (no phantom negative hits recorded from candidate dir probe)
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 1)
 
 	// --- Step 5: ReadDir does not increment metadata_cache/read_count ---
 	openDirOp := &fuseops.OpenDirOp{
@@ -1868,9 +1869,9 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 	waitForMetricsProcessing()
 
 	// Verify metrics unchanged after ReadDir
-	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 4)
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsMissNotFound, 2)
 	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 1)
-	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 3)
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 1)
 
 	// --- Step 6: Advance clock past TTL and lookup nonexistent file (Miss: Negative TTL Expired) ---
 	clock.AdvanceTime(2 * time.Minute)
@@ -1888,10 +1889,10 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 		attribute.String("entry_status", "negative"),
 		attribute.String("lookup_detail", "ttl_expired"),
 	)
-	// Expect 2 lookups expired: "nonexistent.txt/" and "nonexistent.txt"
-	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsExpiredNegative, 2)
+	// Exactly 1 negative TTL expired metric emitted
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsExpiredNegative, 1)
 
-	// --- Step 7: Lookup existent file after TTL expired (Miss: Positive and Negative TTL Expired, 0 spurious hits) ---
+	// --- Step 7: Lookup existent file after TTL expired (Miss: Positive TTL Expired, 0 negative expired recorded) ---
 	lookupOp6 := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
 		Name:   "existent.txt",
@@ -1905,10 +1906,10 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 		attribute.String("entry_status", "positive"),
 		attribute.String("lookup_detail", "ttl_expired"),
 	)
-	// Expect 1 positive TTL expired (for "existent.txt")
+	// Expect exactly 1 positive TTL expired (for "existent.txt")
 	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsExpiredPositive, 1)
-	// Expect negative TTL expired to increment by 1 (for "existent.txt/") -> total 3
-	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsExpiredNegative, 3)
+	// Negative TTL expired remains 1 (no phantom negative expired recorded from candidate dir probe)
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsExpiredNegative, 1)
 	// Post-fetch getAttributes does NOT record a spurious positive hit -> positive hits remain 1
 	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 1)
 
@@ -1922,4 +1923,61 @@ func TestMetadataCache_ReadCount_Integration(t *testing.T) {
 
 	// GetInodeAttributes uses clobberedCheck=true, which checks stat cache and saves a GCS call -> positive hits increment to 2
 	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 2)
+
+	// --- Step 9: Directory listing and Stat Listed Directory ---
+	createWithContents(ctx, t, bucket, "dirForOperationsTest/", "")
+	openDirOp2 := &fuseops.OpenDirOp{
+		Inode: fuseops.RootInodeID,
+	}
+	err = server.OpenDir(ctx, openDirOp2)
+	require.NoError(t, err)
+	readDirOp2 := &fuseops.ReadDirOp{
+		Inode:  fuseops.RootInodeID,
+		Handle: openDirOp2.Handle,
+		Dst:    make([]byte, 4096),
+	}
+	err = server.ReadDir(ctx, readDirOp2)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// Listing directory populated the directory in stat cache without incrementing read counts
+	lookupOpDir := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "dirForOperationsTest",
+	}
+	err = server.LookUpInode(ctx, lookupOpDir)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// Stat Listed Directory hits positive stat cache for directory -> positive hits increment to 3
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitPositive, 3)
+
+	// --- Step 10: File Create / Remove and Stat Deleted File ---
+	createWithContents(ctx, t, bucket, "tmp_file.txt", "content")
+	lookupOpTmp := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "tmp_file.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOpTmp)
+	require.NoError(t, err)
+
+	unlinkOp := &fuseops.UnlinkOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "tmp_file.txt",
+	}
+	err = server.Unlink(ctx, unlinkOp)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// Delete populates negative cache entry in stat cache. Now stat deleted file:
+	lookupOpDeleted := &fuseops.LookUpInodeOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "tmp_file.txt",
+	}
+	err = server.LookUpInode(ctx, lookupOpDeleted)
+	assert.Equal(t, fuse.ENOENT, err)
+	waitForMetricsProcessing()
+
+	// Stat Deleted File hits negative entry -> negative hits increment to 2 (from 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "metadata_cache/read_count", attrsHitNegative, 2)
 }

@@ -7,6 +7,7 @@
 package mock_gcscaching
 
 import (
+	"context"
 	fmt "fmt"
 	runtime "runtime"
 	time "time"
@@ -141,6 +142,10 @@ func (m *mockStatCache) LookUp(p0 string, p1 time.Time) (o0 bool, o1 *gcs.MinObj
 	return
 }
 
+func (m *mockStatCache) LookUpWithContext(p0 context.Context, p1 string, p2 time.Time) (o0 bool, o1 *gcs.MinObject) {
+	return m.LookUp(p1, p2)
+}
+
 func (m *mockStatCache) InsertFolder(p0 *gcs.Folder, p1 time.Time) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
@@ -185,6 +190,10 @@ func (m *mockStatCache) LookUpFolder(p0 string, p1 time.Time) (o0 bool, o1 *gcs.
 	}
 
 	return
+}
+
+func (m *mockStatCache) LookUpFolderWithContext(p0 context.Context, p1 string, p2 time.Time) (o0 bool, o1 *gcs.Folder) {
+	return m.LookUpFolder(p1, p2)
 }
 
 func (m *mockStatCache) EraseEntriesWithGivenPrefix(p0 string) {

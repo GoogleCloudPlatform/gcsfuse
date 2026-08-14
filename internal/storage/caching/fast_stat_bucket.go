@@ -279,19 +279,19 @@ func (b *fastStatBucket) invalidate(name string) {
 }
 
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) lookUp(name string) (hit bool, m *gcs.MinObject) {
+func (b *fastStatBucket) lookUp(ctx context.Context, name string) (hit bool, m *gcs.MinObject) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	hit, m = b.cache.LookUp(name, b.clock.Now())
+	hit, m = b.cache.LookUpWithContext(ctx, name, b.clock.Now())
 	return
 }
 
-func (b *fastStatBucket) lookUpFolder(name string) (bool, *gcs.Folder) {
+func (b *fastStatBucket) lookUpFolder(ctx context.Context, name string) (bool, *gcs.Folder) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	hit, f := b.cache.LookUpFolder(name, b.clock.Now())
+	hit, f := b.cache.LookUpFolderWithContext(ctx, name, b.clock.Now())
 	return hit, f
 }
 
@@ -432,7 +432,7 @@ func (b *fastStatBucket) StatObject(
 	}
 
 	// Do we have an entry in the cache?
-	if hit, entry := b.lookUp(req.Name); hit {
+	if hit, entry := b.lookUp(ctx, req.Name); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
 			err = &gcs.NotFoundError{
@@ -577,7 +577,7 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderReques
 	}
 
 	// Cache Lookup
-	if hit, entry := b.lookUpFolder(req.Name); hit {
+	if hit, entry := b.lookUpFolder(ctx, req.Name); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
 			err := &gcs.NotFoundError{

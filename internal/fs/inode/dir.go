@@ -31,6 +31,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
@@ -282,6 +283,8 @@ type dirInode struct {
 	isUnsupportedPathSupportEnabled        bool
 	isEnableTypeCacheDeprecation           bool
 
+	metricHandle metrics.MetricHandle
+
 	// Represents if folder has been unlinked in hierarchical bucket. This is not getting used in
 	// non-hierarchical bucket.
 	unlinked bool
@@ -320,6 +323,7 @@ func NewDirInode(
 	cacheClock timeutil.Clock,
 	prefetchSem *semaphore.Weighted,
 	cfg *cfg.Config,
+	metricHandle metrics.MetricHandle,
 ) (d DirInode) {
 
 	if !name.IsDir() {
@@ -332,6 +336,10 @@ func NewDirInode(
 		parentInodeCtx = context.Background()
 	}
 	ctx, cancel := context.WithCancel(parentInodeCtx)
+
+	if metricHandle == nil {
+		metricHandle = metrics.NewNoopMetrics()
+	}
 
 	typed := &dirInode{
 		bucket:                                 bucket,
@@ -347,6 +355,7 @@ func NewDirInode(
 		isStandardSymlinkRepresentationEnabled: cfg.EnableStandardSymlinks,
 		isUnsupportedPathSupportEnabled:        cfg.EnableUnsupportedPathSupport,
 		isEnableTypeCacheDeprecation:           cfg.EnableTypeCacheDeprecation,
+		metricHandle:                           metricHandle,
 		unlinked:                               false,
 		ctx:                                    ctx,
 		cancel:                                 cancel,
@@ -635,7 +644,6 @@ func (d *dirInode) CancelCurrDirPrefetcher() {
 	if d.prefetcher != nil {
 		d.prefetcher.Cancel()
 	}
-	return
 }
 
 // UpdateSize is a no-op for implicit directories. These directories are not
@@ -678,6 +686,14 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	// 1. Optimization: If Type Cache is deprecated, attempt a lookup via the Stat Cache first.
 	// We skip this if the metadata cache TTL is 0, as the cache layer is inactive.
 	if d.IsTypeCacheDeprecated() && d.metadataCacheTtlSecs != 0 {
+		// If no collector was injected at the top-level FUSE op (e.g. direct unit tests),
+		// attach one locally as a fallback so candidate probes are still aggregated.
+		if metrics.IsMonitoringEnabled(d.metricHandle) && metadata.CollectorFromContext(ctx) == nil {
+			collector := metadata.NewCacheReadCollector()
+			ctx = metadata.WithCollector(ctx, collector)
+			defer collector.Flush(d.metricHandle)
+		}
+
 		var cacheMissErr *caching.CacheMissError
 
 		// 1. Try Directory FIRST (since it's the preferred return type)

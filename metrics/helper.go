@@ -20,3 +20,14 @@ func CaptureGCSReadMetrics(mh MetricHandle, readType ReadType, downloadBytes int
 	mh.GcsReadCount(1, readType)
 	mh.GcsDownloadBytesCount(downloadBytes, readType)
 }
+
+// IsMonitoringEnabled returns true if the MetricHandle is non-nil and is not a no-op implementation.
+func IsMonitoringEnabled(mh MetricHandle) bool {
+	if mh == nil {
+		return false
+	}
+	if _, isNoop := mh.(*noopMetrics); isNoop {
+		return false
+	}
+	return true
+}

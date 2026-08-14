@@ -427,6 +427,7 @@ func makeRootForBucket(
 		fs.cacheClock,
 		fs.globalMetadataPrefetchSem,
 		fs.newConfig,
+		fs.metricHandle,
 	)
 }
 
@@ -923,7 +924,8 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 		fs.mtimeClock,
 		fs.cacheClock,
 		fs.globalMetadataPrefetchSem,
-		fs.newConfig)
+		fs.newConfig,
+		fs.metricHandle)
 
 	return in
 }
@@ -957,6 +959,7 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			fs.cacheClock,
 			fs.globalMetadataPrefetchSem,
 			fs.newConfig,
+			fs.metricHandle,
 		)
 
 	case inode.IsSymlink(ic.MinObject):
@@ -1899,6 +1902,13 @@ func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+
+	if metrics.IsMonitoringEnabled(fs.metricHandle) && fs.newConfig.EnableTypeCacheDeprecation && fs.newConfig.MetadataCache.TtlSecs != 0 {
+		collector := metadata.NewCacheReadCollector()
+		ctx = metadata.WithCollector(ctx, collector)
+		defer collector.Flush(fs.metricHandle)
+	}
+
 	// Find the parent directory in question.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)

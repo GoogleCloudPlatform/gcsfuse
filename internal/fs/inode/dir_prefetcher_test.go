@@ -28,6 +28,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -79,6 +80,7 @@ func (t *DirPrefetchTest) setup(enablePrefetch bool, ttl time.Duration) (d *dirI
 		&t.clock,
 		semaphore.NewWeighted(10),
 		t.config,
+		metrics.NewNoopMetrics(),
 	)
 	return in.(*dirInode)
 }
