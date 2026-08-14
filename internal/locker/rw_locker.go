@@ -100,8 +100,9 @@ func (d *rwDebugger) Lock() {
 	d.locker.Lock()
 
 	buf := make([]byte, 2048)
-	runtime.Stack(buf, false /* all */)
-	holder := string(buf)
+	n := runtime.Stack(buf, false /* all */)
+	// Use only the bytes written to the buffer to avoid uninitialized values in the string.
+	holder := string(buf[:n])
 
 	d.timer = time.AfterFunc(5*time.Second, func() {
 		logger.Tracef("debug_mutex: Potential dead lock detected for a lock %q held by: %v\n", d.name, holder)
