@@ -269,20 +269,28 @@ func (uh *UploadHandler) AwaitBlocksUpload() {
 }
 
 func (uh *UploadHandler) Destroy() {
-	// Move all pending blocks to freeBlockCh and close the channel if not done.
+	// Cancel the context to abort any ongoing GCS upload.
+	if uh.cancelFunc != nil {
+		uh.cancelFunc()
+	}
+
+	// Drain all pending blocks from uploadCh and return them to the block pool,
+	// then close uploadCh and wait for the uploader goroutine to finish.
 	for {
 		select {
 		case currBlock, ok := <-uh.uploadCh:
-			// Not ok means channel closed. Return.
+			// If ok is false, the channel was already closed (e.g. by Finalize).
 			if !ok {
 				return
 			}
 			uh.blockPool.Release(currBlock)
-			// Marking as wg.Done to ensure any waiters are unblocked.
+			// Mark as wg.Done for each drained block to ensure wg.Wait() can unblock.
 			uh.wg.Done()
 		default:
-			// This will get executed when there are no blocks pending in uploadCh and its not closed.
+			// Executed when there are no more blocks pending in uploadCh and it is not closed.
 			close(uh.uploadCh)
+			// Wait for the uploader goroutine to finish processing its current in-flight block.
+			uh.wg.Wait()
 			return
 		}
 	}

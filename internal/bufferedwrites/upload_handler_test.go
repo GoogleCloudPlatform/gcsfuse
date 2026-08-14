@@ -610,3 +610,38 @@ func (t *UploadHandlerTest) createBlocks(count int) []block.Block {
 
 	return blocks
 }
+
+func (t *UploadHandlerTest) TestDestroyWithUploaderGoroutineInProgress() {
+	writer := &storagemock.Writer{}
+	writeBlockChan := make(chan struct{})
+	writeStartedChan := make(chan struct{})
+	writer.On("Write", mock.Anything).Run(func(args mock.Arguments) {
+		close(writeStartedChan)
+		<-writeBlockChan // Block the writer to simulate a slow upload
+	}).Return(4, nil)
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
+	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
+	blocks := t.createBlocks(1)
+	b := blocks[0]
+	_, err := b.Write([]byte("taco"))
+	require.NoError(t.T(), err)
+	err = t.uh.Upload(context.Background(), b)
+	require.NoError(t.T(), err)
+	<-writeStartedChan // Wait for the uploader goroutine to pull the block and call Write()
+
+	destroyDone := make(chan struct{})
+	go func() {
+		t.uh.Destroy()
+		close(destroyDone)
+	}()
+	select {
+	case <-destroyDone:
+		assert.Fail(t.T(), "Destroy should have blocked waiting for uploader to finish")
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(writeBlockChan) // Unblock the writer
+	<-destroyDone         // Wait for Destroy to complete
+
+	assert.Equal(t.T(), 1, t.uh.blockPool.TotalFreeBlocks())
+	assertAllBlocksProcessed(t.T(), t.uh)
+}
