@@ -1897,17 +1897,22 @@ func (fs *fileSystem) getWriteContext() *inode.WriteContext {
 	}
 }
 
+func (fs *fileSystem) attachCollectorIfEnabled(ctx context.Context) (context.Context, func()) {
+	if metrics.IsMonitoringEnabled(fs.metricHandle) && fs.newConfig.EnableTypeCacheDeprecation && fs.newConfig.MetadataCache.TtlSecs != 0 {
+		collector := metadata.NewCacheReadCollector()
+		ctx = metadata.WithCollector(ctx, collector)
+		return ctx, func() { collector.Flush(fs.metricHandle) }
+	}
+	return ctx, func() {}
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
-
-	if metrics.IsMonitoringEnabled(fs.metricHandle) && fs.newConfig.EnableTypeCacheDeprecation && fs.newConfig.MetadataCache.TtlSecs != 0 {
-		collector := metadata.NewCacheReadCollector()
-		ctx = metadata.WithCollector(ctx, collector)
-		defer collector.Flush(fs.metricHandle)
-	}
+	ctx, flush := fs.attachCollectorIfEnabled(ctx)
+	defer flush()
 
 	// Find the parent directory in question.
 	fs.mu.Lock()
@@ -1942,6 +1947,9 @@ func (fs *fileSystem) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+	ctx, flush := fs.attachCollectorIfEnabled(ctx)
+	defer flush()
+
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1964,6 +1972,9 @@ func (fs *fileSystem) SetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+	ctx, flush := fs.attachCollectorIfEnabled(ctx)
+	defer flush()
+
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -2034,6 +2045,9 @@ func (fs *fileSystem) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+	ctx, flush := fs.attachCollectorIfEnabled(ctx)
+	defer flush()
+
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2090,6 +2104,9 @@ func (fs *fileSystem) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+	ctx, flush := fs.attachCollectorIfEnabled(ctx)
+	defer flush()
+
 	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
 		return syscall.ENOTSUP
 	}
@@ -2230,6 +2247,9 @@ func (fs *fileSystem) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+	ctx, flush := fs.attachCollectorIfEnabled(ctx)
+	defer flush()
+
 	// Create the child.
 	var child inode.Inode
 	openMode := util.FileOpenMode(op.OpenFlags)
@@ -2287,6 +2307,9 @@ func (fs *fileSystem) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+	ctx, flush := fs.attachCollectorIfEnabled(ctx)
+	defer flush()
+
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2354,6 +2377,9 @@ func (fs *fileSystem) RmDir(
 	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+	ctx, flush := fs.attachCollectorIfEnabled(ctx)
+	defer flush()
+
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2468,6 +2494,9 @@ func (fs *fileSystem) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+	ctx, flush := fs.attachCollectorIfEnabled(ctx)
+	defer flush()
+
 	// Find the old and new parents.
 	fs.mu.Lock()
 	oldParent := fs.dirInodeOrDie(op.OldParent)
@@ -2849,6 +2878,8 @@ func (fs *fileSystem) Unlink(
 	ctx context.Context,
 	op *fuseops.UnlinkOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+	ctx, flush := fs.attachCollectorIfEnabled(ctx)
+	defer flush()
 
 	fs.mu.Lock()
 
@@ -3030,6 +3061,10 @@ func (fs *fileSystem) ReleaseDirHandle(
 func (fs *fileSystem) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
+	ctx = fs.getInterruptlessContext(ctx)
+	ctx, flush := fs.attachCollectorIfEnabled(ctx)
+	defer flush()
+
 	// For file handles opened in O_DIRECT mode, we must set UseDirectIO.
 	// This tells the kernel to bypass its page cache (for file reads and
 	// writes) and **size checks**, forwarding read requests directly to
