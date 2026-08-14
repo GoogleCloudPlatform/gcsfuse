@@ -26,6 +26,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,7 +48,7 @@ func setupIntegrationTest(t *testing.T) *integrationTestDeps {
 
 	const cacheCapacity = 100
 	lruCache := lru.NewCache(cfg.AverageSizeOfPositiveStatCacheEntry * cacheCapacity)
-	cache := metadata.NewStatCacheBucketView(lruCache, "")
+	cache := metadata.NewStatCacheBucketView(lruCache, "", metrics.NewNoopMetrics())
 	wrapped := fake.NewFakeBucket(clock, bucketName, gcs.BucketType{})
 
 	bucket := caching.NewFastStatBucket(

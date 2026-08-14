@@ -164,7 +164,7 @@ func (t *HNSCachedBucketMountTest) SetupSuite() {
 	bucketType = gcs.BucketType{Hierarchical: true}
 	uncachedHNSBucket = fake.NewFakeBucket(timeutil.RealClock(), cachedHnsBucketName, bucketType)
 	lruCache := newLruCache(uint64(1000 * cfg.AverageSizeOfPositiveStatCacheEntry))
-	statCache := metadata.NewStatCacheBucketView(lruCache, "")
+	statCache := metadata.NewStatCacheBucketView(lruCache, "", metrics.NewNoopMetrics())
 	bucket = caching.NewFastStatBucket(
 		ttl,
 		statCache,

@@ -22,6 +22,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
 // A cache mapping from name to most recent known record for the object of that
@@ -86,10 +87,11 @@ type StatCache interface {
 // Create a new bucket-view to the passed shared-cache object.
 // For dynamic-mount (mount for multiple buckets), pass bn as bucket-name.
 // For static-mout (mount for single bucket), pass bn as "".
-func NewStatCacheBucketView(sc *lru.Cache, bn string) StatCache {
+func NewStatCacheBucketView(sc *lru.Cache, bn string, metricHandle metrics.MetricHandle) StatCache {
 	return &statCacheBucketView{
-		sharedCache: sc,
-		bucketName:  bn,
+		sharedCache:  sc,
+		bucketName:   bn,
+		metricHandle: metricHandle,
 	}
 }
 
@@ -105,7 +107,8 @@ type statCacheBucketView struct {
 	// statCache object among all statCache objects
 	// using the same shared lru.Cache object.
 	// It can be empty ("").
-	bucketName string
+	bucketName   string
+	metricHandle metrics.MetricHandle
 }
 
 // An entry in the cache, pairing an object with the expiration time for the
@@ -188,15 +191,44 @@ func (sc *statCacheBucketView) key(objectName string) string {
 	return objectName
 }
 
-func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
-	name := sc.key(m.Name)
+type lookupResult int
 
+const (
+	lookupMiss lookupResult = iota
+	lookupExpired
+	lookupHit
+)
+
+// lookUpInternal is the single source of truth for stat cache lookups and TTL expiration checks.
+// It resolves the bucket-scoped key, retrieves the entry from LRU cache, and evaluates TTL expiration.
+// If now is non-zero and the entry is expired, it erases the expired entry and returns (lookupExpired, &e).
+// It does NOT perform logging or record read metrics.
+func (sc *statCacheBucketView) lookUpInternal(key string, now time.Time) (lookupResult, *entry) {
+	value := sc.sharedCache.LookUp(sc.key(key))
+	if value == nil {
+		return lookupMiss, nil
+	}
+
+	e := value.(entry)
+
+	// Has this entry expired?
+	if !now.IsZero() && e.expiration.Before(now) {
+		sc.Erase(key)
+		return lookupExpired, &e
+	}
+
+	return lookupHit, &e
+}
+
+func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 	// Is there already a better entry?
-	if existing := sc.sharedCache.LookUp(name); existing != nil {
-		if !shouldReplace(m, existing.(entry)) {
+	if res, existing := sc.lookUpInternal(m.Name, time.Time{}); res == lookupHit {
+		if !shouldReplace(m, *existing) {
 			return
 		}
 	}
+
+	name := sc.key(m.Name)
 
 	// Insert an entry.
 	e := entry{
@@ -210,11 +242,8 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 }
 
 func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration time.Time) {
-	name := sc.key(objectName)
-
 	// Is there already a better entry?
-	if existing := sc.sharedCache.LookUp(name); existing != nil {
-		e := existing.(entry)
+	if res, existing := sc.lookUpInternal(objectName, time.Time{}); res == lookupHit {
 		// The ListObjects response handles directories in two ways:
 		// 1. 'MinObject' returns explicit directory objects containing full metadata.
 		// 2. 'CollapseRun' generates placeholders for these same directories; if no
@@ -229,10 +258,12 @@ func (sc *statCacheBucketView) InsertImplicitDir(objectName string, expiration t
 		// with non-nil metadata. If metadata is present, we skip the implicit
 		// creation to avoid overwriting a real, explicit object with an inferred
 		// placeholder (which would lack metadata and have 'Generation 0').
-		if e.m != nil {
+		if existing.m != nil {
 			return
 		}
 	}
+
+	name := sc.key(objectName)
 
 	// Insert an entry.
 	e := entry{
@@ -307,20 +338,31 @@ func (sc *statCacheBucketView) LookUpFolder(
 }
 
 func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (bool, *entry) {
-	value := sc.sharedCache.LookUp(sc.key(key))
-	if value == nil {
+	result, e := sc.lookUpInternal(key, now)
+
+	if result == lookupMiss {
+		sc.metricHandle.MetadataCacheReadCount(1, false, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr)
 		return false, nil
 	}
 
-	e := value.(entry)
+	// An entry in statCache is positive if it holds either a GCS MinObject (e.m),
+	// a GCS Folder (e.f), or is an implicit directory (e.implicitDir).
+	// If all are nil/false, the entry represents a negative cache entry (i.e. we
+	// explicitly cached that the object/folder does not exist).
+	var entryStatus metrics.EntryStatus
+	if e.m != nil || e.f != nil || e.implicitDir {
+		entryStatus = metrics.EntryStatusPositiveAttr
+	} else {
+		entryStatus = metrics.EntryStatusNegativeAttr
+	}
 
-	// Has this entry expired?
-	if e.expiration.Before(now) {
-		sc.Erase(key)
+	if result == lookupExpired {
+		sc.metricHandle.MetadataCacheReadCount(1, false, entryStatus, metrics.LookupDetailTtlExpiredAttr)
 		return false, nil
 	}
 
-	return true, &e
+	sc.metricHandle.MetadataCacheReadCount(1, true, entryStatus, metrics.LookupDetailFoundAttr)
+	return true, e
 }
 
 func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time) {
