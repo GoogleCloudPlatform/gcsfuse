@@ -25,7 +25,7 @@ import (
 )
 
 // 9223372036 is math.MaxInt64 / 1,000,000,000 (max seconds representable in nanoseconds)
-const maxSeconds int64 = math.MaxInt64 / 1000000000
+const maxSeconds int64 = int64(math.MaxInt64 / time.Second)
 
 // A cache mapping from name to most recent known record for the object of that
 // name. External synchronization must be provided.
