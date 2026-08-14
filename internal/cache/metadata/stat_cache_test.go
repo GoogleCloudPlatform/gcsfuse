@@ -168,18 +168,18 @@ func (t *StatCacheTest) Test_KeysPresentButEverythingIsExpired() {
 }
 
 func (t *StatCacheTest) Test_FillUpToCapacity() {
-	assert.Equal(t.T(), 3, capacity) // maxSize = 3 * 1640 = 4920 bytes
+	assert.Equal(t.T(), 3, capacity) // maxSize = 3 * 1720 = 5160 bytes
 
 	m0 := &gcs.MinObject{Name: "burrito"}
 	m1 := &gcs.MinObject{Name: "taco"}
 	m2 := &gcs.MinObject{Name: "quesadilla"}
 
-	t.cache.Insert(m0, expiration)                    // size = 1410 bytes
-	t.cache.Insert(m1, expiration)                    // size = 1398 bytes (cumulative = 2808 bytes)
-	t.cache.AddNegativeEntry("enchilada", expiration) // size = 178 bytes (cumulative = 2986 bytes)
-	t.cache.Insert(m2, expiration)                    // size = 1422 bytes (cumulative = 4408 bytes)
-	t.cache.AddNegativeEntry("fajita", expiration)    // size = 172 bytes (cumulative = 4580 bytes)
-	t.cache.AddNegativeEntry("salsa", expiration)     // size = 170 bytes (cumulative = 4750 bytes)
+	t.cache.Insert(m0, expiration)                    // size = 1284 bytes
+	t.cache.Insert(m1, expiration)                    // size = 1278 bytes (cumulative = 2562 bytes)
+	t.cache.AddNegativeEntry("enchilada", expiration) // size = 64 bytes (cumulative = 2626 bytes)
+	t.cache.Insert(m2, expiration)                    // size = 1290 bytes (cumulative = 3916 bytes)
+	t.cache.AddNegativeEntry("fajita", expiration)    // size = 64 bytes (cumulative = 3980 bytes)
+	t.cache.AddNegativeEntry("salsa", expiration)     // size = 64 bytes (cumulative = 4044 bytes)
 
 	// Before expiration
 	justBefore := expiration.Add(-time.Nanosecond)
@@ -209,22 +209,24 @@ func (t *StatCacheTest) Test_FillUpToCapacity() {
 }
 
 func (t *StatCacheTest) Test_ExpiresLeastRecentlyUsed() {
-	assert.Equal(t.T(), 3, capacity) // maxSize = 3 * 1640 = 4920 bytes
+	assert.Equal(t.T(), 3, capacity) // maxSize = 3 * 1720 = 5160 bytes
 
 	o0 := &gcs.MinObject{Name: "burrito"}
 	o1 := &gcs.MinObject{Name: "taco"}
 	o2 := &gcs.MinObject{Name: "quesadilla"}
 
-	t.cache.Insert(o0, expiration)                                    // size = 1410 bytes
-	t.cache.Insert(o1, expiration)                                    // Least recent, size = 1398 bytes (cumulative = 2808 bytes)
-	t.cache.AddNegativeEntry("enchilada", expiration)                 // Third most recent, size = 178 bytes (cumulative = 2986 bytes)
-	t.cache.Insert(o2, expiration)                                    // Second most recent, size = 1422 bytes (cumulative = 4408 bytes)
+	t.cache.Insert(o0, expiration)                                    // size = 1284 bytes
+	t.cache.Insert(o1, expiration)                                    // Least recent, size = 1278 bytes (cumulative = 2562 bytes)
+	t.cache.AddNegativeEntry("enchilada", expiration)                 // Third most recent, size = 64 bytes (cumulative = 2626 bytes)
+	t.cache.Insert(o2, expiration)                                    // Second most recent, size = 1290 bytes (cumulative = 3916 bytes)
 	assert.Equal(t.T(), o0, t.cache.LookUpOrNil("burrito", someTime)) // Most recent
 
 	// Insert another.
 	o3 := &gcs.MinObject{Name: "queso"}
-	t.cache.Insert(o3, expiration) // size = 1402 bytes (cumulative = 5810 bytes)
-	// This would evict the least recent entry i.e o1/"taco".
+	t.cache.Insert(o3, expiration)
+
+	// Add a large negative entry to force eviction of taco.
+	t.cache.AddNegativeEntry("very_long_negative_entry_name_to_force_eviction", expiration)
 
 	// See what's left.
 	assert.False(t.T(), t.cache.Hit("taco", someTime))
@@ -380,18 +382,18 @@ func (t *MultiBucketStatCacheTest) Test_CreateEntriesWithSameNameInDifferentBuck
 }
 
 func (t *MultiBucketStatCacheTest) Test_FillUpToCapacity() {
-	assert.Equal(t.T(), 3, capacity) // maxSize = 3 * 1640 = 4920 bytes
+	assert.Equal(t.T(), 3, capacity) // maxSize = 3 * 1720 = 5160 bytes
 
 	cache := &t.multiBucketCache
 	fruits := &cache.fruits
 	spices := &cache.spices
 
-	fruits.Insert(apple, expiration)               // size = 1416 bytes
-	fruits.Insert(orange, expiration)              // size = 1420 bytes (cumulative = 2836 bytes)
-	spices.Insert(cardamom, expiration)            // size = 1428 bytes (cumulative = 4264 bytes)
-	fruits.AddNegativeEntry("papaya", expiration)  // size = 186 bytes (cumulative = 4450 bytes)
-	spices.AddNegativeEntry("saffron", expiration) // size = 188 bytes (cumulative = 4638 bytes)
-	spices.AddNegativeEntry("pepper", expiration)  // size = 186 bytes (cumulative = 4824 bytes)
+	fruits.Insert(apple, expiration)               // size = 1280 bytes
+	fruits.Insert(orange, expiration)              // size = 1282 bytes (cumulative = 2562 bytes)
+	spices.Insert(cardamom, expiration)            // size = 1286 bytes (cumulative = 3848 bytes)
+	fruits.AddNegativeEntry("papaya", expiration)  // size = 64 bytes (cumulative = 3912 bytes)
+	spices.AddNegativeEntry("saffron", expiration) // size = 64 bytes (cumulative = 3976 bytes)
+	spices.AddNegativeEntry("pepper", expiration)  // size = 64 bytes (cumulative = 4040 bytes)
 
 	// Before expiration
 	justBefore := expiration.Add(-time.Nanosecond)
@@ -421,20 +423,24 @@ func (t *MultiBucketStatCacheTest) Test_FillUpToCapacity() {
 }
 
 func (t *MultiBucketStatCacheTest) Test_ExpiresLeastRecentlyUsed() {
-	assert.Equal(t.T(), 3, capacity) // maxSize = 3 * 1640 = 4920 bytes
+	assert.Equal(t.T(), 3, capacity) // maxSize = 3 * 1720 = 5160 bytes
 
 	cache := &t.multiBucketCache
 	fruits := &cache.fruits
 	spices := &cache.spices
 
-	fruits.Insert(apple, expiration)                                  // size = 1416 bytes
-	fruits.Insert(orange, expiration)                                 // Least recent, size = 1420 bytes (cumulative = 2836 bytes)
-	spices.Insert(cardamom, expiration)                               // Second most recent, size = 1428 bytes (cumulative = 4264 bytes)
+	fruits.Insert(apple, expiration)                                  // size = 1280 bytes
+	fruits.Insert(orange, expiration)                                 // Least recent, size = 1282 bytes (cumulative = 2562 bytes)
+	spices.Insert(cardamom, expiration)                               // Second most recent, size = 1286 bytes (cumulative = 3848 bytes)
 	assert.Equal(t.T(), apple, fruits.LookUpOrNil("apple", someTime)) // Most recent
 
 	// Insert another.
 	saffron := &gcs.MinObject{Name: "saffron"}
-	spices.Insert(saffron, expiration) // size = 1424 bytes (cumulative = 5688 bytes)
+	spices.Insert(saffron, expiration)
+
+	saffron2 := &gcs.MinObject{Name: "saffron2"}
+	spices.Insert(saffron2, expiration)
+
 	// This will evict the least recent entry, i.e. orange.
 
 	// See what's left.
@@ -543,15 +549,15 @@ func (t *StatCacheTest) Test_ShouldReturnHitTrueWhenOnlyObjectAlreadyHasEntry() 
 }
 
 func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize() {
-	localCache := lru.NewCache(uint64(2700))
+	localCache := lru.NewCache(uint64(2600))
 	t.statCache = metadata.NewStatCacheBucketView(localCache, "local_bucket")
 	objectEntry1 := &gcs.MinObject{Name: "1"}
 	objectEntry2 := &gcs.MinObject{Name: "2"}
 	folderEntry := &gcs.Folder{
 		Name: "3/",
 	}
-	t.statCache.Insert(objectEntry1, expiration) // adds size of 1304
-	t.statCache.Insert(objectEntry2, expiration) // adds size of 1304
+	t.statCache.Insert(objectEntry1, expiration) // adds size of 1272
+	t.statCache.Insert(objectEntry2, expiration) // adds size of 1272
 
 	hit1, entry1 := t.statCache.LookUp("1", someTime)
 	hit2, entry2 := t.statCache.LookUp("2", someTime)
@@ -561,7 +567,7 @@ func (t *StatCacheTest) Test_ShouldEvictEntryOnFullCapacityIncludingFolderSize()
 	assert.True(t.T(), hit2)
 	assert.Equal(t.T(), "2", entry2.Name)
 
-	t.statCache.InsertFolder(folderEntry, expiration) //adds size of 180 and exceeds capacity
+	t.statCache.InsertFolder(folderEntry, expiration) // adds size of 148 and exceeds capacity
 
 	hit1, entry1 = t.statCache.LookUp("1", someTime)
 	hit2, entry2 = t.statCache.LookUp("2", someTime)
@@ -590,12 +596,12 @@ func (t *StatCacheTest) Test_ShouldEvictAllEntriesWithPrefixFolder() {
 	folderEntry3 := &gcs.Folder{
 		Name: "b",
 	}
-	t.statCache.InsertFolder(folderEntry1, expiration) //adds size of 220 and exceeds capacity
-	t.statCache.Insert(objectEntry1, expiration)       // adds size of 1428
-	t.statCache.Insert(objectEntry2, expiration)       // adds size of 1428
-	t.statCache.InsertFolder(folderEntry2, expiration) //adds size of 220 and exceeds capacity
-	t.statCache.InsertFolder(folderEntry3, expiration) //adds size of 220 and exceeds capacity
-	t.statCache.Insert(objectEntry3, expiration)       // adds size of 1428
+	t.statCache.InsertFolder(folderEntry1, expiration) // adds size of 146
+	t.statCache.Insert(objectEntry1, expiration)       // adds size of 1276
+	t.statCache.Insert(objectEntry2, expiration)       // adds size of 1280
+	t.statCache.InsertFolder(folderEntry2, expiration) // adds size of 150
+	t.statCache.InsertFolder(folderEntry3, expiration) // adds size of 146
+	t.statCache.Insert(objectEntry3, expiration)       // adds size of 1272
 
 	t.statCache.EraseEntriesWithGivenPrefix("a")
 
@@ -631,10 +637,10 @@ func (t *StatCacheTest) Test_InsertImplicitDir() {
 }
 
 func (t *StatCacheTest) Test_ImplicitDirSizeEfficiency() {
-	// Standard entry size ~1640 bytes (according to Test_FillUpToCapacity comments).
-	// Implicit entry size should be much smaller (around 100-200 bytes).
+	// Standard entry size ~1280 bytes (according to Test_FillUpToCapacity comments).
+	// Implicit entry size should be much smaller (around 64 bytes).
 	// So we should be able to store many more implicit entries than explicit ones.
-	// capacity is 3 in SetupTest. Max size = 3 * (AvgPos + AvgNeg) ~= 5000 bytes.
+	// capacity is 3 in SetupTest. Max size = 3 * (AvgPos + AvgNeg) = 5160 bytes.
 	// 1. Fill with implicit dirs
 	// Insert 20 implicit dirs. They should all fit if size is small.
 	for i := 0; i < 20; i++ {
