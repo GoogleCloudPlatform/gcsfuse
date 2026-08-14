@@ -1216,8 +1216,13 @@ func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_AccessCheck_WithPref
 
 func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SkipDirectPathVerificationForRapid() {
 	client, err := createGRPCClientHandle(testSuite.ctx, testSuite.clientConfig, true, false, "my-bucket", "")
+	defer func() {
+		if client != nil {
+			_ = client.Close()
+		}
+	}()
 
-	// If the bucket is rapid, the method for directpath check is not called, so err should be nil
+	// If the bucket is rapid, the method for directpath check is not called, so err should be nil.
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), client)
 }
