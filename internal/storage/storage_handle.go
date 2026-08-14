@@ -209,7 +209,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 
 	// Set the production level retry config.
 	defer func() {
-		logger.Infof("Applying production retry config after DirectPath verification.")
+		logger.Infof("Applying production retry config.")
 		setRetryConfig(ctx, sc, clientConfig)
 	}()
 
