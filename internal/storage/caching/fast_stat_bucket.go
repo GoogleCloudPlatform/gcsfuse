@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 
 	"github.com/jacobsa/timeutil"
 )
@@ -34,7 +35,9 @@ import (
 // A *CacheMissError value is an error that indicates an object name or a
 // particular generation for that name were not found from cache.
 type CacheMissError struct {
-	Err error
+	Err         error
+	EntryStatus metrics.EntryStatus
+	Detail      metrics.LookupDetail
 }
 
 func (cme *CacheMissError) Error() string {
@@ -287,12 +290,28 @@ func (b *fastStatBucket) lookUp(name string) (hit bool, m *gcs.MinObject) {
 	return
 }
 
+func (b *fastStatBucket) lookUpDetail(name string) (hit bool, m *gcs.MinObject, entryStatus metrics.EntryStatus, detail metrics.LookupDetail) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	hit, m, entryStatus, detail = b.cache.LookUpDetail(name, b.clock.Now())
+	return
+}
+
 func (b *fastStatBucket) lookUpFolder(name string) (bool, *gcs.Folder) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	hit, f := b.cache.LookUpFolder(name, b.clock.Now())
 	return hit, f
+}
+
+func (b *fastStatBucket) lookUpFolderDetail(name string) (bool, *gcs.Folder, metrics.EntryStatus, metrics.LookupDetail) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	hit, f, entryStatus, detail := b.cache.LookUpFolderDetail(name, b.clock.Now())
+	return hit, f, entryStatus, detail
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -432,7 +451,7 @@ func (b *fastStatBucket) StatObject(
 	}
 
 	// Do we have an entry in the cache?
-	if hit, entry := b.lookUp(req.Name); hit {
+	if hit, entry, entryStatus, detail := b.lookUpDetail(req.Name); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
 			err = &gcs.NotFoundError{
@@ -445,12 +464,11 @@ func (b *fastStatBucket) StatObject(
 		// Otherwise, return MinObject and nil ExtendedObjectAttributes.
 		m = entry
 		return
-	}
-
-	// Cache Miss Handling
-	if req.FetchOnlyFromCache {
+	} else if req.FetchOnlyFromCache {
 		return nil, nil, &CacheMissError{
-			Err: fmt.Errorf("cache miss for %q", req.Name),
+			Err:         fmt.Errorf("cache miss for %q", req.Name),
+			EntryStatus: entryStatus,
+			Detail:      detail,
 		}
 	}
 
@@ -572,8 +590,12 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 }
 
 func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
+	if req.ForceFetchFromGcs {
+		return b.getFolderFromGCS(ctx, req)
+	}
+
 	// Cache Lookup
-	if hit, entry := b.lookUpFolder(req.Name); hit {
+	if hit, entry, entryStatus, detail := b.lookUpFolderDetail(req.Name); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
 			err := &gcs.NotFoundError{
@@ -584,11 +606,11 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderReques
 		}
 
 		return entry, nil
-	}
-
-	if req.FetchOnlyFromCache {
+	} else if req.FetchOnlyFromCache {
 		return nil, &CacheMissError{
-			Err: fmt.Errorf("cache miss for %q", req.Name),
+			Err:         fmt.Errorf("cache miss for %q", req.Name),
+			EntryStatus: entryStatus,
+			Detail:      detail,
 		}
 	}
 

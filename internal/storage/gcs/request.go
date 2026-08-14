@@ -268,6 +268,10 @@ type StatObjectRequest struct {
 type GetFolderRequest struct {
 	Name string
 
+	// Relevant only when fast_stat_bucket is used. This field controls whether
+	// to fetch from gcs or from cache.
+	ForceFetchFromGcs bool
+
 	// FetchOnlyFromCache determines if the request should be served exclusively from the stat cache.
 	//
 	// If true, the request performs a cache lookup. On a cache miss, it returns a CacheMissError

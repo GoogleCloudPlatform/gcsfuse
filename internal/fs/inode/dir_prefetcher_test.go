@@ -79,6 +79,7 @@ func (t *DirPrefetchTest) setup(enablePrefetch bool, ttl time.Duration) (d *dirI
 		&t.clock,
 		semaphore.NewWeighted(10),
 		t.config,
+		nil,
 	)
 	return in.(*dirInode)
 }

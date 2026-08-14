@@ -22,6 +22,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
 // 9223372036 is math.MaxInt64 / 1,000,000,000 (max seconds representable in nanoseconds)
@@ -56,6 +57,9 @@ type StatCache interface {
 	// entry, or the entry has expired according to the supplied current time.
 	LookUp(name string, now time.Time) (hit bool, m *gcs.MinObject)
 
+	// LookUpDetail returns the current object entry along with entry status and lookup detail.
+	LookUpDetail(name string, now time.Time) (hit bool, m *gcs.MinObject, entryStatus metrics.EntryStatus, detail metrics.LookupDetail)
+
 	// Insert an entry for the given folder resource.
 	//
 	// In order to help cope with caching of arbitrarily out of date (i.e.
@@ -69,6 +73,9 @@ type StatCache interface {
 	// entry. Return hit == false when there is neither a positive nor a negative
 	// entry, or the entry has expired according to the supplied current time.
 	LookUpFolder(folderName string, now time.Time) (bool, *gcs.Folder)
+
+	// LookUpFolderDetail returns the current folder entry along with entry status and lookup detail.
+	LookUpFolderDetail(folderName string, now time.Time) (bool, *gcs.Folder, metrics.EntryStatus, metrics.LookupDetail)
 
 	// Set up a negative entry for the given folder name, indicating that the name
 	// doesn't exist. Overwrite any existing entry for the name, positive or
@@ -303,48 +310,70 @@ func (sc *statCacheBucketView) Erase(objectName string) {
 func (sc *statCacheBucketView) LookUp(
 	objectName string,
 	now time.Time) (bool, *gcs.MinObject) {
+	hit, m, _, _ := sc.LookUpDetail(objectName, now)
+	return hit, m
+}
+
+func (sc *statCacheBucketView) LookUpDetail(
+	objectName string,
+	now time.Time) (bool, *gcs.MinObject, metrics.EntryStatus, metrics.LookupDetail) {
 	// Look up in the LRU cache.
-	hit, entry := sc.sharedCacheLookup(objectName, now)
+	hit, entry, entryStatus, detail := sc.sharedCacheLookupDetail(objectName, now)
 	if hit {
 		if entry.implicitDir {
-			return true, &gcs.MinObject{Name: objectName}
+			return true, &gcs.MinObject{Name: objectName}, entryStatus, detail
 		}
-		return hit, entry.m
+		return hit, entry.m, entryStatus, detail
 	}
 
-	return false, nil
+	return false, nil, entryStatus, detail
 }
 
 func (sc *statCacheBucketView) LookUpFolder(
 	folderName string,
 	now time.Time) (bool, *gcs.Folder) {
-	// Look up in the LRU cache.
-	hit, entry := sc.sharedCacheLookup(folderName, now)
+	hit, f, _, _ := sc.LookUpFolderDetail(folderName, now)
+	return hit, f
+}
 
+func (sc *statCacheBucketView) LookUpFolderDetail(
+	folderName string,
+	now time.Time) (bool, *gcs.Folder, metrics.EntryStatus, metrics.LookupDetail) {
+	// Look up in the LRU cache.
+	hit, entry, entryStatus, detail := sc.sharedCacheLookupDetail(folderName, now)
 	if hit {
-		return hit, entry.f
+		return hit, entry.f, entryStatus, detail
 	}
 
-	return false, nil
+	return false, nil, entryStatus, detail
 }
 
 func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (bool, *entry) {
+	hit, entry, _, _ := sc.sharedCacheLookupDetail(key, now)
+	return hit, entry
+}
+
+func (sc *statCacheBucketView) sharedCacheLookupDetail(key string, now time.Time) (bool, *entry, metrics.EntryStatus, metrics.LookupDetail) {
 	value := sc.sharedCache.LookUp(sc.key(key))
 	if value == nil {
-		return false, nil
+		return false, nil, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr
 	}
 
 	e := value.(entry)
+	entryStatus := metrics.EntryStatusPositiveAttr
+	if e.m == nil && e.f == nil && !e.implicitDir {
+		entryStatus = metrics.EntryStatusNegativeAttr
+	}
 
 	// Has this entry expired?
 	nowNano := timeToUnixNano(now)
 
 	if e.expiration < nowNano {
 		sc.Erase(key)
-		return false, nil
+		return false, nil, entryStatus, metrics.LookupDetailTtlExpiredAttr
 	}
 
-	return true, &e
+	return true, &e, entryStatus, metrics.LookupDetailFoundAttr
 }
 
 func (sc *statCacheBucketView) InsertFolder(f *gcs.Folder, expiration time.Time) {

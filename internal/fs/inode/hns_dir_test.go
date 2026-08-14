@@ -116,6 +116,7 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 		&t.fixedTime,
 		semaphore.NewWeighted(10),
 		t.config,
+		nil,
 	)
 
 	d := t.in.(*dirInode)
@@ -159,6 +160,7 @@ func (t *hnsDirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName str
 		&t.fixedTime,
 		semaphore.NewWeighted(10),
 		config,
+		nil,
 	)
 
 	return NewDirInode(
@@ -173,6 +175,7 @@ func (t *hnsDirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName str
 		&t.fixedTime,
 		semaphore.NewWeighted(10),
 		config,
+		nil,
 	)
 }
 
@@ -193,7 +196,7 @@ func (t *HNSDirTest) TestShouldFindExplicitHNSFolder() {
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(folder, nil)
 
 	// Look up with the name.
-	result, err := findExplicitFolder(t.ctx, t.bucket, NewDirName(t.in.Name(), name), false)
+	result, err := findExplicitFolder(t.ctx, t.bucket, NewDirName(t.in.Name(), name), false, false)
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
@@ -207,7 +210,7 @@ func (t *HNSDirTest) TestShouldReturnNilWhenGCSFolderNotFoundForInHNS() {
 	t.mockBucket.On("GetFolder", mock.Anything, mock.Anything).Return(nil, notFoundErr)
 
 	// Look up with the name.
-	result, err := findExplicitFolder(t.ctx, t.bucket, NewDirName(t.in.Name(), "not-present"), false)
+	result, err := findExplicitFolder(t.ctx, t.bucket, NewDirName(t.in.Name(), "not-present"), false, false)
 
 	t.mockBucket.AssertExpectations(t.T())
 	assert.Nil(t.T(), err)
@@ -380,6 +383,7 @@ func (t *HNSDirTest) TestRenameFolderWithGivenName() {
 		&t.fixedTime,
 		semaphore.NewWeighted(10),
 		t.config,
+		nil,
 	)
 	folderName := path.Join(dirInodeName, dirName) + "/"
 	renameFolderName := path.Join(dirInodeName, renameDirName) + "/"
@@ -414,6 +418,7 @@ func (t *HNSDirTest) TestRenameFolderWithNonExistentSourceFolder() {
 		&t.fixedTime,
 		semaphore.NewWeighted(10),
 		t.config,
+		nil,
 	)
 	folderName := path.Join(dirInodeName, dirName) + "/"
 	renameFolderName := path.Join(dirInodeName, renameDirName) + "/"
@@ -819,6 +824,7 @@ func (t *NonHNSDirTest) TestDeleteChildDir_TypeCacheDeprecated() {
 				&t.fixedTime,
 				semaphore.NewWeighted(10),
 				t.config,
+				nil,
 			)
 			dirName := path.Join(dirInodeName, tc.name) + "/"
 			// Expectation: DeleteObject called with OnlyDeleteFromCache

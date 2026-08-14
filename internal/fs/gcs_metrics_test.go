@@ -157,7 +157,7 @@ func TestGCSMetrics_RequestCount_StatObject(t *testing.T) {
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
-		3)
+		2)
 
 	// Trigger another StatObject via GetInodeAttributes to verify stat count increments.
 	err = server.GetInodeAttributes(ctx, &fuseops.GetInodeAttributesOp{Inode: lookupOp.Entry.Child})
@@ -166,7 +166,7 @@ func TestGCSMetrics_RequestCount_StatObject(t *testing.T) {
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
-		4) // Previously 3, now incremented by 1
+		3) // Previously 2, now incremented by 1
 }
 
 // TestGCSMetrics_RequestCount_CreateObject validates the "gcs/request_count" metric for CreateObject calls.
@@ -226,7 +226,7 @@ func TestGCSMetrics_RequestLatencies(t *testing.T) {
 
 	metrics.VerifyHistogramMetric(t, ctx, reader, "gcs/request_latencies",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
-		3)
+		2)
 }
 
 // TestGCSMetrics_DownloadBytesCount_Explicit validates the "gcs/download_bytes_count" metric.

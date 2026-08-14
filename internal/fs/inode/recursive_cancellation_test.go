@@ -71,6 +71,7 @@ func (t *RecursiveCancellationTest) createDirInode(name Name, parentCtx context.
 		&t.clock,
 		semaphore.NewWeighted(10),
 		t.config,
+		nil,
 	)
 	return in.(*dirInode)
 }
