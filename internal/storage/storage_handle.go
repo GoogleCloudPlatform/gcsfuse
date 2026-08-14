@@ -213,7 +213,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		setRetryConfig(ctx, sc, clientConfig)
 	}()
 
-	// Direct-path verification is fatal for regional. Todo(b/503624405): Make it fatal for all after making the dummy-stat reliable.
+	// For regional buckets, perform the direct path verification.
 	if !isbucketRapid {
 		if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
 			logger.Warnf("DirectPath verification failed with error: %v", verifyErr)

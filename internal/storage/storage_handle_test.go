@@ -1223,6 +1223,12 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SkipDirectPathVer
 }
 
 func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_DirectPathVerificationForStandard() {
+	// Set AnonymousAccess to true to bypass environment credentials (like GCE ADC).
+	// This ensures the DirectPath verification strictly fails with PermissionDenied
+	// (instead of potentially authenticating and getting a NotFound error which is ignored).
+	// This guarantees test determinism across all execution environments.
+	testSuite.clientConfig.AnonymousAccess = true
+
 	client, err := createGRPCClientHandle(testSuite.ctx, testSuite.clientConfig, false, false, "my-bucket", "")
 
 	// If the bucket is non rapid, the method for directpath check is called, which fails in unit test environment.
