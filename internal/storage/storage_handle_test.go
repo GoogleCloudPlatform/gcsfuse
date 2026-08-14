@@ -1213,3 +1213,20 @@ func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_AccessCheck_WithPref
 		testSuite.T().Fatal("Timeout waiting for request")
 	}
 }
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SkipDirectPathVerificationForRapid() {
+	client, err := createGRPCClientHandle(testSuite.ctx, testSuite.clientConfig, true, false, "my-bucket", "")
+
+	// If the bucket is rapid, the method for directpath check is not called, so err should be nil
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), client)
+}
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_DirectPathVerificationForStandard() {
+	client, err := createGRPCClientHandle(testSuite.ctx, testSuite.clientConfig, false, false, "my-bucket", "")
+
+	// If the bucket is non rapid, the method for directpath check is called, which fails in unit test environment.
+	assert.NotNil(testSuite.T(), err)
+	assert.ErrorContains(testSuite.T(), err, "DirectPath verification failed")
+	assert.Nil(testSuite.T(), client)
+}
