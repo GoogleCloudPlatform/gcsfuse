@@ -725,14 +725,14 @@ func Test_Download_Concurrent(t *testing.T) {
 		var jobStatus JobStatus
 		var err error
 		jobStatus, err = dt.job.Download(ctx, expectedOffset, true)
-		dt.require.NotEqual(Failed, jobStatus.Name)
+		dt.assert.NotEqual(Failed, jobStatus.Name)
 		if expectedErr != nil {
-			dt.require.Contains(err.Error(), expectedErr.Error())
+			dt.assert.Contains(err.Error(), expectedErr.Error())
 			return
 		} else {
-			dt.require.NoError(err)
+			dt.assert.NoError(err)
 		}
-		dt.require.GreaterOrEqual(jobStatus.Offset, expectedOffset)
+		dt.assert.GreaterOrEqual(jobStatus.Offset, expectedOffset)
 	}
 
 	// Start concurrent downloads
@@ -867,7 +867,7 @@ func Test_Invalidate_Concurrent(t *testing.T) {
 		defer wg.Done()
 		dt.job.Invalidate()
 		currJobStatus := dt.job.GetStatus()
-		dt.require.Equal(Invalid, currJobStatus.Name)
+		dt.assert.Equal(Invalid, currJobStatus.Name)
 		dt.verifyInvalidError(currJobStatus.Err)
 	}
 
@@ -899,19 +899,19 @@ func Test_Invalidate_Download_Concurrent(t *testing.T) {
 		ctx := context.Background()
 		// Start download without waiting
 		jobStatus, err := dt.job.Download(ctx, offset, waitForDownload)
-		dt.require.NoError(err)
-		dt.require.True(jobStatus.Name == Downloading || jobStatus.Name == Invalid || jobStatus.Name == Completed)
+		dt.assert.NoError(err)
+		dt.assert.True(jobStatus.Name == Downloading || jobStatus.Name == Invalid || jobStatus.Name == Completed)
 		// If status is downloading/complete and wait for download is true then
 		// status offset should be at least requested offset.
 		if waitForDownload && (jobStatus.Name == Downloading || jobStatus.Name == Completed) {
-			dt.require.GreaterOrEqual(jobStatus.Offset, offset)
+			dt.assert.GreaterOrEqual(jobStatus.Offset, offset)
 		}
 	}
 	invalidateFunc := func() {
 		defer wg.Done()
 		dt.job.Invalidate()
 		currJobStatus := dt.job.GetStatus()
-		dt.require.Equal(Invalid, currJobStatus.Name)
+		dt.assert.Equal(Invalid, currJobStatus.Name)
 		dt.verifyInvalidError(currJobStatus.Err)
 	}
 

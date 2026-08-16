@@ -365,7 +365,7 @@ func Test_CreateJobIfNotExists_InvalidateAndRemoveJob_Concurrent(t *testing.T) {
 	wg := sync.WaitGroup{}
 	createNewJob := func() {
 		job, err := dt.jm.CreateJobIfNotExists(&dt.object, dt.bucket)
-		dt.require.NoError(err)
+		dt.assert.NoError(err)
 		dt.assert.NotNil(job)
 		wg.Done()
 	}
