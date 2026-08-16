@@ -135,12 +135,12 @@ func TestSparse_getChunksToDownload(t *testing.T) {
 			chunks, _, err := dt.job.getChunksToDownload(fileInfo, tt.offset, tt.requiredOffset)
 
 			if tt.expectError {
-				dt.require.Error(err)
+				require.Error(t, err)
 			} else {
-				dt.require.NoError(err)
-				dt.require.Len(chunks, len(tt.expectedChunks))
+				require.NoError(t, err)
+				require.Len(t, chunks, len(tt.expectedChunks))
 				for i, chunkID := range chunks {
-					dt.require.Equal(tt.expectedChunks[i], chunkID)
+					assert.Equal(t, tt.expectedChunks[i], chunkID)
 				}
 			}
 		})

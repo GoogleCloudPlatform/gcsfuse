@@ -76,7 +76,7 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 }
 
 func (dt *downloaderTest) verifyInvalidError(err error) {
-	dt.require.True((nil == err) || (errors.Is(err, context.Canceled)) || errors.Is(err, lru.ErrEntryNotExist),
+	dt.assert.True((nil == err) || (errors.Is(err, context.Canceled)) || errors.Is(err, lru.ErrEntryNotExist),
 		fmt.Sprintf("actual error:%v is not as expected", err))
 }
 
