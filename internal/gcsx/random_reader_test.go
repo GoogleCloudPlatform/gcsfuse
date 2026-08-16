@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -356,7 +355,7 @@ func TestRandomReader_PropagatesCancellation(t *testing.T) {
 
 		go func() {
 			buf := make([]byte, 2)
-			h.rr.wrapped.ReadAt(ctx, buf, 1)
+			_, _ = h.rr.wrapped.ReadAt(ctx, buf, 1)
 			close(readReturned)
 		}()
 
@@ -537,13 +536,13 @@ func TestRandomReader_Test_ReadAt_SequentialFullObject(t *testing.T) {
 		objectData, err := h.rr.ReadAt(buf, 0)
 		h.assert.False(objectData.CacheHit)
 		h.assert.NoError(err)
-		h.assert.True(reflect.DeepEqual(testContent, buf))
+		h.assert.Equal(testContent, buf)
 
 		objectData, err = h.rr.ReadAt(buf, 0)
 
 		h.assert.True(objectData.CacheHit)
 		h.assert.NoError(err)
-		h.assert.True(reflect.DeepEqual(testContent, buf))
+		h.assert.Equal(testContent, buf)
 	})
 }
 
@@ -565,7 +564,7 @@ func TestRandomReader_Test_ReadAt_SequentialRangeRead(t *testing.T) {
 
 		h.assert.False(objectData.CacheHit)
 		h.assert.NoError(err)
-		h.assert.True(reflect.DeepEqual(testContent[start:end], buf))
+		h.assert.Equal(testContent[start:end], buf)
 	})
 }
 
@@ -586,7 +585,7 @@ func TestRandomReader_Test_ReadAt_SequentialSubsequentReadOffsetLessThanReadChun
 		objectData, err := h.rr.ReadAt(buf, int64(start1))
 		h.assert.False(objectData.CacheHit)
 		h.assert.NoError(err)
-		h.assert.True(reflect.DeepEqual(testContent[start1:end1], buf))
+		h.assert.Equal(testContent[start1:end1], buf)
 		start2 := 3*util.MiB + 4
 		end2 := start2 + util.MiB
 		buf2 := make([]byte, end2-start2)
@@ -595,7 +594,7 @@ func TestRandomReader_Test_ReadAt_SequentialSubsequentReadOffsetLessThanReadChun
 
 		h.assert.True(objectData.CacheHit)
 		h.assert.NoError(err)
-		h.assert.True(reflect.DeepEqual(testContent[start2:end2], buf2))
+		h.assert.Equal(testContent[start2:end2], buf2)
 	})
 }
 
@@ -617,7 +616,7 @@ func TestRandomReader_Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCacheForRa
 		objectData, err := h.rr.ReadAt(buf, int64(start))
 		h.assert.False(objectData.CacheHit)
 		h.assert.NoError(err)
-		h.assert.True(reflect.DeepEqual(testContent[start:end], buf))
+		h.assert.Equal(testContent[start:end], buf)
 		job, err := h.jobManager.CreateJobIfNotExists(h.object, h.bucket)
 		h.require.NoError(err)
 		jobStatus := job.GetStatus()
@@ -655,18 +654,15 @@ func TestRandomReader_Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCacheForRa
 
 		h.assert.False(objectData.CacheHit)
 		h.assert.NoError(err)
-		h.assert.True(reflect.DeepEqual(testContent[start:end], buf))
+		h.assert.Equal(testContent[start:end], buf)
 		// Second read call should be a cache hit
 		// Wait for the download job to complete first to avoid race.
 		job := h.jobManager.GetJob(h.object.Name, h.bucket.Name())
 		h.require.NotNil(job)
-		for {
+		h.require.Eventually(func() bool {
 			status := job.GetStatus()
-			if status.Name == downloader.Completed || status.Name == downloader.Failed {
-				break
-			}
-			time.Sleep(10 * time.Millisecond)
-		}
+			return status.Name == downloader.Completed || status.Name == downloader.Failed
+		}, 2*time.Second, 10*time.Millisecond)
 
 		objectData, err = h.rr.ReadAt(buf, int64(start))
 
@@ -692,7 +688,7 @@ func TestRandomReader_Test_ReadAt_SequentialToRandomSubsequentReadOffsetMoreThan
 		objectData, err := h.rr.ReadAt(buf, int64(start1))
 		h.assert.False(objectData.CacheHit)
 		h.assert.NoError(err)
-		h.assert.True(reflect.DeepEqual(testContent[start1:end1], buf))
+		h.assert.Equal(testContent[start1:end1], buf)
 		start2 := 16*util.MiB + 4
 		end2 := start2 + util.MiB
 		rd2 := &fake.FakeReader{ReadCloser: getReadCloser(testContent[start2:])}
@@ -703,7 +699,7 @@ func TestRandomReader_Test_ReadAt_SequentialToRandomSubsequentReadOffsetMoreThan
 
 		h.assert.False(objectData.CacheHit)
 		h.assert.NoError(err)
-		h.assert.True(reflect.DeepEqual(testContent[start2:end2], buf2))
+		h.assert.Equal(testContent[start2:end2], buf2)
 	})
 }
 
@@ -724,7 +720,7 @@ func TestRandomReader_Test_ReadAt_SequentialToRandomSubsequentReadOffsetLessThan
 		objectData, err := h.rr.ReadAt(buf, int64(start1))
 		h.assert.False(objectData.CacheHit)
 		h.assert.NoError(err)
-		h.assert.True(reflect.DeepEqual(testContent[start1:end1], buf))
+		h.assert.Equal(testContent[start1:end1], buf)
 		start2 := 16*util.MiB + 4
 		end2 := start2 + util.MiB
 		rc2 := &fake.FakeReader{ReadCloser: getReadCloser(testContent[start2:])}
@@ -733,7 +729,7 @@ func TestRandomReader_Test_ReadAt_SequentialToRandomSubsequentReadOffsetLessThan
 		objectData, err = h.rr.ReadAt(buf2, int64(start2))
 		h.assert.False(objectData.CacheHit)
 		h.assert.NoError(err)
-		h.assert.True(reflect.DeepEqual(testContent[start2:end2], buf2))
+		h.assert.Equal(testContent[start2:end2], buf2)
 		start3 := util.MiB
 		end3 := start3 + util.MiB
 		buf3 := make([]byte, end3-start3)
@@ -742,7 +738,7 @@ func TestRandomReader_Test_ReadAt_SequentialToRandomSubsequentReadOffsetLessThan
 
 		h.assert.NoError(err)
 		h.assert.True(objectData.CacheHit)
-		h.assert.True(reflect.DeepEqual(testContent[start3:end3], buf3))
+		h.assert.Equal(testContent[start3:end3], buf3)
 	})
 }
 
@@ -759,7 +755,7 @@ func TestRandomReader_Test_ReadAt_CacheMissDueToInvalidJob(t *testing.T) {
 		objectData, err := h.rr.ReadAt(buf, 0)
 		h.require.NoError(err)
 		h.assert.False(objectData.CacheHit)
-		h.require.True(reflect.DeepEqual(testContent, buf))
+		h.require.Equal(testContent, buf)
 		job := h.jobManager.GetJob(h.object.Name, h.bucket.Name())
 		if job != nil {
 			jobStatus := job.GetStatus().Name
@@ -775,7 +771,7 @@ func TestRandomReader_Test_ReadAt_CacheMissDueToInvalidJob(t *testing.T) {
 
 		h.assert.NoError(err)
 		h.assert.False(objectData.CacheHit)
-		h.assert.True(reflect.DeepEqual(testContent, buf))
+		h.assert.Equal(testContent, buf)
 		h.assert.Nil(h.rr.wrapped.fileCacheHandle)
 	})
 }
@@ -793,7 +789,7 @@ func TestRandomReader_Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvalidJob(
 		objectData, err := h.rr.ReadAt(buf, 0)
 		h.require.NoError(err)
 		h.assert.False(objectData.CacheHit)
-		h.require.True(reflect.DeepEqual(testContent, buf))
+		h.require.Equal(testContent, buf)
 		job := h.jobManager.GetJob(h.object.Name, h.bucket.Name())
 		if job != nil {
 			jobStatus := job.GetStatus().Name
@@ -806,7 +802,7 @@ func TestRandomReader_Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvalidJob(
 		objectData, err = h.rr.ReadAt(buf, 0)
 		h.assert.NoError(err)
 		h.assert.False(objectData.CacheHit)
-		h.assert.True(reflect.DeepEqual(testContent, buf))
+		h.assert.Equal(testContent, buf)
 		h.assert.Nil(h.rr.wrapped.fileCacheHandle)
 		rd3 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
 		h.mockNewReaderWithHandleCallForTestBucket(0, objectSize, rd3)
@@ -815,7 +811,7 @@ func TestRandomReader_Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvalidJob(
 
 		h.assert.NoError(err)
 		h.assert.False(objectData.CacheHit)
-		h.assert.True(reflect.DeepEqual(testContent, buf))
+		h.assert.Equal(testContent, buf)
 		h.assert.NotNil(h.rr.wrapped.fileCacheHandle)
 	})
 }
@@ -833,7 +829,7 @@ func TestRandomReader_Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvalidFile
 		objectData, err := h.rr.ReadAt(buf, 0)
 		h.require.NoError(err)
 		h.assert.False(objectData.CacheHit)
-		h.require.True(reflect.DeepEqual(testContent, buf))
+		h.require.Equal(testContent, buf)
 		h.require.NotNil(h.rr.wrapped.fileCacheHandle)
 		err = h.rr.wrapped.fileCacheHandle.Close()
 		h.require.NoError(err)
@@ -842,14 +838,14 @@ func TestRandomReader_Test_ReadAt_CachePopulatedAndThenCacheMissDueToInvalidFile
 		objectData, err = h.rr.ReadAt(buf, 0)
 		h.assert.NoError(err)
 		h.assert.False(objectData.CacheHit)
-		h.assert.True(reflect.DeepEqual(testContent, buf))
+		h.assert.Equal(testContent, buf)
 		h.assert.Nil(h.rr.wrapped.fileCacheHandle)
 
 		objectData, err = h.rr.ReadAt(buf, 0)
 
 		h.assert.NoError(err)
 		h.assert.True(objectData.CacheHit)
-		h.assert.True(reflect.DeepEqual(testContent, buf))
+		h.assert.Equal(testContent, buf)
 		h.assert.NotNil(h.rr.wrapped.fileCacheHandle)
 	})
 }
@@ -867,7 +863,7 @@ func TestRandomReader_Test_ReadAt_IfCacheFileGetsDeleted(t *testing.T) {
 		objectData, err := h.rr.ReadAt(buf, 0)
 		h.require.NoError(err)
 		h.assert.False(objectData.CacheHit)
-		h.require.True(reflect.DeepEqual(testContent, buf))
+		h.require.Equal(testContent, buf)
 		h.require.NotNil(h.rr.wrapped.fileCacheHandle)
 		err = h.rr.wrapped.fileCacheHandle.Close()
 		h.require.NoError(err)
@@ -897,7 +893,7 @@ func TestRandomReader_Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleOpen(t *t
 		objectData, err := h.rr.ReadAt(buf, 0)
 		h.require.NoError(err)
 		h.assert.False(objectData.CacheHit)
-		h.require.True(reflect.DeepEqual(testContent, buf))
+		h.require.Equal(testContent, buf)
 		h.require.NotNil(h.rr.wrapped.fileCacheHandle)
 		filePath, err := util.GetDownloadPath(h.cacheDir, util.GetObjectPath(h.bucket.Name(), h.object.Name))
 		h.require.NoError(err)
@@ -908,7 +904,7 @@ func TestRandomReader_Test_ReadAt_IfCacheFileGetsDeletedWithCacheHandleOpen(t *t
 
 		h.assert.NoError(err)
 		h.assert.True(objectData.CacheHit)
-		h.assert.True(reflect.DeepEqual(testContent, buf))
+		h.assert.Equal(testContent, buf)
 		h.assert.NotNil(h.rr.wrapped.fileCacheHandle)
 	})
 }
@@ -929,7 +925,7 @@ func TestRandomReader_Test_ReadAt_FailedJobRestartAndCacheHit(t *testing.T) {
 		objectData, err := h.rr.ReadAt(buf, 0)
 		h.require.NoError(err)
 		h.assert.False(objectData.CacheHit)
-		h.require.True(reflect.DeepEqual(testContent, buf))
+		h.require.Equal(testContent, buf)
 		job := h.jobManager.GetJob(h.object.Name, h.bucket.Name())
 		h.require.True(job == nil || job.GetStatus().Name == downloader.Failed)
 		rd2 := &fake.FakeReader{ReadCloser: getReadCloser(testContent)}
@@ -937,14 +933,14 @@ func TestRandomReader_Test_ReadAt_FailedJobRestartAndCacheHit(t *testing.T) {
 		objectData, err = h.rr.ReadAt(buf, 0)
 		h.assert.NoError(err)
 		h.assert.False(objectData.CacheHit)
-		h.assert.True(reflect.DeepEqual(testContent, buf))
+		h.assert.Equal(testContent, buf)
 		h.assert.NotNil(h.rr.wrapped.fileCacheHandle)
 
 		objectData, err = h.rr.ReadAt(buf, 0)
 
 		h.assert.NoError(err)
 		h.assert.True(objectData.CacheHit)
-		h.assert.True(reflect.DeepEqual(testContent, buf))
+		h.assert.Equal(testContent, buf)
 		h.assert.NotNil(h.rr.wrapped.fileCacheHandle)
 	})
 }
@@ -962,12 +958,12 @@ func TestRandomReader_Test_tryReadingFromFileCache_CacheHit(t *testing.T) {
 		_, cacheHit, err := h.rr.wrapped.tryReadingFromFileCache(h.rr.ctx, buf, 0)
 		h.assert.False(cacheHit)
 		h.assert.NoError(err)
-		h.assert.True(reflect.DeepEqual(testContent, buf))
+		h.assert.Equal(testContent, buf)
 
 		_, cacheHit, err = h.rr.wrapped.tryReadingFromFileCache(h.rr.ctx, buf, 0)
 		h.assert.True(cacheHit)
 		h.assert.NoError(err)
-		h.assert.True(reflect.DeepEqual(testContent, buf))
+		h.assert.Equal(testContent, buf)
 	})
 }
 
@@ -1003,7 +999,7 @@ func TestRandomReader_Test_ReadAt_OffsetEqualToObjectSize(t *testing.T) {
 		objectData, err := h.rr.ReadAt(buf, int64(start1))
 		h.assert.False(objectData.CacheHit)
 		h.assert.NoError(err)
-		h.assert.True(reflect.DeepEqual(testContent[start1:end1], buf))
+		h.assert.Equal(testContent[start1:end1], buf)
 		start2 := util.MiB
 		end2 := start2 + util.MiB
 		buf2 := make([]byte, end2-start2)
@@ -1039,7 +1035,7 @@ func TestRandomReader_Test_Destroy_NonNilCacheHandle(t *testing.T) {
 		_, cacheHit, err := h.rr.wrapped.tryReadingFromFileCache(h.rr.ctx, buf, 0)
 		h.assert.False(cacheHit)
 		h.assert.NoError(err)
-		h.assert.True(reflect.DeepEqual(testContent, buf))
+		h.assert.Equal(testContent, buf)
 		h.assert.NotNil(h.rr.wrapped.fileCacheHandle)
 
 		h.rr.wrapped.Destroy()
