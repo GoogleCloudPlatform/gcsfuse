@@ -15,7 +15,6 @@
 package gcsx_test
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -565,7 +564,7 @@ func TestIntegration_MultipleInteractions(t *testing.T) {
 		// Read the contents of the temp file.
 		_, err = h.tf.ReadAt(buf, 0)
 		h.require.True(err == nil || errors.Is(err, io.EOF), desc)
-		h.assert.True(bytes.Equal(buf, expectedContents), desc)
+		h.assert.Equal(expectedContents, buf, desc)
 
 		// Modify some bytes.
 		if size > 0 {
@@ -586,7 +585,7 @@ func TestIntegration_MultipleInteractions(t *testing.T) {
 		// Compare contents again.
 		_, err = h.tf.ReadAt(buf, 0)
 		h.require.True(err == nil || errors.Is(err, io.EOF), desc)
-		h.assert.True(bytes.Equal(buf, expectedContents), desc)
+		h.assert.Equal(expectedContents, buf, desc)
 
 		// Sync and recreate if necessary.
 		newObj, err := h.sync(o)
@@ -599,12 +598,12 @@ func TestIntegration_MultipleInteractions(t *testing.T) {
 		// Check the new backing object's contents.
 		objContents, err := storageutil.ReadObject(h.ctx, h.bucket, name)
 		h.require.NoError(err, desc)
-		h.assert.True(bytes.Equal(objContents, expectedContents), desc)
+		h.assert.Equal(expectedContents, objContents, desc)
 
 		// Compare contents again.
 		_, err = h.tf.ReadAt(buf, 0)
 		h.require.True(err == nil || errors.Is(err, io.EOF), desc)
-		h.assert.True(bytes.Equal(buf, expectedContents), desc)
+		h.assert.Equal(expectedContents, buf, desc)
 
 		// Dirty again.
 		if size > 0 {
@@ -617,6 +616,6 @@ func TestIntegration_MultipleInteractions(t *testing.T) {
 		// Compare contents again.
 		_, err = h.tf.ReadAt(buf, 0)
 		h.require.True(err == nil || errors.Is(err, io.EOF), desc)
-		h.assert.True(bytes.Equal(buf, expectedContents), desc)
+		h.assert.Equal(expectedContents, buf, desc)
 	}
 }
