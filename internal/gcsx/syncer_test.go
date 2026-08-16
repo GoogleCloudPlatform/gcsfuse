@@ -410,6 +410,9 @@ func TestSyncer_UnfinalizedObjectBypassesDirtyThresholdCheck(t *testing.T) {
 	h.srcObject.Size = 0
 	// Set up the content to have a dirty threshold of 5.
 	// We populate NewTempFile with 10 bytes of data so tf.dirtyThreshold is initialized to 10.
+	if h.content != nil {
+		h.content.Destroy()
+	}
 	h.content, err = NewTempFile(
 		dummyReadCloser{strings.NewReader("1234567890")},
 		t.TempDir(),
@@ -438,6 +441,9 @@ func TestSyncer_UnfinalizedObjectDoesNotReturnEarlyOnTruncateToZero(t *testing.T
 	h.srcObject.Finalized = time.Time{}
 	h.srcObject.Size = 0
 	// Set up the content with 10 bytes of initial data.
+	if h.content != nil {
+		h.content.Destroy()
+	}
 	h.content, err = NewTempFile(
 		dummyReadCloser{strings.NewReader("1234567890")},
 		t.TempDir(),
@@ -488,6 +494,9 @@ func TestSyncer_UnfinalizedObjectDoesNotReturnEarlyOnTruncateToStaleMetadataSize
 	// GCS metadata reports stale size 4 (but actual size was 10).
 	h.srcObject.Size = 4
 	// Set up the content with 10 bytes of initial data.
+	if h.content != nil {
+		h.content.Destroy()
+	}
 	h.content, err = NewTempFile(
 		dummyReadCloser{strings.NewReader("1234567890")},
 		t.TempDir(),
