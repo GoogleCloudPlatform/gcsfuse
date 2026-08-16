@@ -36,7 +36,6 @@ import (
 const prefix = ".gcsfuse_tmp/"
 
 type composeObjectCreatorHelper struct {
-	t           *testing.T
 	assert      *assert.Assertions
 	require     *require.Assertions
 	ctx         context.Context
@@ -49,7 +48,6 @@ type composeObjectCreatorHelper struct {
 
 func newComposeObjectCreatorHelper(t *testing.T) *composeObjectCreatorHelper {
 	h := &composeObjectCreatorHelper{
-		t:       t,
 		assert:  assert.New(t),
 		require: require.New(t),
 		ctx:     context.Background(),

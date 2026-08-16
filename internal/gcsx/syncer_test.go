@@ -36,7 +36,6 @@ import (
 ////////////////////////////////////////////////////////////////////////
 
 type fullObjectCreatorHelper struct {
-	t           *testing.T
 	assert      *assert.Assertions
 	require     *require.Assertions
 	ctx         context.Context
@@ -49,7 +48,6 @@ type fullObjectCreatorHelper struct {
 
 func newFullObjectCreatorHelper(t *testing.T) *fullObjectCreatorHelper {
 	h := &fullObjectCreatorHelper{
-		t:       t,
 		assert:  assert.New(t),
 		require: require.New(t),
 		ctx:     context.Background(),
@@ -250,7 +248,6 @@ func TestFullObjectCreator_CallsCreateObjectWhenSrcObjectAndMtimeAreNil(t *testi
 // An objectCreator that records the arguments it is called with, returning
 // canned results.
 type fakeObjectCreator struct {
-	t      *testing.T
 	assert *assert.Assertions
 	called bool
 
@@ -299,7 +296,6 @@ const chunkRetryDeadlineSecs = 120
 const chunkTransferTimeoutSecs = 10
 
 type syncerHelper struct {
-	t             *testing.T
 	assert        *assert.Assertions
 	require       *require.Assertions
 	ctx           context.Context
@@ -314,16 +310,13 @@ type syncerHelper struct {
 
 func newSyncerHelper(t *testing.T) *syncerHelper {
 	h := &syncerHelper{
-		t:       t,
 		assert:  assert.New(t),
 		require: require.New(t),
 		ctx:     context.Background(),
 		fullCreator: fakeObjectCreator{
-			t:      t,
 			assert: assert.New(t),
 		},
 		appendCreator: fakeObjectCreator{
-			t:      t,
 			assert: assert.New(t),
 		},
 	}
