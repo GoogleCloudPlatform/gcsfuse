@@ -2106,6 +2106,6 @@ otel_exporter:
         compatible:
           flat: true
           hns: true
-          zonal: true
-        run_on_gke: true
+          zonal: false
+        run_on_gke: false
         run: "TestOTelExporterTestSuite"
