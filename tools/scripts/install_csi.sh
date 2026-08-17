@@ -62,15 +62,18 @@ echo "CSI Version:     ${CSI_VERSION}"
 echo "GCSFuse Tag:     ${GCSFUSE_TAG}"
 echo "--------------------------------------"
 
-read -r -p "Are you sure? (y/N): " confirm
-case "$(echo "${confirm}" | tr '[:upper:]' '[:lower:]')" in
-  y|yes)
-    ;;
-  *)
-    echo "Installation cancelled."
-    exit 0
-    ;;
-esac
+# Prompt for confirmation if running in an interactive terminal
+if [[ -t 0 ]]; then
+  read -r -p "Are you sure? (y/N): " confirm
+  case "$(echo "${confirm}" | tr '[:upper:]' '[:lower:]')" in
+    y|yes)
+      ;;
+    *)
+      echo "Installation cancelled."
+      exit 0
+      ;;
+  esac
+fi
 
 echo "Getting cluster credentials..."
 gcloud container clusters get-credentials "${CLUSTER_NAME}" --location "${CLUSTER_LOCATION}" --project "${CLUSTER_PROJECT}"
