@@ -207,12 +207,6 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return nil, fmt.Errorf("NewGRPCClient: %w", err)
 	}
 
-	// Set the production level retry config.
-	defer func() {
-		logger.Infof("Applying production retry config.")
-		setRetryConfig(ctx, sc, clientConfig)
-	}()
-
 	// For regional buckets, perform the direct path verification.
 	if !isbucketRapid {
 		if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
