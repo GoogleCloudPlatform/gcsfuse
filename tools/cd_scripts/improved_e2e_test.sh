@@ -66,7 +66,7 @@ while (( $# >= 1 )); do
         --release-version)
             RELEASE_VERSION="$2"
             shift 2
-            # Allow SemVer (X.Y.Z), nightly-YYYYMMDD, dev-YYYYMMDD, or general version strings
+            # Allow SemVer (X.Y.Z), YYYY.MM.DD-nightly, YYYY.MM.DD-dev, or general version strings
             RE="^[a-zA-Z0-9_.-]+$"
             if [[ ! $RELEASE_VERSION =~ $RE ]]; then
                 log_error "--release-version value '$RELEASE_VERSION' is incorrectly formatted."

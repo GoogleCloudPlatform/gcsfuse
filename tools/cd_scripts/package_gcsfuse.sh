@@ -65,7 +65,7 @@ sudo apt-get install qemu-user-static binfmt-support
 git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse/tools/package_gcsfuse_docker/
 git checkout "$COMMIT_HASH"
-if [[ "$RELEASE_VERSION" == nightly-* || "$RELEASE_VERSION" == dev-* || "$RELEASE_VERSION" == v* ]]; then
+if [[ "$RELEASE_VERSION" == v* ]]; then
   REL_DIR="$RELEASE_VERSION"
 else
   REL_DIR="v$RELEASE_VERSION"
