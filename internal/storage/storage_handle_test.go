@@ -1215,6 +1215,10 @@ func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_AccessCheck_WithPref
 }
 
 func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SkipDirectPathVerificationForRapid() {
+	// Set AnonymousAccess to true to bypass environment credentials (like GCE ADC).
+	// This prevents storage.NewGRPCClient from failing in CI environments (like GitHub Actions)
+	// where Google credentials are not available.
+	testSuite.clientConfig.AnonymousAccess = true
 	client, err := createGRPCClientHandle(testSuite.ctx, testSuite.clientConfig, true, false, "my-bucket", "")
 	defer func() {
 		if client != nil {
