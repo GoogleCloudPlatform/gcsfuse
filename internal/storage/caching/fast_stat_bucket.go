@@ -115,6 +115,15 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 	}
 }
 
+// isAuthoritativeListing returns true if the listing represents a complete,
+// un-windowed, and non-paginated view of the entire requested prefix.
+func isAuthoritativeListing(req *gcs.ListObjectsRequest, listing *gcs.Listing) bool {
+	if req == nil || listing == nil {
+		return false
+	}
+	return req.StartOffset == "" && req.ContinuationToken == "" && listing.ContinuationToken == ""
+}
+
 // LOCKS_EXCLUDED(b.mu)
 // insertListing caches all objects and sub-directories discovered during a GCS listing.
 // It explicitly handles the "implicit directory" edge case where a directory exists
@@ -155,17 +164,13 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	// If enableEmptyManagedFolders is true, do not negatively cache empty directories,
 	// otherwise existing positive entries for valid empty managed folders get overwritten.
 	//
-	// An empty listing proves the directory doesn't exist only when it is
-	// authoritative for the whole prefix: a windowed listing (StartOffset or
-	// ContinuationToken set on the request) covers a slice of the namespace, and
-	// an empty page that carries a continuation token is an incomplete listing.
-	// Caching a negative entry from such a listing would overwrite a valid
-	// positive entry and serve ENOENT for the entire subtree until the negative
-	// TTL expires.
+	// Only an authoritative listing proves the directory doesn't exist: caching
+	// a negative entry from a windowed or paginated listing would overwrite a
+	// valid positive entry and serve ENOENT for the entire subtree until the
+	// negative TTL expires.
 	isNegativeCacheEnabled := b.negativeCacheTTL > 0 && !b.enableEmptyManagedFolders
 	isEmptyNonRootDir := !dirHasContents && dirName != ""
-	isAuthoritativeListing := req.StartOffset == "" && req.ContinuationToken == "" && listing.ContinuationToken == ""
-	if isNegativeCacheEnabled && isEmptyNonRootDir && isAuthoritativeListing {
+	if isNegativeCacheEnabled && isEmptyNonRootDir && isAuthoritativeListing(req, listing) {
 		b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
 	}
 

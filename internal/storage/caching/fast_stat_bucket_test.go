@@ -1062,6 +1062,33 @@ func (t *ListObjectsTest_InsertListing) EmptyPageWithResponseContinuationTokenDo
 	t.callAndVerifyWithRequest(context.TODO(), false, listing, req, nil, nil, false)
 }
 
+// A non-empty windowed listing (StartOffset set) must insert the returned
+// objects and still infer the parent implicit directory.
+func (t *ListObjectsTest_InsertListing) NonEmptyListingWithStartOffsetInsertsPositiveEntries() {
+	listing := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir/c", Size: 10},
+		},
+	}
+	req := &gcs.ListObjectsRequest{
+		Prefix:      "dir/",
+		StartOffset: "dir/b",
+	}
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/c", Size: 10},
+	}
+	expectedImplicitDirs := []string{"dir/"}
+	t.callAndVerifyWithRequest(
+		context.TODO(),
+		false, // isHNS
+		listing,
+		req,
+		expectedInserts,
+		expectedImplicitDirs,
+		false, // expectNegativeEntry
+	)
+}
+
 func (t *ListObjectsTest_InsertListing) EmptyListing() {
 	listing := &gcs.Listing{}
 	expectedInserts := []*gcs.MinObject{}
