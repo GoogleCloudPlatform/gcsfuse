@@ -1078,6 +1078,7 @@ func (t *ListObjectsTest_InsertListing) NonEmptyListingWithStartOffsetInsertsPos
 		{Name: "dir/c", Size: 10},
 	}
 	expectedImplicitDirs := []string{"dir/"}
+
 	t.callAndVerifyWithRequest(
 		context.TODO(),
 		false, // isHNS
