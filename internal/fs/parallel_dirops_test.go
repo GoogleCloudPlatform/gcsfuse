@@ -111,8 +111,7 @@ func (t *ParallelDiropsTest) createFilesAndDirStructureInBucket() {
 }
 
 func (t *ParallelDiropsTest) TestParallelLookUpsForSameFile() {
-	lookUpFunc := func(wg *sync.WaitGroup, filePath string) (os.FileInfo, error) {
-		defer wg.Done()
+	lookUpFunc := func(filePath string) (os.FileInfo, error) {
 		fileInfo, err := os.Stat(filePath)
 		return fileInfo, err
 	}
@@ -124,10 +123,12 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForSameFile() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		stat1, err1 = lookUpFunc(&wg, filePath)
+		defer wg.Done()
+		stat1, err1 = lookUpFunc(filePath)
 	}()
 	go func() {
-		stat2, err2 = lookUpFunc(&wg, filePath)
+		defer wg.Done()
+		stat2, err2 = lookUpFunc(filePath)
 	}()
 	wg.Wait()
 
@@ -143,10 +144,12 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForSameFile() {
 	filePath = path.Join(mntDir, "explicitDir1/file2.txt")
 	wg.Add(2)
 	go func() {
-		stat1, err1 = lookUpFunc(&wg, filePath)
+		defer wg.Done()
+		stat1, err1 = lookUpFunc(filePath)
 	}()
 	go func() {
-		stat2, err2 = lookUpFunc(&wg, filePath)
+		defer wg.Done()
+		stat2, err2 = lookUpFunc(filePath)
 	}()
 	wg.Wait()
 
@@ -160,8 +163,7 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForSameFile() {
 }
 
 func (t *ParallelDiropsTest) TestParallelLookUpsForSameDir() {
-	lookUpFunc := func(wg *sync.WaitGroup, dirPath string) (os.FileInfo, error) {
-		defer wg.Done()
+	lookUpFunc := func(dirPath string) (os.FileInfo, error) {
 		fileInfo, err := os.Stat(dirPath)
 		return fileInfo, err
 	}
@@ -173,10 +175,12 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForSameDir() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		stat1, err1 = lookUpFunc(&wg, dirPath)
+		defer wg.Done()
+		stat1, err1 = lookUpFunc(dirPath)
 	}()
 	go func() {
-		stat2, err2 = lookUpFunc(&wg, dirPath)
+		defer wg.Done()
+		stat2, err2 = lookUpFunc(dirPath)
 	}()
 	wg.Wait()
 
@@ -192,10 +196,12 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForSameDir() {
 	dirPath = path.Join(mntDir, "implicitDir1/")
 	wg.Add(2)
 	go func() {
-		stat1, err1 = lookUpFunc(&wg, dirPath)
+		defer wg.Done()
+		stat1, err1 = lookUpFunc(dirPath)
 	}()
 	go func() {
-		stat2, err2 = lookUpFunc(&wg, dirPath)
+		defer wg.Done()
+		stat2, err2 = lookUpFunc(dirPath)
 	}()
 	wg.Wait()
 
@@ -209,8 +215,7 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForSameDir() {
 }
 
 func (t *ParallelDiropsTest) TestParallelReadDirs() {
-	readDirFunc := func(wg *sync.WaitGroup, dirPath string) ([]os.DirEntry, error) {
-		defer wg.Done()
+	readDirFunc := func(dirPath string) ([]os.DirEntry, error) {
 		dirEntries, err := os.ReadDir(dirPath)
 		return dirEntries, err
 	}
@@ -222,10 +227,12 @@ func (t *ParallelDiropsTest) TestParallelReadDirs() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		dirEntries1, err1 = readDirFunc(&wg, dirPath)
+		defer wg.Done()
+		dirEntries1, err1 = readDirFunc(dirPath)
 	}()
 	go func() {
-		dirEntries2, err2 = readDirFunc(&wg, dirPath)
+		defer wg.Done()
+		dirEntries2, err2 = readDirFunc(dirPath)
 	}()
 	wg.Wait()
 
@@ -244,10 +251,12 @@ func (t *ParallelDiropsTest) TestParallelReadDirs() {
 	wg = sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		dirEntries1, err1 = readDirFunc(&wg, dirPath)
+		defer wg.Done()
+		dirEntries1, err1 = readDirFunc(dirPath)
 	}()
 	go func() {
-		dirEntries2, err2 = readDirFunc(&wg, dirPath)
+		defer wg.Done()
+		dirEntries2, err2 = readDirFunc(dirPath)
 	}()
 	wg.Wait()
 
@@ -265,10 +274,12 @@ func (t *ParallelDiropsTest) TestParallelReadDirs() {
 	wg = sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		dirEntries1, err1 = readDirFunc(&wg, dirPath)
+		defer wg.Done()
+		dirEntries1, err1 = readDirFunc(dirPath)
 	}()
 	go func() {
-		dirEntries2, err2 = readDirFunc(&wg, parentDirPath)
+		defer wg.Done()
+		dirEntries2, err2 = readDirFunc(parentDirPath)
 	}()
 	wg.Wait()
 
@@ -287,13 +298,11 @@ func (t *ParallelDiropsTest) TestParallelReadDirs() {
 }
 
 func (t *ParallelDiropsTest) TestParallelReadDirAndMkdirSameDir() {
-	readDirFunc := func(wg *sync.WaitGroup, dirPath string) ([]os.DirEntry, error) {
-		defer wg.Done()
+	readDirFunc := func(dirPath string) ([]os.DirEntry, error) {
 		dirEntries, err := os.ReadDir(dirPath)
 		return dirEntries, err
 	}
-	mkdirFunc := func(wg *sync.WaitGroup, dirPath string) error {
-		defer wg.Done()
+	mkdirFunc := func(dirPath string) error {
 		err := os.Mkdir(dirPath, 0600)
 		return err
 	}
@@ -305,10 +314,12 @@ func (t *ParallelDiropsTest) TestParallelReadDirAndMkdirSameDir() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		dirEntries, readDirErr = readDirFunc(&wg, dirPath)
+		defer wg.Done()
+		dirEntries, readDirErr = readDirFunc(dirPath)
 	}()
 	go func() {
-		mkdirErr = mkdirFunc(&wg, dirPath)
+		defer wg.Done()
+		mkdirErr = mkdirFunc(dirPath)
 	}()
 	wg.Wait()
 
@@ -328,10 +339,12 @@ func (t *ParallelDiropsTest) TestParallelReadDirAndMkdirSameDir() {
 	wg = sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		dirEntries, readDirErr = readDirFunc(&wg, dirPath)
+		defer wg.Done()
+		dirEntries, readDirErr = readDirFunc(dirPath)
 	}()
 	go func() {
-		mkdirErr = mkdirFunc(&wg, dirPath)
+		defer wg.Done()
+		mkdirErr = mkdirFunc(dirPath)
 	}()
 	wg.Wait()
 
@@ -348,13 +361,11 @@ func (t *ParallelDiropsTest) TestParallelReadDirAndMkdirSameDir() {
 }
 
 func (t *ParallelDiropsTest) TestParallelLookUpAndCreateSameFile() {
-	lookUpFunc := func(wg *sync.WaitGroup, filePath string) (os.FileInfo, error) {
-		defer wg.Done()
+	lookUpFunc := func(filePath string) (os.FileInfo, error) {
 		fileInfo, err := os.Stat(filePath)
 		return fileInfo, err
 	}
-	createFileFunc := func(wg *sync.WaitGroup, filePath string) (*os.File, error) {
-		defer wg.Done()
+	createFileFunc := func(filePath string) (*os.File, error) {
 		file, err := os.Create(filePath)
 		return file, err
 	}
@@ -367,10 +378,12 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndCreateSameFile() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		fileInfo, lookUpErr = lookUpFunc(&wg, filePath)
+		defer wg.Done()
+		fileInfo, lookUpErr = lookUpFunc(filePath)
 	}()
 	go func() {
-		file, createErr = createFileFunc(&wg, filePath)
+		defer wg.Done()
+		file, createErr = createFileFunc(filePath)
 	}()
 	wg.Wait()
 
@@ -388,13 +401,11 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndCreateSameFile() {
 }
 
 func (t *ParallelDiropsTest) TestParallelLookUpAndDeleteSameFile() {
-	lookUpFunc := func(wg *sync.WaitGroup, filePath string) (os.FileInfo, error) {
-		defer wg.Done()
+	lookUpFunc := func(filePath string) (os.FileInfo, error) {
 		fileInfo, err := os.Stat(filePath)
 		return fileInfo, err
 	}
-	deleteFileFunc := func(wg *sync.WaitGroup, filePath string) error {
-		defer wg.Done()
+	deleteFileFunc := func(filePath string) error {
 		err := os.Remove(filePath)
 		return err
 	}
@@ -406,10 +417,12 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndDeleteSameFile() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		fileInfo, lookUpErr = lookUpFunc(&wg, filePath)
+		defer wg.Done()
+		fileInfo, lookUpErr = lookUpFunc(filePath)
 	}()
 	go func() {
-		deleteErr = deleteFileFunc(&wg, filePath)
+		defer wg.Done()
+		deleteErr = deleteFileFunc(filePath)
 	}()
 	wg.Wait()
 
@@ -427,13 +440,11 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndDeleteSameFile() {
 }
 
 func (t *ParallelDiropsTest) TestParallelLookUpAndRenameSameFile() {
-	lookUpFunc := func(wg *sync.WaitGroup, filePath string) (os.FileInfo, error) {
-		defer wg.Done()
+	lookUpFunc := func(filePath string) (os.FileInfo, error) {
 		fileInfo, err := os.Stat(filePath)
 		return fileInfo, err
 	}
-	renameFunc := func(wg *sync.WaitGroup, oldFilePath string, newFilePath string) error {
-		defer wg.Done()
+	renameFunc := func(oldFilePath string, newFilePath string) error {
 		err := os.Rename(oldFilePath, newFilePath)
 		return err
 	}
@@ -446,10 +457,12 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndRenameSameFile() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		fileInfo, lookUpErr = lookUpFunc(&wg, filePath)
+		defer wg.Done()
+		fileInfo, lookUpErr = lookUpFunc(filePath)
 	}()
 	go func() {
-		renameErr = renameFunc(&wg, filePath, newFilePath)
+		defer wg.Done()
+		renameErr = renameFunc(filePath, newFilePath)
 	}()
 	wg.Wait()
 
@@ -470,13 +483,11 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndRenameSameFile() {
 }
 
 func (t *ParallelDiropsTest) TestParallelLookUpAndDeleteSameDir() {
-	lookUpFunc := func(wg *sync.WaitGroup, dirPath string) (os.FileInfo, error) {
-		defer wg.Done()
+	lookUpFunc := func(dirPath string) (os.FileInfo, error) {
 		fileInfo, err := os.Stat(dirPath)
 		return fileInfo, err
 	}
-	deleteFunc := func(wg *sync.WaitGroup, dirPath string) error {
-		defer wg.Done()
+	deleteFunc := func(dirPath string) error {
 		err := os.RemoveAll(dirPath)
 		return err
 	}
@@ -488,10 +499,12 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndDeleteSameDir() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		statInfo, lookUpErr = lookUpFunc(&wg, dirPath)
+		defer wg.Done()
+		statInfo, lookUpErr = lookUpFunc(dirPath)
 	}()
 	go func() {
-		deleteErr = deleteFunc(&wg, dirPath)
+		defer wg.Done()
+		deleteErr = deleteFunc(dirPath)
 	}()
 	wg.Wait()
 
@@ -508,13 +521,11 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndDeleteSameDir() {
 }
 
 func (t *ParallelDiropsTest) TestParallelLookUpAndMkdirSameDir() {
-	lookUpFunc := func(wg *sync.WaitGroup, dirPath string) (os.FileInfo, error) {
-		defer wg.Done()
+	lookUpFunc := func(dirPath string) (os.FileInfo, error) {
 		fileInfo, err := os.Stat(dirPath)
 		return fileInfo, err
 	}
-	mkdirFunc := func(wg *sync.WaitGroup, dirPath string) error {
-		defer wg.Done()
+	mkdirFunc := func(dirPath string) error {
 		err := os.Mkdir(dirPath, 0600)
 		return err
 	}
@@ -526,10 +537,12 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndMkdirSameDir() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		statInfo, lookUpErr = lookUpFunc(&wg, dirPath)
+		defer wg.Done()
+		statInfo, lookUpErr = lookUpFunc(dirPath)
 	}()
 	go func() {
-		mkdirErr = mkdirFunc(&wg, dirPath)
+		defer wg.Done()
+		mkdirErr = mkdirFunc(dirPath)
 	}()
 	wg.Wait()
 
@@ -547,13 +560,11 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndMkdirSameDir() {
 }
 
 func (t *ParallelDiropsTest) TestParallelLookUpAndRenameSameDir() {
-	lookUpFunc := func(wg *sync.WaitGroup, dirPath string) (os.FileInfo, error) {
-		defer wg.Done()
+	lookUpFunc := func(dirPath string) (os.FileInfo, error) {
 		fileInfo, err := os.Stat(dirPath)
 		return fileInfo, err
 	}
-	renameFunc := func(wg *sync.WaitGroup, oldPath string, newPath string) error {
-		defer wg.Done()
+	renameFunc := func(oldPath string, newPath string) error {
 		err := os.Rename(oldPath, newPath)
 		return err
 	}
@@ -566,10 +577,12 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndRenameSameDir() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		statInfo, lookUpErr = lookUpFunc(&wg, dirPath)
+		defer wg.Done()
+		statInfo, lookUpErr = lookUpFunc(dirPath)
 	}()
 	go func() {
-		renameErr = renameFunc(&wg, dirPath, newDirPath)
+		defer wg.Done()
+		renameErr = renameFunc(dirPath, newDirPath)
 	}()
 	wg.Wait()
 
@@ -587,8 +600,7 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndRenameSameDir() {
 }
 
 func (t *ParallelDiropsTest) TestParallelLookUpsForDifferentFiles() {
-	lookUpFunc := func(wg *sync.WaitGroup, filePath string) (os.FileInfo, error) {
-		defer wg.Done()
+	lookUpFunc := func(filePath string) (os.FileInfo, error) {
 		fileInfo, err := os.Stat(filePath)
 		return fileInfo, err
 	}
@@ -601,10 +613,12 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForDifferentFiles() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		stat1, err1 = lookUpFunc(&wg, filePath1)
+		defer wg.Done()
+		stat1, err1 = lookUpFunc(filePath1)
 	}()
 	go func() {
-		stat2, err2 = lookUpFunc(&wg, filePath2)
+		defer wg.Done()
+		stat2, err2 = lookUpFunc(filePath2)
 	}()
 	wg.Wait()
 
@@ -622,10 +636,12 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForDifferentFiles() {
 	wg = sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		stat1, err1 = lookUpFunc(&wg, filePath1)
+		defer wg.Done()
+		stat1, err1 = lookUpFunc(filePath1)
 	}()
 	go func() {
-		stat2, err2 = lookUpFunc(&wg, filePath2)
+		defer wg.Done()
+		stat2, err2 = lookUpFunc(filePath2)
 	}()
 	wg.Wait()
 
@@ -639,8 +655,7 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForDifferentFiles() {
 }
 
 func (t *ParallelDiropsTest) TestParallelLookUpsForDifferentDirs() {
-	lookUpFunc := func(wg *sync.WaitGroup, dirPath string) (os.FileInfo, error) {
-		defer wg.Done()
+	lookUpFunc := func(dirPath string) (os.FileInfo, error) {
 		fileInfo, err := os.Stat(dirPath)
 		return fileInfo, err
 	}
@@ -653,10 +668,12 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForDifferentDirs() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		stat1, err1 = lookUpFunc(&wg, dirPath1)
+		defer wg.Done()
+		stat1, err1 = lookUpFunc(dirPath1)
 	}()
 	go func() {
-		stat2, err2 = lookUpFunc(&wg, dirPath2)
+		defer wg.Done()
+		stat2, err2 = lookUpFunc(dirPath2)
 	}()
 	wg.Wait()
 
@@ -670,8 +687,7 @@ func (t *ParallelDiropsTest) TestParallelLookUpsForDifferentDirs() {
 }
 
 func (t *ParallelDiropsTest) TestParallelReadDirsForDifferentDirs() {
-	readDirFunc := func(wg *sync.WaitGroup, dirPath string) ([]os.DirEntry, error) {
-		defer wg.Done()
+	readDirFunc := func(dirPath string) ([]os.DirEntry, error) {
 		dirEntries, err := os.ReadDir(dirPath)
 		return dirEntries, err
 	}
@@ -684,10 +700,12 @@ func (t *ParallelDiropsTest) TestParallelReadDirsForDifferentDirs() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
-		dirEntries1, err1 = readDirFunc(&wg, dirPath1)
+		defer wg.Done()
+		dirEntries1, err1 = readDirFunc(dirPath1)
 	}()
 	go func() {
-		dirEntries2, err2 = readDirFunc(&wg, dirPath2)
+		defer wg.Done()
+		dirEntries2, err2 = readDirFunc(dirPath2)
 	}()
 	wg.Wait()
 

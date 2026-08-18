@@ -20,7 +20,7 @@ permissions:
 jobs:
   flake-detector:
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
