@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RCU (Rapid Cache Ultra) Micro-Benchmark Runner for GCSFuse.
+Zonal (Rapid Bucket) Micro-Benchmark Runner for GCSFuse.
 
 Concurrency Rules (Identical numjobs for Write and Read):
 - < 1 GB (128 KB, 100 MB): numjobs = 192
@@ -29,22 +29,20 @@ import sys
 import time
 
 # --- Target Configuration ---
-BUCKET = "rcu-bench-uscentral1-a-fastbyte-avoidnull"
+BUCKET = "zonal-bench-uscentral1-a-fastbyte-avoidnull"
 MOUNT_POINT = "/mnt/gcs"
 ENDPOINT = "storage-preprod-test-grpc.googleusercontent.com:443"
 BILLING_PROJECT = "gcs-fuse-test"
 
-# --- Mount Flags (Rapid Path Always Enabled) ---
+# --- Mount Flags (Zonal Bucket Configuration) ---
 MOUNT_FLAGS = [
-    "--experimental-enable-pirlo",
-    "--enable-rapid-writes=true",
     "--client-protocol=grpc",
     f"--custom-endpoint={ENDPOINT}",
     f"--billing-project={BILLING_PROJECT}",
     "--implicit-dirs",
     "--metadata-cache-ttl-secs=-1",
     "--write-global-max-blocks=-1",
-    "--log-file=/tmp/gcsfuse_bench.log",
+    "--log-file=/tmp/gcsfuse_zonal_bench.log",
 ]
 
 # --- FIO Templates (Page Cache ON: direct=0, Uniform filename_format) ---
@@ -208,19 +206,19 @@ def extract_metrics(job, rw_type):
     }
 
 def save_results(results):
-    results_path = "/tmp/rcu_benchmark_results.json"
+    results_path = "/tmp/zonal_benchmark_results.json"
     with open(results_path, "w") as f:
         json.dump(results, f, indent=2)
 
 def main():
     results = {
-        "sequential_writes_rapid": [],
-        "sequential_reads_rapid": [],
-        "random_reads_rapid": [],
+        "sequential_writes_zonal": [],
+        "sequential_reads_zonal": [],
+        "random_reads_zonal": [],
     }
 
     print("=" * 60, flush=True)
-    print("STARTING RCU MICRO-BENCHMARKS (Unified Concurrency & 1:1 Reuse)", flush=True)
+    print("STARTING ZONAL (RAPID BUCKET) MICRO-BENCHMARKS", flush=True)
     print("Rules: < 1 GB = 192 jobs | >= 1 GB = 144 jobs for both Write & Read", flush=True)
     print(f"Bucket: {BUCKET} | Page Cache: ON (direct=0)", flush=True)
     print("=" * 60, flush=True)
@@ -248,8 +246,8 @@ def main():
     }
     job_100m_w = run_fio(FIO_WRITE_TEMPLATE, env_vars_100m, "write_100m.fio")
     m_100m_w = extract_metrics(job_100m_w, "write")
-    print(f"[Rapid Write] 100 MB (192 jobs x 10 files): Bandwidth={m_100m_w['bw_gb']} GB/s, Latency={m_100m_w['lat_ms']} ms", flush=True)
-    results["sequential_writes_rapid"].append({
+    print(f"[Zonal Write] 100 MB (192 jobs x 10 files): Bandwidth={m_100m_w['bw_gb']} GB/s, Latency={m_100m_w['lat_ms']} ms", flush=True)
+    results["sequential_writes_zonal"].append({
         "label": "Sequential Write 100 MB (BS=1M, 192x10)",
         "filesize": "100M", "bs": "1M", "numjobs": 192, "nrfiles": 10, **m_100m_w,
     })
@@ -270,8 +268,8 @@ def main():
         }
         job = run_fio(FIO_RAND_READ_TEMPLATE, env_vars_rand, "rand_read_100m.fio")
         metrics = extract_metrics(job, "read")
-        print(f"[Rapid Rand Read] {item['label']}: Bandwidth={metrics['bw_gb']} GB/s, IOPS={metrics['iops_k']} K, Latency={metrics['lat_ms']} ms", flush=True)
-        results["random_reads_rapid"].append({
+        print(f"[Zonal Rand Read] {item['label']}: Bandwidth={metrics['bw_gb']} GB/s, IOPS={metrics['iops_k']} K, Latency={metrics['lat_ms']} ms", flush=True)
+        results["random_reads_zonal"].append({
             "label": item["label"], "filesize": "100M", "bs": item["bs"],
             "iodepth": item["iodepth"], "numjobs": 192, "nrfiles": 10, **metrics,
         })
@@ -294,8 +292,8 @@ def main():
     }
     job_10g_w = run_fio(FIO_WRITE_TEMPLATE, env_vars_10g, "write_10g.fio")
     m_10g_w = extract_metrics(job_10g_w, "write")
-    print(f"[Rapid Write] 10 GB (144 jobs x 2 files): Bandwidth={m_10g_w['bw_gb']} GB/s, Latency={m_10g_w['lat_ms']} ms", flush=True)
-    results["sequential_writes_rapid"].append({
+    print(f"[Zonal Write] 10 GB (144 jobs x 2 files): Bandwidth={m_10g_w['bw_gb']} GB/s, Latency={m_10g_w['lat_ms']} ms", flush=True)
+    results["sequential_writes_zonal"].append({
         "label": "Sequential Write 10 GB (BS=1M, 144x2)",
         "filesize": "10G", "bs": "1M", "numjobs": 144, "nrfiles": 2, **m_10g_w,
     })
@@ -305,8 +303,8 @@ def main():
     drop_system_caches()
     job_10g_r = run_fio(FIO_SEQ_READ_TEMPLATE, env_vars_10g, "read_10g.fio")
     m_10g_r = extract_metrics(job_10g_r, "read")
-    print(f"[Rapid Read] 10 GB (144 jobs x 2 files): Bandwidth={m_10g_r['bw_gb']} GB/s, Latency={m_10g_r['lat_ms']} ms", flush=True)
-    results["sequential_reads_rapid"].append({
+    print(f"[Zonal Read] 10 GB (144 jobs x 2 files): Bandwidth={m_10g_r['bw_gb']} GB/s, Latency={m_10g_r['lat_ms']} ms", flush=True)
+    results["sequential_reads_zonal"].append({
         "label": "Sequential Read 10 GB (BS=1M, 144x2)",
         "filesize": "10G", "bs": "1M", "numjobs": 144, "nrfiles": 2, **m_10g_r,
     })
@@ -328,8 +326,8 @@ def main():
     }
     job_128k_w = run_fio(FIO_WRITE_TEMPLATE, env_vars_128k, "write_128k.fio")
     m_128k_w = extract_metrics(job_128k_w, "write")
-    print(f"[Rapid Write] 128 KB (192 jobs x 30 files): Bandwidth={m_128k_w['bw_gb']} GB/s, Latency={m_128k_w['lat_ms']} ms", flush=True)
-    results["sequential_writes_rapid"].append({
+    print(f"[Zonal Write] 128 KB (192 jobs x 30 files): Bandwidth={m_128k_w['bw_gb']} GB/s, Latency={m_128k_w['lat_ms']} ms", flush=True)
+    results["sequential_writes_zonal"].append({
         "label": "Sequential Write 128 KB (BS=128K, 192x30)",
         "filesize": "128k", "bs": "128k", "numjobs": 192, "nrfiles": 30, **m_128k_w,
     })
@@ -339,8 +337,8 @@ def main():
     drop_system_caches()
     job_128k_r = run_fio(FIO_SEQ_READ_TEMPLATE, env_vars_128k, "read_128k.fio")
     m_128k_r = extract_metrics(job_128k_r, "read")
-    print(f"[Rapid Read] 128 KB (192 jobs x 30 files): Bandwidth={m_128k_r['bw_gb']} GB/s, Latency={m_128k_r['lat_ms']} ms", flush=True)
-    results["sequential_reads_rapid"].append({
+    print(f"[Zonal Read] 128 KB (192 jobs x 30 files): Bandwidth={m_128k_r['bw_gb']} GB/s, Latency={m_128k_r['lat_ms']} ms", flush=True)
+    results["sequential_reads_zonal"].append({
         "label": "Sequential Read 128 KB (BS=128K, 192x30)",
         "filesize": "128k", "bs": "128k", "numjobs": 192, "nrfiles": 30, **m_128k_r,
     })
@@ -362,8 +360,8 @@ def main():
     }
     job_1g_w = run_fio(FIO_WRITE_TEMPLATE, env_vars_1g, "write_1g.fio")
     m_1g_w = extract_metrics(job_1g_w, "write")
-    print(f"[Rapid Write] 1 GB (144 jobs x 10 files): Bandwidth={m_1g_w['bw_gb']} GB/s, Latency={m_1g_w['lat_ms']} ms", flush=True)
-    results["sequential_writes_rapid"].append({
+    print(f"[Zonal Write] 1 GB (144 jobs x 10 files): Bandwidth={m_1g_w['bw_gb']} GB/s, Latency={m_1g_w['lat_ms']} ms", flush=True)
+    results["sequential_writes_zonal"].append({
         "label": "Sequential Write 1 GB (BS=1M, 144x10)",
         "filesize": "1G", "bs": "1M", "numjobs": 144, "nrfiles": 10, **m_1g_w,
     })
@@ -397,8 +395,8 @@ def main():
         }
         job = run_fio(FIO_RAND_READ_TEMPLATE, env_vars_rand, "rand_read_1g.fio")
         metrics = extract_metrics(job, "read")
-        print(f"[Rapid Rand Read] {item['label']}: Bandwidth={metrics['bw_gb']} GB/s, IOPS={metrics['iops_k']} K, Latency={metrics['lat_ms']} ms", flush=True)
-        results["random_reads_rapid"].append({
+        print(f"[Zonal Rand Read] {item['label']}: Bandwidth={metrics['bw_gb']} GB/s, IOPS={metrics['iops_k']} K, Latency={metrics['lat_ms']} ms", flush=True)
+        results["random_reads_zonal"].append({
             "label": item["label"], "filesize": "1G", "bs": item["bs"],
             "iodepth": item["iodepth"], "numjobs": 144, "nrfiles": 10, **metrics,
         })
@@ -406,7 +404,7 @@ def main():
     cleanup_dir(dir_1g)
 
     print("\n" + "=" * 60, flush=True)
-    print("ALL RAPID BENCHMARK TESTS COMPLETED SUCCESSFULLY!", flush=True)
+    print("ALL ZONAL BENCHMARK TESTS COMPLETED SUCCESSFULLY!", flush=True)
     print("=" * 60, flush=True)
     print(json.dumps(results, indent=2), flush=True)
 
