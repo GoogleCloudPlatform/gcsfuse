@@ -186,14 +186,17 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_ReconnectFails() {
 	s.Require().NoError(err)
 	s.Require().Equal(5, n)
 	// First timeout fire will make the reader inactive.
+	require.Eventually(s.T(), func() bool {
+		return s.simulatedClock.PendingCount() > 0
+	}, 5*time.Second, time.Millisecond)
 	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
-	// Wait for the monitor routine to make the read inactive.
+	// Wait for the monitor routine to make the read inactive and reschedule its timer.
 	require.Eventually(s.T(), func() bool {
 		rr := s.reader.(*InactiveTimeoutReader)
 		rr.mu.Lock()
 		defer rr.mu.Unlock()
-		return !rr.isActive
-	}, time.Second, 10*time.Millisecond, "Monitor did mark the reader inactive in time")
+		return !rr.isActive && s.simulatedClock.PendingCount() > 0
+	}, 5*time.Second, 10*time.Millisecond, "Monitor did mark the reader inactive in time")
 	// 2nd fire will close the inactive reader.
 	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
 	// Wait for the monitor routine to close the wrapped reader.
@@ -202,7 +205,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_ReconnectFails() {
 		rr.mu.Lock()
 		defer rr.mu.Unlock()
 		return (rr.gcsReader == nil)
-	}, time.Second, 10*time.Millisecond, "Monitor did not close the reader in time")
+	}, 5*time.Second, 10*time.Millisecond, "Monitor did not close the reader in time")
 	reconnectErr := errors.New("failed to create new reader")
 	expectedReadHandle := s.initialFakeReader.Handle
 	s.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
@@ -228,14 +231,17 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect
 	s.Require().Equal(10, n)
 	s.Equal("abcdefghij", string(buf[:n]))
 	// First timeout fire will make the reader inactive.
+	require.Eventually(s.T(), func() bool {
+		return s.simulatedClock.PendingCount() > 0
+	}, 5*time.Second, time.Millisecond)
 	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
-	// Wait for the monitor routine to make the read inactive.
+	// Wait for the monitor routine to make the read inactive and reschedule its timer.
 	require.Eventually(s.T(), func() bool {
 		rr := s.reader.(*InactiveTimeoutReader)
 		rr.mu.Lock()
 		defer rr.mu.Unlock()
-		return !rr.isActive
-	}, time.Second, 10*time.Millisecond, "Monitor did mark the reader inactive in time")
+		return !rr.isActive && s.simulatedClock.PendingCount() > 0
+	}, 5*time.Second, 10*time.Millisecond, "Monitor did mark the reader inactive in time")
 	// 2nd fire will close the inactive reader.
 	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
 	// Wait for the monitor routine to close the wrapped reader.
@@ -244,7 +250,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect
 		rr.mu.Lock()
 		defer rr.mu.Unlock()
 		return (rr.gcsReader == nil)
-	}, time.Second, 10*time.Millisecond, "Monitor did not close the reader in time")
+	}, 5*time.Second, 10*time.Millisecond, "Monitor did not close the reader in time")
 	expectedReadHandleAfterClose := s.initialFakeReader.Handle // The handle that should be stored after close
 	reconnectReadObjectRequest := &gcs.ReadObjectRequest{
 		Name:       s.object.Name,

@@ -563,12 +563,15 @@ func (t *gcsReaderTest) Test_ReadAt_ParallelRandomReads() {
 			buf := make([]byte, size)
 			// Each goroutine gets its own context.
 			ctx := context.Background()
-			objData := t.readAt(ctx, &gcsx.ReadRequest{
+			resp, err := t.gcsReader.ReadAt(ctx, &gcsx.ReadRequest{
 				Buffer: buf,
 				Offset: offset,
+				ReadInfo: gcsx.ReadInfo{
+					ReadType: metrics.ReadTypeRandom,
+				},
 			})
-
-			require.Equal(t.T(), size, objData.Size)
+			require.NoError(t.T(), err)
+			require.Equal(t.T(), size, resp.Size)
 			require.Equal(t.T(), testContent[offset:offset+int64(size)], buf)
 		}(task.offset, task.size)
 	}

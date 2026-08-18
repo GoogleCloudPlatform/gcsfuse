@@ -113,3 +113,10 @@ func (sc *SimulatedClock) processPending() {
 
 	sc.pending = stillPending
 }
+
+// PendingCount returns the number of scheduled timers waiting to fire.
+func (sc *SimulatedClock) PendingCount() int {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+	return len(sc.pending)
+}
