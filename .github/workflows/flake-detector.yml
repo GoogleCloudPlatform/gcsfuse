@@ -38,12 +38,6 @@ jobs:
           cache: true
       - name: Install fuse
         run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
-      - name: Build
-        run: |
-          CGO_ENABLED=0 go build ./...
-          go install ./tools/build_gcsfuse
-          build_gcsfuse . /tmp ${GITHUB_SHA}
-
       - name: Download dependencies
         run: go mod download
 
