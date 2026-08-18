@@ -13,30 +13,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Uninstalls the Cloud Storage FUSE CSI driver from a target GKE cluster.
-# Usage: tools/scripts/uninstall_csi.sh [CLUSTER_PROJECT] [CLUSTER_NAME] [CLUSTER_LOCATION] [CSI_VERSION]
+# Installs/enables the GKE managed Cloud Storage FUSE CSI driver on a target GKE cluster.
+# Usage: tools/scripts/csi/install_managed.sh [CLUSTER_PROJECT] [CLUSTER_NAME] [CLUSTER_LOCATION]
 
 set -euo pipefail
 
 CLUSTER_PROJECT="${1:-}"
 CLUSTER_NAME="${2:-}"
 CLUSTER_LOCATION="${3:-}"
-CSI_VERSION="${4:-main}"
 
 if [[ -z "${CLUSTER_PROJECT}" || -z "${CLUSTER_NAME}" || -z "${CLUSTER_LOCATION}" ]]; then
   echo "Error: Target GKE cluster configuration is missing."
   echo "Please connect to a GKE cluster context or supply the variables directly:"
   echo "  gcloud container clusters get-credentials <CLUSTER_NAME> --location <LOCATION> --project <PROJECT>"
-  echo "  or: make uninstall-csi CLUSTER_PROJECT=<PROJECT> CLUSTER_NAME=<CLUSTER_NAME> CLUSTER_LOCATION=<LOCATION>"
+  echo "  or: make install-managed-csi CLUSTER_PROJECT=<PROJECT> CLUSTER_NAME=<CLUSTER_NAME> CLUSTER_LOCATION=<LOCATION>"
   exit 1
 fi
 
 echo "--------------------------------------"
-echo "Uninstalling CSI Driver from the cluster"
+echo "Installing GKE Managed CSI Driver on the cluster"
 echo "Target Project:  ${CLUSTER_PROJECT}"
 echo "Target Cluster:  ${CLUSTER_NAME}"
 echo "Target Location: ${CLUSTER_LOCATION}"
-echo "CSI Version:     ${CSI_VERSION}"
 echo "--------------------------------------"
 
 # Prompt for confirmation if running in an interactive terminal
@@ -46,7 +44,7 @@ if [[ -t 0 ]]; then
     y|yes)
       ;;
     *)
-      echo "Uninstall cancelled."
+      echo "Operation cancelled."
       exit 0
       ;;
   esac
@@ -55,32 +53,27 @@ fi
 echo "Getting cluster credentials..."
 gcloud container clusters get-credentials "${CLUSTER_NAME}" --location "${CLUSTER_LOCATION}" --project "${CLUSTER_PROJECT}"
 
-echo "Checking CSI driver installation status on cluster..."
+echo "Checking CSI driver status on cluster..."
 MANAGED_ADDON=$(gcloud container clusters describe "${CLUSTER_NAME}" \
   --location "${CLUSTER_LOCATION}" \
   --project "${CLUSTER_PROJECT}" \
   --format="value(addonsConfig.gcsFuseCsiDriverConfig.enabled)" 2>/dev/null || true)
 
 if [[ "${MANAGED_ADDON}" == "True" ]]; then
-  echo "The Cloud Storage FUSE CSI driver on cluster '${CLUSTER_NAME}' is managed by GKE."
-  echo "To uninstall the managed add-on, disable it via gcloud:"
-  echo "  gcloud container clusters update ${CLUSTER_NAME} --location=${CLUSTER_LOCATION} --project=${CLUSTER_PROJECT} --no-enable-gcs-fuse-csi-driver"
-  exit 1
-fi
-
-if ! kubectl get csidriver gcsfuse.csi.storage.gke.io >/dev/null 2>&1; then
-  echo "Cloud Storage FUSE CSI driver is not installed on cluster '${CLUSTER_NAME}'. Nothing to uninstall."
+  echo "GKE Managed Cloud Storage FUSE CSI driver is already installed on cluster '${CLUSTER_NAME}'."
   exit 0
 fi
 
-# Create temporary directory and ensure cleanup on exit
-TMP_DIR=$(mktemp -d /tmp/make-uninstall-csi.XXXXXXXXXX)
-trap 'rm -rf "${TMP_DIR}"' EXIT INT TERM
+if kubectl get csidriver gcsfuse.csi.storage.gke.io >/dev/null 2>&1; then
+  echo "Error: A custom Cloud Storage FUSE CSI driver is currently installed on cluster '${CLUSTER_NAME}'."
+  echo "Please uninstall the custom driver first by running: make uninstall-custom-csi"
+  exit 1
+fi
 
-echo "Cloning CSI driver repository (${CSI_VERSION})..."
-git clone --branch "${CSI_VERSION}" --depth 1 https://github.com/GoogleCloudPlatform/gcs-fuse-csi-driver.git "${TMP_DIR}"
+echo "Installing GKE managed Cloud Storage FUSE CSI driver..."
+gcloud container clusters update "${CLUSTER_NAME}" \
+  --location="${CLUSTER_LOCATION}" \
+  --project="${CLUSTER_PROJECT}" \
+  --enable-gcs-fuse-csi-driver
 
-echo "Uninstalling CSI driver from cluster..."
-make -C "${TMP_DIR}" uninstall || echo "Warning: Uninstall encountered errors (likely already deleted resources). Proceeding..."
-
-echo "CSI driver uninstallation completed."
+echo "GKE Managed Cloud Storage FUSE CSI driver successfully installed."

@@ -46,27 +46,29 @@ CLUSTER_LOCATION ?= $(shell kubectl config current-context 2>/dev/null | awk -F'
 OVERLAY ?= stable
 .DEFAULT_GOAL := build
 
-.PHONY: help generate imports fmt vet lint build buildTest install test clean-gen clean clean-all build-csi install-csi uninstall-csi
+.PHONY: help generate imports fmt vet lint build buildTest install test clean-gen clean clean-all build-csi install-custom-csi uninstall-custom-csi install-managed-csi uninstall-managed-csi install-csi uninstall-csi
 
 help:
 	@echo "Usage: make [target] [VARIABLE=value...]"
 	@echo ""
 	@echo "Available Targets:"
-	@echo "  build          - Lint and compile gcsfuse binaries (default)"
-	@echo "  install        - Install gcsfuse binaries locally to \$$GOPATH/bin"
-	@echo "  test           - Run unit tests"
-	@echo "  lint           - Run golangci-lint and go vet"
-	@echo "  vet            - Run go vet static analysis"
-	@echo "  fmt            - Format Go source code and run go mod tidy"
-	@echo "  imports        - Organize Go imports and run go generate"
-	@echo "  generate       - Run go generate for config files"
-	@echo "  buildTest      - Compile test packages without executing tests"
-	@echo "  clean          - Remove build artifacts and caches"
-	@echo "  clean-all      - Remove build artifacts and all installed binaries"
-	@echo "  build-csi      - Build and stage CSI driver images via Google Cloud Build"
-	@echo "  install-csi    - Build and install CSI driver onto the target GKE cluster"
-	@echo "  uninstall-csi  - Uninstall CSI driver from the target GKE cluster"
-	@echo "  e2e-test       - Run end-to-end integration tests"
+	@echo "  build                  - Lint and compile gcsfuse binaries (default)"
+	@echo "  install                - Install gcsfuse binaries locally to \$$GOPATH/bin"
+	@echo "  test                   - Run unit tests"
+	@echo "  lint                   - Run golangci-lint and go vet"
+	@echo "  vet                    - Run go vet static analysis"
+	@echo "  fmt                    - Format Go source code and run go mod tidy"
+	@echo "  imports                - Organize Go imports and run go generate"
+	@echo "  generate               - Run go generate for config files"
+	@echo "  buildTest              - Compile test packages without executing tests"
+	@echo "  clean                  - Remove build artifacts and caches"
+	@echo "  clean-all              - Remove build artifacts and all installed binaries"
+	@echo "  build-csi              - Build and stage CSI driver images via Google Cloud Build"
+	@echo "  install-custom-csi     - Build and install custom CSI driver onto the target GKE cluster (alias: install-csi)"
+	@echo "  uninstall-custom-csi   - Uninstall custom CSI driver from the target GKE cluster (alias: uninstall-csi)"
+	@echo "  install-managed-csi    - Install GKE managed CSI driver on the target GKE cluster"
+	@echo "  uninstall-managed-csi  - Uninstall GKE managed CSI driver from the target GKE cluster"
+	@echo "  e2e-test               - Run end-to-end integration tests"
 	@echo ""
 	@echo "Configuration Options & Variables:"
 	@echo "  PROJECT          - GCP project ID for Cloud Build and e2e test bucket creation"
@@ -137,11 +139,21 @@ build-csi:
 	# Actual build commands would go here...
 	gcloud builds submit --config csi_driver_build.yml --project=$(PROJECT) --substitutions=_GOLANG_VERSION=$(GOLANG_VERSION),_CSI_VERSION=$(CSI_VERSION),_GCSFUSE_VERSION=$(GCSFUSE_VERSION),_BUILD_ARM=$(BUILD_ARM),_STAGINGVERSION=$(STAGINGVERSION)
 
-install-csi:
-	@tools/scripts/install_csi.sh "$(CLUSTER_PROJECT)" "$(CLUSTER_NAME)" "$(CLUSTER_LOCATION)" "$(GCSFUSE_TAG)" "$(CSI_VERSION)" "$(OVERLAY)"
+install-custom-csi:
+	@tools/scripts/csi/install_custom.sh "$(CLUSTER_PROJECT)" "$(CLUSTER_NAME)" "$(CLUSTER_LOCATION)" "$(GCSFUSE_TAG)" "$(CSI_VERSION)" "$(OVERLAY)"
 
-uninstall-csi:
-	@tools/scripts/uninstall_csi.sh "$(CLUSTER_PROJECT)" "$(CLUSTER_NAME)" "$(CLUSTER_LOCATION)" "$(CSI_VERSION)"
+install-csi: install-custom-csi
+
+uninstall-custom-csi:
+	@tools/scripts/csi/uninstall_custom.sh "$(CLUSTER_PROJECT)" "$(CLUSTER_NAME)" "$(CLUSTER_LOCATION)" "$(CSI_VERSION)"
+
+uninstall-csi: uninstall-custom-csi
+
+install-managed-csi:
+	@tools/scripts/csi/install_managed.sh "$(CLUSTER_PROJECT)" "$(CLUSTER_NAME)" "$(CLUSTER_LOCATION)"
+
+uninstall-managed-csi:
+	@tools/scripts/csi/uninstall_managed.sh "$(CLUSTER_PROJECT)" "$(CLUSTER_NAME)" "$(CLUSTER_LOCATION)"
 
 e2e-test:
 	@tools/integration_tests/improved_run_e2e_tests.sh $(if $(PROJECT),--project-id $(PROJECT)) $(ARGS)

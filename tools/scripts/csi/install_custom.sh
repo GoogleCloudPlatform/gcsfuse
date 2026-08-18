@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Builds and installs the Cloud Storage FUSE CSI driver onto a target GKE cluster.
-# Usage: tools/scripts/install_csi.sh [CLUSTER_PROJECT] [CLUSTER_NAME] [CLUSTER_LOCATION] [GCSFUSE_TAG] [CSI_VERSION] [OVERLAY]
+# Builds and installs the custom Cloud Storage FUSE CSI driver onto a target GKE cluster.
+# Usage: tools/scripts/csi/install_custom.sh [CLUSTER_PROJECT] [CLUSTER_NAME] [CLUSTER_LOCATION] [GCSFUSE_TAG] [CSI_VERSION] [OVERLAY]
 
 set -euo pipefail
 
@@ -29,7 +29,7 @@ if [[ -z "${CLUSTER_PROJECT}" || -z "${CLUSTER_NAME}" || -z "${CLUSTER_LOCATION}
   echo "Error: Target GKE cluster configuration is missing."
   echo "Please connect to a GKE cluster context or supply the variables directly:"
   echo "  gcloud container clusters get-credentials <CLUSTER_NAME> --location <LOCATION> --project <PROJECT>"
-  echo "  or: make install-csi CLUSTER_PROJECT=<PROJECT> CLUSTER_NAME=<CLUSTER_NAME> CLUSTER_LOCATION=<LOCATION>"
+  echo "  or: make install-custom-csi CLUSTER_PROJECT=<PROJECT> CLUSTER_NAME=<CLUSTER_NAME> CLUSTER_LOCATION=<LOCATION>"
   exit 1
 fi
 
@@ -51,7 +51,7 @@ fi
 STAGINGVERSION="prow-gob-internal-boskos-csi-${CSI_COMMIT_SHA}-fuse-${GCSFUSE_COMMIT_SHA}"
 
 echo "--------------------------------------"
-echo "Installing CSI Driver onto the cluster"
+echo "Installing Custom CSI Driver onto the cluster"
 echo "Target Project:  ${CLUSTER_PROJECT}"
 echo "Target Cluster:  ${CLUSTER_NAME}"
 echo "Target Location: ${CLUSTER_LOCATION}"
@@ -86,19 +86,18 @@ MANAGED_ADDON=$(gcloud container clusters describe "${CLUSTER_NAME}" \
 
 if [[ "${MANAGED_ADDON}" == "True" ]]; then
   echo "Error: GKE Managed Cloud Storage FUSE CSI driver add-on is currently enabled on cluster '${CLUSTER_NAME}'."
-  echo "Please disable the managed add-on first before installing a custom driver:"
-  echo "  gcloud container clusters update ${CLUSTER_NAME} --location=${CLUSTER_LOCATION} --project=${CLUSTER_PROJECT} --no-enable-gcs-fuse-csi-driver"
+  echo "Please uninstall the managed add-on first before installing a custom driver by running: make uninstall-managed-csi"
   exit 1
 fi
 
 if kubectl get csidriver gcsfuse.csi.storage.gke.io >/dev/null 2>&1; then
   echo "Error: Cloud Storage FUSE CSI driver is already installed on cluster '${CLUSTER_NAME}'."
-  echo "Please uninstall the existing driver first by running: make uninstall-csi"
+  echo "Please uninstall the existing driver first by running: make uninstall-custom-csi"
   exit 1
 fi
 
 # Create temporary directory and ensure cleanup on exit
-TMP_DIR=$(mktemp -d /tmp/make-install-csi.XXXXXXXXXX)
+TMP_DIR=$(mktemp -d /tmp/make-install-custom-csi.XXXXXXXXXX)
 trap 'rm -rf "${TMP_DIR}"' EXIT INT TERM
 
 echo "Cloning CSI driver repository (${CSI_VERSION})..."
@@ -125,7 +124,7 @@ make -C "${TMP_DIR}" install \
 
 echo ""
 echo "--------------------------------------"
-echo "CSI driver installation completed successfully."
+echo "Custom CSI driver installation completed successfully."
 echo ""
 echo "Installed Images Summary:"
 echo "  Driver:            ${REGISTRY}/gcs-fuse-csi-driver:${STAGINGVERSION}"
