@@ -1,0 +1,7 @@
+proxyType: grpc
+targetHost: "localhost:8888"
+retryConfig:
+- method: GetStorageLayout
+  retryInstruction: "return-404-bucket-does-not-exist"
+  retryCount: 1
+  skipCount: 0
