@@ -45,6 +45,7 @@ func (s *stallingStorageControlClient) GetStorageLayout(ctx context.Context, req
 	if s.stallDurationForGetStorageLayout != nil && *s.stallDurationForGetStorageLayout > 0 {
 		select {
 		case <-time.After(*s.stallDurationForGetStorageLayout):
+			return nil, context.DeadlineExceeded
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
@@ -59,6 +60,7 @@ func (s *stallingStorageControlClient) DeleteFolder(ctx context.Context, req *co
 	if s.stallDurationForFolderAPIs != nil && *s.stallDurationForFolderAPIs > 0 {
 		select {
 		case <-time.After(*s.stallDurationForFolderAPIs):
+			return context.DeadlineExceeded
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -73,6 +75,7 @@ func (s *stallingStorageControlClient) GetFolder(ctx context.Context, req *contr
 	if s.stallDurationForFolderAPIs != nil && *s.stallDurationForFolderAPIs > 0 {
 		select {
 		case <-time.After(*s.stallDurationForFolderAPIs):
+			return nil, context.DeadlineExceeded
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
@@ -87,6 +90,7 @@ func (s *stallingStorageControlClient) RenameFolder(ctx context.Context, req *co
 	if s.stallDurationForFolderAPIs != nil && *s.stallDurationForFolderAPIs > 0 {
 		select {
 		case <-time.After(*s.stallDurationForFolderAPIs):
+			return nil, context.DeadlineExceeded
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
@@ -101,6 +105,7 @@ func (s *stallingStorageControlClient) CreateFolder(ctx context.Context, req *co
 	if s.stallDurationForFolderAPIs != nil && *s.stallDurationForFolderAPIs > 0 {
 		select {
 		case <-time.After(*s.stallDurationForFolderAPIs):
+			return nil, context.DeadlineExceeded
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}

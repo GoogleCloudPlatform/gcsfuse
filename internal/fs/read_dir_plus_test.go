@@ -18,6 +18,8 @@ package fs_test
 import (
 	"os"
 	"path"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -50,6 +52,10 @@ func (t *ReadDirPlusTest) SetupSuite() {
 		},
 	}
 	t.fsTest.SetUpTestSuite()
+}
+
+func (t *ReadDirPlusTest) SetupTest() {
+	t.fsTest.TearDown()
 }
 
 func (t *ReadDirPlusTest) TearDownTest() {
@@ -173,6 +179,10 @@ func (t *LocalFileEntriesReadDirPlusTest) SetupSuite() {
 	t.fsTest.SetUpTestSuite()
 }
 
+func (t *LocalFileEntriesReadDirPlusTest) SetupTest() {
+	t.fsTest.TearDown()
+}
+
 func (t *LocalFileEntriesReadDirPlusTest) TearDownTest() {
 	t.fsTest.TearDown()
 }
@@ -212,6 +222,9 @@ func (t *LocalFileEntriesReadDirPlusTest) TestDirWithOneLocalAndOneGCSEntry() {
 
 	assert.Nil(t.T(), err)
 	assert.Equal(t.T(), 2, len(entries))
+	slices.SortFunc(entries, func(a, b os.FileInfo) int {
+		return strings.Compare(a.Name(), b.Name())
+	})
 	assert.Equal(t.T(), "gcs_file", entries[0].Name())
 	assert.False(t.T(), entries[0].IsDir())
 	assert.Equal(t.T(), int64(len("content")), entries[0].Size())

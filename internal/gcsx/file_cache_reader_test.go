@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"sync"
 	"testing"
 	"time"
@@ -98,7 +97,7 @@ func (t *fileCacheReaderTest) SetupTest() {
 		Generation: 1234,
 	}
 	t.mockBucket = new(storage.TestifyMockBucket)
-	t.cacheDir = path.Join(os.Getenv("HOME"), "test_cache_dir")
+	t.cacheDir = t.T().TempDir()
 	lruCache := lru.NewCache(cacheMaxSize)
 	fileCacheConfig := &cfg.FileCacheConfig{EnableCrc: false}
 	cacheDirVolumeBlockSize := diskutil.GetVolumeBlockSize(t.cacheDir)

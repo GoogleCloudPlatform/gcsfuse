@@ -19,8 +19,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"os"
-	"path"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -200,7 +198,6 @@ func (t *readManagerTest) Test_NewReadManager_WithBufferedRead() {
 
 func (t *readManagerTest) Test_NewReadManager_WithFileCacheAndBufferedRead() {
 	config := t.readManagerConfig(true, true)
-	defer os.RemoveAll(path.Join(os.Getenv("HOME"), "test_cache_dir"))
 
 	rm := NewReadManager(t.object, t.mockBucket, config)
 
