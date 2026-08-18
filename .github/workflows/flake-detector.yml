@@ -20,7 +20,7 @@ permissions:
 jobs:
   flake-detector:
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    timeout-minutes: 18
     strategy:
       fail-fast: false
       matrix:
@@ -48,9 +48,9 @@ jobs:
           if [ -z "$PKGS" ]; then
             PKGS=$(go list ./... | grep -v 'tools/integration_tests' | grep -v 'tools/build_gcsfuse')
           fi
-          CGO_ENABLED=0 go test -timeout 30m -p 4 -count $COUNT -skip "$(cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go)" $PKGS
+          CGO_ENABLED=0 go test -timeout 15m -p 4 -count $COUNT -skip "$(cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go)" $PKGS
 
       - name: RaceDetector Test
         run: |
           COUNT="${{ inputs.count || (github.event_name == 'push' && '5' || '10') }}"
-          CGO_ENABLED=0 go test -timeout 30m -p 4 -count $COUNT ./internal/cache/... ./internal/gcsx/...
+          go test -race -timeout 15m -p 4 -count $COUNT ./internal/cache/... ./internal/gcsx/...
