@@ -257,15 +257,17 @@ func (t *FileCacheTest) ReadShouldChangeLRU() {
 
 	// Read file 1, so file 2 becomes LRU and then read file 3. Doing this should
 	// evict file 2 and not file 1.
+	buf = make([]byte, len(objectContent1))
 	_, err = fileHandle1.ReadAt(buf, 0)
 	AssertEq(nil, err)
-	AssertEq(string(buf), objectContent1[0:len(buf)])
+	AssertEq(string(buf), objectContent1)
 	fileHandle3, err := os.OpenFile(path.Join(mntDir, objectName3), os.O_RDONLY|syscall.O_DIRECT, 0644)
 	defer closeFile(fileHandle3)
 	AssertEq(nil, err)
+	buf = make([]byte, len(objectContent3))
 	_, err = fileHandle3.ReadAt(buf, 0)
 	AssertEq(nil, err)
-	AssertEq(string(buf), objectContent3[0:len(buf)])
+	AssertEq(string(buf), objectContent3)
 
 	// Cache for file 2 should be evicted.
 	_, err = os.Stat(downloadPath2)

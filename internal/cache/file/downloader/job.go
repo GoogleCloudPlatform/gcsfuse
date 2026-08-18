@@ -272,8 +272,10 @@ func (job *Job) updateStatusAndNotifySubscribers(statusName jobStatusName, statu
 		logger.Tracef("Job:%p (%s:/%s) status changed to %v with error: %v", job, job.bucket.Name(), job.object.Name, statusName, statusErr)
 	}
 	job.mu.Lock()
-	job.status.Err = statusErr
-	job.status.Name = statusName
+	if job.status.Name != Invalid {
+		job.status.Err = statusErr
+		job.status.Name = statusName
+	}
 	job.notifySubscribers()
 	job.mu.Unlock()
 }

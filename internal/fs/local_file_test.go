@@ -797,6 +797,7 @@ func (t *LocalFileTest) TestReadSymlinkForDeletedLocalFile() {
 
 	// Reading symlink should fail.
 	_, err = os.Stat(symlinkName)
+	require.Error(t.T(), err)
 	assert.True(t.T(), strings.Contains(err.Error(), "no such file or directory"))
 }
 
