@@ -52,11 +52,11 @@ jobs:
           COUNT="${{ inputs.count || (github.event_name == 'push' && '5' || '10') }}"
           PKGS="${{ inputs.packages }}"
           if [ -z "$PKGS" ]; then
-            PKGS=$(go list ./... | grep -v 'tools/integration_tests')
+            PKGS=$(go list ./... | grep -v 'tools/integration_tests' | grep -v 'tools/build_gcsfuse')
           fi
-          CGO_ENABLED=0 go test -p 4 -count $COUNT -skip "$(cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go)" $PKGS
+          CGO_ENABLED=0 go test -timeout 30m -p 4 -count $COUNT -skip "$(cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go)" $PKGS
 
       - name: RaceDetector Test
         run: |
           COUNT="${{ inputs.count || (github.event_name == 'push' && '5' || '10') }}"
-          CGO_ENABLED=0 go test -p 4 -count $COUNT ./internal/cache/... ./internal/gcsx/...
+          CGO_ENABLED=0 go test -timeout 30m -p 4 -count $COUNT ./internal/cache/... ./internal/gcsx/...

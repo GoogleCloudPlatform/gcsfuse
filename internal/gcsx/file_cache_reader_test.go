@@ -377,10 +377,16 @@ func (t *fileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 	})
 	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
 	assert.Zero(t.T(), readResponse.Size)
-	// Assuming start3 offset is downloaded
+	// Ensure start3 offset is downloaded
 	start3 := 4 * util.MiB
 	end3 := start3 + util.MiB
 	buf3 := make([]byte, end3-start3)
+
+	job := t.jobManager.GetJob(t.object.Name, t.mockBucket.Name())
+	if job != nil {
+		_, err = job.Download(t.ctx, int64(end3), true)
+		require.NoError(t.T(), err)
+	}
 
 	readResponse, err = t.reader.ReadAt(t.ctx, &ReadRequest{
 		Buffer: buf3,

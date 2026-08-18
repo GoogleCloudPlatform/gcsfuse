@@ -84,7 +84,7 @@ func (t *readManagerTest) readManagerConfig(fileCacheEnable bool, bufferedReadEn
 	}
 
 	if fileCacheEnable {
-		cacheDir := path.Join(os.Getenv("HOME"), "test_cache_dir")
+		cacheDir := t.T().TempDir()
 		lruCache := lru.NewCache(cacheMaxSize)
 		fileCacheConfig := &cfg.FileCacheConfig{EnableCrc: false, ExperimentalDisableSizeCalculationFix: true}
 		cacheDirVolumeBlockSize := diskutil.GetVolumeBlockSize(cacheDir)

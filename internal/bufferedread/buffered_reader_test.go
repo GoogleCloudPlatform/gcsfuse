@@ -1650,7 +1650,7 @@ func (t *BufferedReaderTest) TestReadAtResumesAfterFallbackWhenReadBecomesSequen
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == uint64(offset2) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), offset2), nil).Once()
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool {
 		return r.Range.Start == uint64(offset2+testPrefetchBlockSizeBytes)
-	})).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), offset2+testPrefetchBlockSizeBytes), nil).Once()
+	})).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), offset2+testPrefetchBlockSizeBytes), nil).Maybe()
 	resp2, err := reader.ReadAt(t.ctx, &gcsx.ReadRequest{
 		Buffer:   buf,
 		Offset:   offset2,

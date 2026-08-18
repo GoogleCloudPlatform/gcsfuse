@@ -42,71 +42,71 @@ type stallingStorageControlClient struct {
 }
 
 func (s *stallingStorageControlClient) GetStorageLayout(ctx context.Context, req *controlpb.GetStorageLayoutRequest, opts ...gax.CallOption) (*controlpb.StorageLayout, error) {
-	if s.stallDurationForGetStorageLayout != nil {
+	if s.stallDurationForGetStorageLayout != nil && *s.stallDurationForGetStorageLayout > 0 {
 		select {
 		case <-time.After(*s.stallDurationForGetStorageLayout):
-			if ctx.Err() != nil {
-				return nil, ctx.Err()
-			}
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
+	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 	return s.wrapped.GetStorageLayout(ctx, req, opts...)
 }
 
 func (s *stallingStorageControlClient) DeleteFolder(ctx context.Context, req *controlpb.DeleteFolderRequest, opts ...gax.CallOption) error {
-	if s.stallDurationForFolderAPIs != nil {
+	if s.stallDurationForFolderAPIs != nil && *s.stallDurationForFolderAPIs > 0 {
 		select {
 		case <-time.After(*s.stallDurationForFolderAPIs):
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
 		case <-ctx.Done():
 			return ctx.Err()
 		}
+	}
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
 	return s.wrapped.DeleteFolder(ctx, req, opts...)
 }
 
 func (s *stallingStorageControlClient) GetFolder(ctx context.Context, req *controlpb.GetFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
-	if s.stallDurationForFolderAPIs != nil {
+	if s.stallDurationForFolderAPIs != nil && *s.stallDurationForFolderAPIs > 0 {
 		select {
 		case <-time.After(*s.stallDurationForFolderAPIs):
-			if ctx.Err() != nil {
-				return nil, ctx.Err()
-			}
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
+	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 	return s.wrapped.GetFolder(ctx, req, opts...)
 }
 
 func (s *stallingStorageControlClient) RenameFolder(ctx context.Context, req *controlpb.RenameFolderRequest, opts ...gax.CallOption) (*control.RenameFolderOperation, error) {
-	if s.stallDurationForFolderAPIs != nil {
+	if s.stallDurationForFolderAPIs != nil && *s.stallDurationForFolderAPIs > 0 {
 		select {
 		case <-time.After(*s.stallDurationForFolderAPIs):
-			if ctx.Err() != nil {
-				return nil, ctx.Err()
-			}
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
+	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 	return s.wrapped.RenameFolder(ctx, req, opts...)
 }
 
 func (s *stallingStorageControlClient) CreateFolder(ctx context.Context, req *controlpb.CreateFolderRequest, opts ...gax.CallOption) (*controlpb.Folder, error) {
-	if s.stallDurationForFolderAPIs != nil {
+	if s.stallDurationForFolderAPIs != nil && *s.stallDurationForFolderAPIs > 0 {
 		select {
 		case <-time.After(*s.stallDurationForFolderAPIs):
-			if ctx.Err() != nil {
-				return nil, ctx.Err()
-			}
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
+	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 	return s.wrapped.CreateFolder(ctx, req, opts...)
 }

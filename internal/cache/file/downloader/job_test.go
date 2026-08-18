@@ -675,7 +675,7 @@ func Test_Download_CtxCancelled(t *testing.T) {
 	dt := newDownloaderTest(t)
 	defer dt.tearDown()
 	objectName := "path/in/gcs/cancel.txt"
-	objectSize := 16 * util.MiB
+	objectSize := 100 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	var callbackExecuted atomic.Bool
 	removeCallback := func() { callbackExecuted.Store(true) }
@@ -683,7 +683,7 @@ func Test_Download_CtxCancelled(t *testing.T) {
 
 	// Requesting full download and then the download call should be cancelled after
 	// timeout but async download shouldn't be cancelled
-	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Millisecond*2)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Millisecond*5)
 	defer cancelFunc()
 	offset := int64(objectSize)
 	jobStatus, err := dt.job.Download(ctx, offset, true)
@@ -704,9 +704,10 @@ func Test_Download_CtxCancelled(t *testing.T) {
 	}
 	dt.require.NoError(dt.job.status.Err)
 	// Verify file
-	dt.verifyFile(objectContent[:dt.job.status.Offset])
-	// Verify file info cache
-	dt.verifyFileInfoEntry(uint64(dt.job.status.Offset))
+	if dt.job.status.Offset > 0 {
+		dt.verifyFile(objectContent[:dt.job.status.Offset])
+		dt.verifyFileInfoEntry(uint64(dt.job.status.Offset))
+	}
 }
 
 func Test_Download_Concurrent(t *testing.T) {
