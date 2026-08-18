@@ -212,15 +212,16 @@ func (t *fsTest) SetUpTestSuite() {
 
 func (t *fsTest) TearDownTestSuite() {
 	var err error
-	// Unmount the file system. Try again on "resource busy" errors.
+	// Unmount the file system. Try again on "resource busy" errors up to 5s.
 	delay := 10 * time.Millisecond
+	deadline := time.Now().Add(5 * time.Second)
 	for {
 		err := fuse.Unmount(mfs.Dir())
 		if err == nil {
 			break
 		}
 
-		if strings.Contains(err.Error(), "resource busy") {
+		if strings.Contains(err.Error(), "resource busy") && time.Now().Before(deadline) {
 			logger.Info("Resource busy error while unmounting; trying again")
 			time.Sleep(delay)
 			delay = time.Duration(1.3 * float64(delay))
