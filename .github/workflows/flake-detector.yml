@@ -1,7 +1,16 @@
 name: Flake detector
 on:
-  # Enable triggering the workflow manually
+  # Enable triggering the workflow manually with custom inputs
   workflow_dispatch:
+    inputs:
+      count:
+        description: 'Test iterations per runner (default: 10)'
+        required: false
+        default: '10'
+      packages:
+        description: 'Packages to test (leave empty for all packages)'
+        required: false
+        default: ''
   push:
     branches: ["master"]
 
@@ -11,7 +20,11 @@ permissions:
 jobs:
   flake-detector:
     runs-on: ubuntu-22.04
-    timeout-minutes: 20
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        batch: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,7 +35,7 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version-file: '.go-version'
-          cache: false
+          cache: true
       - name: Install fuse
         run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
       - name: Build
@@ -35,7 +48,15 @@ jobs:
         run: go mod download
 
       - name: Test all
-        run: CGO_ENABLED=0 go test -p 1 -count 5 -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
+        run: |
+          COUNT="${{ inputs.count || (github.event_name == 'push' && '5' || '10') }}"
+          PKGS="${{ inputs.packages }}"
+          if [ -z "$PKGS" ]; then
+            PKGS=$(go list ./... | grep -v 'tools/integration_tests')
+          fi
+          CGO_ENABLED=0 go test -p 4 -count $COUNT -skip "$(cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go)" $PKGS
 
       - name: RaceDetector Test
-        run: CGO_ENABLED=0 go test -p 1 -count 5 ./internal/cache/... ./internal/gcsx/...
+        run: |
+          COUNT="${{ inputs.count || (github.event_name == 'push' && '5' || '10') }}"
+          CGO_ENABLED=0 go test -p 4 -count $COUNT ./internal/cache/... ./internal/gcsx/...
