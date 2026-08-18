@@ -187,7 +187,7 @@ func setRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *stora
 }
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
-func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isbucketRapid bool, enableBidiConfig bool, bucketName string, billingProject string) (*storage.Client, error) {
+func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isBucketRapid bool, enableBidiConfig bool, bucketName string, billingProject string) (*storage.Client, error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		return nil, fmt.Errorf("error setting direct path env var: %w", err)
 	}
@@ -199,8 +199,11 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
 
-	// Add DirectPath enforcement - client creation will fail if DirectPath is not available
-	clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
+	// Add DirectPath enforcement - operations performed via the client will fail if DirectPath is not available.
+	// Rapid buckets do not support DirectPath enforcement headers.
+	if !isBucketRapid {
+		clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
+	}
 
 	sc, err := storage.NewGRPCClient(ctx, clientOpts...)
 	if err != nil {
@@ -213,14 +216,15 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		setRetryConfig(ctx, sc, clientConfig)
 	}()
 
-	// Direct-path verification is fatal for regional. Todo(b/503624405): Make it fatal for all after making the dummy-stat reliable.
-	if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
-		logger.Warnf("DirectPath verification failed with error: %v", verifyErr)
-		if !isbucketRapid {
+	// Skip DirectPath verification for Rapid buckets as DirectPath is not supported/enforced.
+	if !isBucketRapid {
+		// DirectPath verification is fatal for regional. Todo(b/503624405): Make it fatal for all after making the dummy-stat reliable.
+		if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
+			logger.Warnf("DirectPath verification failed with error: %v", verifyErr)
 			return nil, verifyErr
+		} else {
+			logger.Infof("DirectPath verification succeeded, continuing with DirectPath.")
 		}
-	} else {
-		logger.Infof("DirectPath verification succeeded, continuing with DirectPath.")
 	}
 
 	return sc, nil
