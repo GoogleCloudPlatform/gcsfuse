@@ -300,6 +300,10 @@ func (wh *bufferedWriteHandlerImpl) WriteFileInfo() WriteFileInfo {
 }
 
 func (wh *bufferedWriteHandlerImpl) Destroy() error {
+	if wh.current != nil {
+		wh.blockPool.Release(wh.current)
+		wh.current = nil
+	}
 	wh.uploadHandler.Destroy()
 	return wh.blockPool.ClearFreeBlockChannel(true)
 }

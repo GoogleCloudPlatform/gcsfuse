@@ -240,12 +240,12 @@ func (t *UploadHandlerTest) TestMultipleBlockUpload() {
 }
 
 func (t *UploadHandlerTest) TestUploadWhenCreateObjectWriterFails() {
-	// Create a block.
-	b, err := t.blockPool.Get()
-	require.NoError(t.T(), err)
 	// CreateObjectChunkWriter -- should be called once.
 	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
 	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("taco"))
+	// Create a block.
+	b, err := t.blockPool.Get()
+	require.NoError(t.T(), err)
 
 	// Upload the block.
 	err = t.uh.Upload(context.Background(), b)
@@ -253,6 +253,7 @@ func (t *UploadHandlerTest) TestUploadWhenCreateObjectWriterFails() {
 	require.Error(t.T(), err)
 	assert.ErrorContains(t.T(), err, "createObjectWriter")
 	assert.ErrorContains(t.T(), err, "taco")
+	assertAllBlocksProcessed(t.T(), t.uh)
 }
 
 func (t *UploadHandlerTest) TestFinalizeWithWriterAlreadyPresent() {

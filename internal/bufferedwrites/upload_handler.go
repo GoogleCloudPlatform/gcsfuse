@@ -98,6 +98,7 @@ func (uh *UploadHandler) Upload(ctx context.Context, block block.Block) error {
 
 	err := uh.ensureWriter(ctx)
 	if err != nil {
+		uh.wg.Done()
 		return fmt.Errorf("uh.ensureWriter() failed: %v", err)
 	}
 	// Start the uploader goroutine but only once.
