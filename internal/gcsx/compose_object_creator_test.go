@@ -15,48 +15,19 @@
 package gcsx
 
 import (
+	"context"
 	"errors"
-	"fmt"
 	"io"
 	"strings"
 	"testing"
 	"time"
 
-	"context"
-
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	. "github.com/jacobsa/oglematchers"
-	. "github.com/jacobsa/oglemock"
-	. "github.com/jacobsa/ogletest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
-
-func TestComposeObjectCreator(t *testing.T) { RunTests(t) }
-
-////////////////////////////////////////////////////////////////////////
-// Helpers
-////////////////////////////////////////////////////////////////////////
-
-func deleteReqName(expected string) (m Matcher) {
-	m = NewMatcher(
-		func(c any) (err error) {
-			req, ok := c.(*gcs.DeleteObjectRequest)
-			if !ok {
-				err = fmt.Errorf("which has type %T", c)
-				return
-			}
-
-			if req.Name != expected {
-				err = fmt.Errorf("which is for name %q", req.Name)
-				return
-			}
-
-			return
-		},
-		fmt.Sprintf("Delete request for name %q", expected))
-
-	return
-}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -64,103 +35,107 @@ func deleteReqName(expected string) (m Matcher) {
 
 const prefix = ".gcsfuse_tmp/"
 
-type ComposeObjectCreatorTest struct {
-	ctx     context.Context
-	bucket  storage.MockBucket
-	creator objectCreator
-
+type composeObjectCreatorHelper struct {
+	assert      *assert.Assertions
+	require     *require.Assertions
+	ctx         context.Context
+	bucket      *storage.TestifyMockBucket
+	creator     objectCreator
 	srcObject   gcs.Object
 	srcContents string
 	mtime       time.Time
 }
 
-var _ SetUpInterface = &ComposeObjectCreatorTest{}
+func newComposeObjectCreatorHelper(t *testing.T) *composeObjectCreatorHelper {
+	h := &composeObjectCreatorHelper{
+		assert:  assert.New(t),
+		require: require.New(t),
+		ctx:     context.Background(),
+	}
 
-func init() { RegisterTestSuite(&ComposeObjectCreatorTest{}) }
-
-func (t *ComposeObjectCreatorTest) SetUp(ti *TestInfo) {
-	t.ctx = ti.Ctx
-
-	// Create the bucket.
-	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")
-
-	// Create the creator.
-	t.creator = newComposeObjectCreator(prefix, t.bucket)
+	h.bucket = new(storage.TestifyMockBucket)
+	h.creator = newComposeObjectCreator(prefix, h.bucket)
+	return h
 }
 
-func (t *ComposeObjectCreatorTest) call() (o *gcs.Object, err error) {
-	o, err = t.creator.Create(
-		t.ctx,
-		t.srcObject.Name,
-		&t.srcObject,
-		&t.mtime,
+func (h *composeObjectCreatorHelper) call() (*gcs.Object, error) {
+	return h.creator.Create(
+		h.ctx,
+		h.srcObject.Name,
+		&h.srcObject,
+		&h.mtime,
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
-		strings.NewReader(t.srcContents))
-
-	return
+		strings.NewReader(h.srcContents))
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ComposeObjectCreatorTest) CallsCreateObject() {
-	t.srcContents = "taco"
+func TestComposeObjectCreator_CallsCreateObject(t *testing.T) {
+	h := newComposeObjectCreatorHelper(t)
+	h.srcContents = "taco"
 
 	// CreateObject
 	var req *gcs.CreateObjectRequest
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return((*gcs.Object)(nil), errors.New("")).
+		Run(func(args mock.Arguments) {
+			req = args.Get(1).(*gcs.CreateObjectRequest)
+		})
 
 	// Call
-	_, err := t.call()
-	AssertNe(nil, err)
+	_, err := h.call()
+	h.assert.Error(err)
 
-	AssertNe(nil, req)
-	ExpectTrue(strings.HasPrefix(req.Name, prefix), "Name: %s", req.Name)
-	ExpectThat(req.GenerationPrecondition, Pointee(Equals(0)))
+	h.require.NotNil(req)
+	h.assert.True(strings.HasPrefix(req.Name, prefix), "Name: %s", req.Name)
+	if h.assert.NotNil(req.GenerationPrecondition) {
+		h.assert.Equal(int64(0), *req.GenerationPrecondition)
+	}
 
 	b, err := io.ReadAll(req.Contents)
-	AssertEq(nil, err)
-	ExpectEq(t.srcContents, string(b))
+	h.require.NoError(err)
+	h.assert.Equal(h.srcContents, string(b))
 }
 
-func (t *ComposeObjectCreatorTest) CreateObjectFails() {
-	var err error
+func TestComposeObjectCreator_CreateObjectFails(t *testing.T) {
+	h := newComposeObjectCreatorHelper(t)
 
 	// CreateObject
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, errors.New("taco")))
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return((*gcs.Object)(nil), errors.New("taco"))
 
 	// Call
-	_, err = t.call()
+	_, err := h.call()
 
-	ExpectThat(err, Error(HasSubstr("CreateObject")))
-	ExpectThat(err, Error(HasSubstr("taco")))
+	h.assert.ErrorContains(err, "CreateObject")
+	h.assert.ErrorContains(err, "taco")
 }
 
-func (t *ComposeObjectCreatorTest) CreateObjectReturnsPreconditionError() {
-	var err error
+func TestComposeObjectCreator_CreateObjectReturnsPreconditionError(t *testing.T) {
+	h := newComposeObjectCreatorHelper(t)
 
 	// CreateObject
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return((*gcs.Object)(nil), &gcs.PreconditionError{Err: errors.New("taco")})
 
 	// Call
-	_, err = t.call()
+	_, err := h.call()
 
 	var preconditionErr *gcs.PreconditionError
-	ExpectTrue(errors.As(err, &preconditionErr))
-	ExpectThat(err, Error(HasSubstr("CreateObject")))
-	ExpectThat(err, Error(HasSubstr("taco")))
+	h.assert.ErrorAs(err, &preconditionErr)
+	h.assert.ErrorContains(err, "CreateObject")
+	h.assert.ErrorContains(err, "taco")
 }
 
-func (t *ComposeObjectCreatorTest) CallsComposeObjects() {
-	t.srcObject.Name = "foo"
-	t.srcObject.Generation = 17
-	t.srcObject.MetaGeneration = 23
-	t.mtime = time.Now().Add(123 * time.Second)
+func TestComposeObjectCreator_CallsComposeObjects(t *testing.T) {
+	h := newComposeObjectCreatorHelper(t)
+	h.srcObject.Name = "foo"
+	h.srcObject.Generation = 17
+	h.srcObject.MetaGeneration = 23
+	h.mtime = time.Now().Add(123 * time.Second)
 
 	// CreateObject
 	tmpObject := &gcs.Object{
@@ -168,61 +143,66 @@ func (t *ComposeObjectCreatorTest) CallsComposeObjects() {
 		Generation: 19,
 	}
 
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(tmpObject, nil))
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return(tmpObject, nil)
 
 	// ComposeObjects
 	var req *gcs.ComposeObjectsRequest
-	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
+	h.bucket.On("ComposeObjects", mock.Anything, mock.Anything).
+		Return((*gcs.Object)(nil), errors.New("")).
+		Run(func(args mock.Arguments) {
+			req = args.Get(1).(*gcs.ComposeObjectsRequest)
+		})
 
 	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
-		WillOnce(Return(nil))
+	h.bucket.On("DeleteObject", mock.Anything, mock.MatchedBy(func(r *gcs.DeleteObjectRequest) bool {
+		return r.Name == tmpObject.Name
+	})).Return(nil)
 
 	// Call
-	_, err := t.call()
-	AssertNe(nil, err)
+	_, err := h.call()
+	h.assert.Error(err)
 
-	AssertNe(nil, req)
-	ExpectEq(t.srcObject.Name, req.DstName)
-	ExpectThat(
-		req.DstGenerationPrecondition,
-		Pointee(Equals(t.srcObject.Generation)))
-	ExpectThat(
-		req.DstMetaGenerationPrecondition,
-		Pointee(Equals(t.srcObject.MetaGeneration)))
+	h.require.NotNil(req)
+	h.assert.Equal(h.srcObject.Name, req.DstName)
+	if h.assert.NotNil(req.DstGenerationPrecondition) {
+		h.assert.Equal(h.srcObject.Generation, *req.DstGenerationPrecondition)
+	}
+	if h.assert.NotNil(req.DstMetaGenerationPrecondition) {
+		h.assert.Equal(h.srcObject.MetaGeneration, *req.DstMetaGenerationPrecondition)
+	}
 
-	ExpectEq(1, len(req.Metadata))
-	ExpectEq(t.mtime.UTC().Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
+	h.assert.Equal(1, len(req.Metadata))
+	h.assert.Equal(h.mtime.UTC().Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
 
-	AssertEq(2, len(req.Sources))
+	h.require.Equal(2, len(req.Sources))
 	var src gcs.ComposeSource
 
 	src = req.Sources[0]
-	ExpectEq(t.srcObject.Name, src.Name)
-	ExpectEq(t.srcObject.Generation, src.Generation)
+	h.assert.Equal(h.srcObject.Name, src.Name)
+	h.assert.Equal(h.srcObject.Generation, src.Generation)
 
 	src = req.Sources[1]
-	ExpectEq(tmpObject.Name, src.Name)
-	ExpectEq(tmpObject.Generation, src.Generation)
+	h.assert.Equal(tmpObject.Name, src.Name)
+	h.assert.Equal(tmpObject.Generation, src.Generation)
 }
 
-func (t *ComposeObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
-	t.srcObject.Name = "foo"
-	t.srcObject.Generation = 17
-	t.srcObject.MetaGeneration = 23
-	t.srcObject.CacheControl = "testCacheControl"
-	t.srcObject.ContentDisposition = "inline"
-	t.srcObject.ContentEncoding = "gzip"
-	t.srcObject.ContentType = "text/plain"
-	t.srcObject.CustomTime = "2022-04-02T00:30:00Z"
-	t.srcObject.EventBasedHold = true
-	t.srcObject.StorageClass = "STANDARD"
-	t.srcObject.Metadata = map[string]string{
+func TestComposeObjectCreator_CallsComposeObjectsWithObjectProperties(t *testing.T) {
+	h := newComposeObjectCreatorHelper(t)
+	h.srcObject.Name = "foo"
+	h.srcObject.Generation = 17
+	h.srcObject.MetaGeneration = 23
+	h.srcObject.CacheControl = "testCacheControl"
+	h.srcObject.ContentDisposition = "inline"
+	h.srcObject.ContentEncoding = "gzip"
+	h.srcObject.ContentType = "text/plain"
+	h.srcObject.CustomTime = "2022-04-02T00:30:00Z"
+	h.srcObject.EventBasedHold = true
+	h.srcObject.StorageClass = "STANDARD"
+	h.srcObject.Metadata = map[string]string{
 		"test_key": "test_value",
 	}
-	t.mtime = time.Now().Add(123 * time.Second)
+	h.mtime = time.Now().Add(123 * time.Second)
 
 	// CreateObject
 	tmpObject := &gcs.Object{
@@ -230,196 +210,216 @@ func (t *ComposeObjectCreatorTest) CallsComposeObjectsWithObjectProperties() {
 		Generation: 19,
 	}
 
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(tmpObject, nil))
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return(tmpObject, nil)
 
 	// ComposeObjects
 	var req *gcs.ComposeObjectsRequest
-	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &req), Return(nil, errors.New(""))))
+	h.bucket.On("ComposeObjects", mock.Anything, mock.Anything).
+		Return((*gcs.Object)(nil), errors.New("")).
+		Run(func(args mock.Arguments) {
+			req = args.Get(1).(*gcs.ComposeObjectsRequest)
+		})
 
 	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
-		WillOnce(Return(nil))
+	h.bucket.On("DeleteObject", mock.Anything, mock.MatchedBy(func(r *gcs.DeleteObjectRequest) bool {
+		return r.Name == tmpObject.Name
+	})).Return(nil)
 
 	// Call
-	t.call()
+	_, _ = h.call()
 
-	AssertNe(nil, req)
-	ExpectEq(t.srcObject.Name, req.DstName)
-	ExpectThat(
-		req.DstGenerationPrecondition,
-		Pointee(Equals(t.srcObject.Generation)))
-	ExpectThat(
-		req.DstMetaGenerationPrecondition,
-		Pointee(Equals(t.srcObject.MetaGeneration)))
-	ExpectEq(t.srcObject.CacheControl, req.CacheControl)
-	ExpectEq(t.srcObject.ContentDisposition, req.ContentDisposition)
-	ExpectEq(t.srcObject.ContentEncoding, req.ContentEncoding)
-	ExpectEq(t.srcObject.ContentType, req.ContentType)
-	ExpectEq(t.srcObject.CustomTime, req.CustomTime)
-	ExpectEq(t.srcObject.EventBasedHold, req.EventBasedHold)
+	h.require.NotNil(req)
+	h.assert.Equal(h.srcObject.Name, req.DstName)
+	if h.assert.NotNil(req.DstGenerationPrecondition) {
+		h.assert.Equal(h.srcObject.Generation, *req.DstGenerationPrecondition)
+	}
+	if h.assert.NotNil(req.DstMetaGenerationPrecondition) {
+		h.assert.Equal(h.srcObject.MetaGeneration, *req.DstMetaGenerationPrecondition)
+	}
+	h.assert.Equal(h.srcObject.CacheControl, req.CacheControl)
+	h.assert.Equal(h.srcObject.ContentDisposition, req.ContentDisposition)
+	h.assert.Equal(h.srcObject.ContentEncoding, req.ContentEncoding)
+	h.assert.Equal(h.srcObject.ContentType, req.ContentType)
+	h.assert.Equal(h.srcObject.CustomTime, req.CustomTime)
+	h.assert.Equal(h.srcObject.EventBasedHold, req.EventBasedHold)
 
-	ExpectEq(2, len(req.Metadata))
-	ExpectEq(t.mtime.UTC().Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
-	ExpectEq("test_value", req.Metadata["test_key"])
+	h.assert.Equal(2, len(req.Metadata))
+	h.assert.Equal(h.mtime.UTC().Format(time.RFC3339Nano), req.Metadata["gcsfuse_mtime"])
+	h.assert.Equal("test_value", req.Metadata["test_key"])
 
-	AssertEq(2, len(req.Sources))
+	h.require.Equal(2, len(req.Sources))
 	var src gcs.ComposeSource
 
 	src = req.Sources[0]
-	ExpectEq(t.srcObject.Name, src.Name)
-	ExpectEq(t.srcObject.Generation, src.Generation)
+	h.assert.Equal(h.srcObject.Name, src.Name)
+	h.assert.Equal(h.srcObject.Generation, src.Generation)
 
 	src = req.Sources[1]
-	ExpectEq(tmpObject.Name, src.Name)
-	ExpectEq(tmpObject.Generation, src.Generation)
+	h.assert.Equal(tmpObject.Name, src.Name)
+	h.assert.Equal(tmpObject.Generation, src.Generation)
 }
 
-func (t *ComposeObjectCreatorTest) ComposeObjectsFails() {
+func TestComposeObjectCreator_ComposeObjectsFails(t *testing.T) {
+	h := newComposeObjectCreatorHelper(t)
+
 	// CreateObject
 	tmpObject := &gcs.Object{
 		Name: "bar",
 	}
 
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(tmpObject, nil))
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return(tmpObject, nil)
 
 	// ComposeObjects
-	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(nil, errors.New("taco")))
+	h.bucket.On("ComposeObjects", mock.Anything, mock.Anything).
+		Return((*gcs.Object)(nil), errors.New("taco"))
 
 	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
-		WillOnce(Return(errors.New("")))
+	h.bucket.On("DeleteObject", mock.Anything, mock.MatchedBy(func(r *gcs.DeleteObjectRequest) bool {
+		return r.Name == tmpObject.Name
+	})).Return(errors.New(""))
 
 	// Call
-	_, err := t.call()
+	_, err := h.call()
 
-	ExpectThat(err, Error(HasSubstr("ComposeObjects")))
-	ExpectThat(err, Error(HasSubstr("taco")))
+	h.assert.ErrorContains(err, "ComposeObjects")
+	h.assert.ErrorContains(err, "taco")
 }
 
-func (t *ComposeObjectCreatorTest) ComposeObjectsReturnsPreconditionError() {
+func TestComposeObjectCreator_ComposeObjectsReturnsPreconditionError(t *testing.T) {
+	h := newComposeObjectCreatorHelper(t)
+
 	// CreateObject
 	tmpObject := &gcs.Object{
 		Name: "bar",
 	}
 
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(tmpObject, nil))
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return(tmpObject, nil)
 
 	// ComposeObjects
-	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(nil, &gcs.PreconditionError{Err: errors.New("taco")}))
+	h.bucket.On("ComposeObjects", mock.Anything, mock.Anything).
+		Return((*gcs.Object)(nil), &gcs.PreconditionError{Err: errors.New("taco")})
 
 	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
-		WillOnce(Return(errors.New("")))
+	h.bucket.On("DeleteObject", mock.Anything, mock.MatchedBy(func(r *gcs.DeleteObjectRequest) bool {
+		return r.Name == tmpObject.Name
+	})).Return(errors.New(""))
 
 	// Call
-	_, err := t.call()
+	_, err := h.call()
 
 	var preconditionErr *gcs.PreconditionError
-	ExpectTrue(errors.As(err, &preconditionErr))
-	ExpectThat(err, Error(HasSubstr("ComposeObjects")))
-	ExpectThat(err, Error(HasSubstr("taco")))
+	h.assert.ErrorAs(err, &preconditionErr)
+	h.assert.ErrorContains(err, "ComposeObjects")
+	h.assert.ErrorContains(err, "taco")
 }
 
-func (t *ComposeObjectCreatorTest) ComposeObjectsReturnsNotFoundError() {
+func TestComposeObjectCreator_ComposeObjectsReturnsNotFoundError(t *testing.T) {
+	h := newComposeObjectCreatorHelper(t)
+
 	// CreateObject
 	tmpObject := &gcs.Object{
 		Name: "bar",
 	}
 
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(tmpObject, nil))
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return(tmpObject, nil)
 
 	// ComposeObjects
-	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(nil, &gcs.NotFoundError{Err: errors.New("taco")}))
+	h.bucket.On("ComposeObjects", mock.Anything, mock.Anything).
+		Return((*gcs.Object)(nil), &gcs.NotFoundError{Err: errors.New("taco")})
 
 	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
-		WillOnce(Return(errors.New("")))
+	h.bucket.On("DeleteObject", mock.Anything, mock.MatchedBy(func(r *gcs.DeleteObjectRequest) bool {
+		return r.Name == tmpObject.Name
+	})).Return(errors.New(""))
 
 	// Call
-	_, err := t.call()
+	_, err := h.call()
 
 	var preconditionErr *gcs.PreconditionError
-	ExpectTrue(errors.As(err, &preconditionErr))
-	ExpectThat(err, Error(HasSubstr("ComposeObjects")))
-	ExpectThat(err, Error(HasSubstr("taco")))
+	h.assert.ErrorAs(err, &preconditionErr)
+	h.assert.ErrorContains(err, "ComposeObjects")
+	h.assert.ErrorContains(err, "taco")
 }
 
-func (t *ComposeObjectCreatorTest) CallsDeleteObject() {
+func TestComposeObjectCreator_CallsDeleteObject(t *testing.T) {
+	h := newComposeObjectCreatorHelper(t)
+
 	// CreateObject
 	tmpObject := &gcs.Object{
 		Name: "bar",
 	}
 
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(tmpObject, nil))
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return(tmpObject, nil)
 
 	// ComposeObjects
 	composed := &gcs.Object{}
-	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(composed, nil))
+	h.bucket.On("ComposeObjects", mock.Anything, mock.Anything).
+		Return(composed, nil)
 
 	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), deleteReqName(tmpObject.Name)).
-		WillOnce(Return(errors.New("")))
+	h.bucket.On("DeleteObject", mock.Anything, mock.MatchedBy(func(r *gcs.DeleteObjectRequest) bool {
+		return r.Name == tmpObject.Name
+	})).Return(errors.New(""))
 
 	// Call
-	t.call()
+	_, _ = h.call()
 }
 
-func (t *ComposeObjectCreatorTest) DeleteObjectFails() {
+func TestComposeObjectCreator_DeleteObjectFails(t *testing.T) {
+	h := newComposeObjectCreatorHelper(t)
+
 	// CreateObject
 	tmpObject := &gcs.Object{
 		Name: "bar",
 	}
 
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(tmpObject, nil))
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return(tmpObject, nil)
 
 	// ComposeObjects
 	composed := &gcs.Object{}
-	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(composed, nil))
+	h.bucket.On("ComposeObjects", mock.Anything, mock.Anything).
+		Return(composed, nil)
 
 	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), Any()).
-		WillOnce(Return(errors.New("taco")))
+	h.bucket.On("DeleteObject", mock.Anything, mock.Anything).
+		Return(errors.New("taco"))
 
 	// Call
-	_, err := t.call()
+	_, err := h.call()
 
-	ExpectThat(err, Error(HasSubstr("DeleteObject")))
-	ExpectThat(err, Error(HasSubstr("taco")))
+	h.assert.ErrorContains(err, "DeleteObject")
+	h.assert.ErrorContains(err, "taco")
 }
 
-func (t *ComposeObjectCreatorTest) DeleteObjectSucceeds() {
+func TestComposeObjectCreator_DeleteObjectSucceeds(t *testing.T) {
+	h := newComposeObjectCreatorHelper(t)
+
 	// CreateObject
 	tmpObject := &gcs.Object{
 		Name: "bar",
 	}
 
-	ExpectCall(t.bucket, "CreateObject")(Any(), Any()).
-		WillOnce(Return(tmpObject, nil))
+	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
+		Return(tmpObject, nil)
 
 	// ComposeObjects
 	composed := &gcs.Object{}
-	ExpectCall(t.bucket, "ComposeObjects")(Any(), Any()).
-		WillOnce(Return(composed, nil))
+	h.bucket.On("ComposeObjects", mock.Anything, mock.Anything).
+		Return(composed, nil)
 
 	// DeleteObject
-	ExpectCall(t.bucket, "DeleteObject")(Any(), Any()).
-		WillOnce(Return(nil))
+	h.bucket.On("DeleteObject", mock.Anything, mock.Anything).
+		Return(nil)
 
 	// Call
-	o, err := t.call()
+	o, err := h.call()
 
-	AssertEq(nil, err)
-	ExpectEq(composed, o)
+	h.require.NoError(err)
+	h.assert.Equal(composed, o)
 }
