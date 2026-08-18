@@ -17,7 +17,6 @@ package downloader
 import (
 	"context"
 	"os"
-	"path"
 	"sync"
 	"testing"
 	"time"
@@ -38,8 +37,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-var cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
-
 func TestDownloader(t *testing.T) { RunTests(t) }
 
 type downloaderTest struct {
@@ -51,16 +48,18 @@ type downloaderTest struct {
 	fakeStorage            storage.FakeStorage
 	fileSpec               data.FileSpec
 	jm                     *JobManager
+	cacheDir               string
 }
 
 func init() { RegisterTestSuite(&downloaderTest{}) }
 
 func (dt *downloaderTest) setupHelper() {
 	locker.EnableInvariantsCheck()
-	operations.RemoveDir(cacheDir)
+	var err error
+	dt.cacheDir, err = os.MkdirTemp("", "gcsfuse_downloader_test_*")
+	AssertEq(nil, err)
 
 	// Create bucket in fake storage.
-	var err error
 	mockClient := new(storage.MockStorageControlClient)
 	dt.fakeStorage = storage.NewFakeStorageWithMockClient(mockClient, cfg.HTTP2)
 	storageHandle := dt.fakeStorage.CreateStorageHandle()
@@ -71,7 +70,7 @@ func (dt *downloaderTest) setupHelper() {
 	ExpectEq(nil, err)
 
 	dt.initJobTest(DefaultObjectName, []byte("taco"), DefaultSequentialReadSizeMb, CacheMaxSize, func() {})
-	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, cacheDir, DefaultSequentialReadSizeMb, dt.defaultFileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 1)
+	dt.jm = NewJobManager(dt.cache, util.DefaultFilePerm, util.DefaultDirPerm, dt.cacheDir, DefaultSequentialReadSizeMb, dt.defaultFileCacheConfig, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 1)
 }
 
 func (dt *downloaderTest) SetUp(*TestInfo) {
@@ -87,7 +86,9 @@ func (dt *downloaderTest) TearDown() {
 		dt.jm.Destroy()
 	}
 	dt.fakeStorage.ShutDown()
-	operations.RemoveDir(cacheDir)
+	if dt.cacheDir != "" {
+		operations.RemoveDir(dt.cacheDir)
+	}
 }
 
 func (dt *downloaderTest) waitForCrcCheckToBeCompleted() {
