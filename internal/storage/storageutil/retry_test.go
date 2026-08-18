@@ -379,10 +379,11 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_AllAttemptsTimeOut() {
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutShorterThanRetryDeadline() {
 	// Arrange
 	var callCount int
-	t.retryConfig.RetryDeadline = 100 * time.Millisecond
-	stallDuration := t.retryConfig.RetryDeadline + 100*time.Millisecond
-	// Set a parent context timeout that is shorter than the total retry budget.
-	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.RetryDeadline-50*time.Millisecond)
+	t.retryConfig.RetryDeadline = 500 * time.Millisecond
+	stallDuration := t.retryConfig.RetryDeadline + 500*time.Millisecond
+	// Set a parent context timeout that is shorter than the attempt deadline,
+	// with sufficient margin (250ms) to prevent pre-attempt expiration under load.
+	parentCtx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	defer cancel()
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
@@ -396,9 +397,7 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutSho
 	}
 
 	// Act
-	// The parent context will be checked within ExecuteWithRetry before the first attempt,
-	// but the attempt will still proceed. The attempt's context will expire
-	// due to the parent's timeout.
+	// The attempt's context will expire due to the parent's timeout.
 	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", "test-request-id", apiCall)
 
 	// Assert
@@ -410,9 +409,10 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutSho
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutBetweenDeadlines() {
 	// Arrange
 	var callCount int
-	stallDuration := t.retryConfig.RetryDeadline + 100*time.Millisecond
+	t.retryConfig.RetryDeadline = 200 * time.Millisecond
+	stallDuration := t.retryConfig.RetryDeadline + 200*time.Millisecond
 	// Set a parent context timeout that is longer than one attempt but shorter than the total budget.
-	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.RetryDeadline+50*time.Millisecond)
+	parentCtx, cancel := context.WithTimeout(context.Background(), 350*time.Millisecond)
 	defer cancel()
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++

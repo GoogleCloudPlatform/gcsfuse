@@ -269,12 +269,16 @@ func (uh *UploadHandler) AwaitBlocksUpload() {
 }
 
 func (uh *UploadHandler) Destroy() {
+	if uh.cancelFunc != nil {
+		uh.cancelFunc()
+	}
 	// Move all pending blocks to freeBlockCh and close the channel if not done.
 	for {
 		select {
 		case currBlock, ok := <-uh.uploadCh:
 			// Not ok means channel closed. Return.
 			if !ok {
+				uh.wg.Wait()
 				return
 			}
 			uh.blockPool.Release(currBlock)
@@ -283,6 +287,7 @@ func (uh *UploadHandler) Destroy() {
 		default:
 			// This will get executed when there are no blocks pending in uploadCh and its not closed.
 			close(uh.uploadCh)
+			uh.wg.Wait()
 			return
 		}
 	}

@@ -626,6 +626,23 @@ func (testSuite *BufferedWriteTest) TestDestroyShouldClearFreeBlockChannel() {
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
 }
 
+func (testSuite *BufferedWriteTest) TestDestroyWithPartialBlockShouldClearFreeBlockChannel() {
+	// Write 3.5 blocks of data so wh.current retains a partially filled block.
+	contents := strings.Repeat("A", blockSize*3+blockSize/2)
+	err := testSuite.bwh.Write(context.Background(), []byte(contents), 0)
+	require.Nil(testSuite.T(), err)
+
+	err = testSuite.bwh.Destroy()
+
+	require.Nil(testSuite.T(), err)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	assert.Nil(testSuite.T(), bwhImpl.current)
+	assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
+	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
+	// Verify all semaphore slots are released back to the global semaphore.
+	assert.True(testSuite.T(), testSuite.globalSemaphore.TryAcquire(10))
+}
+
 func (testSuite *BufferedWriteTest) TestUnlinkBeforeWrite() {
 	testSuite.bwh.Unlink()
 
