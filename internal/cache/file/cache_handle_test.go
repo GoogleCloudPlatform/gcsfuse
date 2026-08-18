@@ -574,15 +574,66 @@ func (cht *cacheHandleTest) Test_Read_WithNilFileDownloadJobAndCacheHit() {
 }
 
 func (cht *cacheHandleTest) Test_RandomRead() {
+	objectSize := uint64(4 * util.MiB)
+	testObjectContent := make([]byte, objectSize)
+	_, err := rand.Read(testObjectContent)
+	require.NoError(cht.T(), err)
+	objName := "random_read_test.txt"
+	err = storageutil.CreateObjects(context.Background(), cht.bucket, map[string][]byte{objName: testObjectContent})
+	require.NoError(cht.T(), err)
+	minObj, _, err := cht.bucket.StatObject(context.Background(), &gcs.StatObjectRequest{Name: objName, ForceFetchFromGcs: true})
+	require.NoError(cht.T(), err)
+
+	fileSpec := data.FileSpec{
+		Path:     path.Join(cht.cacheDir, cht.bucket.Name(), minObj.Name),
+		FilePerm: util.DefaultFilePerm,
+		DirPerm:  util.DefaultDirPerm,
+	}
+	fileHandle, err := util.CreateFile(fileSpec, os.O_RDONLY)
+	require.NoError(cht.T(), err)
+	defer fileHandle.Close()
+
+	fileInfoKey := data.FileInfoKey{
+		BucketName: cht.bucket.Name(),
+		ObjectName: objName,
+	}
+	fileInfo := data.NewFileInfo(fileInfoKey, minObj.Generation, minObj.Size, 0, false, nil, 1)
+	key, err := fileInfoKey.Key()
+	require.NoError(cht.T(), err)
+	_, err = cht.cache.Insert(key, fileInfo)
+	require.NoError(cht.T(), err)
+
+	fileCacheConfig := &cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: false}
+	fileDownloadJob := downloader.NewJob(
+		minObj,
+		cht.bucket,
+		cht.cache,
+		1,
+		fileSpec,
+		func() {},
+		fileCacheConfig,
+		semaphore.NewWeighted(math.MaxInt64),
+		metrics.NewNoopMetrics(),
+		tracing.NewNoopTracer(),
+		1,
+	)
+	fileDownloadJob.ReadChunkSize = int64(128 * util.KiB)
+	cacheHandle := NewCacheHandle(fileHandle, fileDownloadJob, cht.cache, true, 0)
+	defer func() {
+		if cacheHandle.fileDownloadJob != nil {
+			cacheHandle.fileDownloadJob.Invalidate()
+		}
+	}()
+
 	dst := make([]byte, ReadContentSize)
-	offset := int64(cht.object.Size - ReadContentSize)
-	cht.cacheHandle.isSequential.Store(false)
-	cht.cacheHandle.cacheFileForRangeRead = true
+	offset := int64(3500 * util.KiB)
+	cacheHandle.isSequential.Store(false)
+	cacheHandle.cacheFileForRangeRead = true
 
 	// Since, it's a random read hence will not wait to download till requested offset.
-	n, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, offset, dst)
+	n, cacheHit, err := cacheHandle.Read(context.Background(), cht.bucket, minObj, offset, dst)
 
-	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
+	jobStatus := cacheHandle.fileDownloadJob.GetStatus()
 	assert.Less(cht.T(), jobStatus.Offset, offset)
 	assert.Equal(cht.T(), downloader.Downloading, jobStatus.Name)
 	assert.Equal(cht.T(), 0, n)
@@ -694,7 +745,7 @@ func (cht *cacheHandleTest) Test_Read_ChangeCacheOrder() {
 }
 
 func (cht *cacheHandleTest) Test_SequentialReadToRandom() {
-	objectSize := uint64(5 * util.MiB)
+	objectSize := uint64(4 * util.MiB)
 	testObjectContent := make([]byte, objectSize)
 	_, err := rand.Read(testObjectContent)
 	require.NoError(cht.T(), err)
@@ -737,7 +788,7 @@ func (cht *cacheHandleTest) Test_SequentialReadToRandom() {
 		tracing.NewNoopTracer(),
 		1,
 	)
-	fileDownloadJob.ReadChunkSize = int64(util.MiB)
+	fileDownloadJob.ReadChunkSize = int64(128 * util.KiB)
 	cacheHandle := NewCacheHandle(fileHandle, fileDownloadJob, cht.cache, true, 0)
 	defer func() {
 		if cacheHandle.fileDownloadJob != nil {
@@ -752,7 +803,7 @@ func (cht *cacheHandleTest) Test_SequentialReadToRandom() {
 	assert.False(cht.T(), cacheHit)
 	assert.True(cht.T(), cacheHandle.isSequential.Load())
 
-	secondReqOffset := int64(4 * util.MiB)
+	secondReqOffset := int64(3500 * util.KiB)
 	_, cacheHit, err = cacheHandle.Read(context.Background(), cht.bucket, minObj, secondReqOffset, dst)
 	assert.Error(cht.T(), err)
 	assert.True(cht.T(), errors.Is(err, util.ErrFallbackToGCS))
