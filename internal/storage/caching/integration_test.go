@@ -80,6 +80,47 @@ func statObject(ctx context.Context, bucket gcs.Bucket, name string) (*gcs.Objec
 	return storageutil.ConvertMinObjectToObject(m), nil
 }
 
+func TestIntegration_WindowedListingDoesNotPoisonExistingDirectory(t *testing.T) {
+	deps := setupIntegrationTest(t)
+	const dirName = "dir/"
+
+	_, err := storageutil.CreateObject(deps.ctx, deps.wrapped, dirName+"a", []byte("x"))
+	require.NoError(t, err)
+
+	// Populate a positive cache entry for the existing implicit directory.
+	listing, err := deps.bucket.ListObjects(deps.ctx, &gcs.ListObjectsRequest{
+		Prefix:    dirName,
+		Delimiter: "/",
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, listing.MinObjects)
+
+	statReq := &gcs.StatObjectRequest{
+		Name:               dirName,
+		FetchOnlyFromCache: true,
+	}
+	dir, _, err := deps.bucket.StatObject(deps.ctx, statReq)
+	require.NoError(t, err)
+	require.NotNil(t, dir)
+
+	// Model a metadata-prefetch listing whose window begins after the final
+	// child. The empty result describes only this window, not the whole prefix.
+	listing, err = deps.bucket.ListObjects(deps.ctx, &gcs.ListObjectsRequest{
+		Prefix:      dirName,
+		Delimiter:   "/",
+		StartOffset: dirName + "zzz",
+	})
+	require.NoError(t, err)
+	require.Empty(t, listing.MinObjects)
+	require.Empty(t, listing.CollapsedRuns)
+	require.Empty(t, listing.ContinuationToken)
+
+	// The implicit directory still exists and should remain positively cached.
+	dir, _, err = deps.bucket.StatObject(deps.ctx, statReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, dir)
+}
+
 func TestIntegration_CreateInsertsIntoCache(t *testing.T) {
 	deps := setupIntegrationTest(t)
 	const name = "taco"

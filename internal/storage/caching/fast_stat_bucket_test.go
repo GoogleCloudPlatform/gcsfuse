@@ -1006,6 +1006,11 @@ func (t *ListObjectsTest_InsertListing) SetUp(ti *TestInfo) {
 }
 
 func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS bool, listing *gcs.Listing, prefix string, expectedInserts []*gcs.MinObject, expectedImplicitDirs []string) {
+	expectNegativeEntry := len(listing.MinObjects) == 0 && len(listing.CollapsedRuns) == 0 && prefix != "" && listing.ContinuationToken == ""
+	t.callAndVerifyWithRequest(ctx, isHNS, listing, &gcs.ListObjectsRequest{Prefix: prefix}, expectedInserts, expectedImplicitDirs, expectNegativeEntry)
+}
+
+func (t *ListObjectsTest_InsertListing) callAndVerifyWithRequest(ctx context.Context, isHNS bool, listing *gcs.Listing, req *gcs.ListObjectsRequest, expectedInserts []*gcs.MinObject, expectedImplicitDirs []string, expectNegativeEntry bool) {
 	// Wrapped
 	ExpectCall(t.wrapped, "BucketType")().
 		WillOnce(Return(gcs.BucketType{Hierarchical: isHNS}))
@@ -1018,15 +1023,70 @@ func (t *ListObjectsTest_InsertListing) callAndVerify(ctx context.Context, isHNS
 	for _, dir := range expectedImplicitDirs {
 		ExpectCall(t.cache, "InsertImplicitDir")(dir, Any())
 	}
-	if len(listing.MinObjects) == 0 && len(listing.CollapsedRuns) == 0 && prefix != "" {
-		ExpectCall(t.cache, "AddNegativeEntry")(prefix, Any())
+	if expectNegativeEntry {
+		ExpectCall(t.cache, "AddNegativeEntry")(req.Prefix, Any())
 	}
 
 	// Call
-	gotListing, err := t.bucket.ListObjects(ctx, &gcs.ListObjectsRequest{Prefix: prefix})
+	gotListing, err := t.bucket.ListObjects(ctx, req)
 
 	AssertEq(nil, err)
 	AssertEq(listing, gotListing)
+}
+
+// An empty windowed listing (StartOffset set) covers only a slice of the
+// namespace and must not produce a negative entry for the directory.
+func (t *ListObjectsTest_InsertListing) EmptyListingWithStartOffsetDoesNotCacheNegativeEntry() {
+	listing := &gcs.Listing{}
+	req := &gcs.ListObjectsRequest{Prefix: "dir/", StartOffset: "dir/zzz"}
+
+	t.callAndVerifyWithRequest(context.TODO(), false, listing, req, nil, nil, false)
+}
+
+// An empty continuation page proves nothing about the prefix as a whole and
+// must not produce a negative entry for the directory.
+func (t *ListObjectsTest_InsertListing) EmptyListingWithRequestContinuationTokenDoesNotCacheNegativeEntry() {
+	listing := &gcs.Listing{}
+	req := &gcs.ListObjectsRequest{Prefix: "dir/", ContinuationToken: "token-from-previous-page"}
+
+	t.callAndVerifyWithRequest(context.TODO(), false, listing, req, nil, nil, false)
+}
+
+// An empty page that carries a continuation token is an incomplete listing and
+// must not produce a negative entry for the directory.
+func (t *ListObjectsTest_InsertListing) EmptyPageWithResponseContinuationTokenDoesNotCacheNegativeEntry() {
+	listing := &gcs.Listing{ContinuationToken: "next-page"}
+	req := &gcs.ListObjectsRequest{Prefix: "dir/"}
+
+	t.callAndVerifyWithRequest(context.TODO(), false, listing, req, nil, nil, false)
+}
+
+// A non-empty windowed listing (StartOffset set) must insert the returned
+// objects and still infer the parent implicit directory.
+func (t *ListObjectsTest_InsertListing) NonEmptyListingWithStartOffsetInsertsPositiveEntries() {
+	listing := &gcs.Listing{
+		MinObjects: []*gcs.MinObject{
+			{Name: "dir/c", Size: 10},
+		},
+	}
+	req := &gcs.ListObjectsRequest{
+		Prefix:      "dir/",
+		StartOffset: "dir/b",
+	}
+	expectedInserts := []*gcs.MinObject{
+		{Name: "dir/c", Size: 10},
+	}
+	expectedImplicitDirs := []string{"dir/"}
+
+	t.callAndVerifyWithRequest(
+		context.TODO(),
+		false, // isHNS
+		listing,
+		req,
+		expectedInserts,
+		expectedImplicitDirs,
+		false, // expectNegativeEntry
+	)
 }
 
 func (t *ListObjectsTest_InsertListing) EmptyListing() {
