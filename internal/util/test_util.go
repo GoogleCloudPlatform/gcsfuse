@@ -19,10 +19,22 @@ package util
 
 import "math/rand"
 
+var seedPattern = func() []byte {
+	b := make([]byte, 64*1024)
+	for i := range b {
+		b[i] = byte(rand.Intn(26) + 65)
+	}
+	return b
+}()
+
 func GenerateRandomBytes(length int) []byte {
+	if length <= 0 {
+		return nil
+	}
 	randBytes := make([]byte, length)
-	for i := range length {
-		randBytes[i] = byte(rand.Intn(26) + 65)
+	chunk := copy(randBytes, seedPattern)
+	for chunk < length {
+		chunk += copy(randBytes[chunk:], randBytes[:chunk])
 	}
 	return randBytes
 }

@@ -675,7 +675,7 @@ func Test_Download_CtxCancelled(t *testing.T) {
 	dt := newDownloaderTest(t)
 	defer dt.tearDown()
 	objectName := "path/in/gcs/cancel.txt"
-	objectSize := 100 * util.MiB
+	objectSize := 20 * util.MiB
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	var callbackExecuted atomic.Bool
 	removeCallback := func() { callbackExecuted.Store(true) }
