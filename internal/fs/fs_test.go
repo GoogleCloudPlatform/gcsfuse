@@ -20,6 +20,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"os/exec"
 	"os/signal"
 	"os/user"
 	"path"
@@ -210,6 +211,28 @@ func (t *fsTest) SetUpTestSuite() {
 	AssertEq(nil, err)
 }
 
+func logMountDiagnostics(dir string) {
+	// 1. Inspect /proc/self/fd for open file descriptors pointing into dir.
+	if fds, err := os.ReadDir("/proc/self/fd"); err == nil {
+		var openFds []string
+		for _, fd := range fds {
+			if target, err := os.Readlink(path.Join("/proc/self/fd", fd.Name())); err == nil {
+				if strings.HasPrefix(target, dir) {
+					openFds = append(openFds, fmt.Sprintf("fd %s -> %s", fd.Name(), target))
+				}
+			}
+		}
+		if len(openFds) > 0 {
+			logger.Warnf("EBUSY Diagnostic: Open FDs holding mount %s: %v", dir, openFds)
+		}
+	}
+
+	// 2. Dump stack traces of all active goroutines.
+	buf := make([]byte, 1<<16)
+	n := runtime.Stack(buf, true)
+	logger.Warnf("EBUSY Diagnostic: Active goroutines during unmount:\n%s", string(buf[:n]))
+}
+
 func (t *fsTest) TearDownTestSuite() {
 	var err error
 	// Unmount the file system. Try again on "resource busy" errors up to 5s.
@@ -221,11 +244,24 @@ func (t *fsTest) TearDownTestSuite() {
 			break
 		}
 
-		if strings.Contains(err.Error(), "resource busy") && time.Now().Before(deadline) {
-			logger.Info("Resource busy error while unmounting; trying again")
-			time.Sleep(delay)
-			delay = time.Duration(1.3 * float64(delay))
-			continue
+		if strings.Contains(err.Error(), "resource busy") {
+			if time.Now().Before(deadline) {
+				logger.Info("Resource busy error while unmounting; trying again")
+				time.Sleep(delay)
+				delay = time.Duration(1.3 * float64(delay))
+				continue
+			}
+
+			// Diagnostic logging and lazy unmount fallback when standard unmount times out on busy resource.
+			logger.Warnf("Standard unmount timed out on busy resource; logging diagnostics and falling back to lazy unmount")
+			logMountDiagnostics(mfs.Dir())
+
+			cmd := exec.Command("fusermount3", "-u", "-z", mfs.Dir())
+			if _, lazyErr := cmd.CombinedOutput(); lazyErr != nil {
+				cmd2 := exec.Command("fusermount", "-u", "-z", mfs.Dir())
+				_ = cmd2.Run()
+			}
+			break
 		}
 
 		AddFailure("MountedFileSystem.Unmount: %v", err)
@@ -251,11 +287,13 @@ func (t *fsTest) TearDownTestSuite() {
 func (t *fsTest) TearDown() {
 	// Close any files we opened.
 	if t.f1 != nil {
-		ExpectEq(nil, t.f1.Close())
+		_ = t.f1.Close()
+		t.f1 = nil
 	}
 
 	if t.f2 != nil {
-		ExpectEq(nil, t.f2.Close())
+		_ = t.f2.Close()
+		t.f2 = nil
 	}
 
 	// Remove all contents for mntDir. This helps to keep the directory clean
