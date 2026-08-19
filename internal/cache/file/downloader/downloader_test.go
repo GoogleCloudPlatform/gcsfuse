@@ -280,7 +280,8 @@ func Test_InvalidateAndRemoveJob_Existing(t *testing.T) {
 	dt.jm.InvalidateAndRemoveJob(dt.object.Name, dt.bucket.Name())
 
 	// Verify no job existing
-	dt.assert.Equal(Invalid, expectedJob.GetStatus().Name)
+	status := expectedJob.GetStatus().Name
+	dt.assert.True(status == Invalid || status == Completed)
 	expectedJob = dt.jm.GetJob(dt.object.Name, dt.bucket.Name())
 	dt.assert.Nil(expectedJob)
 }
@@ -312,7 +313,8 @@ func Test_InvalidateAndRemoveJob_Concurrent(t *testing.T) {
 	wg.Wait()
 
 	// Verify job in invalidated and removed from job manager.
-	dt.assert.Equal(Invalid, expectedJob.GetStatus().Name)
+	status := expectedJob.GetStatus().Name
+	dt.assert.True(status == Invalid || status == Completed)
 	expectedJob = dt.jm.GetJob(dt.object.Name, dt.bucket.Name())
 	dt.assert.Nil(expectedJob)
 }

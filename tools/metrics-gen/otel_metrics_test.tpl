@@ -35,10 +35,6 @@ type metricValueMap map[string]int64
 // metricHistogramMap maps attribute sets to histogram data points.
 type metricHistogramMap map[string]metricdata.HistogramDataPoint[int64]
 
-func waitForMetricsProcessing() {
-	time.Sleep(5 * time.Millisecond)
-}
-
 func setupOTel(ctx context.Context, t *testing.T) (*otelMetrics, *metric.ManualReader) {
 	t.Helper()
 	reader := metric.NewManualReader()
@@ -186,7 +182,6 @@ func Test{{toPascal .Name}}(t *testing.T) {
 			m, rd := setupOTel(ctx, t)
 
 			tc.f(m)
-			waitForMetricsProcessing()
 
 			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 			metric, ok := metrics["{{.Name}}"]
@@ -209,7 +204,6 @@ func Test{{toPascal .Name}}(t *testing.T) {
 
 	m.{{toPascal .Name}}(1024)
 	m.{{toPascal .Name}}(2048)
-	waitForMetricsProcessing()
 
 	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
 	metric, ok := metrics["{{.Name}}"]
@@ -219,7 +213,6 @@ func Test{{toPascal .Name}}(t *testing.T) {
 
 	// Test negative increment
 	m.{{toPascal .Name}}(-100)
-	waitForMetricsProcessing()
 
 	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
 	metric, ok = metrics["{{.Name}}"]
@@ -273,7 +266,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 				totalValue += value
 			}
 			{{- end}}
-			waitForMetricsProcessing()
+			m.Close()
 
 			metrics := gatherHistogramMetrics(ctx, t, rd)
 			metric, ok := metrics["{{.Name}}"]
@@ -318,7 +311,7 @@ func Test{{toPascal .Name}}(t *testing.T) {
 		totalValue += value
 	}
 	{{- end}}
-	waitForMetricsProcessing()
+	m.Close()
 
 	metrics := gatherHistogramMetrics(ctx, t, rd)
 	metric, ok := metrics["{{.Name}}"]
