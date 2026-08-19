@@ -880,7 +880,7 @@ func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 	fileInfoData := fileInfo.(data.FileInfo)
 
 	// Update the file info entry generation and again perform read
-	fileInfoData.ObjectGeneration = 1
+	fileInfoData.ObjectGeneration = cht.object.Generation + 1
 	err = cht.cache.UpdateWithoutChangingOrder(fileInfoKeyName, fileInfoData)
 	assert.Nil(cht.T(), err)
 	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)

@@ -20,6 +20,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -195,11 +196,137 @@ func (t *StressTest) TruncateFileManyTimesInParallel() {
 }
 
 func (t *StressTest) CreateInParallel_NoTruncate() {
-	fusetesting.RunCreateInParallelTest_NoTruncate(ctx, mntDir)
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
+
+	const duration = 500 * time.Millisecond
+	startTime := time.Now()
+	for time.Since(startTime) < duration {
+		filename := path.Join(mntDir, "foo")
+
+		worker := func(id byte) error {
+			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+			if err != nil {
+				if strings.Contains(err.Error(), "stale file handle") {
+					return nil
+				}
+				return fmt.Errorf("Worker %d: Open: %w", id, err)
+			}
+			defer f.Close()
+
+			if _, err := f.Write([]byte{id}); err != nil {
+				if strings.Contains(err.Error(), "stale file handle") {
+					return nil
+				}
+				return fmt.Errorf("Worker %d: Write: %w", id, err)
+			}
+
+			return nil
+		}
+
+		const numWorkers = 16
+		var wg sync.WaitGroup
+		var firstErr error
+		var errMu sync.Mutex
+		for i := 0; i < numWorkers; i++ {
+			wg.Add(1)
+			go func(id byte) {
+				defer wg.Done()
+				if err := worker(id); err != nil {
+					errMu.Lock()
+					if firstErr == nil {
+						firstErr = err
+					}
+					errMu.Unlock()
+				}
+			}(byte(i))
+		}
+		wg.Wait()
+		AssertEq(nil, firstErr)
+
+		// Read the contents of the file.
+		contents, err := os.ReadFile(filename)
+		if err == nil {
+			idsSeen := make(map[byte]struct{})
+			for _, id := range contents {
+				AssertLt(id, numWorkers)
+				if _, ok := idsSeen[id]; ok {
+					AddFailure("Duplicate ID: %d", id)
+				}
+				idsSeen[id] = struct{}{}
+			}
+		}
+
+		_ = os.Remove(filename)
+	}
 }
 
 func (t *StressTest) CreateInParallel_Truncate() {
-	fusetesting.RunCreateInParallelTest_Truncate(ctx, mntDir)
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
+
+	const duration = 500 * time.Millisecond
+	startTime := time.Now()
+	for time.Since(startTime) < duration {
+		filename := path.Join(mntDir, "foo")
+
+		worker := func(id byte) error {
+			f, err := os.OpenFile(
+				filename,
+				os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_TRUNC,
+				0600)
+			if err != nil {
+				if strings.Contains(err.Error(), "stale file handle") {
+					return nil
+				}
+				return fmt.Errorf("Worker %d: Open: %w", id, err)
+			}
+			defer f.Close()
+
+			if _, err := f.Write([]byte{id}); err != nil {
+				if strings.Contains(err.Error(), "stale file handle") {
+					return nil
+				}
+				return fmt.Errorf("Worker %d: Write: %w", id, err)
+			}
+
+			return nil
+		}
+
+		const numWorkers = 16
+		var wg sync.WaitGroup
+		var firstErr error
+		var errMu sync.Mutex
+		for i := 0; i < numWorkers; i++ {
+			wg.Add(1)
+			go func(id byte) {
+				defer wg.Done()
+				if err := worker(id); err != nil {
+					errMu.Lock()
+					if firstErr == nil {
+						firstErr = err
+					}
+					errMu.Unlock()
+				}
+			}(byte(i))
+		}
+		wg.Wait()
+		AssertEq(nil, firstErr)
+
+		contents, err := os.ReadFile(filename)
+		if err == nil {
+			idsSeen := make(map[byte]struct{})
+			for _, id := range contents {
+				AssertLt(id, numWorkers)
+				if _, ok := idsSeen[id]; ok {
+					AddFailure("Duplicate ID: %d", id)
+				}
+				idsSeen[id] = struct{}{}
+			}
+			AssertGe(len(idsSeen), 0)
+			AssertLe(len(idsSeen), numWorkers)
+		}
+
+		_ = os.Remove(filename)
+	}
 }
 
 func (t *StressTest) CreateInParallel_Exclusive() {
