@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"golang.org/x/text/cases"
@@ -43,6 +44,43 @@ type typeTemplateData struct {
 	TypeName string
 	// Fields that are to be included in the type.
 	Fields []fieldInfo
+}
+
+type protoFieldTemplateData struct {
+	ProtoType      string
+	ProtoFieldName string
+	ProtoTag       int
+}
+
+func computeProtoFields(params []Param) []protoFieldTemplateData {
+	var fields []protoFieldTemplateData
+	for _, p := range params {
+		if p.ConfigPath == "" || p.ProtoFieldName == "" || p.ProtoType == "" {
+			continue
+		}
+		fields = append(fields, protoFieldTemplateData{
+			ProtoType:      p.ProtoType,
+			ProtoFieldName: p.ProtoFieldName,
+			ProtoTag:       p.ProtoTag,
+		})
+	}
+	slices.SortFunc(fields, func(a, b protoFieldTemplateData) int {
+		return cmp.Compare(a.ProtoTag, b.ProtoTag)
+	})
+	return fields
+}
+
+func formatReservedTags(tags []int) string {
+	if len(tags) == 0 {
+		return ""
+	}
+	sorted := slices.Clone(tags)
+	slices.Sort(sorted)
+	var strTags []string
+	for _, t := range sorted {
+		strTags = append(strTags, strconv.Itoa(t))
+	}
+	return strings.Join(strTags, ", ")
 }
 
 func capitalizeIdentifier(name string) (string, error) {
@@ -84,7 +122,7 @@ func getGoDataType(dt string) string {
 }
 
 // Returns a flat list with one entry for each field that needs to be created and the corresponding type.
-// A config path of x.y.z for a param of type int would return the follow entries
+// A config path of x.y.z for a param of type int would return the following entries
 // 1. {TypeName: Config, FieldName: X, DataType: XConfig, ConfigPath: x}
 // 2. {TypeName: XConfig, FieldName: Y, DataType: YXConfig, ConfigPath: y}
 // 3. {TypeName: YXConfig, FieldName: Z, DataType: int, ConfigPath: z}
@@ -108,7 +146,6 @@ func computeFields(param Param) ([]fieldInfo, error) {
 			if err != nil {
 				return nil, err
 			}
-
 			dt = tn + typeName
 		}
 		fieldInfos = append(fieldInfos, fieldInfo{
@@ -150,11 +187,13 @@ func constructTypeTemplateData(paramsConfig []Param) ([]typeTemplateData, error)
 			return cmp.Compare(i.FieldName, j.FieldName)
 		})
 
+		// Remove duplicates.
+		compacted := slices.Compact(v)
+
 		ttd = append(ttd, typeTemplateData{
 			TypeName: k,
-			Fields:   slices.Compact(v),
-		},
-		)
+			Fields:   compacted,
+		})
 	}
 	// Sort type names for reliable ordering.
 	slices.SortFunc(ttd, func(i, j typeTemplateData) int {

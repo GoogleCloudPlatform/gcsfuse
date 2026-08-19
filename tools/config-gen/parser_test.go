@@ -326,10 +326,14 @@ params:
 		assert.Equal(t, expected, param.Optimizations)
 	})
 
-	t.Run("TestParamWithNoOptimizations", func(t *testing.T) {
+	t.Run("TestParamWithNoOptimizationsAndProtoMetadata", func(t *testing.T) {
 		param := parsedYAML.Params[0]
 		assert.Equal(t, "app-name", param.ConfigPath)
 		assert.Nil(t, param.Optimizations)
+		// Check proto metadata for a string field (privacy booleanization)
+		assert.Equal(t, "bool", param.ProtoType)
+		assert.Equal(t, "is_app_name_set", param.ProtoFieldName)
+		assert.Equal(t, 1, param.ProtoTag)
 	})
 
 	t.Run("testParamProtoTag", func(t *testing.T) {
@@ -603,18 +607,121 @@ params:
 `,
 			expectedErrorSubstring: "bucket-type list is empty",
 		},
+		{
+			name: "UnknownConfigurationType",
+			yamlContent: `
+params:
+  - config-path: "test-param"
+    proto-tag: 1
+    flag-name: "test-flag"
+    type: "unknownTypeForGoAndProto"
+    default: 500
+    usage: "Test flag for unknown type validation"
+`,
+			expectedErrorSubstring: "unsupported datatype: unknownTypeForGoAndProto",
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// ARRANGE
-
-			// ACT
 			_, err := parseParamsYAMLStr(tc.yamlContent)
-
-			// ASSERT
 			require.Error(t, err)
 			require.True(t, strings.Contains(err.Error(), tc.expectedErrorSubstring), "Expected error to contain %q, but got: %q", tc.expectedErrorSubstring, err.Error())
 		})
 	}
+}
+
+func TestPopulateProtoMetadataExhaustive(t *testing.T) {
+	yamlContent := `
+retired-params: [13, 14]
+params:
+  - config-path: "type-bool"
+    proto-tag: 1
+    flag-name: "type-bool"
+    type: "bool"
+    usage: "test"
+  - config-path: "type-direct-path-strategy"
+    proto-tag: 2
+    flag-name: "type-direct-path-strategy"
+    type: "directPathStrategy"
+    usage: "test"
+  - config-path: "type-duration"
+    proto-tag: 3
+    flag-name: "type-duration"
+    type: "duration"
+    usage: "test"
+  - config-path: "type-float"
+    proto-tag: 4
+    flag-name: "type-float"
+    type: "float64"
+    usage: "test"
+  - config-path: "type-int"
+    proto-tag: 5
+    flag-name: "type-int"
+    type: "int"
+    usage: "test"
+  - config-path: "type-log-severity"
+    proto-tag: 6
+    flag-name: "type-log-severity"
+    type: "logSeverity"
+    usage: "test"
+  - config-path: "type-octal"
+    proto-tag: 7
+    flag-name: "type-octal"
+    type: "octal"
+    usage: "test"
+  - config-path: "type-protocol"
+    proto-tag: 8
+    flag-name: "type-protocol"
+    type: "protocol"
+    usage: "test"
+  - config-path: "type-resolved-path"
+    proto-tag: 9
+    flag-name: "type-resolved-path"
+    type: "resolvedPath"
+    usage: "test"
+  - config-path: "type-slice-int"
+    proto-tag: 10
+    flag-name: "type-slice-int"
+    type: "[]int"
+    usage: "test"
+  - config-path: "type-slice-string"
+    proto-tag: 11
+    flag-name: "type-slice-string"
+    type: "[]string"
+    usage: "test"
+  - config-path: "type-string"
+    proto-tag: 12
+    flag-name: "type-string"
+    type: "string"
+    usage: "test"
+`
+	parsedYAML, err := parseParamsYAMLStr(yamlContent)
+	require.NoError(t, err)
+
+	expected := []struct {
+		protoType      string
+		protoFieldName string
+	}{
+		{"bool", "type_bool"},
+		{"string", "type_direct_path_strategy"},
+		{"int64", "type_duration"},
+		{"double", "type_float"},
+		{"int32", "type_int"},
+		{"string", "type_log_severity"},
+		{"int32", "type_octal"},
+		{"string", "type_protocol"},
+		{"bool", "is_type_resolved_path_set"},
+		{"repeated int32", "type_slice_int"},
+		{"bool", "is_type_slice_string_set"},
+		{"bool", "is_type_string_set"},
+	}
+
+	require.Len(t, parsedYAML.Params, len(expected))
+	for i, param := range parsedYAML.Params {
+		assert.Equal(t, expected[i].protoType, param.ProtoType, "Failed protoType for %s", param.FlagName)
+		assert.Equal(t, expected[i].protoFieldName, param.ProtoFieldName, "Failed protoFieldName for %s", param.FlagName)
+	}
+
+	assert.Equal(t, []int{13, 14}, parsedYAML.RetiredParams)
 }
