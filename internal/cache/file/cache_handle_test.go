@@ -805,12 +805,17 @@ func (cht *cacheHandleTest) Test_SequentialReadToRandom() {
 
 	secondReqOffset := int64(3500 * util.KiB)
 	_, cacheHit, err = cacheHandle.Read(context.Background(), cht.bucket, minObj, secondReqOffset, dst)
-	assert.Error(cht.T(), err)
-	assert.True(cht.T(), errors.Is(err, util.ErrFallbackToGCS))
-	assert.False(cht.T(), cacheHit)
-	assert.False(cht.T(), cacheHandle.isSequential.Load())
 	jobStatus := cacheHandle.fileDownloadJob.GetStatus()
-	assert.LessOrEqual(cht.T(), jobStatus.Offset, secondReqOffset)
+	if jobStatus.Offset < secondReqOffset {
+		assert.Error(cht.T(), err)
+		assert.True(cht.T(), errors.Is(err, util.ErrFallbackToGCS))
+		assert.False(cht.T(), cacheHit)
+	} else {
+		// If async download finished past secondReqOffset before the read, it is served from cache.
+		assert.NoError(cht.T(), err)
+		assert.True(cht.T(), cacheHit)
+	}
+	assert.False(cht.T(), cacheHandle.isSequential.Load())
 }
 
 func (cht *cacheHandleTest) Test_Read_WhenDstBufferIsMoreContentToBeRead() {
