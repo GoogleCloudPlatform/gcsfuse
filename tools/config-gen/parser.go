@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,10 +47,18 @@ type Param struct {
 	HideFlag           bool                      `yaml:"hide-flag"`
 	HideShorthand      bool                      `yaml:"hide-shorthand"`
 	Optimizations      *shared.OptimizationRules `yaml:"optimizations,omitempty"`
+	ProtoTag           int                       `yaml:"proto-tag"`
+}
+
+type RetiredParam struct {
+	ConfigPath string `yaml:"config-path"`
+	ProtoTag   int    `yaml:"proto-tag"`
+	Type       string `yaml:"type"`
 }
 
 // ParamsYAML mirrors the params.yaml file itself.
 type ParamsYAML struct {
+	RetiredParams     []RetiredParam      `yaml:"retired-params"`
 	Params            []Param             `yaml:"params"`
 	MachineTypeGroups map[string][]string `yaml:"machine-type-groups"`
 }
@@ -67,7 +75,89 @@ func parseParamsYAMLStr(paramsYAMLStr string) (paramsYAML ParamsYAML, err error)
 	if err = validateMachineTypeGroups(paramsYAML.MachineTypeGroups); err != nil {
 		return ParamsYAML{}, err
 	}
+	if err = validateProtoTags(paramsYAML.Params, paramsYAML.RetiredParams); err != nil {
+		return ParamsYAML{}, err
+	}
 	return paramsYAML, nil
+}
+
+var supportedDataTypes = []string{
+	"int", "float64", "bool", "string", "duration", "octal", "[]int",
+	"[]string", "logSeverity", "protocol", "resolvedPath", "directPathStrategy",
+}
+
+func isValidDataType(dt string) bool {
+	return slices.Contains(supportedDataTypes, dt)
+}
+
+func validateRetiredParam(p RetiredParam) error {
+	if p.ConfigPath == "" {
+		return fmt.Errorf("config-path cannot be empty for retired-param")
+	}
+	if p.ProtoTag <= 0 {
+		return fmt.Errorf("retired-param %q has invalid proto-tag %d (must be > 0)", p.ConfigPath, p.ProtoTag)
+	}
+	if p.Type == "" {
+		return fmt.Errorf("type cannot be empty for retired-param %q", p.ConfigPath)
+	}
+	if !isValidDataType(p.Type) {
+		return fmt.Errorf("unsupported datatype: %s for retired-param %q", p.Type, p.ConfigPath)
+	}
+	return nil
+}
+
+func validateProtoTags(params []Param, retiredParams []RetiredParam) error {
+	assignedTagsMap := make(map[int]string, len(params)+len(retiredParams))
+	maxTag := 0
+
+	// 1. Validate retired params.
+	for _, rp := range retiredParams {
+		if err := validateRetiredParam(rp); err != nil {
+			return err
+		}
+		tag := rp.ProtoTag
+		if conflictingParam, exists := assignedTagsMap[tag]; exists {
+			return fmt.Errorf("duplicate proto-tag %d found for retired-param %q and %q", tag, rp.ConfigPath, conflictingParam)
+		}
+		assignedTagsMap[tag] = fmt.Sprintf("retired-param %s", rp.ConfigPath)
+		if tag > maxTag {
+			maxTag = tag
+		}
+	}
+
+	// 2. Validate active params.
+	for _, param := range params {
+		if param.ConfigPath == "" {
+			if param.ProtoTag != 0 {
+				return fmt.Errorf("parameter %q without config-path must not have proto-tag set", param.FlagName)
+			}
+			continue
+		}
+
+		tag := param.ProtoTag
+		if tag <= 0 {
+			return fmt.Errorf("parameter %q with config-path %q has invalid proto-tag %d (must be > 0)", param.FlagName, param.ConfigPath, tag)
+		}
+
+		if conflictingParam, exists := assignedTagsMap[tag]; exists {
+			return fmt.Errorf("duplicate proto-tag %d found for parameter %q and %q", tag, param.FlagName, conflictingParam)
+		}
+		assignedTagsMap[tag] = param.FlagName
+		if tag > maxTag {
+			maxTag = tag
+		}
+	}
+
+	// 3. Contiguity check: ensure all tags from 1 to maxTag are accounted for.
+	if len(assignedTagsMap) != maxTag {
+		for tag := 1; tag <= len(assignedTagsMap)+1; tag++ {
+			if _, isAssigned := assignedTagsMap[tag]; !isAssigned {
+				return fmt.Errorf("missing proto-tag %d in sequence 1..%d", tag, maxTag)
+			}
+		}
+	}
+
+	return nil
 }
 
 func parseParamsYAML() (ParamsYAML, error) {
@@ -114,14 +204,7 @@ func validateParam(param Param) error {
 	}
 
 	// Validate the data type.
-	idx := slices.IndexFunc(
-		[]string{"int", "float64", "bool", "string", "duration", "octal", "[]int",
-			"[]string", "logSeverity", "protocol", "resolvedPath", "directPathStrategy"},
-		func(dt string) bool {
-			return dt == param.Type
-		},
-	)
-	if idx == -1 {
+	if !isValidDataType(param.Type) {
 		return fmt.Errorf("unsupported datatype: %s", param.Type)
 	}
 
