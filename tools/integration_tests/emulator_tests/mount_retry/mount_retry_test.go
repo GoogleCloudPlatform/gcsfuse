@@ -94,46 +94,13 @@ func newMountRetryBase(bucketName string, flags []string, configFileName string,
 	}
 }
 
-// --- HNS (gRPC) Test Suites ---
-
-type permissionDenied403HNSSuite struct{ mountRetryBase }
-
-// TestMountSucceedsWithTransient403PermissionDenied_HNS verifies that GCSFuse mount
-// completes successfully even when HTTP 403 / gRPC PermissionDenied error is returned
-// during initial GetStorageLayout calls, proving that ShouldRetryOnMount correctly
-// retries and recovers after 1 attempt.
-func (s *permissionDenied403HNSSuite) TestMountSucceedsWithTransient403PermissionDenied_HNS() {
-	s.verifyMountedDirectory("retry_folder_hns_403")
+type mountRetrySuite struct {
+	mountRetryBase
+	folderName string
 }
 
-type bucketDoesNotExist404HNSSuite struct{ mountRetryBase }
-
-// TestMountSucceedsWithTransient404BucketDoesNotExist_HNS verifies that GCSFuse mount
-// completes successfully even when HTTP 404 / gRPC NotFound (bucket does not exist)
-// error is returned during initial GetStorageLayout calls, proving that ShouldRetryOnMount
-// correctly retries and recovers after 1 attempt.
-func (s *bucketDoesNotExist404HNSSuite) TestMountSucceedsWithTransient404BucketDoesNotExist_HNS() {
-	s.verifyMountedDirectory("retry_folder_hns_404")
-}
-
-// --- Non-HNS (HTTP) Test Suites ---
-
-type permissionDenied403NonHNSSuite struct{ mountRetryBase }
-
-// TestMountSucceedsWithTransient403PermissionDenied_NonHNS verifies that GCSFuse mount
-// completes successfully even when HTTP 403 error is returned during initial Attrs calls
-// in verifyNonHNSBucketAccess, proving that ShouldRetryOnMount correctly retries and recovers after 1 attempt.
-func (s *permissionDenied403NonHNSSuite) TestMountSucceedsWithTransient403PermissionDenied_NonHNS() {
-	s.verifyMountedDirectory("retry_folder_non_hns_403")
-}
-
-type bucketDoesNotExist404NonHNSSuite struct{ mountRetryBase }
-
-// TestMountSucceedsWithTransient404BucketDoesNotExist_NonHNS verifies that GCSFuse mount
-// completes successfully even when HTTP 404 (bucket does not exist) error is returned during initial Attrs calls
-// in verifyNonHNSBucketAccess, proving that ShouldRetryOnMount correctly retries and recovers after 1 attempt.
-func (s *bucketDoesNotExist404NonHNSSuite) TestMountSucceedsWithTransient404BucketDoesNotExist_NonHNS() {
-	s.verifyMountedDirectory("retry_folder_non_hns_404")
+func (s *mountRetrySuite) TestMountSucceeds() {
+	s.verifyMountedDirectory(s.folderName)
 }
 
 const (
@@ -141,56 +108,79 @@ const (
 	nonHnsBucket = "test-bucket"
 )
 
-func TestMountRetry(t *testing.T) {
-	hnsFlags := []string{
+var (
+	hnsFlags = []string{
 		"--enable-mount-retries=true",
 		"--client-protocol=grpc",
 		"--metadata-cache-ttl-secs=0",
 	}
 
-	nonHnsFlags := []string{
+	nonHnsFlags = []string{
 		"--enable-mount-retries=true",
 		"--enable-hns=false",
 		"--client-protocol=http1",
 		"--metadata-cache-ttl-secs=0",
 	}
+)
 
-	suites := []suite.TestingSuite{
-		&permissionDenied403HNSSuite{
-			mountRetryBase: newMountRetryBase(
-				hnsBucket,
-				hnsFlags,
-				"../configs/mount_retry_403.yaml",
-				false,
-			),
-		},
-		&bucketDoesNotExist404HNSSuite{
-			mountRetryBase: newMountRetryBase(
-				hnsBucket,
-				hnsFlags,
-				"../configs/mount_retry_404_bucket_not_found.yaml",
-				false,
-			),
-		},
-		&permissionDenied403NonHNSSuite{
-			mountRetryBase: newMountRetryBase(
-				nonHnsBucket,
-				nonHnsFlags,
-				"../configs/mount_retry_non_hns_403.yaml",
-				true,
-			),
-		},
-		&bucketDoesNotExist404NonHNSSuite{
-			mountRetryBase: newMountRetryBase(
-				nonHnsBucket,
-				nonHnsFlags,
-				"../configs/mount_retry_non_hns_404_bucket_not_found.yaml",
-				true,
-			),
-		},
-	}
+// TestMountSucceedsWithTransient403PermissionDenied_HNS verifies that GCSFuse mount
+// completes successfully even when HTTP 403 / gRPC PermissionDenied error is returned
+// during initial GetStorageLayout calls, proving that ShouldRetryOnMount correctly
+// retries and recovers after 1 attempt.
+func TestMountSucceedsWithTransient403PermissionDenied_HNS(t *testing.T) {
+	suite.Run(t, &mountRetrySuite{
+		mountRetryBase: newMountRetryBase(
+			hnsBucket,
+			hnsFlags,
+			"../configs/mount_retry_403.yaml",
+			false,
+		),
+		folderName: "retry_folder_hns_403",
+	})
+}
 
-	for _, s := range suites {
-		suite.Run(t, s)
-	}
+// TestMountSucceedsWithTransient404BucketDoesNotExist_HNS verifies that GCSFuse mount
+// completes successfully even when HTTP 404 / gRPC NotFound (bucket does not exist)
+// error is returned during initial GetStorageLayout calls, proving that ShouldRetryOnMount
+// correctly retries and recovers after 1 attempt.
+func TestMountSucceedsWithTransient404BucketDoesNotExist_HNS(t *testing.T) {
+	suite.Run(t, &mountRetrySuite{
+		mountRetryBase: newMountRetryBase(
+			hnsBucket,
+			hnsFlags,
+			"../configs/mount_retry_404_bucket_not_found.yaml",
+			false,
+		),
+		folderName: "retry_folder_hns_404",
+	})
+}
+
+// TestMountSucceedsWithTransient403PermissionDenied_NonHNS verifies that GCSFuse mount
+// completes successfully even when HTTP 403 error is returned during initial Attrs calls
+// in verifyNonHNSBucketAccess, proving that ShouldRetryOnMount correctly retries and recovers after 1 attempt.
+func TestMountSucceedsWithTransient403PermissionDenied_NonHNS(t *testing.T) {
+	suite.Run(t, &mountRetrySuite{
+		mountRetryBase: newMountRetryBase(
+			nonHnsBucket,
+			nonHnsFlags,
+			"../configs/mount_retry_non_hns_403.yaml",
+			true,
+		),
+		folderName: "retry_folder_non_hns_403",
+	})
+}
+
+// TestMountSucceedsWithTransient404BucketDoesNotExist_NonHNS verifies that GCSFuse mount
+// completes successfully even when HTTP 404 (bucket does not exist) error is returned during initial Attrs calls
+// in verifyNonHNSBucketAccess, proving that ShouldRetryOnMount correctly retries and recovers after 1 attempt.
+func TestMountSucceedsWithTransient404BucketDoesNotExist_NonHNS(t *testing.T) {
+	suite.Run(t, &mountRetrySuite{
+		mountRetryBase: newMountRetryBase(
+			nonHnsBucket,
+			nonHnsFlags,
+			"../configs/mount_retry_non_hns_404_bucket_not_found.yaml",
+			true,
+		),
+		folderName: "retry_folder_non_hns_404",
+	})
 }
