@@ -36,8 +36,8 @@ jobs:
         with:
           go-version-file: '.go-version'
           cache: true
-      - name: Install fuse
-        run: sudo apt-get install -y --no-install-recommends fuse3 libfuse-dev || (sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev)
+      - name: Ensure fuse3
+        run: which fusermount3 || which fusermount || (sudo apt-get update && sudo apt-get install -y --no-install-recommends fuse3)
       - name: Download dependencies
         run: go mod download
 
