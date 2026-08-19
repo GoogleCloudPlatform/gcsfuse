@@ -43,14 +43,66 @@ jobs:
 
       - name: Test all
         run: |
-          COUNT="${{ inputs.count || (github.event_name == 'push' && '5' || '10') }}"
+          COUNT="10"
           PKGS="${{ inputs.packages }}"
           if [ -z "$PKGS" ]; then
             PKGS=$(go list ./... | grep -v 'tools/integration_tests' | grep -v 'tools/build_gcsfuse')
           fi
-          CGO_ENABLED=0 go test -timeout 8m -p 4 -count $COUNT -skip "$(cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go)" $PKGS
+
+          SKIP_FLAG="$(cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go)"
+          FAILED_PKGS=()
+
+          for pkg in $PKGS; do
+            echo "::group::Testing $pkg"
+            START_TIME=$(date +%s)
+            if ! CGO_ENABLED=0 go test -timeout 5m -count $COUNT -skip "$SKIP_FLAG" "$pkg"; then
+              echo "::endgroup::"
+              echo "::error::❌ FAILED: $pkg"
+              FAILED_PKGS+=("$pkg")
+            else
+              DURATION=$(( $(date +%s) - START_TIME ))
+              echo "::endgroup::"
+              echo "✅ Passed: $pkg (${DURATION}s)"
+            fi
+          done
+
+          if [ ${#FAILED_PKGS[@]} -ne 0 ]; then
+            echo "=========================================="
+            echo "❌ FAILED PACKAGES (${#FAILED_PKGS[@]}):"
+            for failed in "${FAILED_PKGS[@]}"; do
+              echo "  - $failed"
+            done
+            echo "=========================================="
+            exit 1
+          fi
 
       - name: RaceDetector Test
         run: |
-          COUNT="${{ inputs.count || (github.event_name == 'push' && '5' || '10') }}"
-          CGO_ENABLED=0 go test -timeout 8m -p 4 -count $COUNT ./internal/cache/... ./internal/gcsx/...
+          COUNT="10"
+          PKGS=$(go list ./internal/cache/... ./internal/gcsx/...)
+          FAILED_PKGS=()
+
+          for pkg in $PKGS; do
+            echo "::group::Testing $pkg"
+            START_TIME=$(date +%s)
+            if ! CGO_ENABLED=0 go test -timeout 5m -count $COUNT "$pkg"; then
+              echo "::endgroup::"
+              echo "::error::❌ FAILED: $pkg"
+              FAILED_PKGS+=("$pkg")
+            else
+              DURATION=$(( $(date +%s) - START_TIME ))
+              echo "::endgroup::"
+              echo "✅ Passed: $pkg (${DURATION}s)"
+            fi
+          done
+
+          if [ ${#FAILED_PKGS[@]} -ne 0 ]; then
+            echo "=========================================="
+            echo "❌ FAILED PACKAGES in RaceDetector Test (${#FAILED_PKGS[@]}):"
+            for failed in "${FAILED_PKGS[@]}"; do
+              echo "  - $failed"
+            done
+            echo "=========================================="
+            exit 1
+          fi
+
