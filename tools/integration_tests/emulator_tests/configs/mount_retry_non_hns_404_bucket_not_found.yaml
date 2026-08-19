@@ -1,0 +1,6 @@
+targetHost: http://localhost:9000
+retryConfig:
+- method: JsonStat
+  retryInstruction: "return-404-bucket-does-not-exist"
+  retryCount: 1
+  skipCount: 0
