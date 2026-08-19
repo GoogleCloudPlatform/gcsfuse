@@ -57,15 +57,15 @@ jobs:
           FAILED_PKGS=()
 
           for pkg in $PKGS; do
-            echo "::group::Testing $pkg"
             START_TIME=$(date +%s)
-            if ! CGO_ENABLED=0 go test -timeout 5m -count $COUNT -skip "$SKIP_FLAG" "$pkg"; then
+            if ! OUTPUT=$(CGO_ENABLED=0 go test -timeout 5m -count $COUNT -skip "$SKIP_FLAG" "$pkg" 2>&1); then
+              echo "::group::❌ FAILED: $pkg"
+              echo "$OUTPUT"
               echo "::endgroup::"
               echo "::error::❌ FAILED: $pkg"
               FAILED_PKGS+=("$pkg")
             else
               DURATION=$(( $(date +%s) - START_TIME ))
-              echo "::endgroup::"
               echo "✅ Passed: $pkg (${DURATION}s)"
             fi
           done
@@ -87,15 +87,15 @@ jobs:
           FAILED_PKGS=()
 
           for pkg in $PKGS; do
-            echo "::group::Testing $pkg"
             START_TIME=$(date +%s)
-            if ! CGO_ENABLED=0 go test -timeout 5m -count $COUNT "$pkg"; then
+            if ! OUTPUT=$(CGO_ENABLED=0 go test -timeout 5m -count $COUNT "$pkg" 2>&1); then
+              echo "::group::❌ FAILED: $pkg"
+              echo "$OUTPUT"
               echo "::endgroup::"
               echo "::error::❌ FAILED: $pkg"
               FAILED_PKGS+=("$pkg")
             else
               DURATION=$(( $(date +%s) - START_TIME ))
-              echo "::endgroup::"
               echo "✅ Passed: $pkg (${DURATION}s)"
             fi
           done

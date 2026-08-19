@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"reflect"
 	"strings"
 	"testing"
@@ -181,7 +180,9 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 	// Create the bucket.
 	t.bucket = storage.NewMockBucket(ti.MockController, "bucket")
 
-	t.cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
+	var err error
+	t.cacheDir, err = os.MkdirTemp("", "random_reader_cache_*")
+	AssertEq(nil, err)
 	lruCache := lru.NewCache(cacheMaxSize)
 	fileCacheConfig := &cfg.FileCacheConfig{
 		EnableCrc: false,
@@ -197,6 +198,7 @@ func (t *RandomReaderTest) SetUp(ti *TestInfo) {
 
 func (t *RandomReaderTest) TearDown() {
 	t.rr.Destroy()
+	os.RemoveAll(t.cacheDir)
 }
 
 func (t *RandomReaderTest) mockNewReaderWithHandleCallForTestBucket(start uint64, limit uint64, rd gcs.StorageReader) {

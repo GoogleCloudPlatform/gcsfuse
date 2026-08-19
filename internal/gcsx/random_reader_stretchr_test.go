@@ -18,8 +18,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"os"
-	"path"
 	"strings"
 	"sync"
 	"testing"
@@ -73,7 +71,7 @@ func (t *RandomReaderStretchrTest) SetupTest() {
 	// Create the bucket.
 	t.mockBucket = new(storage.TestifyMockBucket)
 
-	t.cacheDir = path.Join(os.Getenv("HOME"), "cache/dir")
+	t.cacheDir = t.T().TempDir()
 	lruCache := lru.NewCache(cacheMaxSize)
 	fileCacheConfig := &cfg.FileCacheConfig{
 		EnableCrc: false,

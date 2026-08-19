@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -875,6 +876,17 @@ func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 	assert.False(cht.T(), cacheHit)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	assert.GreaterOrEqual(cht.T(), jobStatus.Offset, int64(ReadContentSize))
+
+	// Wait for initial download to finish so its completion callback does not overwrite the modified cache generation.
+	for {
+		status := cht.cacheHandle.fileDownloadJob.GetStatus()
+		if status.Name == downloader.Completed || status.Name == downloader.Invalid {
+			break
+		}
+		time.Sleep(1 * time.Millisecond)
+	}
+	cht.cacheHandle.fileDownloadJob = nil
+
 	fileInfoKey := data.FileInfoKey{
 		BucketName: cht.bucket.Name(),
 		ObjectName: cht.object.Name,
