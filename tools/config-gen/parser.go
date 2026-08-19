@@ -48,6 +48,8 @@ type Param struct {
 	HideShorthand      bool                      `yaml:"hide-shorthand"`
 	Optimizations      *shared.OptimizationRules `yaml:"optimizations,omitempty"`
 	ProtoTag           int                       `yaml:"proto-tag"`
+	ProtoType          string                    `yaml:"-"`
+	ProtoFieldName     string                    `yaml:"-"`
 }
 
 // ParamsYAML mirrors the params.yaml file itself.
@@ -72,6 +74,9 @@ func parseParamsYAMLStr(paramsYAMLStr string) (paramsYAML ParamsYAML, err error)
 	if err = validateProtoTags(paramsYAML.Params, paramsYAML.RetiredParams); err != nil {
 		return ParamsYAML{}, err
 	}
+	if err = populateProtoMetadata(paramsYAML.Params); err != nil {
+		return ParamsYAML{}, err
+	}
 	return paramsYAML, nil
 }
 
@@ -82,6 +87,52 @@ var supportedDataTypes = []string{
 
 func isValidDataType(dt string) bool {
 	return slices.Contains(supportedDataTypes, dt)
+}
+
+var highRiskTextTypes = map[string]bool{
+	"string":       true,
+	"resolvedPath": true,
+	"[]string":     true,
+}
+
+func computeProtoMetadata(configPath string, paramType string) (protoType, protoFieldName string, err error) {
+	name := strings.ReplaceAll(strings.ReplaceAll(configPath, ".", "_"), "-", "_")
+	if highRiskTextTypes[paramType] {
+		return "bool", fmt.Sprintf("is_%s_set", name), nil
+	}
+	switch paramType {
+	case "bool":
+		return "bool", name, nil
+	case "int", "octal":
+		return "int32", name, nil
+	case "duration":
+		return "int64", name, nil // Mapped as nanoseconds
+	case "float64":
+		return "double", name, nil
+	case "protocol", "directPathStrategy", "logSeverity":
+		return "string", name, nil
+	case "[]int":
+		return "repeated int32", name, nil
+	default:
+		return "", "", fmt.Errorf("unknown configuration type [%s] declared for config-path [%s]", paramType, configPath)
+	}
+}
+
+// populateProtoMetadata maps YAML types to Flat Protobuf types, converting high-risk text strings to booleans for telemetry privacy.
+func populateProtoMetadata(params []Param) error {
+	for i := range params {
+		param := &params[i]
+		if param.ConfigPath == "" {
+			continue
+		}
+		pt, pn, err := computeProtoMetadata(param.ConfigPath, param.Type)
+		if err != nil {
+			return err
+		}
+		param.ProtoType = pt
+		param.ProtoFieldName = pn
+	}
+	return nil
 }
 
 func validateProtoTags(params []Param, retiredTags []int) error {
@@ -182,7 +233,14 @@ func validateParam(param Param) error {
 	}
 
 	// Validate the data type.
-	if !isValidDataType(param.Type) {
+	idx := slices.IndexFunc(
+		[]string{"int", "float64", "bool", "string", "duration", "octal", "[]int",
+			"[]string", "logSeverity", "protocol", "resolvedPath", "directPathStrategy"},
+		func(dt string) bool {
+			return dt == param.Type
+		},
+	)
+	if idx == -1 {
 		return fmt.Errorf("unsupported datatype: %s", param.Type)
 	}
 
