@@ -1389,6 +1389,9 @@ params:
           value: false
         - bucket-type: "pirlo"
           value: true
+      profiles:
+        - name: "aiml-checkpointing"
+          value: true
 
   - config-path: "write.global-max-blocks"
     flag-name: "write-global-max-blocks"
