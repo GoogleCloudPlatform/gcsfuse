@@ -63,7 +63,7 @@ jobs:
             local start=$(date +%s)
             local out_file="$TMP_DIR/$(echo -n "$pkg" | tr '/.' '__').out"
             
-            if ! CGO_ENABLED=0 go test -timeout 5m -count "$COUNT" -skip "$SKIP_FLAG" "$pkg" > "$out_file" 2>&1; then
+            if ! CGO_ENABLED=0 go test -timeout 5m -count "$COUNT" -skip "$SKIP_FLAG" "$pkg" </dev/null > "$out_file" 2>&1; then
               local dur=$(( $(date +%s) - start ))
               echo "::group::❌ FAILED: $pkg"
               cat "$out_file"
@@ -80,7 +80,8 @@ jobs:
           export -f run_pkg
           export TMP_DIR FAILED_FILE COUNT SKIP_FLAG
 
-          echo "$PKGS" | tr ' ' '\n' | xargs -P 4 -I {} bash -c 'run_pkg "$@"' _ {}
+          echo "$PKGS" | tr ' ' '\n' | grep -v '^$' > "$TMP_DIR/pkg_list"
+          xargs -P 4 -a "$TMP_DIR/pkg_list" -I {} bash -c 'run_pkg "$@"' _ {}
 
           if [ -s "$FAILED_FILE" ]; then
             echo "=========================================="
@@ -105,7 +106,7 @@ jobs:
             local start=$(date +%s)
             local out_file="$TMP_DIR/$(echo -n "$pkg" | tr '/.' '__').out"
             
-            if ! go test -race -timeout 5m -count "$COUNT" "$pkg" > "$out_file" 2>&1; then
+            if ! go test -race -timeout 5m -count "$COUNT" "$pkg" </dev/null > "$out_file" 2>&1; then
               local dur=$(( $(date +%s) - start ))
               echo "::group::❌ FAILED: $pkg"
               cat "$out_file"
@@ -122,7 +123,8 @@ jobs:
           export -f run_race_pkg
           export TMP_DIR FAILED_FILE COUNT
 
-          echo "$PKGS" | tr ' ' '\n' | xargs -P 2 -I {} bash -c 'run_race_pkg "$@"' _ {}
+          echo "$PKGS" | tr ' ' '\n' | grep -v '^$' > "$TMP_DIR/race_pkg_list"
+          xargs -P 2 -a "$TMP_DIR/race_pkg_list" -I {} bash -c 'run_race_pkg "$@"' _ {}
 
           if [ -s "$FAILED_FILE" ]; then
             echo "=========================================="
