@@ -54,61 +54,83 @@ jobs:
           fi
 
           SKIP_FLAG="$(cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go)"
-          FAILED_PKGS=()
+          TMP_DIR=$(mktemp -d)
+          FAILED_FILE="$TMP_DIR/failed_pkgs"
+          touch "$FAILED_FILE"
 
-          for pkg in $PKGS; do
-            START_TIME=$(date +%s)
-            echo "▶️ Running: $pkg ..."
-            if ! OUTPUT=$(CGO_ENABLED=0 go test -timeout 5m -count $COUNT -skip "$SKIP_FLAG" "$pkg" 2>&1); then
+          run_pkg() {
+            local pkg="$1"
+            local start=$(date +%s)
+            local out_file="$TMP_DIR/$(echo -n "$pkg" | tr '/.' '__').out"
+            
+            if ! CGO_ENABLED=0 go test -timeout 5m -count "$COUNT" -skip "$SKIP_FLAG" "$pkg" > "$out_file" 2>&1; then
+              local dur=$(( $(date +%s) - start ))
               echo "::group::❌ FAILED: $pkg"
-              echo "$OUTPUT"
+              cat "$out_file"
               echo "::endgroup::"
               echo "::error::❌ FAILED: $pkg"
-              FAILED_PKGS+=("$pkg")
+              echo "$pkg" >> "$FAILED_FILE"
             else
-              DURATION=$(( $(date +%s) - START_TIME ))
-              echo "✅ Passed: $pkg (${DURATION}s)"
+              local dur=$(( $(date +%s) - start ))
+              echo "✅ Passed: $pkg (${dur}s)"
             fi
-          done
+            rm -f "$out_file"
+          }
 
-          if [ ${#FAILED_PKGS[@]} -ne 0 ]; then
+          export -f run_pkg
+          export TMP_DIR FAILED_FILE COUNT SKIP_FLAG
+
+          echo "$PKGS" | tr ' ' '\n' | xargs -P 4 -I {} bash -c 'run_pkg "$@"' _ {}
+
+          if [ -s "$FAILED_FILE" ]; then
             echo "=========================================="
-            echo "❌ FAILED PACKAGES (${#FAILED_PKGS[@]}):"
-            for failed in "${FAILED_PKGS[@]}"; do
-              echo "  - $failed"
-            done
+            echo "❌ FAILED PACKAGES:"
+            cat "$FAILED_FILE"
             echo "=========================================="
+            rm -rf "$TMP_DIR"
             exit 1
           fi
+          rm -rf "$TMP_DIR"
 
       - name: RaceDetector Test
         run: |
           COUNT="10"
           PKGS=$(go list ./internal/cache/... ./internal/gcsx/...)
-          FAILED_PKGS=()
+          TMP_DIR=$(mktemp -d)
+          FAILED_FILE="$TMP_DIR/failed_pkgs"
+          touch "$FAILED_FILE"
 
-          for pkg in $PKGS; do
-            START_TIME=$(date +%s)
-            echo "▶️ Running RaceDetector: $pkg ..."
-            if ! OUTPUT=$(CGO_ENABLED=0 go test -timeout 5m -count $COUNT "$pkg" 2>&1); then
+          run_race_pkg() {
+            local pkg="$1"
+            local start=$(date +%s)
+            local out_file="$TMP_DIR/$(echo -n "$pkg" | tr '/.' '__').out"
+            
+            if ! go test -race -timeout 5m -count "$COUNT" "$pkg" > "$out_file" 2>&1; then
+              local dur=$(( $(date +%s) - start ))
               echo "::group::❌ FAILED: $pkg"
-              echo "$OUTPUT"
+              cat "$out_file"
               echo "::endgroup::"
               echo "::error::❌ FAILED: $pkg"
-              FAILED_PKGS+=("$pkg")
+              echo "$pkg" >> "$FAILED_FILE"
             else
-              DURATION=$(( $(date +%s) - START_TIME ))
-              echo "✅ Passed: $pkg (${DURATION}s)"
+              local dur=$(( $(date +%s) - start ))
+              echo "✅ Passed: $pkg (${dur}s)"
             fi
-          done
+            rm -f "$out_file"
+          }
 
-          if [ ${#FAILED_PKGS[@]} -ne 0 ]; then
+          export -f run_race_pkg
+          export TMP_DIR FAILED_FILE COUNT
+
+          echo "$PKGS" | tr ' ' '\n' | xargs -P 4 -I {} bash -c 'run_race_pkg "$@"' _ {}
+
+          if [ -s "$FAILED_FILE" ]; then
             echo "=========================================="
-            echo "❌ FAILED PACKAGES in RaceDetector Test (${#FAILED_PKGS[@]}):"
-            for failed in "${FAILED_PKGS[@]}"; do
-              echo "  - $failed"
-            done
+            echo "❌ FAILED PACKAGES in RaceDetector Test:"
+            cat "$FAILED_FILE"
             echo "=========================================="
+            rm -rf "$TMP_DIR"
             exit 1
           fi
+          rm -rf "$TMP_DIR"
 
