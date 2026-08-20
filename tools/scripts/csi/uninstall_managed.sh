@@ -68,6 +68,6 @@ echo "Uninstalling GKE managed Cloud Storage FUSE CSI driver..."
 gcloud container clusters update "${CLUSTER_NAME}" \
   --location="${CLUSTER_LOCATION}" \
   --project="${CLUSTER_PROJECT}" \
-  --no-enable-gcs-fuse-csi-driver
+  --update-addons=GcsFuseCsiDriver=DISABLED
 
 echo "GKE Managed Cloud Storage FUSE CSI driver successfully uninstalled."
