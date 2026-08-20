@@ -632,6 +632,70 @@ func (testSuite *StorageHandleTest) TestNewStorageHandleWithGRPCClientProtocol()
 	assert.NotNil(testSuite.T(), storageClient)
 }
 
+func (testSuite *StorageHandleTest) executeGRPCDirectPathFallbackTest(bucketType gcs.BucketType, strategy cfg.DirectPathStrategy) (bh *bucketHandle, sClient *storageClient, err error) {
+	// Save original timeout and restore it after test.
+	origTimeout := directPathDetectionTimeout
+	directPathDetectionTimeout = 10 * time.Millisecond
+	defer func() { directPathDetectionTimeout = origTimeout }()
+
+	// Common config for GRPC testing.
+	sc := storageutil.GetDefaultStorageClientConfig("")
+	sc.ClientProtocol = cfg.GRPC
+	sc.CustomEndpoint = "localhost:1" // Dummy endpoint to force failure
+	sc.AnonymousAccess = true
+	sc.EnableHNS = false
+	sc.GrpcPathStrategy = strategy
+
+	// Re-create mock client to reset expectations.
+	testSuite.mockClient = new(MockStorageControlClient)
+	// Mock storage layout.
+	testSuite.mockStorageLayout(bucketType)
+
+	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
+	require.Nil(testSuite.T(), err)
+	require.NotNil(testSuite.T(), sh)
+
+	// Inject mock control client.
+	var ok bool
+	sClient, ok = sh.(*storageClient)
+	require.True(testSuite.T(), ok)
+	sClient.storageControlClient = testSuite.mockClient
+
+	bh, err = sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+	return bh, sClient, err
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_GRPCDirectPathFallback_RapidBucketSucceeds() {
+	bucketType := gcs.BucketType{Zonal: true}
+
+	bh, sClient, err := testSuite.executeGRPCDirectPathFallbackTest(bucketType, cfg.DirectPathOnly)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), bh)
+	assert.NotNil(testSuite.T(), sClient.grpcClientWithBidiConfig)
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_GRPCDirectPathFallback_NonRapidBucketFails() {
+	bucketType := gcs.BucketType{}
+
+	bh, _, err := testSuite.executeGRPCDirectPathFallbackTest(bucketType, cfg.DirectPathOnly)
+
+	assert.NotNil(testSuite.T(), err)
+	assert.Nil(testSuite.T(), bh)
+	assert.Contains(testSuite.T(), err.Error(), "DirectPath verification failed")
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_GRPCDirectPathFallback_NonRapidBucketFallsBackToHTTP() {
+	bucketType := gcs.BucketType{}
+
+	bh, sClient, err := testSuite.executeGRPCDirectPathFallbackTest(bucketType, cfg.DirectPathWithFallback)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), bh)
+	assert.NotNil(testSuite.T(), sClient.httpClient)
+	assert.Nil(testSuite.T(), sClient.grpcClient)
+}
+
 func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithReadStallRetry() {
 	testCases := []struct {
 		name                 string
