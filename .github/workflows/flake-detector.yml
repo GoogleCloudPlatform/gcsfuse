@@ -56,32 +56,63 @@ jobs:
           SKIP_FLAG="$(cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go)"
           TMP_DIR=$(mktemp -d)
           FAILED_FILE="$TMP_DIR/failed_pkgs"
+          COMPLETED_DIR="$TMP_DIR/completed"
+          SUMMARY_FILE="$TMP_DIR/summary.md"
+          mkdir -p "$COMPLETED_DIR"
           touch "$FAILED_FILE"
+
+          echo "$PKGS" | tr ' ' '\n' | grep -v '^$' > "$TMP_DIR/pkg_list"
+          sed 's|^github.com/googlecloudplatform/gcsfuse/v3/||' "$TMP_DIR/pkg_list" | sort > "$TMP_DIR/all_short_pkgs"
+          TOTAL=$(wc -l < "$TMP_DIR/pkg_list")
+
+          echo "## 🧪 Unit Test Execution ($TOTAL Packages, Parallel: 4)" >> "$SUMMARY_FILE"
+          echo "| Status | Package | Duration |" >> "$SUMMARY_FILE"
+          echo "|---|---|---|" >> "$SUMMARY_FILE"
 
           run_pkg() {
             local pkg="$1"
+            local short_pkg="${pkg#github.com/googlecloudplatform/gcsfuse/v3/}"
             local start=$(date +%s)
-            local out_file="$TMP_DIR/$(echo -n "$pkg" | tr '/.' '__').out"
+            local key="$(echo -n "$short_pkg" | tr '/' '__')"
+            local out_file="$TMP_DIR/${key}.out"
             
             if ! CGO_ENABLED=0 go test -timeout 5m -count "$COUNT" -skip "$SKIP_FLAG" "$pkg" </dev/null > "$out_file" 2>&1; then
               local dur=$(( $(date +%s) - start ))
-              echo "::group::❌ FAILED: $pkg"
+              touch "$COMPLETED_DIR/$key"
+              local done_count=$(ls -1 "$COMPLETED_DIR" | wc -l)
+              local remaining=$(( TOTAL - done_count ))
+              echo "::group::❌ FAILED: $short_pkg (${dur}s)"
               cat "$out_file"
               echo "::endgroup::"
-              echo "::error::❌ FAILED: $pkg"
+              echo "::error::❌ [$done_count/$TOTAL] FAILED: $short_pkg (${dur}s)"
               echo "$pkg" >> "$FAILED_FILE"
+              echo "| ❌ FAILED | \`$short_pkg\` | ${dur}s |" >> "$SUMMARY_FILE"
             else
               local dur=$(( $(date +%s) - start ))
-              echo "✅ Passed: $pkg (${dur}s)"
+              touch "$COMPLETED_DIR/$key"
+              local done_count=$(ls -1 "$COMPLETED_DIR" | wc -l)
+              local remaining=$(( TOTAL - done_count ))
+              echo "✅ [$done_count/$TOTAL] $short_pkg (${dur}s)"
+              echo "| ✅ Passed | \`$short_pkg\` | ${dur}s |" >> "$SUMMARY_FILE"
+              if [ "$remaining" -gt 0 ]; then
+                echo "::group::⏳ Remaining Packages ($remaining)"
+                comm -23 "$TMP_DIR/all_short_pkgs" <(ls -1 "$COMPLETED_DIR" | tr '__' '/' | sort) | sed 's/^/  • /'
+                echo "::endgroup::"
+              else
+                echo "🎉 All $TOTAL packages completed successfully!"
+              fi
             fi
             rm -f "$out_file"
           }
 
           export -f run_pkg
-          export TMP_DIR FAILED_FILE COUNT SKIP_FLAG
+          export TMP_DIR FAILED_FILE COMPLETED_DIR SUMMARY_FILE COUNT SKIP_FLAG TOTAL
 
-          echo "$PKGS" | tr ' ' '\n' | grep -v '^$' > "$TMP_DIR/pkg_list"
           xargs -P 4 -a "$TMP_DIR/pkg_list" -I {} bash -c 'run_pkg "$@"' _ {}
+
+          if [ -f "$SUMMARY_FILE" ] && [ -n "$GITHUB_STEP_SUMMARY" ]; then
+            cat "$SUMMARY_FILE" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
           if [ -s "$FAILED_FILE" ]; then
             echo "=========================================="
@@ -99,32 +130,63 @@ jobs:
           PKGS=$(go list ./internal/cache/... ./internal/gcsx/...)
           TMP_DIR=$(mktemp -d)
           FAILED_FILE="$TMP_DIR/failed_pkgs"
+          COMPLETED_DIR="$TMP_DIR/completed"
+          SUMMARY_FILE="$TMP_DIR/race_summary.md"
+          mkdir -p "$COMPLETED_DIR"
           touch "$FAILED_FILE"
+
+          echo "$PKGS" | tr ' ' '\n' | grep -v '^$' > "$TMP_DIR/race_pkg_list"
+          sed 's|^github.com/googlecloudplatform/gcsfuse/v3/||' "$TMP_DIR/race_pkg_list" | sort > "$TMP_DIR/all_race_short_pkgs"
+          TOTAL=$(wc -l < "$TMP_DIR/race_pkg_list")
+
+          echo "## 🏎️ RaceDetector Execution ($TOTAL Packages, Parallel: 2)" >> "$SUMMARY_FILE"
+          echo "| Status | Package | Duration |" >> "$SUMMARY_FILE"
+          echo "|---|---|---|" >> "$SUMMARY_FILE"
 
           run_race_pkg() {
             local pkg="$1"
+            local short_pkg="${pkg#github.com/googlecloudplatform/gcsfuse/v3/}"
             local start=$(date +%s)
-            local out_file="$TMP_DIR/$(echo -n "$pkg" | tr '/.' '__').out"
+            local key="$(echo -n "$short_pkg" | tr '/' '__')"
+            local out_file="$TMP_DIR/${key}.out"
             
             if ! go test -race -timeout 5m -count "$COUNT" "$pkg" </dev/null > "$out_file" 2>&1; then
               local dur=$(( $(date +%s) - start ))
-              echo "::group::❌ FAILED: $pkg"
+              touch "$COMPLETED_DIR/$key"
+              local done_count=$(ls -1 "$COMPLETED_DIR" | wc -l)
+              local remaining=$(( TOTAL - done_count ))
+              echo "::group::❌ FAILED: $short_pkg (${dur}s)"
               cat "$out_file"
               echo "::endgroup::"
-              echo "::error::❌ FAILED: $pkg"
+              echo "::error::❌ [$done_count/$TOTAL] FAILED: $short_pkg (${dur}s)"
               echo "$pkg" >> "$FAILED_FILE"
+              echo "| ❌ FAILED | \`$short_pkg\` | ${dur}s |" >> "$SUMMARY_FILE"
             else
               local dur=$(( $(date +%s) - start ))
-              echo "✅ Passed: $pkg (${dur}s)"
+              touch "$COMPLETED_DIR/$key"
+              local done_count=$(ls -1 "$COMPLETED_DIR" | wc -l)
+              local remaining=$(( TOTAL - done_count ))
+              echo "✅ [$done_count/$TOTAL] $short_pkg (${dur}s)"
+              echo "| ✅ Passed | \`$short_pkg\` | ${dur}s |" >> "$SUMMARY_FILE"
+              if [ "$remaining" -gt 0 ]; then
+                echo "::group::⏳ Remaining Packages ($remaining)"
+                comm -23 "$TMP_DIR/all_race_short_pkgs" <(ls -1 "$COMPLETED_DIR" | tr '__' '/' | sort) | sed 's/^/  • /'
+                echo "::endgroup::"
+              else
+                echo "🎉 All $TOTAL packages completed successfully!"
+              fi
             fi
             rm -f "$out_file"
           }
 
           export -f run_race_pkg
-          export TMP_DIR FAILED_FILE COUNT
+          export TMP_DIR FAILED_FILE COMPLETED_DIR SUMMARY_FILE COUNT TOTAL
 
-          echo "$PKGS" | tr ' ' '\n' | grep -v '^$' > "$TMP_DIR/race_pkg_list"
           xargs -P 2 -a "$TMP_DIR/race_pkg_list" -I {} bash -c 'run_race_pkg "$@"' _ {}
+
+          if [ -f "$SUMMARY_FILE" ] && [ -n "$GITHUB_STEP_SUMMARY" ]; then
+            cat "$SUMMARY_FILE" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
           if [ -s "$FAILED_FILE" ]; then
             echo "=========================================="
