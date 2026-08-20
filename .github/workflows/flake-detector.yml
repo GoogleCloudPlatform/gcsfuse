@@ -62,7 +62,7 @@ jobs:
           touch "$FAILED_FILE"
 
           echo "$PKGS" | tr ' ' '\n' | grep -v '^$' > "$TMP_DIR/pkg_list"
-          sed 's|^github.com/googlecloudplatform/gcsfuse/v3/||' "$TMP_DIR/pkg_list" | sort > "$TMP_DIR/all_short_pkgs"
+          sed 's|^github.com/googlecloudplatform/gcsfuse/v3/||' "$TMP_DIR/pkg_list" | sort -u > "$TMP_DIR/all_short_pkgs"
           TOTAL=$(wc -l < "$TMP_DIR/pkg_list")
 
           echo "## 🧪 Unit Test Execution ($TOTAL Packages, Parallel: 4)" >> "$SUMMARY_FILE"
@@ -73,34 +73,55 @@ jobs:
             local pkg="$1"
             local short_pkg="${pkg#github.com/googlecloudplatform/gcsfuse/v3/}"
             local start=$(date +%s)
-            local key="$(echo -n "$short_pkg" | tr '/' '__')"
-            local out_file="$TMP_DIR/${key}.out"
+            local out_file
+            out_file=$(mktemp -p "$TMP_DIR" out.XXXXXX)
             
             if ! CGO_ENABLED=0 go test -timeout 5m -count "$COUNT" -skip "$SKIP_FLAG" "$pkg" </dev/null > "$out_file" 2>&1; then
               local dur=$(( $(date +%s) - start ))
-              touch "$COMPLETED_DIR/$key"
-              local done_count=$(ls -1 "$COMPLETED_DIR" | wc -l)
-              local remaining=$(( TOTAL - done_count ))
+              local comp_file
+              comp_file=$(mktemp -p "$COMPLETED_DIR" comp.XXXXXX)
+              echo "$short_pkg" > "$comp_file"
+
+              local done_file
+              done_file=$(mktemp -p "$TMP_DIR" done.XXXXXX)
+              cat "$COMPLETED_DIR"/* 2>/dev/null | sort -u > "$done_file"
+              local done_count=$(wc -l < "$done_file")
+
               echo "::group::❌ FAILED: $short_pkg (${dur}s)"
               cat "$out_file"
               echo "::endgroup::"
               echo "::error::❌ [$done_count/$TOTAL] FAILED: $short_pkg (${dur}s)"
               echo "$pkg" >> "$FAILED_FILE"
               echo "| ❌ FAILED | \`$short_pkg\` | ${dur}s |" >> "$SUMMARY_FILE"
+              rm -f "$done_file"
             else
               local dur=$(( $(date +%s) - start ))
-              touch "$COMPLETED_DIR/$key"
-              local done_count=$(ls -1 "$COMPLETED_DIR" | wc -l)
+              local comp_file
+              comp_file=$(mktemp -p "$COMPLETED_DIR" comp.XXXXXX)
+              echo "$short_pkg" > "$comp_file"
+
+              local done_file
+              done_file=$(mktemp -p "$TMP_DIR" done.XXXXXX)
+              cat "$COMPLETED_DIR"/* 2>/dev/null | sort -u > "$done_file"
+              local done_count=$(wc -l < "$done_file")
               local remaining=$(( TOTAL - done_count ))
-              echo "✅ [$done_count/$TOTAL] $short_pkg (${dur}s)"
+
               echo "| ✅ Passed | \`$short_pkg\` | ${dur}s |" >> "$SUMMARY_FILE"
               if [ "$remaining" -gt 0 ]; then
-                echo "::group::⏳ Remaining Packages ($remaining)"
-                comm -23 "$TMP_DIR/all_short_pkgs" <(ls -1 "$COMPLETED_DIR" | tr '__' '/' | sort) | sed 's/^/  • /'
-                echo "::endgroup::"
+                local rem_file
+                rem_file=$(mktemp -p "$TMP_DIR" rem.XXXXXX)
+                comm -23 "$TMP_DIR/all_short_pkgs" "$done_file" > "$rem_file"
+                local rem_count=$(wc -l < "$rem_file")
+                local rem_sample=$(head -n 3 "$rem_file" | tr '\n' ',' | sed 's/,/, /g; s/, $//')
+                if [ "$rem_count" -gt 3 ]; then
+                  rem_sample="$rem_sample, ... ($(( rem_count - 3 )) more)"
+                fi
+                echo "✅ [$done_count/$TOTAL] $short_pkg (${dur}s) | Remaining ($rem_count): $rem_sample"
+                rm -f "$rem_file"
               else
-                echo "🎉 All $TOTAL packages completed successfully!"
+                echo "✅ [$done_count/$TOTAL] $short_pkg (${dur}s) | Remaining: 0 🎉"
               fi
+              rm -f "$done_file"
             fi
             rm -f "$out_file"
           }
@@ -136,7 +157,7 @@ jobs:
           touch "$FAILED_FILE"
 
           echo "$PKGS" | tr ' ' '\n' | grep -v '^$' > "$TMP_DIR/race_pkg_list"
-          sed 's|^github.com/googlecloudplatform/gcsfuse/v3/||' "$TMP_DIR/race_pkg_list" | sort > "$TMP_DIR/all_race_short_pkgs"
+          sed 's|^github.com/googlecloudplatform/gcsfuse/v3/||' "$TMP_DIR/race_pkg_list" | sort -u > "$TMP_DIR/all_race_short_pkgs"
           TOTAL=$(wc -l < "$TMP_DIR/race_pkg_list")
 
           echo "## 🏎️ RaceDetector Execution ($TOTAL Packages, Parallel: 2)" >> "$SUMMARY_FILE"
@@ -147,34 +168,55 @@ jobs:
             local pkg="$1"
             local short_pkg="${pkg#github.com/googlecloudplatform/gcsfuse/v3/}"
             local start=$(date +%s)
-            local key="$(echo -n "$short_pkg" | tr '/' '__')"
-            local out_file="$TMP_DIR/${key}.out"
+            local out_file
+            out_file=$(mktemp -p "$TMP_DIR" out.XXXXXX)
             
             if ! go test -race -timeout 5m -count "$COUNT" "$pkg" </dev/null > "$out_file" 2>&1; then
               local dur=$(( $(date +%s) - start ))
-              touch "$COMPLETED_DIR/$key"
-              local done_count=$(ls -1 "$COMPLETED_DIR" | wc -l)
-              local remaining=$(( TOTAL - done_count ))
+              local comp_file
+              comp_file=$(mktemp -p "$COMPLETED_DIR" comp.XXXXXX)
+              echo "$short_pkg" > "$comp_file"
+
+              local done_file
+              done_file=$(mktemp -p "$TMP_DIR" done.XXXXXX)
+              cat "$COMPLETED_DIR"/* 2>/dev/null | sort -u > "$done_file"
+              local done_count=$(wc -l < "$done_file")
+
               echo "::group::❌ FAILED: $short_pkg (${dur}s)"
               cat "$out_file"
               echo "::endgroup::"
               echo "::error::❌ [$done_count/$TOTAL] FAILED: $short_pkg (${dur}s)"
               echo "$pkg" >> "$FAILED_FILE"
               echo "| ❌ FAILED | \`$short_pkg\` | ${dur}s |" >> "$SUMMARY_FILE"
+              rm -f "$done_file"
             else
               local dur=$(( $(date +%s) - start ))
-              touch "$COMPLETED_DIR/$key"
-              local done_count=$(ls -1 "$COMPLETED_DIR" | wc -l)
+              local comp_file
+              comp_file=$(mktemp -p "$COMPLETED_DIR" comp.XXXXXX)
+              echo "$short_pkg" > "$comp_file"
+
+              local done_file
+              done_file=$(mktemp -p "$TMP_DIR" done.XXXXXX)
+              cat "$COMPLETED_DIR"/* 2>/dev/null | sort -u > "$done_file"
+              local done_count=$(wc -l < "$done_file")
               local remaining=$(( TOTAL - done_count ))
-              echo "✅ [$done_count/$TOTAL] $short_pkg (${dur}s)"
+
               echo "| ✅ Passed | \`$short_pkg\` | ${dur}s |" >> "$SUMMARY_FILE"
               if [ "$remaining" -gt 0 ]; then
-                echo "::group::⏳ Remaining Packages ($remaining)"
-                comm -23 "$TMP_DIR/all_race_short_pkgs" <(ls -1 "$COMPLETED_DIR" | tr '__' '/' | sort) | sed 's/^/  • /'
-                echo "::endgroup::"
+                local rem_file
+                rem_file=$(mktemp -p "$TMP_DIR" rem.XXXXXX)
+                comm -23 "$TMP_DIR/all_race_short_pkgs" "$done_file" > "$rem_file"
+                local rem_count=$(wc -l < "$rem_file")
+                local rem_sample=$(head -n 3 "$rem_file" | tr '\n' ',' | sed 's/,/, /g; s/, $//')
+                if [ "$rem_count" -gt 3 ]; then
+                  rem_sample="$rem_sample, ... ($(( rem_count - 3 )) more)"
+                fi
+                echo "✅ [$done_count/$TOTAL] $short_pkg (${dur}s) | Remaining ($rem_count): $rem_sample"
+                rm -f "$rem_file"
               else
-                echo "🎉 All $TOTAL packages completed successfully!"
+                echo "✅ [$done_count/$TOTAL] $short_pkg (${dur}s) | Remaining: 0 🎉"
               fi
+              rm -f "$done_file"
             fi
             rm -f "$out_file"
           }
