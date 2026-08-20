@@ -122,7 +122,7 @@ jobs:
           export -f run_race_pkg
           export TMP_DIR FAILED_FILE COUNT
 
-          echo "$PKGS" | tr ' ' '\n' | xargs -P 4 -I {} bash -c 'run_race_pkg "$@"' _ {}
+          echo "$PKGS" | tr ' ' '\n' | xargs -P 2 -I {} bash -c 'run_race_pkg "$@"' _ {}
 
           if [ -s "$FAILED_FILE" ]; then
             echo "=========================================="

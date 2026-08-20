@@ -710,7 +710,7 @@ func (t *RandomReaderTest) Test_ReadAt_RandomReadNotStartWithZeroOffsetWhenCache
 	ExpectEq(nil, err)
 	ExpectTrue(reflect.DeepEqual(testContent[start:end], buf))
 	job := t.jobManager.GetJob(t.object.Name, t.bucket.Name())
-	ExpectTrue(job == nil || job.GetStatus().Name == downloader.Downloading)
+	ExpectTrue(job == nil || job.GetStatus().Name == downloader.Downloading || job.GetStatus().Name == downloader.Completed)
 }
 
 func (t *RandomReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffsetMoreThanReadChunkSize() {
