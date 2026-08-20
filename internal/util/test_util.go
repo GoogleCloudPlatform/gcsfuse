@@ -17,24 +17,23 @@
 
 package util
 
-import "math/rand"
-
-var seedPattern = func() []byte {
-	b := make([]byte, 64*1024)
-	for i := range b {
-		b[i] = byte(rand.Intn(26) + 65)
-	}
-	return b
-}()
+import "crypto/rand"
 
 func GenerateRandomBytes(length int) []byte {
 	if length <= 0 {
 		return nil
 	}
 	randBytes := make([]byte, length)
-	chunk := copy(randBytes, seedPattern)
-	for chunk < length {
-		chunk += copy(randBytes[chunk:], randBytes[:chunk])
+	chunk := 64 * 1024
+	if chunk > length {
+		chunk = length
+	}
+	_, _ = rand.Read(randBytes[:chunk])
+	for i := range chunk {
+		randBytes[i] = 'A' + (randBytes[i] % 26)
+	}
+	for copied := chunk; copied < length; {
+		copied += copy(randBytes[copied:], randBytes[:copied])
 	}
 	return randBytes
 }
