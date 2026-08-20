@@ -58,6 +58,7 @@ jobs:
 
           for pkg in $PKGS; do
             START_TIME=$(date +%s)
+            echo "▶️ Running: $pkg ..."
             if ! OUTPUT=$(CGO_ENABLED=0 go test -timeout 5m -count $COUNT -skip "$SKIP_FLAG" "$pkg" 2>&1); then
               echo "::group::❌ FAILED: $pkg"
               echo "$OUTPUT"
@@ -88,6 +89,7 @@ jobs:
 
           for pkg in $PKGS; do
             START_TIME=$(date +%s)
+            echo "▶️ Running RaceDetector: $pkg ..."
             if ! OUTPUT=$(CGO_ENABLED=0 go test -timeout 5m -count $COUNT "$pkg" 2>&1); then
               echo "::group::❌ FAILED: $pkg"
               echo "$OUTPUT"

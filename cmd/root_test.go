@@ -95,6 +95,7 @@ func TestCobraArgsNumInRange(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			cmd, err := newRootCmd(func(*mountInfo, string, string) error { return nil })
 			require.Nil(t, err)
 			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
@@ -149,6 +150,7 @@ func TestArgsParsing_MountPoint(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var bucketName, mountPoint string
 			cmd, err := newRootCmd(func(_ *mountInfo, b string, m string) error {
 				bucketName = b
@@ -198,6 +200,7 @@ func TestArgsParsing_MountOptions(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var mountOptions []string
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				mountOptions = mountInfo.config.FileSystem.FuseOptions
@@ -256,6 +259,7 @@ func TestArgsParsing_ImplicitDirsFlag(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotImplicit bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotImplicit = mountInfo.config.ImplicitDirs
@@ -459,6 +463,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var wc cfg.WriteConfig
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				wc = mountInfo.config.Write
@@ -568,6 +573,7 @@ func TestArgsParsing_ReadConfigFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var rc cfg.ReadConfig
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				rc = mountInfo.config.Read
@@ -644,6 +650,7 @@ func TestArgsParsing_FileCacheFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -696,6 +703,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var experimentalMetadataPrefetch string
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				experimentalMetadataPrefetch = mountInfo.config.MetadataCache.ExperimentalMetadataPrefetchOnMount
@@ -730,6 +738,7 @@ func TestArgParsing_ExperimentalMetadataPrefetchFlag_Failed(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				return nil
 			})
@@ -779,6 +788,7 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -818,6 +828,7 @@ func TestArgsParsing_GCSAuthFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			cmd, err := newRootCmd(func(_ *mountInfo, _, _ string) error {
 				return nil
 			})
@@ -902,6 +913,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -947,6 +959,7 @@ func TestArgsParsing_GCSConnectionFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			cmd, err := newRootCmd(func(_ *mountInfo, _, _ string) error {
 				return nil
 			})
@@ -1437,6 +1450,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -1495,6 +1509,7 @@ func TestArgsParsing_FileSystemFlagsThrowsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			cmd, err := newRootCmd(func(_ *mountInfo, _, _ string) error {
 				return nil
 			})
@@ -1530,6 +1545,7 @@ func TestArgsParsing_ListFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -1567,6 +1583,7 @@ func TestArgsParsing_EnableHNSFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotEnableHNS bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotEnableHNS = mountInfo.config.EnableHns
@@ -1604,6 +1621,7 @@ func TestArgsParsing_EnableTypeCacheDeprecationFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotEnableTypeCacheDeprecation bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotEnableTypeCacheDeprecation = mountInfo.config.EnableTypeCacheDeprecation
@@ -1641,6 +1659,7 @@ func TestArgsParsing_EnableUnsupportedPathSupport(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotUnsupportedPathSupport bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotUnsupportedPathSupport = mountInfo.config.EnableUnsupportedPathSupport
@@ -1678,6 +1697,7 @@ func TestArgsParsing_EnableStandardSymlinks(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotEnableStandardSymlinks bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotEnableStandardSymlinks = mountInfo.config.EnableStandardSymlinks
@@ -1715,6 +1735,7 @@ func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotEnableGoogleLibAuth bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotEnableGoogleLibAuth = mountInfo.config.EnableGoogleLibAuth
@@ -1752,6 +1773,7 @@ func TestArgsParsing_EnableAtomicRenameObjectFlag(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotEnableAtomicRenameObject bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotEnableAtomicRenameObject = mountInfo.config.EnableAtomicRenameObject
@@ -1789,6 +1811,7 @@ func TestArgsParsing_EnableNewReaderFlag(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotEnableNewReader bool
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotEnableNewReader = mountInfo.config.EnableNewReader
@@ -1872,6 +1895,7 @@ func TestArgsParsing_MetricsFlags(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -1919,6 +1943,7 @@ func TestArgsParsing_MetricsViewConfig(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -1956,6 +1981,7 @@ func TestArgsParsingTraceConfig(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -2102,6 +2128,7 @@ func TestArgsParsing_MetadataCacheFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -2194,6 +2221,7 @@ func TestArgParsing_GCSRetries(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -2305,6 +2333,7 @@ func TestArgsParsing_ProfilerFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotProfilerConfig cfg.CloudProfilerConfig
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotProfilerConfig = mountInfo.config.CloudProfiler
@@ -2346,6 +2375,7 @@ func TestArgsParsing_ReadInactiveTimeoutConfig(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -2415,6 +2445,7 @@ func TestArgsParsing_WorkloadInsightFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -2459,6 +2490,7 @@ func TestArgsParsing_WorkloadInsightConfigFile(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -2549,6 +2581,7 @@ func TestMountInfoPopulation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var capturedMountInfo *mountInfo
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				capturedMountInfo = mountInfo
@@ -2680,6 +2713,7 @@ func TestGetConfigFileFlags(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			inputViper := viper.New()
 
 			if !tc.noFile {
@@ -2736,6 +2770,7 @@ func TestArgsParsing_DummyIOFlags(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -2783,6 +2818,7 @@ func TestArgsParsing_DummyIOConfigFile(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var gotConfig *cfg.Config
 			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
 				gotConfig = mountInfo.config
@@ -2847,6 +2883,7 @@ write:
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			configFile := createTempConfigFile(t, tc.configContent)
 			defer os.Remove(configFile)
 			var capturedMountInfo *mountInfo
@@ -2897,6 +2934,7 @@ func TestArgParsing_CliFlagsOverridesFlagOptimizations(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var capturedMountInfo *mountInfo
 			cmd, err := newRootCmd(func(mi *mountInfo, _, _ string) error {
 				capturedMountInfo = mi

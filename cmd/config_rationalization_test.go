@@ -74,6 +74,7 @@ func TestRationalizeMetadataCache(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			c, err := getConfigObject(t, tc.args)
 
 			if assert.NoError(t, err) {
@@ -103,6 +104,7 @@ func TestRationalizeCloudMetricsExportIntervalSecs(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			c, err := getConfigObject(t, tc.args)
 
 			if assert.NoError(t, err) {

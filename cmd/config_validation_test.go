@@ -134,6 +134,7 @@ func TestValidateConfigFile(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if tc.wantErr {
@@ -225,6 +226,7 @@ func TestValidateCliFlag(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := getConfigObject(t, tc.args)
 
 			if tc.wantErr {
@@ -273,6 +275,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -324,6 +327,7 @@ func TestValidateConfigFile_ReadConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -438,6 +442,7 @@ func TestValidateConfigFile_InvalidConfigThrowsError(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			assert.Error(t, err)
@@ -482,6 +487,7 @@ func TestValidateConfigFile_FileCacheConfigSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -539,6 +545,7 @@ func TestValidateConfigFile_GCSAuthConfigSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -600,6 +607,7 @@ func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -691,6 +699,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -725,6 +734,7 @@ func TestValidateConfigFile_ListConfigSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -759,6 +769,7 @@ func TestValidateConfigFile_EnableHNSConfigSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -819,6 +830,7 @@ func TestValidateConfigFile_MetadataCacheConfigSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -882,6 +894,7 @@ func TestValidateConfigFile_GCSRetries(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -920,6 +933,7 @@ func TestValidateCloudMetricsExportIntervalSecs(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			if _, err := getConfigObject(t, tc.args); tc.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -962,6 +976,7 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
@@ -984,6 +999,7 @@ func TestValidateConfigFile_MetricsConfigInvalid(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			assert.Error(t, err)
@@ -1015,6 +1031,7 @@ func TestValidateConfigFile_MachineTypeConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotConfig, err := getConfigObjectWithConfigFile(t, tc.configFile)
 
 			if assert.NoError(t, err) {
