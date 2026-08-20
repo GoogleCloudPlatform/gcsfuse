@@ -1057,7 +1057,10 @@ func (b *bucket) DeleteObject(
 	return
 }
 
+// LOCKS_EXCLUDED(b.mu)
 func (b *bucket) MoveObject(ctx context.Context, req *gcs.MoveObjectRequest) (*gcs.Object, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	// Check that the destination name is legal.
 	err := checkName(req.DstName)
 	if err != nil {
