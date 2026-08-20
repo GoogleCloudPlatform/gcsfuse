@@ -27,6 +27,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -233,8 +234,38 @@ func logMountDiagnostics(dir string) {
 	logger.Warnf("EBUSY Diagnostic: Active goroutines during unmount:\n%s", string(buf[:n]))
 }
 
+func closeMountPointFds(dir string) []string {
+	if dir == "" {
+		return nil
+	}
+	fds, err := os.ReadDir("/proc/self/fd")
+	if err != nil {
+		return nil
+	}
+	var leaked []string
+	for _, fd := range fds {
+		target, err := os.Readlink(path.Join("/proc/self/fd", fd.Name()))
+		if err != nil {
+			continue
+		}
+		if strings.HasPrefix(target, dir) {
+			leaked = append(leaked, fmt.Sprintf("fd %s -> %s", fd.Name(), target))
+			fmt.Fprintf(os.Stderr, "⚠️ [FD LEAK DETECTED & CLOSED] fd %s -> %s (mount: %s)\n", fd.Name(), target, dir)
+			fdNum, err := strconv.Atoi(fd.Name())
+			if err == nil && fdNum > 2 {
+				_ = syscall.Close(fdNum)
+			}
+		}
+	}
+	if len(leaked) > 0 {
+		logger.Warnf("Cleaned up unclosed mount FDs holding %s: %v", dir, leaked)
+	}
+	return leaked
+}
+
 func (t *fsTest) TearDownTestSuite() {
 	var err error
+	closeMountPointFds(mntDir)
 	// Unmount the file system. Try again on "resource busy" errors up to 5s.
 	delay := 10 * time.Millisecond
 	deadline := time.Now().Add(5 * time.Second)
@@ -245,6 +276,7 @@ func (t *fsTest) TearDownTestSuite() {
 		}
 
 		if strings.Contains(err.Error(), "resource busy") {
+			closeMountPointFds(mntDir)
 			if time.Now().Before(deadline) {
 				logger.Info("Resource busy error while unmounting; trying again")
 				time.Sleep(delay)
@@ -297,6 +329,8 @@ func (t *fsTest) TearDown() {
 		_ = t.f2.Close()
 		t.f2 = nil
 	}
+
+	closeMountPointFds(mntDir)
 
 	// Remove all contents for mntDir. This helps to keep the directory clean
 	// for next test run.

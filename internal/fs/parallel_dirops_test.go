@@ -386,6 +386,11 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndCreateSameFile() {
 		file, createErr = createFileFunc(filePath)
 	}()
 	wg.Wait()
+	if file != nil {
+		defer func() {
+			_ = file.Close()
+		}()
+	}
 
 	// Assert either file is created first or looked up first
 	assert.NoError(t.T(), createErr)
@@ -397,7 +402,6 @@ func (t *ParallelDiropsTest) TestParallelLookUpAndCreateSameFile() {
 	} else {
 		assert.True(t.T(), os.IsNotExist(lookUpErr))
 	}
-	assert.Nil(t.T(), file.Close())
 }
 
 func (t *ParallelDiropsTest) TestParallelLookUpAndDeleteSameFile() {

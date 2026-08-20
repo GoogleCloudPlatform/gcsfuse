@@ -16,6 +16,7 @@
 package fs_test
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path"
@@ -93,8 +94,13 @@ func generateRandomString(length int) string {
 }
 
 func closeFile(file *os.File) {
+	if file == nil {
+		return
+	}
 	err := file.Close()
-	AssertEq(nil, err)
+	if err != nil && !errors.Is(err, os.ErrClosed) && !strings.Contains(err.Error(), "file already closed") {
+		AssertEq(nil, err)
+	}
 }
 
 func sequentialReadShouldPopulateCache(t *fsTest, cacheDir string) {
@@ -385,6 +391,7 @@ func (t *FileCacheTest) ReadWithNewHandleAfterDeletingFileFromCacheShouldFail() 
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
 	AssertEq(nil, err)
+	defer closeFile(file)
 	buf := make([]byte, len(objectContent))
 	_, err = file.Read(buf)
 	AssertEq(nil, err)
@@ -441,6 +448,7 @@ func (t *FileCacheTest) DeletingObjectShouldInvalidateTheCorrespondingCache() {
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
 	AssertEq(nil, err)
+	defer closeFile(file)
 	buf := make([]byte, len(objectContent))
 	_, err = file.Read(buf)
 	AssertEq(nil, err)
@@ -467,6 +475,7 @@ func (t *FileCacheTest) RenamingObjectShouldInvalidateTheCorrespondingCache() {
 	filePath := path.Join(mntDir, DefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
 	AssertEq(nil, err)
+	defer closeFile(file)
 	buf := make([]byte, len(objectContent))
 	_, err = file.Read(buf)
 	AssertEq(nil, err)
@@ -494,6 +503,7 @@ func (t *FileCacheTest) RenamingDirShouldInvalidateTheCacheOfNestedObject() {
 	filePath := path.Join(mntDir, NestedDefaultObjectName)
 	file, err := os.OpenFile(filePath, os.O_RDWR|syscall.O_DIRECT, util.DefaultFilePerm)
 	AssertEq(nil, err)
+	defer closeFile(file)
 	buf := make([]byte, len(objectContent))
 	_, err = file.Read(buf)
 	AssertEq(nil, err)

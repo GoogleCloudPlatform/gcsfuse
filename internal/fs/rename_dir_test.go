@@ -216,6 +216,9 @@ func (t *RenameDirTests) TestRenameFolderWithOpenGCSFile() {
 	filePath := path.Join(oldDirPath, "file1.txt")
 	f, err := os.Open(filePath)
 	require.NoError(t.T(), err)
+	defer func() {
+		_ = f.Close()
+	}()
 
 	err = os.Rename(oldDirPath, newDirPath)
 

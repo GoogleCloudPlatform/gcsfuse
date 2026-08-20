@@ -63,7 +63,9 @@ func (t *KernelListCacheTestWithZeroTtl) TestKernelListCache_AlwaysCacheMiss() {
 	f, err := os.Open(path.Join(mntDir, "explicitDir"))
 	assert.Nil(t.T(), err)
 	defer func() {
-		assert.Nil(t.T(), f.Close())
+		if f != nil {
+			_ = f.Close()
+		}
 	}()
 	names1, err := f.Readdirnames(-1)
 	assert.Nil(t.T(), err)
@@ -88,4 +90,5 @@ func (t *KernelListCacheTestWithZeroTtl) TestKernelListCache_AlwaysCacheMiss() {
 	assert.Equal(t.T(), "file1.txt", names2[0])
 	assert.Equal(t.T(), "file2.txt", names2[1])
 	assert.Equal(t.T(), "file3.txt", names2[2])
+	assert.Nil(t.T(), f.Close())
 }
