@@ -17,6 +17,7 @@ package metrics
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,31 +78,31 @@ func VerifyCounterMetric(t *testing.T, ctx context.Context, reader *metric.Manua
 		opt(cfg)
 	}
 
-	var rm metricdata.ResourceMetrics
-	err := reader.Collect(ctx, &rm)
-	require.NoError(t, err, "reader.Collect")
 	encoder := attribute.DefaultEncoder()
 
-	foundMetric := false
-	for _, sm := range rm.ScopeMetrics {
-		for _, m := range sm.Metrics {
-			if m.Name == metricName {
-				foundMetric = true
-				data, ok := m.Data.(metricdata.Sum[int64])
-				require.True(t, ok, "metric %s is not a Sum[int64], but %T", metricName, m.Data)
-
-				for _, dp := range data.DataPoints {
-					if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
-						verifyValue(t, dp.Value, expectedValue, cfg.atLeast, metricName, attrs)
-						return
+	require.Eventually(t, func() bool {
+		var rm metricdata.ResourceMetrics
+		if err := reader.Collect(ctx, &rm); err != nil {
+			return false
+		}
+		for _, sm := range rm.ScopeMetrics {
+			for _, m := range sm.Metrics {
+				if m.Name == metricName {
+					if data, ok := m.Data.(metricdata.Sum[int64]); ok {
+						for _, dp := range data.DataPoints {
+							if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
+								if cfg.atLeast {
+									return dp.Value >= expectedValue
+								}
+								return dp.Value == expectedValue
+							}
+						}
 					}
 				}
 			}
 		}
-	}
-
-	require.True(t, foundMetric, "metric %s not found", metricName)
-	require.Fail(t, "Data point for attributes %v not found in %s metric", attrs, metricName)
+		return false
+	}, 2*time.Second, 10*time.Millisecond, "counter metric %s with attrs %v and expected value %d not found or value mismatch", metricName, attrs, expectedValue)
 }
 
 // VerifyHistogramMetric finds a histogram metric across all scopes and verifies its count.
@@ -114,39 +115,41 @@ func VerifyHistogramMetric(t *testing.T, ctx context.Context, reader *metric.Man
 		opt(cfg)
 	}
 
-	var rm metricdata.ResourceMetrics
-	err := reader.Collect(ctx, &rm)
-	require.NoError(t, err, "reader.Collect")
 	encoder := attribute.DefaultEncoder()
 
-	foundMetric := false
-	for _, sm := range rm.ScopeMetrics {
-		for _, m := range sm.Metrics {
-			if m.Name == metricName {
-				foundMetric = true
-				switch data := m.Data.(type) {
-				case metricdata.Histogram[int64]:
-					for _, dp := range data.DataPoints {
-						if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
-							verifyValue(t, dp.Count, expectedCount, cfg.atLeast, metricName, attrs)
-							return
+	require.Eventually(t, func() bool {
+		var rm metricdata.ResourceMetrics
+		if err := reader.Collect(ctx, &rm); err != nil {
+			return false
+		}
+		for _, sm := range rm.ScopeMetrics {
+			for _, m := range sm.Metrics {
+				if m.Name == metricName {
+					switch data := m.Data.(type) {
+					case metricdata.Histogram[int64]:
+						for _, dp := range data.DataPoints {
+							if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
+								if cfg.atLeast {
+									return dp.Count >= expectedCount
+								}
+								return dp.Count == expectedCount
+							}
+						}
+					case metricdata.Histogram[float64]:
+						for _, dp := range data.DataPoints {
+							if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
+								if cfg.atLeast {
+									return dp.Count >= expectedCount
+								}
+								return dp.Count == expectedCount
+							}
 						}
 					}
-				case metricdata.Histogram[float64]:
-					for _, dp := range data.DataPoints {
-						if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
-							verifyValue(t, dp.Count, expectedCount, cfg.atLeast, metricName, attrs)
-							return
-						}
-					}
-				default:
-					require.Fail(t, "metric %s is not an expected histogram type, but %T", metricName, m.Data)
 				}
 			}
 		}
-	}
-	require.True(t, foundMetric, "metric %s not found", metricName)
-	require.Fail(t, "Data point for attributes %v not found in %s metric", attrs, metricName)
+		return false
+	}, 2*time.Second, 10*time.Millisecond, "histogram metric %s with attrs %v and expected count %d not found or count mismatch", metricName, attrs, expectedCount)
 }
 
 // VerifyHistogramFull finds a histogram metric and fully verifies its state including total count, sum, and bucket distribution.
@@ -158,47 +161,41 @@ func VerifyHistogramFull[T int64 | float64](t *testing.T, ctx context.Context, r
 		opt(cfg)
 	}
 
-	var rm metricdata.ResourceMetrics
-	err := reader.Collect(ctx, &rm)
-	require.NoError(t, err, "reader.Collect")
 	encoder := attribute.DefaultEncoder()
 
-	foundMetric := false
-	for _, sm := range rm.ScopeMetrics {
-		for _, m := range sm.Metrics {
-			if m.Name == metricName {
-				foundMetric = true
-				data, ok := m.Data.(metricdata.Histogram[T])
-				require.True(t, ok, "metric %s is not of expected histogram type %T, but %T", metricName, data, m.Data)
-
-				for _, dp := range data.DataPoints {
-					if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
-						// Assert total count
-						require.Equal(t, expectedCount, dp.Count, "Total count mismatch for %s", metricName)
-
-						// Assert total sum
-						if !cfg.atLeast {
-							require.Equal(t, expectedSum, dp.Sum, "Total sum mismatch for %s", metricName)
+	require.Eventually(t, func() bool {
+		var rm metricdata.ResourceMetrics
+		if err := reader.Collect(ctx, &rm); err != nil {
+			return false
+		}
+		for _, sm := range rm.ScopeMetrics {
+			for _, m := range sm.Metrics {
+				if m.Name == metricName {
+					if data, ok := m.Data.(metricdata.Histogram[T]); ok {
+						for _, dp := range data.DataPoints {
+							if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
+								if dp.Count != expectedCount {
+									return false
+								}
+								if !cfg.atLeast && dp.Sum != expectedSum {
+									return false
+								}
+								for bucketIdx, expBucketCount := range expectedBuckets {
+									if len(dp.BucketCounts) < bucketIdx+1 || dp.BucketCounts[bucketIdx] != expBucketCount {
+										return false
+									}
+								}
+								var totalBucketCount uint64
+								for _, count := range dp.BucketCounts {
+									totalBucketCount += count
+								}
+								return totalBucketCount == expectedCount
+							}
 						}
-
-						// Assert individual bucket counts
-						for bucketIdx, expBucketCount := range expectedBuckets {
-							require.GreaterOrEqual(t, len(dp.BucketCounts), bucketIdx+1, "Bucket index %d out of range for %s", bucketIdx, metricName)
-							require.Equal(t, expBucketCount, dp.BucketCounts[bucketIdx], "Bucket %d count mismatch for %s", bucketIdx, metricName)
-						}
-
-						// Verify that sum of all bucket counts matches total count
-						var totalBucketCount uint64
-						for _, count := range dp.BucketCounts {
-							totalBucketCount += count
-						}
-						require.Equal(t, expectedCount, totalBucketCount, "Sum of bucket counts must equal total count for %s", metricName)
-						return
 					}
 				}
 			}
 		}
-	}
-	require.True(t, foundMetric, "metric %s not found", metricName)
-	require.Fail(t, "Data point for attributes %v not found in %s metric", attrs, metricName)
+		return false
+	}, 2*time.Second, 10*time.Millisecond, "histogram metric %s with attrs %v not found or full verification failed", metricName, attrs)
 }
