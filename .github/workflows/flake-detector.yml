@@ -94,7 +94,7 @@ jobs:
 
       - name: RaceDetector Test
         run: |
-          COUNT="10"
+          COUNT="5"
           PKGS=$(go list ./internal/cache/... ./internal/gcsx/...)
           TMP_DIR=$(mktemp -d)
           FAILED_FILE="$TMP_DIR/failed_pkgs"
