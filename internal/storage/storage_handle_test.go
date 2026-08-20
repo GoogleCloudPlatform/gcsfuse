@@ -1079,3 +1079,35 @@ func (testSuite *StorageHandleTest) TestControlClientForBucketHandle_NonZonalBuc
 	assert.True(testSuite.T(), controlClientWithRetry.enableRetriesOnStorageLayoutAPI, "Retries should be enabled for storage layout API on zonal buckets")
 	assert.Same(testSuite.T(), mockRawControlClientWithoutRetries, controlClientWithRetry.raw)
 }
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_SkipDirectPathVerificationForRapid() {
+	// Set AnonymousAccess to true to bypass environment credentials (like GCE ADC).
+	// This prevents storage.NewGRPCClient from failing in CI environments (like GitHub Actions)
+	// where Google credentials are not available.
+	testSuite.clientConfig.AnonymousAccess = true
+	client, err := createGRPCClientHandle(testSuite.ctx, testSuite.clientConfig, true, false, "my-bucket")
+	defer func() {
+		if client != nil {
+			_ = client.Close()
+		}
+	}()
+
+	// If the bucket is rapid, the method for directpath check is not called, so err should be nil.
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), client)
+}
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_DirectPathVerificationForStandard() {
+	// Set AnonymousAccess to true to bypass environment credentials (like GCE ADC).
+	// This ensures the DirectPath verification strictly fails with PermissionDenied
+	// (instead of potentially authenticating and getting a NotFound error which is ignored).
+	// This guarantees test determinism across all execution environments.
+	testSuite.clientConfig.AnonymousAccess = true
+
+	client, err := createGRPCClientHandle(testSuite.ctx, testSuite.clientConfig, false, false, "my-bucket")
+
+	// If the bucket is non rapid, the method for directpath check is called, which fails in unit test environment.
+	assert.NotNil(testSuite.T(), err)
+	assert.ErrorContains(testSuite.T(), err, "DirectPath verification failed")
+	assert.Nil(testSuite.T(), client)
+}
