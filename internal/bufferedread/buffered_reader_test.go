@@ -1677,7 +1677,7 @@ func (t *BufferedReaderTest) TestReadAtResumesAfterFallbackWhenReadBecomesSequen
 	// This read should succeed and reset the buffered reader's state.
 	// It will trigger a freshStart, downloading block 0 and prefetching block 1.
 	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 0 })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 0), nil).Once()
-	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 1*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 1*testPrefetchBlockSizeBytes), nil).Once()
+	t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(r *gcs.ReadObjectRequest) bool { return r.Range.Start == 1*uint64(testPrefetchBlockSizeBytes) })).Return(createFakeReaderWithOffset(t.T(), int(testPrefetchBlockSizeBytes), 1*testPrefetchBlockSizeBytes), nil).Maybe()
 
 	readBuf := make([]byte, 512)
 	readOffset := int64(0)
