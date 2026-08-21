@@ -752,6 +752,9 @@ func (t *FileCacheTest) ModifyFileInCacheAndThenReadShouldGiveModifiedData() {
 	AssertEq(nil, err)
 	AssertTrue(reflect.DeepEqual(objectContent, string(gotContent)))
 
+	// Sleep briefly for async download job to complete and validate the initial cache download
+	time.Sleep(100 * time.Millisecond)
+
 	// change the file in cache
 	changedContent := generateRandomString(util.MiB)
 	objectPath := util.GetObjectPath(bucket.Name(), DefaultObjectName)
