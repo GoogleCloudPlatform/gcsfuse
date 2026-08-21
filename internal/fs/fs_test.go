@@ -93,6 +93,8 @@ type fsTest struct {
 	// Files to close when tearing down. Nil entries are skipped.
 	f1 *os.File
 	f2 *os.File
+
+	watchdog *time.Timer
 }
 
 var (
@@ -113,8 +115,20 @@ var (
 	bucketType gcs.BucketType
 )
 
+var _ SetUpInterface = &fsTest{}
+var _ TearDownInterface = &fsTest{}
 var _ SetUpTestSuiteInterface = &fsTest{}
 var _ TearDownTestSuiteInterface = &fsTest{}
+
+func (t *fsTest) SetUp(ti *TestInfo) {
+	// Start a 15-second watchdog timer per test method.
+	// If any test method hangs or deadlocks for >15s, automatically dump full stack traces to stderr.
+	t.watchdog = time.AfterFunc(15*time.Second, func() {
+		buf := make([]byte, 1<<18)
+		n := runtime.Stack(buf, true)
+		fmt.Fprintf(os.Stderr, "\n🚨🚨🚨 [WATCHDOG TIMEOUT: TEST METHOD STUCK FOR >15s] 🚨🚨🚨\nACTIVE GOROUTINE STACK TRACES:\n%s\n🚨🚨🚨 [END WATCHDOG STACK TRACE] 🚨🚨🚨\n", string(buf[:n]))
+	})
+}
 
 func defaultFileCacheConfig() cfg.FileCacheConfig {
 	return cfg.FileCacheConfig{
@@ -316,6 +330,11 @@ func (t *fsTest) TearDownTestSuite() {
 }
 
 func (t *fsTest) TearDown() {
+	if t.watchdog != nil {
+		t.watchdog.Stop()
+		t.watchdog = nil
+	}
+
 	// Close any files we opened.
 	if t.f1 != nil {
 		_ = t.f1.Close()
