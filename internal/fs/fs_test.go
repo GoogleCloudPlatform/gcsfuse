@@ -27,6 +27,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -60,7 +61,56 @@ const (
 	SequentialReadSizeMb = 200
 )
 
-func TestFS(t *testing.T) { RunTests(t) }
+var (
+	lastProgressTime atomic.Int64
+	currentTestStage atomic.Value
+)
+
+func touchWatchdog(stage string) {
+	lastProgressTime.Store(time.Now().UnixNano())
+	currentTestStage.Store(stage)
+}
+
+func TestMain(m *testing.M) {
+	touchWatchdog("TestMain:start")
+	stopWatchdog := make(chan struct{})
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+		lastDump := time.Time{}
+
+		for {
+			select {
+			case <-stopWatchdog:
+				return
+			case <-ticker.C:
+				lastNs := lastProgressTime.Load()
+				if lastNs == 0 {
+					continue
+				}
+				elapsed := time.Since(time.Unix(0, lastNs))
+				if elapsed > 15*time.Second && time.Since(lastDump) > 15*time.Second {
+					lastDump = time.Now()
+					stage, _ := currentTestStage.Load().(string)
+					buf := make([]byte, 1<<19) // 512 KB buffer
+					n := runtime.Stack(buf, true)
+					fmt.Fprintf(os.Stderr, "\n🚨🚨🚨 [UNIVERSAL WATCHDOG: NO PROGRESS FOR %v IN STAGE %q] 🚨🚨🚨\nACTIVE GOROUTINES (%d bytes):\n%s\n🚨🚨🚨 [END WATCHDOG STACK TRACE] 🚨🚨🚨\n", elapsed.Round(time.Second), stage, n, string(buf[:n]))
+				}
+			}
+		}
+	}()
+
+	code := m.Run()
+	close(stopWatchdog)
+	os.Exit(code)
+}
+
+func TestFS(t *testing.T) {
+	touchWatchdog("TestFS:start")
+	RunTests(t)
+	touchWatchdog("TestFS:complete")
+}
 
 var fDebug = flag.Bool("debug_fuse", false, "Print debugging output.")
 
@@ -93,8 +143,6 @@ type fsTest struct {
 	// Files to close when tearing down. Nil entries are skipped.
 	f1 *os.File
 	f2 *os.File
-
-	watchdog *time.Timer
 }
 
 var (
@@ -121,13 +169,7 @@ var _ SetUpTestSuiteInterface = &fsTest{}
 var _ TearDownTestSuiteInterface = &fsTest{}
 
 func (t *fsTest) SetUp(ti *TestInfo) {
-	// Start a 15-second watchdog timer per test method.
-	// If any test method hangs or deadlocks for >15s, automatically dump full stack traces to stderr.
-	t.watchdog = time.AfterFunc(15*time.Second, func() {
-		buf := make([]byte, 1<<18)
-		n := runtime.Stack(buf, true)
-		fmt.Fprintf(os.Stderr, "\n🚨🚨🚨 [WATCHDOG TIMEOUT: TEST METHOD STUCK FOR >15s] 🚨🚨🚨\nACTIVE GOROUTINE STACK TRACES:\n%s\n🚨🚨🚨 [END WATCHDOG STACK TRACE] 🚨🚨🚨\n", string(buf[:n]))
-	})
+	touchWatchdog("ogletest:SetUp")
 }
 
 func defaultFileCacheConfig() cfg.FileCacheConfig {
@@ -143,6 +185,7 @@ func defaultFileCacheConfig() cfg.FileCacheConfig {
 }
 
 func (t *fsTest) SetUpTestSuite() {
+	touchWatchdog("SetUpTestSuite:start")
 	var err error
 	ctx = context.Background()
 
@@ -224,6 +267,7 @@ func (t *fsTest) SetUpTestSuite() {
 	// Mount the file system.
 	mfs, err = fuse.Mount(mntDir, server, &mountCfg)
 	AssertEq(nil, err)
+	touchWatchdog("SetUpTestSuite:mounted")
 }
 
 func logMountDiagnostics(dir string) {
@@ -309,6 +353,7 @@ func unmountMountPoint(dir string) error {
 }
 
 func (t *fsTest) TearDownTestSuite() {
+	touchWatchdog("TearDownTestSuite:start")
 	var err error
 	_ = unmountMountPoint(mfs.Dir())
 
@@ -327,13 +372,11 @@ func (t *fsTest) TearDownTestSuite() {
 	// run.
 	buckets = nil
 	bucket = nil
+	touchWatchdog("TearDownTestSuite:complete")
 }
 
 func (t *fsTest) TearDown() {
-	if t.watchdog != nil {
-		t.watchdog.Stop()
-		t.watchdog = nil
-	}
+	touchWatchdog("ogletest:TearDown")
 
 	// Close any files we opened.
 	if t.f1 != nil {
