@@ -185,6 +185,7 @@ func TestComposeObjectCreator_CallsComposeObjects(t *testing.T) {
 	src = req.Sources[1]
 	h.assert.Equal(tmpObject.Name, src.Name)
 	h.assert.Equal(tmpObject.Generation, src.Generation)
+	h.assert.True(req.DeleteSourceObjects)
 }
 
 func TestComposeObjectCreator_CallsComposeObjectsWithObjectProperties(t *testing.T) {
@@ -258,6 +259,7 @@ func TestComposeObjectCreator_CallsComposeObjectsWithObjectProperties(t *testing
 	src = req.Sources[1]
 	h.assert.Equal(tmpObject.Name, src.Name)
 	h.assert.Equal(tmpObject.Generation, src.Generation)
+	h.assert.True(req.DeleteSourceObjects)
 }
 
 func TestComposeObjectCreator_ComposeObjectsFails(t *testing.T) {
@@ -278,7 +280,7 @@ func TestComposeObjectCreator_ComposeObjectsFails(t *testing.T) {
 	// DeleteObject
 	h.bucket.On("DeleteObject", mock.Anything, mock.MatchedBy(func(r *gcs.DeleteObjectRequest) bool {
 		return r.Name == tmpObject.Name
-	})).Return(errors.New(""))
+	})).Return(nil)
 
 	// Call
 	_, err := h.call()
@@ -305,7 +307,7 @@ func TestComposeObjectCreator_ComposeObjectsReturnsPreconditionError(t *testing.
 	// DeleteObject
 	h.bucket.On("DeleteObject", mock.Anything, mock.MatchedBy(func(r *gcs.DeleteObjectRequest) bool {
 		return r.Name == tmpObject.Name
-	})).Return(errors.New(""))
+	})).Return(nil)
 
 	// Call
 	_, err := h.call()
@@ -334,7 +336,7 @@ func TestComposeObjectCreator_ComposeObjectsReturnsNotFoundError(t *testing.T) {
 	// DeleteObject
 	h.bucket.On("DeleteObject", mock.Anything, mock.MatchedBy(func(r *gcs.DeleteObjectRequest) bool {
 		return r.Name == tmpObject.Name
-	})).Return(errors.New(""))
+	})).Return(nil)
 
 	// Call
 	_, err := h.call()
@@ -345,7 +347,7 @@ func TestComposeObjectCreator_ComposeObjectsReturnsNotFoundError(t *testing.T) {
 	h.assert.ErrorContains(err, "taco")
 }
 
-func TestComposeObjectCreator_CallsDeleteObject(t *testing.T) {
+func TestComposeObjectCreator_ComposeObjectsFails_DeleteObjectFails(t *testing.T) {
 	h := newComposeObjectCreatorHelper(t)
 
 	// CreateObject
@@ -357,47 +359,22 @@ func TestComposeObjectCreator_CallsDeleteObject(t *testing.T) {
 		Return(tmpObject, nil)
 
 	// ComposeObjects
-	composed := &gcs.Object{}
 	h.bucket.On("ComposeObjects", mock.Anything, mock.Anything).
-		Return(composed, nil)
+		Return((*gcs.Object)(nil), errors.New("compose failed"))
 
-	// DeleteObject
+	// DeleteObject fails
 	h.bucket.On("DeleteObject", mock.Anything, mock.MatchedBy(func(r *gcs.DeleteObjectRequest) bool {
 		return r.Name == tmpObject.Name
-	})).Return(errors.New(""))
-
-	// Call
-	_, _ = h.call()
-}
-
-func TestComposeObjectCreator_DeleteObjectFails(t *testing.T) {
-	h := newComposeObjectCreatorHelper(t)
-
-	// CreateObject
-	tmpObject := &gcs.Object{
-		Name: "bar",
-	}
-
-	h.bucket.On("CreateObject", mock.Anything, mock.Anything).
-		Return(tmpObject, nil)
-
-	// ComposeObjects
-	composed := &gcs.Object{}
-	h.bucket.On("ComposeObjects", mock.Anything, mock.Anything).
-		Return(composed, nil)
-
-	// DeleteObject
-	h.bucket.On("DeleteObject", mock.Anything, mock.Anything).
-		Return(errors.New("taco"))
+	})).Return(errors.New("delete failed"))
 
 	// Call
 	_, err := h.call()
 
-	h.assert.ErrorContains(err, "DeleteObject")
-	h.assert.ErrorContains(err, "taco")
+	h.assert.ErrorContains(err, "ComposeObjects")
+	h.assert.ErrorContains(err, "compose failed")
 }
 
-func TestComposeObjectCreator_DeleteObjectSucceeds(t *testing.T) {
+func TestComposeObjectCreator_ComposeSucceeds(t *testing.T) {
 	h := newComposeObjectCreatorHelper(t)
 
 	// CreateObject
@@ -412,10 +389,6 @@ func TestComposeObjectCreator_DeleteObjectSucceeds(t *testing.T) {
 	composed := &gcs.Object{}
 	h.bucket.On("ComposeObjects", mock.Anything, mock.Anything).
 		Return(composed, nil)
-
-	// DeleteObject
-	h.bucket.On("DeleteObject", mock.Anything, mock.Anything).
-		Return(nil)
 
 	// Call
 	o, err := h.call()

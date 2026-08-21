@@ -1351,6 +1351,73 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 	assert.Equal(testSuite.T(), srcMinObj1.Size+srcMinObj2.Size, composedObj.Size)
 }
 
+// FakeGCSServer does not delete source objects on compose with DeleteSourceObjects: true.
+// Deletion verification is tested in internal/storage/fake/testing/bucket_tests.go.
+func (testSuite *BucketHandleTest) TestComposeObjectMethodWithDeleteSourceObjects() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{})
+	var notfound *gcs.NotFoundError
+	_, _, err := testSuite.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: dstObjectName,
+		})
+	assert.True(testSuite.T(), errors.As(err, &notfound))
+	srcMinObj1, _, err := testSuite.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestObjectName,
+		})
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), srcMinObj1)
+	srcMinObj2, _, err := testSuite.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestSubObjectName,
+		})
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), srcMinObj2)
+
+	composedObj, err := testSuite.bucketHandle.ComposeObjects(context.Background(),
+		&gcs.ComposeObjectsRequest{
+			DstName:                       dstObjectName,
+			DstGenerationPrecondition:     nil,
+			DstMetaGenerationPrecondition: nil,
+			DeleteSourceObjects:           true,
+			Sources: []gcs.ComposeSource{
+				{
+					Name: TestObjectName,
+				},
+				{
+					Name: TestSubObjectName,
+				},
+			},
+			ContentType: ContentType,
+			Metadata: map[string]string{
+				MetaDataKey: MetaDataValue,
+			},
+			ContentLanguage:    ContentLanguage,
+			ContentEncoding:    ContentEncoding,
+			CacheControl:       CacheControl,
+			ContentDisposition: ContentDisposition,
+			CustomTime:         CustomTime,
+			EventBasedHold:     true,
+			StorageClass:       StorageClass,
+			Acl:                nil,
+		})
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), composedObj)
+	assert.Equal(testSuite.T(), srcMinObj1.Size+srcMinObj2.Size, composedObj.Size)
+
+	// Reading content of dstObject
+	dstBuffer := testSuite.readObjectContent(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: dstObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(composedObj.Size),
+			},
+		})
+	assert.Equal(testSuite.T(), ContentInTestObject+ContentInTestSubObject, dstBuffer)
+}
+
 func (testSuite *BucketHandleTest) TestComposeObjectMethodWhenSrcObjectDoesNotExist() {
 	createBucketHandle(testSuite, &controlpb.StorageLayout{})
 	var notfound *gcs.NotFoundError
