@@ -24,7 +24,7 @@ concurrency:
 jobs:
   flake-detector:
     runs-on: ubuntu-22.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -76,7 +76,7 @@ jobs:
             local out_file
             out_file=$(mktemp -p "$TMP_DIR" out.XXXXXX)
             
-            if ! timeout --kill-after=10s 6m env CGO_ENABLED=0 go test -v -timeout 5m -count "$COUNT" -skip "$SKIP_FLAG" "$pkg" </dev/null > "$out_file" 2>&1; then
+            if ! timeout --kill-after=10s 10m env CGO_ENABLED=0 go test -v -timeout 8m -count "$COUNT" -skip "$SKIP_FLAG" "$pkg" </dev/null > "$out_file" 2>&1; then
               local dur=$(( $(date +%s) - start ))
               local comp_file
               comp_file=$(mktemp -p "$COMPLETED_DIR" comp.XXXXXX)

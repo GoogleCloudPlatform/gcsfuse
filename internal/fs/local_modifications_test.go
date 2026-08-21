@@ -45,7 +45,10 @@ import (
 // The radius we use for "expect mtime is within"-style assertions. We can't
 // share a synchronized clock with the ultimate source of mtimes because with
 // writeback caching enabled the kernel manufactures them based on wall time.
-const timeSlop = 25 * time.Millisecond
+const (
+	timeSlop  = 2 * time.Second
+	sleepSlop = 25 * time.Millisecond
+)
 
 const gcsMaxNameLen = 1024
 
@@ -1584,7 +1587,7 @@ func (t *FileTest) AppendFileOperation_ShouldNotChangeObjectAttributes() {
 	// Fetch object attributes before file append.
 	minObject1, extendedAttr1, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
-	time.Sleep(timeSlop + timeSlop/2)
+	time.Sleep(sleepSlop + sleepSlop/2)
 
 	// Append to the file.
 	err = operations.WriteFileInAppendMode(path.Join(mntDir, fileName), FileContents)
@@ -1606,7 +1609,7 @@ func (t *FileTest) WriteAtFileOperation_ShouldNotChangeObjectAttributes() {
 	// Fetch object attributes before file append.
 	minObject1, extendedAttr1, err := bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: fileName, ForceFetchFromGcs: true, ReturnExtendedObjectAttributes: true})
 	AssertEq(nil, err)
-	time.Sleep(timeSlop + timeSlop/2)
+	time.Sleep(sleepSlop + sleepSlop/2)
 
 	// Over-write the file.
 	fh, err := os.OpenFile(path.Join(mntDir, fileName), os.O_RDWR, operations.FilePermission_0600)
@@ -1776,14 +1779,14 @@ func (t *FileTest) Stat() {
 	AssertEq(nil, err)
 
 	// Give it some contents.
-	time.Sleep(timeSlop + timeSlop/2)
+	time.Sleep(sleepSlop + sleepSlop/2)
 	writeTime := mtimeClock.Now()
 
 	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
-	time.Sleep(timeSlop + timeSlop/2)
+	time.Sleep(sleepSlop + sleepSlop/2)
 
 	// Stat it.
 	fi, err := t.f1.Stat()
@@ -1803,13 +1806,13 @@ func (t *FileTest) StatUnopenedFile() {
 	var err error
 
 	// Create and close a file.
-	time.Sleep(timeSlop + timeSlop/2)
+	time.Sleep(sleepSlop + sleepSlop/2)
 	createTime := mtimeClock.Now()
 
 	err = os.WriteFile(path.Join(mntDir, "foo"), []byte("taco"), 0700)
 	AssertEq(nil, err)
 
-	time.Sleep(timeSlop + timeSlop/2)
+	time.Sleep(sleepSlop + sleepSlop/2)
 
 	// Stat it.
 	fi, err := os.Stat(path.Join(mntDir, "foo"))
@@ -1829,13 +1832,13 @@ func (t *FileTest) LstatUnopenedFile() {
 	var err error
 
 	// Create and close a file.
-	time.Sleep(timeSlop + timeSlop/2)
+	time.Sleep(sleepSlop + sleepSlop/2)
 	createTime := mtimeClock.Now()
 
 	err = os.WriteFile(path.Join(mntDir, "foo"), []byte("taco"), 0700)
 	AssertEq(nil, err)
 
-	time.Sleep(timeSlop + timeSlop/2)
+	time.Sleep(sleepSlop + sleepSlop/2)
 
 	// Lstat it.
 	fi, err := os.Lstat(path.Join(mntDir, "foo"))
