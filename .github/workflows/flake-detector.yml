@@ -75,8 +75,19 @@ jobs:
             local start=$(date +%s)
             local out_file
             out_file=$(mktemp -p "$TMP_DIR" out.XXXXXX)
-            
-            if ! CGO_ENABLED=0 go test -timeout 5m -count "$COUNT" -skip "$SKIP_FLAG" "$pkg" </dev/null > "$out_file" 2>&1; then
+            local test_status=0
+            if [ "$short_pkg" = "internal/fs" ]; then
+              set -o pipefail
+              if ! CGO_ENABLED=0 go test -v -timeout 5m -count "$COUNT" -skip "$SKIP_FLAG" "$pkg" </dev/null 2>&1 | tee "$out_file" | grep -E '^(\[ RUN      \]|\[       OK \]|--- PASS|--- FAIL|FAIL|PASS|🚨)'; then
+                test_status=1
+              fi
+            else
+              if ! CGO_ENABLED=0 go test -timeout 5m -count "$COUNT" -skip "$SKIP_FLAG" "$pkg" </dev/null > "$out_file" 2>&1; then
+                test_status=1
+              fi
+            fi
+
+            if [ "$test_status" -ne 0 ]; then
               local dur=$(( $(date +%s) - start ))
               local comp_file
               comp_file=$(mktemp -p "$COMPLETED_DIR" comp.XXXXXX)
