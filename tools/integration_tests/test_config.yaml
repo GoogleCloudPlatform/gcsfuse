@@ -69,6 +69,7 @@ list_large_dir:
 operations:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
+    only_dir: "${ONLY_DIR}"
     configs:
       - flags:
         - "--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
@@ -117,10 +118,10 @@ read_large_files:
       - flags:
           - "--implicit-dirs"
           - "--implicit-dirs,--client-protocol=grpc"
-          - "--implicit-dirs,--file-cache-max-size-mb=700,--file-cache-cache-file-for-range-read,--cache-dir=${CACHE_DIR_PATH}"
-          - "--implicit-dirs,--file-cache-max-size-mb=700,--file-cache-cache-file-for-range-read,--client-protocol=grpc,--cache-dir=${CACHE_DIR_PATH}"
-          - "--implicit-dirs,--file-cache-max-size-mb=-1,--cache-dir=${CACHE_DIR_PATH}"
-          - "--implicit-dirs,--file-cache-max-size-mb=-1,--client-protocol=grpc,--cache-dir=${CACHE_DIR_PATH}"
+          - "--implicit-dirs,--file-cache-max-size-mb=700,--file-cache-cache-file-for-range-read,--cache-dir=/gcsfuse-tmp/read_large_files"
+          - "--implicit-dirs,--file-cache-max-size-mb=700,--file-cache-cache-file-for-range-read,--client-protocol=grpc,--cache-dir=/gcsfuse-tmp/read_large_files"
+          - "--implicit-dirs,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/read_large_files"
+          - "--implicit-dirs,--file-cache-max-size-mb=-1,--client-protocol=grpc,--cache-dir=/gcsfuse-tmp/read_large_files"
         compatible:
           flat: true
           hns: true
@@ -142,7 +143,7 @@ readonly:
           - "--o=ro,--implicit-dirs"
           - "--file-mode=544,--dir-mode=544,--implicit-dirs"
           - "--client-protocol=grpc,--o=ro,--implicit-dirs"
-          - "--o=ro,--implicit-dirs,--cache-dir=${CACHE_DIR_PATH},--file-cache-max-size-mb=3"
+          - "--o=ro,--implicit-dirs,--cache-dir=/gcsfuse-tmp/readonly,--file-cache-max-size-mb=3"
         compatible:
           flat: true
           hns: true
@@ -223,6 +224,7 @@ cloud_profiler:
 requester_pays_bucket:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
+    only_dir: "${ONLY_DIR}"
     configs:
       - flags:
           - "--billing-project=gcs-fuse-test-ml"
@@ -657,7 +659,6 @@ interrupt:
 log_rotation:
   - mounted_directory: "${MOUNTED_DIR}"
     test_bucket: "${BUCKET_NAME}"
-    log_file: # To be removed
     configs:
       - flags:
           - "--log-file=/gcsfuse-tmp/TestLogRotation.log,--log-rotate-max-file-size-mb=2,--log-rotate-backup-file-count=2,--log-rotate-compress=false,--log-severity=trace"
@@ -786,25 +787,23 @@ flag_optimizations:
         run_on_gke: false
 
 unsupported_path:
-- mounted_directory: "${MOUNTED_DIR}"
-  test_bucket: "${BUCKET_NAME}"
-  only_dir: "${ONLY_DIR}"
-  log_file: # Optional
-  configs:
-  - flags:
-    - "--implicit-dirs,--client-protocol=grpc,--enable-unsupported-path-support,--rename-dir-limit=200,--metadata-cache-negative-ttl-secs=0"
-    compatible:
-      flat: true
-      hns: true
-      zonal: false
-    run_on_gke: true
-  - flags:
-    - "--implicit-dirs,--enable-unsupported-path-support,--rename-dir-limit=200,--metadata-cache-negative-ttl-secs=0"
-    compatible:
-      flat: true
-      hns: true
-      zonal: true
-    run_on_gke: true
+  - mounted_directory: "${MOUNTED_DIR}"
+    test_bucket: "${BUCKET_NAME}"
+    configs:
+      - flags:
+          - "--implicit-dirs,--client-protocol=grpc,--enable-unsupported-path-support,--rename-dir-limit=200,--metadata-cache-negative-ttl-secs=0"
+        compatible:
+          flat: true
+          hns: true
+          zonal: false
+        run_on_gke: true
+      - flags:
+          - "--implicit-dirs,--enable-unsupported-path-support,--rename-dir-limit=200,--metadata-cache-negative-ttl-secs=0"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run_on_gke: true
 
 kernel_list_cache:
   - mounted_directory: "${MOUNTED_DIR}"

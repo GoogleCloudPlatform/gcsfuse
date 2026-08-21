@@ -17,7 +17,6 @@ package read_large_files
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -58,10 +57,10 @@ func TestMain(m *testing.M) {
 		cfg.ReadLargeFiles[0].Configs[0].Flags = []string{
 			"--implicit-dirs",
 			"--implicit-dirs --client-protocol=grpc",
-			fmt.Sprintf("--implicit-dirs=true --file-cache-max-size-mb=700 --file-cache-cache-file-for-range-read=true --cache-dir=%s/cache-dir-read-large-files-%s", os.TempDir(), setup.GenerateRandomString(4)),
-			fmt.Sprintf("--implicit-dirs=true --file-cache-max-size-mb=700 --file-cache-cache-file-for-range-read=true --client-protocol=grpc --cache-dir=%s/cache-dir-read-large-files-%s", os.TempDir(), setup.GenerateRandomString(4)),
-			fmt.Sprintf("--implicit-dirs=true --file-cache-max-size-mb=-1 --file-cache-cache-file-for-range-read=false --cache-dir=%s/cache-dir-read-large-files-%s", os.TempDir(), setup.GenerateRandomString(4)),
-			fmt.Sprintf("--implicit-dirs=true --file-cache-max-size-mb=-1 --file-cache-cache-file-for-range-read=false --client-protocol=grpc --cache-dir=%s/cache-dir-read-large-files-%s", os.TempDir(), setup.GenerateRandomString(4)),
+			"--implicit-dirs=true --file-cache-max-size-mb=700 --file-cache-cache-file-for-range-read=true --cache-dir=/gcsfuse-tmp/read_large_files",
+			"--implicit-dirs=true --file-cache-max-size-mb=700 --file-cache-cache-file-for-range-read=true --client-protocol=grpc --cache-dir=/gcsfuse-tmp/read_large_files",
+			"--implicit-dirs=true --file-cache-max-size-mb=-1 --file-cache-cache-file-for-range-read=false --cache-dir=/gcsfuse-tmp/read_large_files",
+			"--implicit-dirs=true --file-cache-max-size-mb=-1 --file-cache-cache-file-for-range-read=false --client-protocol=grpc --cache-dir=/gcsfuse-tmp/read_large_files",
 		}
 		cfg.ReadLargeFiles[0].Configs[0].Compatible = map[string]bool{"flat": true, "hns": true, "zonal": true}
 		cfg.ReadLargeFiles[0].Configs[1].Flags = []string{
@@ -88,12 +87,11 @@ func TestMain(m *testing.M) {
 		os.Exit(setup.RunTestsForMountedDirectory(cfg.ReadLargeFiles[0].GKEMountedDirectory, m))
 	}
 
-	// Run tests for testBucket.
-	// 4. Build the flag sets dynamically from the config.
-	flags := setup.BuildFlagSets(cfg.ReadLargeFiles[0], bucketType, "")
-	flags = setup.AddCacheDirToFlags(flags, "read-large-files")
-
 	setup.SetUpTestDirForTestBucket(&cfg.ReadLargeFiles[0])
+	setup.OverrideFilePathsInFlagSet(&cfg.ReadLargeFiles[0], setup.TestDir())
+
+	// 4. Build the flag sets dynamically from the modified config.
+	flags := setup.BuildFlagSets(cfg.ReadLargeFiles[0], bucketType, "")
 
 	successCode := static_mounting.RunTestsWithConfigFile(&cfg.ReadLargeFiles[0], flags, m)
 
