@@ -37,6 +37,80 @@
   - 200000000
   - 500000000
 
+- metric-name: "buffered_write/app_wait_latency"
+  description: "The cumulative distribution of time GCSFuse spent idle waiting for the application to send write or flush requests during buffered streaming writes."
+  type: "time_histogram"
+  unit: "ms"
+  boundaries: &millisecond_boundaries
+  - 10
+  - 25
+  - 50
+  - 100
+  - 250
+  - 500
+  - 1000
+  - 1500
+  - 2000
+  - 3000
+  - 4000
+  - 5000
+  - 6000
+  - 7000
+  - 8000
+  - 9000
+  - 10000
+  - 11000
+  - 12000
+  - 13000
+  - 14000
+  - 15000
+  - 16000
+  - 17000
+  - 18000
+  - 19000
+  - 20000
+  - 21000
+  - 22000
+  - 23000
+  - 24000
+  - 25000
+  - 26000
+  - 27000
+  - 28000
+  - 29000
+  - 30000
+  - 45000
+  - 60000
+  - 90000
+  - 120000
+  - 300000
+  - 600000
+
+- metric-name: "buffered_write/block_pool_wait_latency"
+  description: "The cumulative distribution of time the application spent blocked waiting for free memory blocks during buffered streaming writes."
+  type: "time_histogram"
+  unit: "ms"
+  boundaries: *millisecond_boundaries
+
+- metric-name: "buffered_write/finalize_latency"
+  description: "The cumulative distribution of time spent during Flush finalizing the upload to GCS for buffered streaming writes."
+  type: "time_histogram"
+  unit: "ms"
+  boundaries: *millisecond_boundaries
+
+- metric-name: "buffered_write/total_latency"
+  description: "The cumulative distribution of total end-to-end latencies for files written using the BufferedWriteHandler."
+  type: "time_histogram"
+  unit: "ms"
+  boundaries: *millisecond_boundaries
+  attributes:
+  - attribute-name: bottleneck
+    attribute-type: string
+    values:
+    - "app_bound"
+    - "balanced"
+    - "finalize_bound"
+    - "upload_bound"
 
 - metric-name: "file_cache/read_bytes_count"
   description: "The cumulative number of bytes read from file cache along with read type - Sequential/Random"
@@ -134,7 +208,53 @@
   description: "The cumulative distribution of file system operation latencies"
   type: "time_histogram"
   unit: "us"
-  boundaries: *microseconds_boundaries
+  boundaries: &fs_ops_latency_boundaries
+  - 200
+  - 1000
+  - 5000
+  - 10000
+  - 25000
+  - 50000
+  - 100000
+  - 250000
+  - 500000
+  - 1000000
+  - 1500000
+  - 2000000
+  - 3000000
+  - 4000000
+  - 5000000
+  - 6000000
+  - 7000000
+  - 8000000
+  - 9000000
+  - 10000000
+  - 11000000
+  - 12000000
+  - 13000000
+  - 14000000
+  - 15000000
+  - 16000000
+  - 17000000
+  - 18000000
+  - 19000000
+  - 20000000
+  - 21000000
+  - 22000000
+  - 23000000
+  - 24000000
+  - 25000000
+  - 26000000
+  - 27000000
+  - 28000000
+  - 29000000
+  - 30000000
+  - 45000000
+  - 60000000
+  - 90000000
+  - 120000000
+  - 300000000
+  - 600000000
   attributes:
   - attribute-name: fs_op
     attribute-type: string
@@ -227,20 +347,7 @@
   description: "The cumulative distribution of the GCS request latencies."
   type: "time_histogram"
   unit: "ms"
-  boundaries: &millisecond_boundaries
-  - 100
-  - 200
-  - 400
-  - 800
-  - 1500
-  - 3000
-  - 5000
-  - 10000
-  - 20000
-  - 50000
-  - 100000
-  - 200000
-  - 500000
+  boundaries: *millisecond_boundaries
   attributes:
   - attribute-name: gcs_method
     attribute-type: string

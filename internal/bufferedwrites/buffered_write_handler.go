@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"golang.org/x/sync/semaphore"
 )
@@ -68,6 +69,7 @@ type bufferedWriteHandlerImpl struct {
 	current       block.Block
 	blockPool     *block.GenBlockPool[block.Block]
 	uploadHandler *UploadHandler
+	metricHandle  metrics.MetricHandle
 	// Total size of data buffered so far. Some part of buffered data might have
 	// been uploaded to GCS as well. Depending on the state we are in, it might or
 	// might not include truncatedSize.
@@ -81,6 +83,13 @@ type bufferedWriteHandlerImpl struct {
 	// 2. If write is started after the truncate offset, dummy data is created
 	// as per the truncatedSize and then new data is appended to it.
 	truncatedSize int64
+
+	// Timing accumulators for fault attribution metrics:
+	startTime          time.Time
+	lastWriteEndTime   time.Time
+	appWaitDuration    time.Duration
+	blockWaitDuration  time.Duration
+	outOfOrderDetected bool
 }
 
 // WriteFileInfo is used as part of serving fileInode attributes (GetInodeAttributes call).
@@ -101,6 +110,7 @@ type CreateBWHandlerRequest struct {
 	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
 	TraceHandle              tracing.TraceHandle
+	MetricHandle             metrics.MetricHandle
 }
 
 // NewBWHandler creates the bufferedWriteHandler struct.
@@ -112,6 +122,11 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 	var size int64
 	if req.Object != nil {
 		size = int64(req.Object.Size)
+	}
+
+	mh := req.MetricHandle
+	if mh == nil {
+		mh = metrics.NewNoopMetrics()
 	}
 
 	bwh = &bufferedWriteHandlerImpl{
@@ -128,6 +143,7 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
 			TraceHandle:              req.TraceHandle,
 		}),
+		metricHandle:  mh,
 		totalSize:     size,
 		mtime:         time.Now(),
 		truncatedSize: -1,
@@ -136,6 +152,16 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 }
 
 func (wh *bufferedWriteHandlerImpl) Write(ctx context.Context, data []byte, offset int64) (err error) {
+	now := time.Now()
+	if wh.startTime.IsZero() {
+		wh.startTime = now
+	} else if !wh.lastWriteEndTime.IsZero() {
+		wh.appWaitDuration += now.Sub(wh.lastWriteEndTime)
+	}
+	defer func() {
+		wh.lastWriteEndTime = time.Now()
+	}()
+
 	// Fail early if the uploadHandler has already failed.
 	err = wh.uploadHandler.UploadError()
 	if err != nil {
@@ -146,6 +172,7 @@ func (wh *bufferedWriteHandlerImpl) Write(ctx context.Context, data []byte, offs
 	// bytes, and we write 10 bytes starting from offset 5, the total size becomes 15.
 	// A subsequent write at offset 10 (the truncated size) will be rejected as an out of order write.
 	if offset != wh.totalSize && (offset != wh.truncatedSize || wh.totalSize >= wh.truncatedSize) {
+		wh.outOfOrderDetected = true
 		logger.Errorf("BufferedWriteHandler.OutOfOrderError for object: %s, expectedOffset: %d, actualOffset: %d",
 			wh.uploadHandler.objectName, wh.totalSize, offset)
 		return ErrOutOfOrderWrite
@@ -166,7 +193,9 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(ctx context.Context, data []byt
 	dataWritten := 0
 	for dataWritten < len(data) {
 		if wh.current == nil {
+			startBlockGet := time.Now()
 			wh.current, err = wh.blockPool.Get()
+			wh.blockWaitDuration += time.Since(startBlockGet)
 			if err != nil {
 				return fmt.Errorf("failed to get new block: %w", err)
 			}
@@ -241,6 +270,13 @@ func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject,
 
 // Flush finalizes the upload.
 func (wh *bufferedWriteHandlerImpl) Flush(ctx context.Context) (*gcs.MinObject, error) {
+	flushStart := time.Now()
+	if wh.startTime.IsZero() {
+		wh.startTime = flushStart
+	} else if !wh.lastWriteEndTime.IsZero() {
+		wh.appWaitDuration += flushStart.Sub(wh.lastWriteEndTime)
+	}
+
 	// Fail early if upload already failed.
 	err := wh.uploadHandler.UploadError()
 	if err != nil {
@@ -261,6 +297,7 @@ func (wh *bufferedWriteHandlerImpl) Flush(ctx context.Context) (*gcs.MinObject, 
 		wh.current = nil
 	}
 
+	finalizeStart := time.Now()
 	obj, err := wh.uploadHandler.Finalize(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("BufferedWriteHandler.Flush(): %w", err)
@@ -276,7 +313,45 @@ func (wh *bufferedWriteHandlerImpl) Flush(ctx context.Context) (*gcs.MinObject, 
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
 	}
 
+	finalizeDuration := time.Since(finalizeStart)
+	totalDuration := time.Since(wh.startTime)
+	if !wh.outOfOrderDetected {
+		wh.recordMetrics(ctx, totalDuration, finalizeDuration)
+	}
+
 	return obj, nil
+}
+
+func (wh *bufferedWriteHandlerImpl) recordMetrics(ctx context.Context, totalDuration time.Duration, finalizeDuration time.Duration) {
+	if wh.metricHandle == nil {
+		return
+	}
+
+	bottleneck := metrics.BottleneckBalancedAttr
+	if totalDuration > 0 {
+		appRatio := float64(wh.appWaitDuration) / float64(totalDuration)
+		blockWaitRatio := float64(wh.blockWaitDuration) / float64(totalDuration)
+		finalizeRatio := float64(finalizeDuration) / float64(totalDuration)
+
+		if appRatio >= 0.60 {
+			bottleneck = metrics.BottleneckAppBoundAttr
+		} else if blockWaitRatio >= 0.40 {
+			bottleneck = metrics.BottleneckUploadBoundAttr
+		} else if finalizeRatio >= 0.50 {
+			bottleneck = metrics.BottleneckFinalizeBoundAttr
+		} else if (blockWaitRatio + finalizeRatio) >= 0.60 {
+			if finalizeRatio > blockWaitRatio {
+				bottleneck = metrics.BottleneckFinalizeBoundAttr
+			} else {
+				bottleneck = metrics.BottleneckUploadBoundAttr
+			}
+		}
+	}
+
+	wh.metricHandle.BufferedWriteTotalLatency(ctx, totalDuration, bottleneck)
+	wh.metricHandle.BufferedWriteAppWaitLatency(ctx, wh.appWaitDuration)
+	wh.metricHandle.BufferedWriteBlockPoolWaitLatency(ctx, wh.blockWaitDuration)
+	wh.metricHandle.BufferedWriteFinalizeLatency(ctx, finalizeDuration)
 }
 
 func (wh *bufferedWriteHandlerImpl) SetMtime(mtime time.Time) {
@@ -284,7 +359,18 @@ func (wh *bufferedWriteHandlerImpl) SetMtime(mtime time.Time) {
 }
 
 func (wh *bufferedWriteHandlerImpl) Truncate(size int64) error {
+	now := time.Now()
+	if wh.startTime.IsZero() {
+		wh.startTime = now
+	} else if !wh.lastWriteEndTime.IsZero() {
+		wh.appWaitDuration += now.Sub(wh.lastWriteEndTime)
+	}
+	defer func() {
+		wh.lastWriteEndTime = time.Now()
+	}()
+
 	if size < wh.totalSize {
+		wh.outOfOrderDetected = true
 		return ErrOutOfOrderWrite
 	}
 

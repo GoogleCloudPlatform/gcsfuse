@@ -20,6 +20,16 @@ import (
 	"time"
 )
 
+// Bottleneck is a custom type for the bottleneck attribute.
+type Bottleneck string
+
+const (
+	BottleneckAppBoundAttr      Bottleneck = "app_bound"
+	BottleneckBalancedAttr      Bottleneck = "balanced"
+	BottleneckFinalizeBoundAttr Bottleneck = "finalize_bound"
+	BottleneckUploadBoundAttr   Bottleneck = "upload_bound"
+)
+
 // EntryStatus is a custom type for the entry_status attribute.
 type EntryStatus string
 
@@ -189,6 +199,18 @@ type MetricHandle interface {
 
 	// BufferedReadReadLatency - The cumulative distribution of latencies for ReadAt calls served by the buffered reader.
 	BufferedReadReadLatency(ctx context.Context, latency time.Duration)
+
+	// BufferedWriteAppWaitLatency - The cumulative distribution of time GCSFuse spent idle waiting for the application to send write or flush requests during buffered streaming writes.
+	BufferedWriteAppWaitLatency(ctx context.Context, latency time.Duration)
+
+	// BufferedWriteBlockPoolWaitLatency - The cumulative distribution of time the application spent blocked waiting for free memory blocks during buffered streaming writes.
+	BufferedWriteBlockPoolWaitLatency(ctx context.Context, latency time.Duration)
+
+	// BufferedWriteFinalizeLatency - The cumulative distribution of time spent during Flush finalizing the upload to GCS for buffered streaming writes.
+	BufferedWriteFinalizeLatency(ctx context.Context, latency time.Duration)
+
+	// BufferedWriteTotalLatency - The cumulative distribution of total end-to-end latencies for files written using the BufferedWriteHandler.
+	BufferedWriteTotalLatency(ctx context.Context, latency time.Duration, bottleneck Bottleneck)
 
 	// FileCacheReadBytesCount - The cumulative number of bytes read from file cache along with read type - Sequential/Random
 	FileCacheReadBytesCount(inc int64, readType ReadType)

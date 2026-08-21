@@ -25,6 +25,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/timeutil"
@@ -32,6 +33,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	metricSdk "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -710,4 +715,119 @@ func (testSuite *BufferedWriteTest) TestReFlushAfterUploadFails() {
 	require.Error(testSuite.T(), err)
 	assert.Nil(testSuite.T(), obj)
 	assert.ErrorContains(testSuite.T(), err, errUploadFailure.Error())
+}
+
+func (testSuite *BufferedWriteTest) TestBufferedWriteMetrics() {
+	ctx := context.Background()
+	origProvider := otel.GetMeterProvider()
+	defer otel.SetMeterProvider(origProvider)
+
+	reader := metricSdk.NewManualReader()
+	provider := metricSdk.NewMeterProvider(metricSdk.WithReader(reader))
+	otel.SetMeterProvider(provider)
+
+	mh, err := metrics.NewOTelMetrics(ctx, 1, 100)
+	require.NoError(testSuite.T(), err)
+
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", gcs.BucketType{})
+	sem := semaphore.NewWeighted(10)
+	bwh, err := NewBWHandler(&CreateBWHandlerRequest{
+		Object:                   nil,
+		ObjectName:               "testMetricsObject",
+		Bucket:                   bucket,
+		BlockSize:                blockSize,
+		MaxBlocksPerFile:         10,
+		GlobalMaxBlocksSem:       sem,
+		ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
+		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+		TraceHandle:              tracing.NewNoopTracer(),
+		MetricHandle:             mh,
+	})
+	require.NoError(testSuite.T(), err)
+
+	buffer, err := operations.GenerateRandomData(blockSize)
+	require.NoError(testSuite.T(), err)
+
+	// Perform 2 sequential writes with simulated app delay.
+	err = bwh.Write(ctx, buffer, 0)
+	require.NoError(testSuite.T(), err)
+
+	time.Sleep(10 * time.Millisecond)
+
+	err = bwh.Write(ctx, buffer, int64(blockSize))
+	require.NoError(testSuite.T(), err)
+
+	// Flush
+	obj, err := bwh.Flush(ctx)
+	require.NoError(testSuite.T(), err)
+	require.NotNil(testSuite.T(), obj)
+
+	time.Sleep(5 * time.Millisecond)
+
+	// Verify metrics recorded
+	metrics.VerifyHistogramMetric(testSuite.T(), ctx, reader, "buffered_write/total_latency", attribute.NewSet(attribute.String("bottleneck", "app_bound")), 1)
+	metrics.VerifyHistogramMetric(testSuite.T(), ctx, reader, "buffered_write/app_wait_latency", attribute.NewSet(), 1)
+	metrics.VerifyHistogramMetric(testSuite.T(), ctx, reader, "buffered_write/block_pool_wait_latency", attribute.NewSet(), 1)
+	metrics.VerifyHistogramMetric(testSuite.T(), ctx, reader, "buffered_write/finalize_latency", attribute.NewSet(), 1)
+}
+
+func (testSuite *BufferedWriteTest) TestBufferedWriteMetrics_NoMetricsOnOutOfOrderFallback() {
+	ctx := context.Background()
+	origProvider := otel.GetMeterProvider()
+	defer otel.SetMeterProvider(origProvider)
+
+	reader := metricSdk.NewManualReader()
+	provider := metricSdk.NewMeterProvider(metricSdk.WithReader(reader))
+	otel.SetMeterProvider(provider)
+
+	mh, err := metrics.NewOTelMetrics(ctx, 1, 100)
+	require.NoError(testSuite.T(), err)
+
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", gcs.BucketType{})
+	sem := semaphore.NewWeighted(10)
+	bwh, err := NewBWHandler(&CreateBWHandlerRequest{
+		Object:                   nil,
+		ObjectName:               "testFallbackMetricsObject",
+		Bucket:                   bucket,
+		BlockSize:                blockSize,
+		MaxBlocksPerFile:         10,
+		GlobalMaxBlocksSem:       sem,
+		ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
+		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+		TraceHandle:              tracing.NewNoopTracer(),
+		MetricHandle:             mh,
+	})
+	require.NoError(testSuite.T(), err)
+
+	buffer, err := operations.GenerateRandomData(blockSize)
+	require.NoError(testSuite.T(), err)
+
+	// Write first block at offset 0
+	err = bwh.Write(ctx, buffer, 0)
+	require.NoError(testSuite.T(), err)
+
+	// Out of order write (e.g. offset blockSize*3 instead of blockSize)
+	err = bwh.Write(ctx, buffer, int64(blockSize*3))
+	require.ErrorIs(testSuite.T(), err, ErrOutOfOrderWrite)
+
+	// Flush is called by FileInode to finalize what was written so far before dropping to temp file.
+	obj, err := bwh.Flush(ctx)
+	require.NoError(testSuite.T(), err)
+	require.NotNil(testSuite.T(), obj)
+
+	time.Sleep(5 * time.Millisecond)
+
+	// Verify that NO buffered_write metrics are recorded because this was a fallback.
+	var rm metricdata.ResourceMetrics
+	err = reader.Collect(ctx, &rm)
+	require.NoError(testSuite.T(), err)
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			if strings.HasPrefix(m.Name, "buffered_write/") {
+				if hist, ok := m.Data.(metricdata.Histogram[int64]); ok {
+					assert.Equal(testSuite.T(), 0, len(hist.DataPoints), "unexpected data points recorded for %s", m.Name)
+				}
+			}
+		}
+	}
 }

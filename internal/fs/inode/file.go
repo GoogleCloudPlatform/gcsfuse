@@ -1278,6 +1278,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			ChunkRetryDeadlineSecs:   writeCtx.Config.GcsRetries.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: writeCtx.Config.GcsRetries.ChunkTransferTimeoutSecs,
 			TraceHandle:              writeCtx.TraceHandle,
+			MetricHandle:             writeCtx.MetricHandle,
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			logger.Tracef("File %s will use legacy staged writes because concurrent streaming write "+

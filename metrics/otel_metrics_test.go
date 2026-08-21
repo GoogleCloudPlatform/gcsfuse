@@ -222,6 +222,140 @@ func TestBufferedReadReadLatency(t *testing.T) {
 	assert.Equal(t, totalLatency.Microseconds(), dp.Sum)
 }
 
+func TestBufferedWriteAppWaitLatency(t *testing.T) {
+	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
+	m, rd := setupOTel(ctx, t)
+	var totalLatency time.Duration
+	latencies := []time.Duration{100 * time.Millisecond, 200 * time.Millisecond}
+
+	for _, latency := range latencies {
+		m.BufferedWriteAppWaitLatency(ctx, latency)
+		totalLatency += latency
+	}
+	waitForMetricsProcessing()
+
+	metrics := gatherHistogramMetrics(ctx, t, rd)
+	metric, ok := metrics["buffered_write/app_wait_latency"]
+	require.True(t, ok, "buffered_write/app_wait_latency metric not found")
+
+	s := attribute.NewSet()
+	expectedKey := s.Encoded(encoder)
+	dp, ok := metric[expectedKey]
+	require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+	assert.Equal(t, uint64(len(latencies)), dp.Count)
+	assert.Equal(t, totalLatency.Milliseconds(), dp.Sum)
+}
+
+func TestBufferedWriteBlockPoolWaitLatency(t *testing.T) {
+	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
+	m, rd := setupOTel(ctx, t)
+	var totalLatency time.Duration
+	latencies := []time.Duration{100 * time.Millisecond, 200 * time.Millisecond}
+
+	for _, latency := range latencies {
+		m.BufferedWriteBlockPoolWaitLatency(ctx, latency)
+		totalLatency += latency
+	}
+	waitForMetricsProcessing()
+
+	metrics := gatherHistogramMetrics(ctx, t, rd)
+	metric, ok := metrics["buffered_write/block_pool_wait_latency"]
+	require.True(t, ok, "buffered_write/block_pool_wait_latency metric not found")
+
+	s := attribute.NewSet()
+	expectedKey := s.Encoded(encoder)
+	dp, ok := metric[expectedKey]
+	require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+	assert.Equal(t, uint64(len(latencies)), dp.Count)
+	assert.Equal(t, totalLatency.Milliseconds(), dp.Sum)
+}
+
+func TestBufferedWriteFinalizeLatency(t *testing.T) {
+	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
+	m, rd := setupOTel(ctx, t)
+	var totalLatency time.Duration
+	latencies := []time.Duration{100 * time.Millisecond, 200 * time.Millisecond}
+
+	for _, latency := range latencies {
+		m.BufferedWriteFinalizeLatency(ctx, latency)
+		totalLatency += latency
+	}
+	waitForMetricsProcessing()
+
+	metrics := gatherHistogramMetrics(ctx, t, rd)
+	metric, ok := metrics["buffered_write/finalize_latency"]
+	require.True(t, ok, "buffered_write/finalize_latency metric not found")
+
+	s := attribute.NewSet()
+	expectedKey := s.Encoded(encoder)
+	dp, ok := metric[expectedKey]
+	require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+	assert.Equal(t, uint64(len(latencies)), dp.Count)
+	assert.Equal(t, totalLatency.Milliseconds(), dp.Sum)
+}
+
+func TestBufferedWriteTotalLatency(t *testing.T) {
+	tests := []struct {
+		name       string
+		latencies  []time.Duration
+		bottleneck Bottleneck
+	}{
+		{
+			name:       "bottleneck_app_bound",
+			latencies:  []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
+			bottleneck: "app_bound",
+		},
+		{
+			name:       "bottleneck_balanced",
+			latencies:  []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
+			bottleneck: "balanced",
+		},
+		{
+			name:       "bottleneck_finalize_bound",
+			latencies:  []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
+			bottleneck: "finalize_bound",
+		},
+		{
+			name:       "bottleneck_upload_bound",
+			latencies:  []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
+			bottleneck: "upload_bound",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
+			var totalLatency time.Duration
+
+			for _, latency := range tc.latencies {
+				m.BufferedWriteTotalLatency(ctx, latency, tc.bottleneck)
+				totalLatency += latency
+			}
+			waitForMetricsProcessing()
+
+			metrics := gatherHistogramMetrics(ctx, t, rd)
+			metric, ok := metrics["buffered_write/total_latency"]
+			require.True(t, ok, "buffered_write/total_latency metric not found")
+
+			var attrs []attribute.KeyValue
+			if tc.bottleneck != "" {
+				attrs = append(attrs, attribute.String("bottleneck", string(tc.bottleneck)))
+			}
+			s := attribute.NewSet(attrs...)
+			expectedKey := s.Encoded(encoder)
+			dp, ok := metric[expectedKey]
+			require.True(t, ok, "DataPoint not found for key: %s", expectedKey)
+			assert.Equal(t, uint64(len(tc.latencies)), dp.Count)
+			assert.Equal(t, totalLatency.Milliseconds(), dp.Sum)
+		})
+	}
+}
+
 func TestFileCacheReadBytesCount(t *testing.T) {
 	tests := []struct {
 		name     string

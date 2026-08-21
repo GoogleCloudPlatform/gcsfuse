@@ -26,6 +26,15 @@ func (*noopMetrics) BufferedReadFallbackTriggerCount(inc int64, reason Reason) {
 
 func (*noopMetrics) BufferedReadReadLatency(ctx context.Context, latency time.Duration) {}
 
+func (*noopMetrics) BufferedWriteAppWaitLatency(ctx context.Context, latency time.Duration) {}
+
+func (*noopMetrics) BufferedWriteBlockPoolWaitLatency(ctx context.Context, latency time.Duration) {}
+
+func (*noopMetrics) BufferedWriteFinalizeLatency(ctx context.Context, latency time.Duration) {}
+
+func (*noopMetrics) BufferedWriteTotalLatency(ctx context.Context, latency time.Duration, bottleneck Bottleneck) {
+}
+
 func (*noopMetrics) FileCacheReadBytesCount(inc int64, readType ReadType) {}
 
 func (*noopMetrics) FileCacheReadCount(inc int64, cacheHit bool, readType ReadType) {}
