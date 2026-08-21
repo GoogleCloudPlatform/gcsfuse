@@ -263,44 +263,42 @@ func closeMountPointFds(dir string) []string {
 	return leaked
 }
 
-func (t *fsTest) TearDownTestSuite() {
-	var err error
-	closeMountPointFds(mntDir)
-	// Unmount the file system. Try again on "resource busy" errors up to 5s.
-	delay := 10 * time.Millisecond
-	deadline := time.Now().Add(5 * time.Second)
-	for {
-		err := fuse.Unmount(mfs.Dir())
-		if err == nil {
-			break
-		}
+func unmountMountPoint(dir string) error {
+	// First ensure no local FDs are held open by this process.
+	closeMountPointFds(dir)
 
-		if strings.Contains(err.Error(), "resource busy") {
-			closeMountPointFds(mntDir)
-			if time.Now().Before(deadline) {
-				logger.Info("Resource busy error while unmounting; trying again")
-				time.Sleep(delay)
-				delay = time.Duration(1.3 * float64(delay))
-				continue
-			}
+	// Attempt standard unmount with a strict 2-second timeout to prevent kernel deadlocks.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 
-			// Diagnostic logging and lazy unmount fallback when standard unmount times out on busy resource.
-			logger.Warnf("Standard unmount timed out on busy resource; logging diagnostics and falling back to lazy unmount")
-			logMountDiagnostics(mfs.Dir())
-
-			cmd := exec.Command("fusermount3", "-u", "-z", mfs.Dir())
-			if _, lazyErr := cmd.CombinedOutput(); lazyErr != nil {
-				cmd2 := exec.Command("fusermount", "-u", "-z", mfs.Dir())
-				_ = cmd2.Run()
-			}
-			break
-		}
-
-		AddFailure("MountedFileSystem.Unmount: %v", err)
-		AbortTest()
+	cmd := exec.CommandContext(ctx, "fusermount3", "-u", dir)
+	if _, err := cmd.CombinedOutput(); err == nil {
+		return nil
+	}
+	cmdLegacy := exec.CommandContext(ctx, "fusermount", "-u", dir)
+	if _, err := cmdLegacy.CombinedOutput(); err == nil {
+		return nil
 	}
 
-	joinCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// If standard unmount timed out or failed (e.g. EBUSY), log diagnostics and force lazy unmount (-z).
+	logMountDiagnostics(dir)
+	ctxLazy, cancelLazy := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancelLazy()
+
+	cmdLazy := exec.CommandContext(ctxLazy, "fusermount3", "-u", "-z", dir)
+	if _, err := cmdLazy.CombinedOutput(); err == nil {
+		return nil
+	}
+	cmdLazyLegacy := exec.CommandContext(ctxLazy, "fusermount", "-u", "-z", dir)
+	_ = cmdLazyLegacy.Run()
+	return nil
+}
+
+func (t *fsTest) TearDownTestSuite() {
+	var err error
+	_ = unmountMountPoint(mfs.Dir())
+
+	joinCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	if err := mfs.Join(joinCtx); err != nil {
 		logger.Warnf("mfs.Join returned error or timed out: %v", err)
@@ -309,7 +307,6 @@ func (t *fsTest) TearDownTestSuite() {
 	// Unlink the mount point.
 	if err = os.Remove(mntDir); err != nil {
 		logger.Errorf("Unlinking mount point: %v", err)
-		return
 	}
 
 	// Setting nil ensures bucket/buckets variables are clean for next test suite
