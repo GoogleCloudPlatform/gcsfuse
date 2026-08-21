@@ -271,7 +271,7 @@ func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_MountRetriesDisable
 }
 
 func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_MountRetriesEnabled_AllAttemptsTimeOut() {
-	client := t.newHelperRetryWrapperWithMountRetries(t.stallingClient, 1000*time.Microsecond, time.Microsecond, 10*time.Microsecond, 2, false, true)
+	client := t.newHelperRetryWrapperWithMountRetries(t.stallingClient, 100*time.Millisecond, time.Microsecond, 10*time.Microsecond, 2, false, true)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	mountErr := status.Error(codes.NotFound, "The specified bucket does not exist.")
 	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(nil, mountErr)
