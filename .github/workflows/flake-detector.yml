@@ -45,12 +45,40 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Test all
+      - name: Test Only (internal/fs)
+        if: ${{ inputs.packages == '' || contains(inputs.packages, 'internal/fs') }}
+        run: |
+          COUNT="10"
+          SKIP_FLAG="$(cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go)"
+          echo "## 🧪 Test Only: internal/fs (Count: $COUNT)" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Status | Package | Duration |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+
+          start=$(date +%s)
+          if ! env CGO_ENABLED=0 go test -v -timeout 8m -count "$COUNT" -skip "$SKIP_FLAG" ./internal/fs </dev/null; then
+            dur=$(( $(date +%s) - start ))
+            echo "| ❌ FAILED | \`internal/fs\` | ${dur}s |" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::❌ internal/fs failed after ${dur}s"
+            exit 1
+          else
+            dur=$(( $(date +%s) - start ))
+            echo "| ✅ Passed | \`internal/fs\` | ${dur}s |" >> "$GITHUB_STEP_SUMMARY"
+            echo "✅ [1/1] internal/fs (${dur}s) passed"
+          fi
+
+      - name: Test ALL (except internal/fs)
         run: |
           COUNT="10"
           PKGS="${{ inputs.packages }}"
           if [ -z "$PKGS" ]; then
-            PKGS=$(go list ./... | grep -v 'tools/integration_tests' | grep -v 'tools/build_gcsfuse')
+            PKGS=$(go list ./... | grep -v 'tools/integration_tests' | grep -v 'tools/build_gcsfuse' | grep -v '/internal/fs$')
+          else
+            PKGS=$(echo "$PKGS" | tr ' ' '\n' | grep -v '/internal/fs$' || true)
+          fi
+
+          if [ -z "$PKGS" ]; then
+            echo "No additional packages to test."
+            exit 0
           fi
 
           SKIP_FLAG="$(cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go)"
