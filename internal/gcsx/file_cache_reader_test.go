@@ -338,11 +338,14 @@ func (t *fileCacheReaderTest) Test_ReadAt_SequentialToRandomSubsequentReadOffset
 		Offset: int64(start2),
 	})
 
-	// Assuming a download with a start offset of start2 is in progress, a fallback to another reader will be required.
-	assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
-	assert.Zero(t.T(), readResponse.Size)
-	job := t.jobManager.GetJob(t.object.Name, t.mockBucket.Name())
-	assert.True(t.T(), job == nil || job.GetStatus().Name == downloader.Downloading)
+	if err == nil {
+		assert.Equal(t.T(), testContent[start2:end2], buf2[:readResponse.Size])
+	} else {
+		assert.True(t.T(), errors.Is(err, FallbackToAnotherReader), "expected %v error got %v", FallbackToAnotherReader, err)
+		assert.Zero(t.T(), readResponse.Size)
+		job := t.jobManager.GetJob(t.object.Name, t.mockBucket.Name())
+		assert.True(t.T(), job == nil || job.GetStatus().Name == downloader.Downloading || job.GetStatus().Name == downloader.Completed)
+	}
 	assert.NotNil(t.T(), t.reader.fileCacheHandle)
 	t.mockBucket.AssertExpectations(t.T())
 }

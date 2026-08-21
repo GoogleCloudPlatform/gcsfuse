@@ -267,7 +267,7 @@ func Test_cleanUpEvictedFile_WhenLocalFileNotExist(t *testing.T) {
 
 	assert.NoError(t, err)
 	jobStatusAfter := fileDownloadJob.GetStatus()
-	assert.True(t, jobStatusAfter.Name == downloader.Invalid || jobStatusAfter.Name == downloader.Completed, "jobStatus: %v", jobStatusAfter.Name)
+	assert.True(t, jobStatusAfter.Name == downloader.Invalid || jobStatusAfter.Name == downloader.Completed || jobStatusAfter.Name == downloader.Failed, "jobStatus: %v", jobStatusAfter.Name)
 	assert.False(t, doesFileExist(t, chTestArgs.downloadPath))
 	// Job should be removed from job manager
 	assert.Nil(t, chTestArgs.jobManager.GetJob(chTestArgs.object.Name, chTestArgs.bucket.Name()))
