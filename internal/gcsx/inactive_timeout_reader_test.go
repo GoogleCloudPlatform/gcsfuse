@@ -185,19 +185,19 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_ReconnectFails() {
 	n, err := s.reader.Read(buf)
 	s.Require().NoError(err)
 	s.Require().Equal(5, n)
-	// First timeout fire will make the reader inactive.
-	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
-	// Wait for the monitor routine to make the read inactive.
+	// Wait for the monitor routine to make the reader inactive.
 	require.Eventually(s.T(), func() bool {
+		// First timeout fire will make the reader inactive.
+		s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
 		rr := s.reader.(*InactiveTimeoutReader)
 		rr.mu.Lock()
 		defer rr.mu.Unlock()
 		return !rr.isActive
 	}, time.Second, 10*time.Millisecond, "Monitor did mark the reader inactive in time")
-	// 2nd fire will close the inactive reader.
-	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
 	// Wait for the monitor routine to close the wrapped reader.
 	require.Eventually(s.T(), func() bool {
+		// 2nd fire will close the inactive reader.
+		s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
 		rr := s.reader.(*InactiveTimeoutReader)
 		rr.mu.Lock()
 		defer rr.mu.Unlock()
@@ -227,19 +227,19 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect
 	s.Require().NoError(err)
 	s.Require().Equal(10, n)
 	s.Equal("abcdefghij", string(buf[:n]))
-	// First timeout fire will make the reader inactive.
-	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
-	// Wait for the monitor routine to make the read inactive.
+	// Wait for the monitor routine to make the reader inactive.
 	require.Eventually(s.T(), func() bool {
+		// First timeout fire will make the reader inactive.
+		s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
 		rr := s.reader.(*InactiveTimeoutReader)
 		rr.mu.Lock()
 		defer rr.mu.Unlock()
 		return !rr.isActive
 	}, time.Second, 10*time.Millisecond, "Monitor did mark the reader inactive in time")
-	// 2nd fire will close the inactive reader.
-	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
 	// Wait for the monitor routine to close the wrapped reader.
 	require.Eventually(s.T(), func() bool {
+		// 2nd fire will close the inactive reader.
+		s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
 		rr := s.reader.(*InactiveTimeoutReader)
 		rr.mu.Lock()
 		defer rr.mu.Unlock()
