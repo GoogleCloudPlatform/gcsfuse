@@ -321,6 +321,15 @@ func closeMountPointFds(dir string) []string {
 	return leaked
 }
 
+func runUnmountCmd(ctx context.Context, name string, args ...string) error {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Stdin = nil
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	return cmd.Run()
+}
+
 func unmountMountPoint(dir string) error {
 	// First ensure no local FDs are held open by this process.
 	closeMountPointFds(dir)
@@ -329,12 +338,10 @@ func unmountMountPoint(dir string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "fusermount3", "-u", dir)
-	if _, err := cmd.CombinedOutput(); err == nil {
+	if err := runUnmountCmd(ctx, "fusermount3", "-u", dir); err == nil {
 		return nil
 	}
-	cmdLegacy := exec.CommandContext(ctx, "fusermount", "-u", dir)
-	if _, err := cmdLegacy.CombinedOutput(); err == nil {
+	if err := runUnmountCmd(ctx, "fusermount", "-u", dir); err == nil {
 		return nil
 	}
 
@@ -343,12 +350,10 @@ func unmountMountPoint(dir string) error {
 	ctxLazy, cancelLazy := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancelLazy()
 
-	cmdLazy := exec.CommandContext(ctxLazy, "fusermount3", "-u", "-z", dir)
-	if _, err := cmdLazy.CombinedOutput(); err == nil {
+	if err := runUnmountCmd(ctxLazy, "fusermount3", "-u", "-z", dir); err == nil {
 		return nil
 	}
-	cmdLazyLegacy := exec.CommandContext(ctxLazy, "fusermount", "-u", "-z", dir)
-	_ = cmdLazyLegacy.Run()
+	_ = runUnmountCmd(ctxLazy, "fusermount", "-u", "-z", dir)
 	return nil
 }
 

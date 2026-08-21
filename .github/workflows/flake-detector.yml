@@ -76,7 +76,7 @@ jobs:
             local out_file
             out_file=$(mktemp -p "$TMP_DIR" out.XXXXXX)
             
-            if ! timeout --kill-after=5s 3m env CGO_ENABLED=0 go test -timeout 3m -count "$COUNT" -skip "$SKIP_FLAG" "$pkg" </dev/null > "$out_file" 2>&1; then
+            if ! timeout --kill-after=10s 6m env CGO_ENABLED=0 go test -v -timeout 5m -count "$COUNT" -skip "$SKIP_FLAG" "$pkg" </dev/null > "$out_file" 2>&1; then
               local dur=$(( $(date +%s) - start ))
               local comp_file
               comp_file=$(mktemp -p "$COMPLETED_DIR" comp.XXXXXX)
