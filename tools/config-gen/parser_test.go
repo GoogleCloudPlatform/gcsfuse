@@ -176,6 +176,7 @@ func TestValidateForDuplicatesInSortedSlice(t *testing.T) {
 func TestParseParamsYAMLStr_Success(t *testing.T) {
 	// ARRANGE
 	yamlContent := `
+retired-params: [6, 7]
 machine-type-groups:
   high-performance:
     - "a2-megagpu-16g"
@@ -337,6 +338,7 @@ params:
 		assert.Equal(t, 3, parsedYAML.Params[2].ProtoTag)
 		assert.Equal(t, 4, parsedYAML.Params[3].ProtoTag)
 		assert.Equal(t, 5, parsedYAML.Params[4].ProtoTag)
+		assert.Equal(t, []int{6, 7}, parsedYAML.RetiredParams)
 	})
 }
 
@@ -344,7 +346,7 @@ func TestValidateProtoTags(t *testing.T) {
 	testCases := []struct {
 		name                   string
 		params                 []Param
-		retiredParams          []RetiredParam
+		retiredTags            []int
 		expectErr              bool
 		expectedErrorSubstring string
 	}{
@@ -355,8 +357,8 @@ func TestValidateProtoTags(t *testing.T) {
 				{FlagName: "p2", ConfigPath: "p2", ProtoTag: 2},
 				{FlagName: "p3", ConfigPath: "p3", ProtoTag: 3},
 			},
-			retiredParams: nil,
-			expectErr:     false,
+			retiredTags: nil,
+			expectErr:   false,
 		},
 		{
 			name: "valid_with_retired_params_filling_gaps",
@@ -364,10 +366,8 @@ func TestValidateProtoTags(t *testing.T) {
 				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
 				{FlagName: "p3", ConfigPath: "p3", ProtoTag: 3},
 			},
-			retiredParams: []RetiredParam{
-				{ConfigPath: "p2", ProtoTag: 2, Type: "bool"},
-			},
-			expectErr: false,
+			retiredTags: []int{2},
+			expectErr:   false,
 		},
 		{
 			name: "valid_with_last_tag_retired",
@@ -375,10 +375,8 @@ func TestValidateProtoTags(t *testing.T) {
 				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
 				{FlagName: "p2", ConfigPath: "p2", ProtoTag: 2},
 			},
-			retiredParams: []RetiredParam{
-				{ConfigPath: "p3", ProtoTag: 3, Type: "int"},
-			},
-			expectErr: false,
+			retiredTags: []int{3},
+			expectErr:   false,
 		},
 		{
 			name: "invalid_gap_in_retired_params",
@@ -386,9 +384,7 @@ func TestValidateProtoTags(t *testing.T) {
 				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
 				{FlagName: "p2", ConfigPath: "p2", ProtoTag: 2},
 			},
-			retiredParams: []RetiredParam{
-				{ConfigPath: "p4", ProtoTag: 4, Type: "bool"},
-			},
+			retiredTags:            []int{4},
 			expectErr:              true,
 			expectedErrorSubstring: "missing proto-tag 3 in sequence 1..4",
 		},
@@ -398,15 +394,15 @@ func TestValidateProtoTags(t *testing.T) {
 				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
 				{FlagName: "deprecated-cli", ConfigPath: "", ProtoTag: 0},
 			},
-			retiredParams: nil,
-			expectErr:     false,
+			retiredTags: nil,
+			expectErr:   false,
 		},
 		{
 			name: "invalid_zero_tag",
 			params: []Param{
 				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 0},
 			},
-			retiredParams:          nil,
+			retiredTags:            nil,
 			expectErr:              true,
 			expectedErrorSubstring: "has invalid proto-tag 0 (must be > 0)",
 		},
@@ -415,7 +411,7 @@ func TestValidateProtoTags(t *testing.T) {
 			params: []Param{
 				{FlagName: "p1", ConfigPath: "p1", ProtoTag: -1},
 			},
-			retiredParams:          nil,
+			retiredTags:            nil,
 			expectErr:              true,
 			expectedErrorSubstring: "has invalid proto-tag -1 (must be > 0)",
 		},
@@ -425,7 +421,7 @@ func TestValidateProtoTags(t *testing.T) {
 				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
 				{FlagName: "p2", ConfigPath: "p2", ProtoTag: 1},
 			},
-			retiredParams:          nil,
+			retiredTags:            nil,
 			expectErr:              true,
 			expectedErrorSubstring: "duplicate proto-tag 1 found for parameter",
 		},
@@ -434,56 +430,27 @@ func TestValidateProtoTags(t *testing.T) {
 			params: []Param{
 				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 2},
 			},
-			retiredParams: []RetiredParam{
-				{ConfigPath: "old.p", ProtoTag: 2, Type: "bool"},
-			},
+			retiredTags:            []int{2},
 			expectErr:              true,
-			expectedErrorSubstring: "duplicate proto-tag 2 found for parameter \"p1\" and \"retired-param old.p\"",
+			expectedErrorSubstring: "duplicate proto-tag 2 found for parameter \"p1\" and \"retired-tag 2\"",
 		},
 		{
 			name: "duplicate_retired_tag",
 			params: []Param{
 				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
 			},
-			retiredParams: []RetiredParam{
-				{ConfigPath: "old.p1", ProtoTag: 2, Type: "bool"},
-				{ConfigPath: "old.p2", ProtoTag: 2, Type: "int"},
-			},
+			retiredTags:            []int{2, 2},
 			expectErr:              true,
-			expectedErrorSubstring: "duplicate proto-tag 2 found for retired-param \"old.p2\" and \"retired-param old.p1\"",
-		},
-		{
-			name: "retired_param_empty_config_path",
-			params: []Param{
-				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
-			},
-			retiredParams: []RetiredParam{
-				{ConfigPath: "", ProtoTag: 2, Type: "bool"},
-			},
-			expectErr:              true,
-			expectedErrorSubstring: "config-path cannot be empty for retired-param",
-		},
-		{
-			name: "retired_param_invalid_datatype",
-			params: []Param{
-				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
-			},
-			retiredParams: []RetiredParam{
-				{ConfigPath: "old.p", ProtoTag: 2, Type: "invalidDataType"},
-			},
-			expectErr:              true,
-			expectedErrorSubstring: "unsupported datatype: invalidDataType for retired-param \"old.p\"",
+			expectedErrorSubstring: "duplicate proto-tag 2 found for retired-tag",
 		},
 		{
 			name: "retired_tag_non_positive",
 			params: []Param{
 				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
 			},
-			retiredParams: []RetiredParam{
-				{ConfigPath: "old.p", ProtoTag: 0, Type: "bool"},
-			},
+			retiredTags:            []int{0},
 			expectErr:              true,
-			expectedErrorSubstring: "retired-param \"old.p\" has invalid proto-tag 0 (must be > 0)",
+			expectedErrorSubstring: "retired proto-tag 0 is invalid (must be > 0)",
 		},
 		{
 			name: "missing_tag_unrecorded_gap",
@@ -491,7 +458,7 @@ func TestValidateProtoTags(t *testing.T) {
 				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
 				{FlagName: "p3", ConfigPath: "p3", ProtoTag: 3},
 			},
-			retiredParams:          nil,
+			retiredTags:            nil,
 			expectErr:              true,
 			expectedErrorSubstring: "missing proto-tag 2 in sequence 1..3",
 		},
@@ -501,7 +468,7 @@ func TestValidateProtoTags(t *testing.T) {
 				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
 				{FlagName: "deprecated-cli", ConfigPath: "", ProtoTag: 2},
 			},
-			retiredParams:          nil,
+			retiredTags:            nil,
 			expectErr:              true,
 			expectedErrorSubstring: "parameter \"deprecated-cli\" without config-path must not have proto-tag set",
 		},
@@ -509,7 +476,7 @@ func TestValidateProtoTags(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateProtoTags(tc.params, tc.retiredParams)
+			err := validateProtoTags(tc.params, tc.retiredTags)
 			if tc.expectErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expectedErrorSubstring)
