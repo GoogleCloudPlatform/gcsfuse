@@ -22,6 +22,7 @@
 # default: The default value of the param.
 # deprecated: Specifies whether the param is deprecated. This will cause warnings when the user specifies the flag.
 # deprecationWarning: The warning that should be issued when the user specifies a deprecated flag.
+# hide-flag: Whether to hide flag from the helpdoc.
 # proto-tag: Unique, immutable integer field number assigned to the parameter for Protobuf wire serialization.
 #
 # The params must be kept sorted in ascending order.
