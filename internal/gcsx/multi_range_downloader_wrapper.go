@@ -314,8 +314,12 @@ func (mrdWrapper *MultiRangeDownloaderWrapper) Read(ctx context.Context, buf []b
 		case <-ctx.Done():
 			err = ctx.Err()
 		case res := <-done:
-			bytesRead = res.bytesRead
-			err = res.err
+			if ctx.Err() != nil {
+				err = ctx.Err()
+			} else {
+				bytesRead = res.bytesRead
+				err = res.err
+			}
 		}
 	} else {
 		res := <-done
