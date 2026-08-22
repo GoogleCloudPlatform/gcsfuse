@@ -50,15 +50,9 @@ type Param struct {
 	ProtoTag           int                       `yaml:"proto-tag"`
 }
 
-type RetiredParam struct {
-	ConfigPath string `yaml:"config-path"`
-	ProtoTag   int    `yaml:"proto-tag"`
-	Type       string `yaml:"type"`
-}
-
 // ParamsYAML mirrors the params.yaml file itself.
 type ParamsYAML struct {
-	RetiredParams     []RetiredParam      `yaml:"retired-params"`
+	RetiredParams     []int               `yaml:"retired-params"`
 	Params            []Param             `yaml:"params"`
 	MachineTypeGroups map[string][]string `yaml:"machine-type-groups"`
 }
@@ -90,36 +84,19 @@ func isValidDataType(dt string) bool {
 	return slices.Contains(supportedDataTypes, dt)
 }
 
-func validateRetiredParam(p RetiredParam) error {
-	if p.ConfigPath == "" {
-		return fmt.Errorf("config-path cannot be empty for retired-param")
-	}
-	if p.ProtoTag <= 0 {
-		return fmt.Errorf("retired-param %q has invalid proto-tag %d (must be > 0)", p.ConfigPath, p.ProtoTag)
-	}
-	if p.Type == "" {
-		return fmt.Errorf("type cannot be empty for retired-param %q", p.ConfigPath)
-	}
-	if !isValidDataType(p.Type) {
-		return fmt.Errorf("unsupported datatype: %s for retired-param %q", p.Type, p.ConfigPath)
-	}
-	return nil
-}
-
-func validateProtoTags(params []Param, retiredParams []RetiredParam) error {
-	assignedTagsMap := make(map[int]string, len(params)+len(retiredParams))
+func validateProtoTags(params []Param, retiredTags []int) error {
+	assignedTagsMap := make(map[int]string, len(params)+len(retiredTags))
 	maxTag := 0
 
-	// 1. Validate retired params.
-	for _, rp := range retiredParams {
-		if err := validateRetiredParam(rp); err != nil {
-			return err
+	// 1. Validate retired tags.
+	for _, tag := range retiredTags {
+		if tag <= 0 {
+			return fmt.Errorf("retired proto-tag %d is invalid (must be > 0)", tag)
 		}
-		tag := rp.ProtoTag
 		if conflictingParam, exists := assignedTagsMap[tag]; exists {
-			return fmt.Errorf("duplicate proto-tag %d found for retired-param %q and %q", tag, rp.ConfigPath, conflictingParam)
+			return fmt.Errorf("duplicate proto-tag %d found for retired-tag and %q", tag, conflictingParam)
 		}
-		assignedTagsMap[tag] = fmt.Sprintf("retired-param %s", rp.ConfigPath)
+		assignedTagsMap[tag] = fmt.Sprintf("retired-tag %d", tag)
 		if tag > maxTag {
 			maxTag = tag
 		}

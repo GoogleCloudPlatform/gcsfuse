@@ -33,13 +33,11 @@
 #
 ###################################### DOCUMENTATION ENDS ######################
 
-# Add retired parameters here when deleted from active params list.
-# Preserves Protobuf schema definition for uniform historical decoding.
+# Add retired proto-tag numbers here when deleted from active params list.
+# Preserves tag reservation for Protobuf schema generation.
 retired-params: []
-# Example of a retired parameter entry:
-#   - config-path: "file-cache.enable-crc"
-#     proto-tag: 28
-#     type: "bool"
+# Example of retired parameters entry:
+#   retired-params: [28, 42]
 
 # Keep this section at the top of the file.
 machine-type-groups:
