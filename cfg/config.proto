@@ -1,0 +1,182 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// GENERATED CODE - DO NOT EDIT MANUALLY.
+
+syntax = "proto3";
+
+package gcsfuse.cfg.v1;
+
+option go_package = "github.com/googlecloudplatform/gcsfuse/v3/cfg/pb";
+
+message Config {
+  bool is_app_name_set = 1;
+  bool is_cache_dir_set = 2;
+  bool cloud_profiler_allocated_heap = 3;
+  bool cloud_profiler_cpu = 4;
+  bool cloud_profiler_enabled = 5;
+  bool cloud_profiler_goroutines = 6;
+  bool cloud_profiler_heap = 7;
+  bool is_cloud_profiler_label_set = 8;
+  bool cloud_profiler_mutex = 9;
+  bool is_cloud_profiler_service_name_set = 10;
+  bool debug_exit_on_invariant_violation = 11;
+  bool debug_fuse = 12;
+  bool debug_gcs = 13;
+  bool debug_log_mutex = 14;
+  bool disable_autoconfig = 15;
+  bool dummy_io_enable = 16;
+  int64 dummy_io_per_mb_latency = 17;
+  int64 dummy_io_reader_latency = 18;
+  bool enable_atomic_rename_object = 19;
+  bool enable_google_lib_auth = 20;
+  bool enable_hns = 21;
+  bool enable_new_reader = 22;
+  bool enable_standard_symlinks = 23;
+  bool enable_type_cache_deprecation = 24;
+  bool enable_unsupported_path_support = 25;
+  bool file_cache_cache_file_for_range_read = 26;
+  int32 file_cache_download_chunk_size_mb = 27;
+  bool file_cache_enable_crc = 28;
+  bool file_cache_enable_experimental_shared_chunk_cache = 29;
+  bool file_cache_enable_o_direct = 30;
+  bool file_cache_enable_parallel_downloads = 31;
+  bool is_file_cache_exclude_regex_set = 32;
+  bool file_cache_experimental_disable_size_calculation_fix = 33;
+  bool file_cache_experimental_enable_chunk_cache = 34;
+  bool file_cache_experimental_parallel_downloads_default_on = 35;
+  bool is_file_cache_include_regex_set = 36;
+  int32 file_cache_max_parallel_downloads = 37;
+  int32 file_cache_max_size_mb = 38;
+  int32 file_cache_parallel_downloads_per_file = 39;
+  int32 file_cache_shared_cache_chunk_size_mb = 40;
+  int32 file_cache_write_buffer_size = 41;
+  int32 file_system_congestion_threshold = 42;
+  int32 file_system_dir_mode = 43;
+  bool file_system_disable_parallel_dirops = 44;
+  bool file_system_enable_kernel_reader = 45;
+  bool file_system_experimental_enable_dentry_cache = 46;
+  bool file_system_experimental_enable_pirlo = 47;
+  bool file_system_experimental_enable_readdirplus = 48;
+  bool file_system_experimental_o_direct = 49;
+  int32 file_system_file_mode = 50;
+  int32 file_system_fuse_max_request_size_kb = 51;
+  int32 file_system_fuse_max_write_size_kb = 52;
+  bool is_file_system_fuse_options_set = 53;
+  int32 file_system_gid = 54;
+  bool file_system_ignore_interrupts = 55;
+  int32 file_system_inactive_mrd_cache_size = 56;
+  int32 file_system_kernel_list_cache_ttl_secs = 57;
+  bool is_file_system_kernel_params_file_set = 58;
+  int32 file_system_max_background = 59;
+  int32 file_system_max_read_ahead_kb = 60;
+  int32 file_system_rename_dir_limit = 61;
+  bool file_system_strong_consistency_on_open = 62;
+  bool is_file_system_temp_dir_set = 63;
+  int32 file_system_uid = 64;
+  bool foreground = 65;
+  bool gcs_auth_anonymous_access = 66;
+  bool is_gcs_auth_key_file_set = 67;
+  bool gcs_auth_reuse_token_from_url = 68;
+  bool is_gcs_auth_token_url_set = 69;
+  bool is_gcs_connection_billing_project_set = 70;
+  string gcs_connection_client_protocol = 71;
+  bool is_gcs_connection_custom_endpoint_set = 72;
+  bool gcs_connection_enable_http_dns_cache = 73;
+  bool gcs_connection_experimental_enable_json_read = 74;
+  bool is_gcs_connection_experimental_local_socket_address_set = 75;
+  int32 gcs_connection_grpc_conn_pool_size = 76;
+  string gcs_connection_grpc_path_strategy = 77;
+  int64 gcs_connection_http_client_timeout = 78;
+  double gcs_connection_limit_bytes_per_sec = 79;
+  double gcs_connection_limit_ops_per_sec = 80;
+  int32 gcs_connection_max_conns_per_host = 81;
+  int32 gcs_connection_max_idle_conns_per_host = 82;
+  int32 gcs_connection_sequential_read_size_mb = 83;
+  int32 gcs_retries_chunk_retry_deadline_secs = 84;
+  int32 gcs_retries_chunk_transfer_timeout_secs = 85;
+  bool gcs_retries_enable_mount_retries = 86;
+  int32 gcs_retries_max_retry_attempts = 87;
+  int64 gcs_retries_max_retry_sleep = 88;
+  double gcs_retries_multiplier = 89;
+  bool gcs_retries_read_stall_enable = 90;
+  int64 gcs_retries_read_stall_initial_req_timeout = 91;
+  int64 gcs_retries_read_stall_max_req_timeout = 92;
+  int64 gcs_retries_read_stall_min_req_timeout = 93;
+  double gcs_retries_read_stall_req_increase_rate = 94;
+  double gcs_retries_read_stall_req_target_percentile = 95;
+  bool implicit_dirs = 96;
+  bool list_enable_empty_managed_folders = 97;
+  bool logging_experimental_enable_otel_logging = 98;
+  bool is_logging_experimental_otel_logging_endpoint_set = 99;
+  bool is_logging_experimental_otel_logging_project_id_set = 100;
+  bool is_logging_file_path_set = 101;
+  bool is_logging_format_set = 102;
+  int32 logging_log_rotate_backup_file_count = 103;
+  bool logging_log_rotate_compress = 104;
+  int32 logging_log_rotate_max_file_size_mb = 105;
+  string logging_severity = 106;
+  bool is_logging_wire_log_set = 107;
+  bool is_machine_type_set = 108;
+  int32 metadata_cache_deprecated_stat_cache_capacity = 109;
+  int64 metadata_cache_deprecated_stat_cache_ttl = 110;
+  int64 metadata_cache_deprecated_type_cache_ttl = 111;
+  bool metadata_cache_enable_metadata_prefetch = 112;
+  bool metadata_cache_enable_nonexistent_type_cache = 113;
+  bool metadata_cache_experimental_enable_optimized_metadata_cache = 114;
+  bool is_metadata_cache_experimental_metadata_prefetch_on_mount_set = 115;
+  int32 metadata_cache_metadata_prefetch_entries_limit = 116;
+  int32 metadata_cache_metadata_prefetch_max_workers = 117;
+  int32 metadata_cache_negative_ttl_secs = 118;
+  int32 metadata_cache_stat_cache_max_size_mb = 119;
+  int32 metadata_cache_ttl_secs = 120;
+  int32 metadata_cache_type_cache_max_size_mb = 121;
+  int32 metrics_buffer_size = 122;
+  int32 metrics_cloud_metrics_export_interval_secs = 123;
+  bool metrics_experimental_enable_grpc_metrics = 124;
+  bool metrics_experimental_enable_otel_metrics = 125;
+  bool is_metrics_experimental_otel_metrics_endpoint_set = 126;
+  bool is_metrics_experimental_otel_metrics_project_id_set = 127;
+  int32 metrics_prometheus_port = 128;
+  int64 metrics_stackdriver_export_interval = 129;
+  bool metrics_use_new_names = 130;
+  int32 metrics_workers = 131;
+  bool is_mount_id_set = 132;
+  int32 mrd_pool_size = 133;
+  bool is_only_dir_set = 134;
+  bool is_profile_set = 135;
+  int32 read_block_size_mb = 136;
+  bool read_enable_buffered_read = 137;
+  bool read_enable_grpc_read_checksums = 138;
+  int32 read_global_max_blocks = 139;
+  int64 read_inactive_stream_timeout = 140;
+  int32 read_max_blocks_per_handle = 141;
+  int32 read_min_blocks_per_handle = 142;
+  int32 read_random_seek_threshold = 143;
+  int32 read_start_blocks_per_handle = 144;
+  bool is_trace_exporters_set = 145;
+  bool is_trace_project_id_set = 146;
+  double trace_sampling_ratio = 147;
+  int32 workload_insight_forward_merge_threshold_mb = 148;
+  bool is_workload_insight_output_file_set = 149;
+  bool workload_insight_visualize = 150;
+  double write_block_size_mb = 151;
+  bool write_create_empty_file = 152;
+  bool write_enable_rapid_appends = 153;
+  bool write_enable_rapid_writes = 154;
+  bool write_enable_streaming_writes = 155;
+  bool write_finalize_file_for_rapid = 156;
+  int32 write_global_max_blocks = 157;
+  int32 write_max_blocks_per_file = 158;
+}
