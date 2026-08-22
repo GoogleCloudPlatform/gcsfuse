@@ -149,11 +149,12 @@ func validateProtoTags(params []Param, retiredParams []RetiredParam) error {
 	}
 
 	// 3. Contiguity check: ensure all tags from 1 to maxTag are accounted for.
-	if len(assignedTagsMap) != maxTag {
-		for tag := 1; tag <= len(assignedTagsMap)+1; tag++ {
-			if _, isAssigned := assignedTagsMap[tag]; !isAssigned {
-				return fmt.Errorf("missing proto-tag %d in sequence 1..%d", tag, maxTag)
-			}
+	if len(assignedTagsMap) == maxTag {
+		return nil
+	}
+	for tag := 1; tag <= len(assignedTagsMap)+1; tag++ {
+		if _, isAssigned := assignedTagsMap[tag]; !isAssigned {
+			return fmt.Errorf("missing proto-tag %d in sequence 1..%d", tag, maxTag)
 		}
 	}
 
