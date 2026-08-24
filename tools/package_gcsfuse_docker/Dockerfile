@@ -42,7 +42,7 @@
 #   - /packages/gcsfuse_{VERSION}_{ARCH}.deb
 #   - /packages/gcsfuse-{VERSION}-1.x86_64.rpm (or aarch64 for arm64)
 
-ARG GO_VERSION=1.24.5
+ARG GO_VERSION=1.27.0
 
 FROM golang:${GO_VERSION}-bookworm AS builder
 
