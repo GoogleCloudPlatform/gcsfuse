@@ -18,7 +18,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.24.x
+          go-version-file: '.go-version'
           cache: false
       - name: Install fuse
         run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
