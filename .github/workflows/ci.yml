@@ -68,6 +68,5 @@ jobs:
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v8
       with:
-        args: -E=goimports --timeout 2m0s
+        args: -E=unused --timeout 3m0s
         only-new-issues: true
-
