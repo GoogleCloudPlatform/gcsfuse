@@ -83,9 +83,9 @@ func checkFlagName(name string) error {
 		return fmt.Errorf("flag-name cannot be empty")
 	}
 
-	// A valid name should contain only lower-case characters with hyphens as
-	// separators. It must start and end with an alphabet.
-	regex := `^[a-z]+([-_][a-z]+)*$`
+	// A valid name should contain only lower-case characters and numbers with hyphens as
+	// separators. It must start with an alphabet and end with an alphanumeric character.
+	regex := `^[a-z][a-z0-9]*([-_][a-z0-9]+)*$`
 	if matched, _ := regexp.MatchString(regex, name); !matched {
 		return fmt.Errorf("flag-name %q does not conform to the regex: %s", name, regex)
 	}

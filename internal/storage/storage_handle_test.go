@@ -587,7 +587,7 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientWithSocketAddress() {
 	ctx := context.Background()
 	clientOpts, err := createClientOptionForGRPCClient(ctx, testSuite.clientConfig, false)
 	require.NoError(testSuite.T(), err)
-	controlClient, err := storageutil.CreateGRPCControlClient(ctx, clientOpts, false)
+	controlClient, err := storageutil.CreateGRPCControlClient(ctx, clientOpts, false, true)
 	require.NoError(testSuite.T(), err)
 	require.NotNil(testSuite.T(), controlClient)
 
@@ -916,6 +916,38 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_Without
 func (testSuite *StorageHandleTest) Test_CreateHTTPClientHandle_WithoutGoogleLibAuth() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 	sc.EnableGoogleLibAuth = false
+
+	httpClient, err := createHTTPClientHandle(context.TODO(), &sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), httpClient)
+}
+
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithS2A() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.S2AAddress = "localhost:8080"
+
+	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), clientOption)
+}
+
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithS2AAndSpiffeID() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.S2AAddress = "localhost:8080"
+	sc.S2ASpiffeID = "spiffe://example.com/sa/test-sa"
+
+	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), clientOption)
+}
+
+func (testSuite *StorageHandleTest) Test_CreateHTTPClientHandle_WithS2A() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.S2AAddress = "localhost:8080"
+	sc.S2ASpiffeID = "spiffe://example.com/sa/test-sa"
 
 	httpClient, err := createHTTPClientHandle(context.TODO(), &sc)
 

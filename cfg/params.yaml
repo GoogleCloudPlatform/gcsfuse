@@ -623,6 +623,18 @@ params:
     usage: "If false, the token acquired from token-url is not reused."
     default: "true"
 
+  - config-path: "gcs-auth.s2a-address"
+    flag-name: "s2a-address"
+    type: "string"
+    usage: "S2A daemon address for direct S2A authentication."
+    default: ""
+
+  - config-path: "gcs-auth.s2a-spiffe-id"
+    flag-name: "s2a-spiffe-id"
+    type: "string"
+    usage: "Local SPIFFE ID to assume for direct S2A authentication."
+    default: ""
+
   - config-path: "gcs-auth.token-url"
     flag-name: "token-url"
     type: "string"

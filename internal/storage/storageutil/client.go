@@ -25,6 +25,7 @@ import (
 
 	"context"
 
+	"github.com/google/s2a-go"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
@@ -63,6 +64,8 @@ type StorageClientConfig struct {
 	RetryMultiplier    float64
 	EnableMountRetries bool
 	LocalSocketAddress string
+	S2AAddress         string
+	S2ASpiffeID        string
 
 	/** HTTP client parameters. */
 	MaxConnsPerHost            int
@@ -113,11 +116,24 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 		dialer.Resolver = dns.NewCachingResolver(nil, dns.MinCacheTTL(1*time.Minute))
 	}
 
+	var dialTLSContext func(ctx context.Context, network, addr string) (net.Conn, error)
+	if storageClientConfig.S2AAddress != "" {
+		var localIdentity s2a.Identity
+		if storageClientConfig.S2ASpiffeID != "" {
+			localIdentity = s2a.NewSpiffeID(storageClientConfig.S2ASpiffeID)
+		}
+		dialTLSContext = s2a.NewS2ADialTLSContextFunc(&s2a.ClientOptions{
+			S2AAddress:    storageClientConfig.S2AAddress,
+			LocalIdentity: localIdentity,
+		})
+	}
+
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
 		transport = &http.Transport{
 			DialContext:         dialer.DialContext,
+			DialTLSContext:      dialTLSContext,
 			Proxy:               http.ProxyFromEnvironment,
 			MaxConnsPerHost:     storageClientConfig.MaxConnsPerHost,
 			MaxIdleConnsPerHost: storageClientConfig.MaxIdleConnsPerHost,
@@ -130,6 +146,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 		// For http2, change in MaxConnsPerHost doesn't affect the performance.
 		transport = &http.Transport{
 			DialContext:       dialer.DialContext,
+			DialTLSContext:    dialTLSContext,
 			Proxy:             http.ProxyFromEnvironment,
 			DisableKeepAlives: true,
 			MaxConnsPerHost:   storageClientConfig.MaxConnsPerHost,
@@ -147,6 +164,23 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 		// when authentication is skipped.
 		httpClient = &http.Client{
 			Timeout: storageClientConfig.HttpClientTimeout,
+		}
+	} else if storageClientConfig.S2AAddress != "" {
+		// When S2A is enabled, authentication is handled via mTLS at the transport level.
+		httpClient = &http.Client{
+			Transport: transport,
+			Timeout:   storageClientConfig.HttpClientTimeout,
+		}
+		// Setting UserAgent through RoundTripper middleware
+		httpClient.Transport = &userAgentRoundTripper{
+			wrapped:   httpClient.Transport,
+			UserAgent: storageClientConfig.UserAgent,
+		}
+
+		if storageClientConfig.TracingEnabled {
+			httpClient.Transport = otelhttp.NewTransport(httpClient.Transport, otelhttp.WithClientTrace(func(ctx context.Context) *httptrace.ClientTrace {
+				return otelhttptrace.NewClientTrace(ctx)
+			}), otelhttp.WithTracerProvider(otel.GetTracerProvider()))
 		}
 	} else {
 		if tokenSrc == nil {

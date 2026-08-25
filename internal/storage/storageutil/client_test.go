@@ -22,14 +22,14 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"golang.org/x/oauth2"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 )
 
 var keyFile = "testdata/key.json"
@@ -218,4 +218,29 @@ func (t *clientTest) TestCreateHttpClientWithInvalidSocketAddress() {
 
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), httpClient)
+}
+
+func (t *clientTest) TestCreateHttpClientWithS2A_HTTP1() {
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.ClientProtocol = cfg.HTTP1
+	sc.S2AAddress = "localhost:8080"
+
+	httpClient, err := CreateHttpClient(&sc, nil)
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), httpClient)
+	assert.Equal(t.T(), sc.HttpClientTimeout, httpClient.Timeout)
+}
+
+func (t *clientTest) TestCreateHttpClientWithS2A_HTTP2() {
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.ClientProtocol = cfg.HTTP2
+	sc.S2AAddress = "localhost:8080"
+	sc.S2ASpiffeID = "spiffe://example.com/sa/my-sa"
+
+	httpClient, err := CreateHttpClient(&sc, nil)
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), httpClient)
+	assert.Equal(t.T(), sc.HttpClientTimeout, httpClient.Timeout)
 }

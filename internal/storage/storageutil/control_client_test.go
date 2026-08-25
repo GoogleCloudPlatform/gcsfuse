@@ -42,7 +42,7 @@ func (testSuite *ControlClientTest) TestStorageControlClientWithGaxRetries() {
 	var clientOpts []option.ClientOption
 	clientOpts = append(clientOpts, option.WithoutAuthentication())
 
-	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts, false)
+	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts, false, true)
 
 	require.Nil(testSuite.T(), err)
 	require.NotNil(testSuite.T(), controlClient)
@@ -57,7 +57,7 @@ func (testSuite *ControlClientTest) TestStorageControlClientWithoutGaxRetries() 
 	var clientOpts []option.ClientOption
 	clientOpts = append(clientOpts, option.WithoutAuthentication())
 
-	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts, true)
+	controlClient, err := CreateGRPCControlClient(context.Background(), clientOpts, true, true)
 
 	require.Nil(testSuite.T(), err)
 	require.NotNil(testSuite.T(), controlClient)

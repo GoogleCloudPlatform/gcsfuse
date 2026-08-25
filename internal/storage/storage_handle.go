@@ -41,7 +41,10 @@ import (
 	"golang.org/x/oauth2"
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/google/s2a-go"
 
 	// Side effect to run grpc client with direct-path on gcp machine.
 	_ "google.golang.org/grpc/balancer/rls"
@@ -101,7 +104,24 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 	}
 
 	// Configure authentication.
-	if clientConfig.AnonymousAccess {
+	if clientConfig.S2AAddress != "" {
+		var localIdentity s2a.Identity
+		if clientConfig.S2ASpiffeID != "" {
+			localIdentity = s2a.NewSpiffeID(clientConfig.S2ASpiffeID)
+		}
+		var s2aCreds credentials.TransportCredentials
+		s2aCreds, err = s2a.NewClientCreds(&s2a.ClientOptions{
+			S2AAddress:    clientConfig.S2AAddress,
+			LocalIdentity: localIdentity,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create S2A gRPC credentials: %w", err)
+		}
+		clientOpts = append(clientOpts,
+			option.WithGRPCDialOption(grpc.WithTransportCredentials(s2aCreds)),
+			option.WithoutAuthentication(),
+		)
+	} else if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else if clientConfig.EnableGoogleLibAuth {
 		var authOpts []option.ClientOption
@@ -188,10 +208,12 @@ func setRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *stora
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
 func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isBucketRapid bool, enableBidiConfig bool, bucketName string, billingProject string) (*storage.Client, error) {
-	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
-		return nil, fmt.Errorf("error setting direct path env var: %w", err)
+	if clientConfig.S2AAddress == "" {
+		if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
+			return nil, fmt.Errorf("error setting direct path env var: %w", err)
+		}
+		defer unSetDirectPathEnvVariable()
 	}
-	defer unSetDirectPathEnvVariable()
 
 	var clientOpts []option.ClientOption
 	clientOpts, err := createClientOptionForGRPCClient(ctx, clientConfig, enableBidiConfig)
@@ -200,7 +222,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 
 	// For non-rapid buckets, add DirectPath enforcement - operations performed via the client will fail if DirectPath is not available.
-	if !isBucketRapid {
+	if !isBucketRapid && clientConfig.S2AAddress == "" {
 		clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
 	}
 
@@ -210,7 +232,7 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 
 	// For regional buckets, perform the direct path verification.
-	if !isBucketRapid {
+	if !isBucketRapid && clientConfig.S2AAddress == "" {
 		if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
 			logger.Warnf("DirectPath verification failed with error: %v", verifyErr)
 			return nil, verifyErr
@@ -275,7 +297,9 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	var clientOpts []option.ClientOption
 	var tokenSrc oauth2.TokenSource = nil
 
-	if clientConfig.AnonymousAccess {
+	if clientConfig.S2AAddress != "" {
+		clientOpts = append(clientOpts, option.WithoutAuthentication())
+	} else if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else if clientConfig.EnableGoogleLibAuth {
 		var authOpts []option.ClientOption
@@ -458,7 +482,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}
-		rawStorageControlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, true)
+		rawStorageControlClient, err = storageutil.CreateGRPCControlClient(ctx, clientOpts, true, clientConfig.S2AAddress == "")
 		if err != nil {
 			return nil, fmt.Errorf("could not create StorageControl Client without default gax retries: %w", err)
 		}
