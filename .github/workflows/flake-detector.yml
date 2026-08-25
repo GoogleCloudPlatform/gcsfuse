@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   flake-detector:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
