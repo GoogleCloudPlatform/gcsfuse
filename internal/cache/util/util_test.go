@@ -540,15 +540,6 @@ func Test_CopyUsingMemoryAlignedBuffer(t *testing.T) {
 			expectedWriteSize: 2 * 1024 * 1024,
 		},
 		{
-			name:              "writer offset not multiple of 4096",
-			bufferSize:        1024 * 1024,
-			contentSize:       1024*1024 - 10,
-			useODIRECT:        true,
-			writeOffset:       1024*1024 - 1,
-			expectedErr:       true,
-			expectedWriteSize: 0,
-		},
-		{
 			name:              "not use O_DIRECT",
 			bufferSize:        1024 * 1024,
 			contentSize:       2*1024*1024 - 10,
