@@ -15,6 +15,7 @@
 package caching
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -25,7 +26,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"golang.org/x/net/context"
 
 	"github.com/jacobsa/timeutil"
 )
@@ -114,11 +114,20 @@ func (b *fastStatBucket) insertMultiple(objs []*gcs.Object) {
 	}
 }
 
+// isAuthoritativeListing returns true if the listing represents a complete,
+// un-windowed, and non-paginated view of the entire requested prefix.
+func isAuthoritativeListing(req *gcs.ListObjectsRequest, listing *gcs.Listing) bool {
+	if req == nil || listing == nil {
+		return false
+	}
+	return req.StartOffset == "" && req.ContinuationToken == "" && listing.ContinuationToken == ""
+}
+
 // LOCKS_EXCLUDED(b.mu)
 // insertListing caches all objects and sub-directories discovered during a GCS listing.
 // It explicitly handles the "implicit directory" edge case where a directory exists
 // only as a prefix to other objects.
-func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing, dirName string) {
+func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing, req *gcs.ListObjectsRequest) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -128,6 +137,7 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 		return
 	}
 
+	dirName := req.Prefix
 	expiration := b.clock.Now().Add(b.primaryCacheTTL)
 
 	// 1. Parent Directory Inference (Implicit Check)
@@ -152,9 +162,14 @@ func (b *fastStatBucket) insertListing(ctx context.Context, listing *gcs.Listing
 	// Negative Cache (Only if it's a directory and there are NO contents)
 	// If enableEmptyManagedFolders is true, do not negatively cache empty directories,
 	// otherwise existing positive entries for valid empty managed folders get overwritten.
+	//
+	// Only an authoritative listing proves the directory doesn't exist: caching
+	// a negative entry from a windowed or paginated listing would overwrite a
+	// valid positive entry and serve ENOENT for the entire subtree until the
+	// negative TTL expires.
 	isNegativeCacheEnabled := b.negativeCacheTTL > 0 && !b.enableEmptyManagedFolders
 	isEmptyNonRootDir := !dirHasContents && dirName != ""
-	if isNegativeCacheEnabled && isEmptyNonRootDir {
+	if isNegativeCacheEnabled && isEmptyNonRootDir && isAuthoritativeListing(req, listing) {
 		b.cache.AddNegativeEntry(dirName, b.clock.Now().Add(b.negativeCacheTTL))
 	}
 
@@ -473,7 +488,7 @@ func (b *fastStatBucket) ListObjects(
 	}
 
 	if b.isTypeCacheDeprecated {
-		b.insertListing(ctx, listing, req.Prefix)
+		b.insertListing(ctx, listing, req)
 	} else {
 		// note anything we found.
 		b.insertMultipleMinObjects(ctx, listing.MinObjects)
