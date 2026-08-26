@@ -30,6 +30,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v2/tools/util"
 	promclient "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -146,7 +147,7 @@ func parsePromFormat(testSuite *PromTest) (map[string]*promclient.MetricFamily, 
 
 	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", prometheusPort))
 	require.NoError(testSuite.T(), err)
-	var parser expfmt.TextParser
+	parser := expfmt.NewTextParser(model.LegacyValidation)
 	return parser.TextToMetricFamilies(resp.Body)
 }
 

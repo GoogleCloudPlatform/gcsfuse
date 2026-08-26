@@ -47,6 +47,8 @@ import (
 // writeback caching enabled the kernel manufactures them based on wall time.
 const timeSlop = 25 * time.Millisecond
 
+const gcsMaxNameLen = 1024
+
 var fuseMaxNameLen int
 
 func init() {
@@ -62,7 +64,8 @@ func init() {
 	case "linux":
 		// On Linux, we're looking at FUSE_NAME_MAX (https://tinyurl.com/2fr4y7fu),
 		// used in e.g. fuse_lookup_name (https://tinyurl.com/4pacanh3).
-		fuseMaxNameLen = 1024
+		// On newer kernels it is PATH_MAX - 1 (4095).
+		fuseMaxNameLen = 4095
 
 	default:
 		panic(fmt.Sprintf("Unknown runtime.GOOS: %s", runtime.GOOS))
@@ -90,7 +93,7 @@ func interestingLegalNames() (names []string) {
 		"*![]&&||;",
 
 		// Longest legal name
-		strings.Repeat("a", fuseMaxNameLen),
+		strings.Repeat("a", gcsMaxNameLen),
 
 		// Angstrom symbol singleton and normalized forms.
 		// Cf. http://unicode.org/reports/tr15/
@@ -131,7 +134,7 @@ func interestingLegalNames() (names []string) {
 	// All codepoints in Unicode general categories C* (control and special) and
 	// Z* (space), except for:
 	//
-	//  *  Cn (non-character and reserved), which is not included in unicode.C.
+	//  *  Cn (non-character and reserved), which is large.
 	//  *  Co (private usage), which is large.
 	//  *  Cs (surrages), which is large.
 	//  *  U+0000, which is forbidden in paths by Go
@@ -140,6 +143,10 @@ func interestingLegalNames() (names []string) {
 	//
 	for r := rune(0); r <= unicode.MaxRune; r++ {
 		if !unicode.In(r, unicode.C) && !unicode.In(r, unicode.Z) {
+			continue
+		}
+
+		if unicode.In(r, unicode.Cn) {
 			continue
 		}
 
@@ -1293,8 +1300,11 @@ func (t *DirectoryTest) CreateHardLink() {
 		path.Join(mntDir, "foo"),
 		path.Join(mntDir, "bar"))
 
+	// Kernel behavior changed with: https://github.com/torvalds/linux/commit/8344213571b2ac8caf013cfd3b37bc3467c3a893
+	// Older kernels return ENOSYS (function not implemented)
+	// Newer kernels (6.x+) return EPERM (operation not permitted)
 	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("not implemented")))
+	ExpectTrue(errors.Is(err, syscall.ENOSYS) || errors.Is(err, syscall.EPERM), "Expected ENOSYS or EPERM, got: %v", err)
 }
 
 func (t *DirectoryTest) Chmod() {

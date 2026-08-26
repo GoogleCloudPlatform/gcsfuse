@@ -17,7 +17,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: "1.24"
+        go-version: "1.26.7"
     - name: CodeGen
       run: go generate ./...
     - name: Formatting diff
@@ -26,14 +26,14 @@ jobs:
   linux-tests:
     strategy:
       matrix:
-        go: [ 1.24.x ]
+        go: [ 1.26.x ]
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Go ${{ matrix.go }}
-      uses: actions/setup-go@v2.1.4
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go }}
     - name: Install fuse
@@ -59,15 +59,14 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-    - name: Setup Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: "1.24"
     - name: checkout code
       uses: actions/checkout@v4
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@032fa5c5e48499f06cf9d32c02149bfac1284239
+    - name: Setup Go
+      uses: actions/setup-go@v5
       with:
-        args: -E=goimports --timeout 2m0s
+        go-version: "1.26.7"
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v8
+      with:
+        args: -E=unused --timeout 3m0s
         only-new-issues: true
-
