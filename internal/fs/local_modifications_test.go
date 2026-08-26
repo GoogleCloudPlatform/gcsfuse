@@ -47,8 +47,6 @@ import (
 // writeback caching enabled the kernel manufactures them based on wall time.
 const timeSlop = 25 * time.Millisecond
 
-const gcsMaxNameLen = 1024
-
 var fuseMaxNameLen int
 
 func init() {
@@ -64,8 +62,7 @@ func init() {
 	case "linux":
 		// On Linux, we're looking at FUSE_NAME_MAX (https://tinyurl.com/2fr4y7fu),
 		// used in e.g. fuse_lookup_name (https://tinyurl.com/4pacanh3).
-		// On newer kernels it is PATH_MAX - 1 (4095).
-		fuseMaxNameLen = 4095
+		fuseMaxNameLen = 1024
 
 	default:
 		panic(fmt.Sprintf("Unknown runtime.GOOS: %s", runtime.GOOS))
@@ -93,7 +90,7 @@ func interestingLegalNames() (names []string) {
 		"*![]&&||;",
 
 		// Longest legal name
-		strings.Repeat("a", gcsMaxNameLen),
+		strings.Repeat("a", fuseMaxNameLen),
 
 		// Angstrom symbol singleton and normalized forms.
 		// Cf. http://unicode.org/reports/tr15/
