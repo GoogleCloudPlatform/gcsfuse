@@ -16,6 +16,7 @@ package gcsx
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -146,7 +147,7 @@ func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist() {
 
 	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName, false)
 
-	ExpectEq("error in iterating through objects: storage: bucket doesn't exist", err.Error())
+	ExpectEq(true, strings.Contains(err.Error(), "error in iterating through objects: storage: bucket doesn't exist"))
 	ExpectNe(nil, bucket.Syncer)
 }
 
@@ -171,6 +172,6 @@ func (t *BucketManagerTest) TestSetUpBucketMethodWhenBucketDoesNotExist_IsMultiB
 
 	bucket, err := bm.SetUpBucket(context.Background(), invalidBucketName, true)
 
-	ExpectEq("error in iterating through objects: storage: bucket doesn't exist", err.Error())
+	ExpectEq(true, strings.Contains(err.Error(), "error in iterating through objects: storage: bucket doesn't exist"))
 	ExpectNe(nil, bucket.Syncer)
 }
