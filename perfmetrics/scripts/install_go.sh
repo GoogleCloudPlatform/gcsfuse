@@ -38,6 +38,31 @@ fi
 GO_VERSION="$1"
 INSTALL_DIR="/usr/local" # Installation directory
 
+# Check if Go is already installed with the target version
+check_existing_go() {
+    local go_bin=""
+    if [[ -x "${INSTALL_DIR}/go/bin/go" ]]; then
+        go_bin="${INSTALL_DIR}/go/bin/go"
+    elif command -v go >/dev/null 2>&1; then
+        go_bin=$(command -v go)
+    fi
+
+    if [[ -n "$go_bin" ]]; then
+        local current_version
+        current_version=$("$go_bin" version 2>/dev/null || true)
+        if [[ "$current_version" =~ go${GO_VERSION}([[:space:]]|$) ]]; then
+            echo "Go version ${GO_VERSION} is already installed at $go_bin ($current_version)."
+            return 0
+        fi
+    fi
+    return 1
+}
+
+if check_existing_go; then
+    export PATH="${INSTALL_DIR}/go/bin:$PATH"
+    exit 0
+fi
+
 # Function to download, extract, and install go
 install_go() {
     local temp_dir architecture os_id system_arch

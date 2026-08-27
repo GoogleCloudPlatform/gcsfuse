@@ -12,13 +12,35 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#!/bin/bash
-
 set -euo pipefail
-set -x
 
 PYTHON_VERSION=3.11.9
 INSTALL_PREFIX="$HOME/.local/python-$PYTHON_VERSION"
+
+check_existing_python() {
+    local python_bin=""
+    if [[ -x "$INSTALL_PREFIX/bin/python3.11" ]]; then
+        python_bin="$INSTALL_PREFIX/bin/python3.11"
+    elif command -v python3.11 >/dev/null 2>&1; then
+        python_bin=$(command -v python3.11)
+    fi
+
+    if [[ -n "$python_bin" ]]; then
+        local current_version
+        current_version=$("$python_bin" --version 2>/dev/null || true)
+        if [[ "$current_version" =~ Python[[:space:]]+${PYTHON_VERSION} ]]; then
+            echo "Python $PYTHON_VERSION is already installed at $python_bin ($current_version)."
+            return 0
+        fi
+    fi
+    return 1
+}
+
+if check_existing_python; then
+    exit 0
+fi
+
+set -x
 
 if command -v apt-get &> /dev/null; then
     # For Debian/Ubuntu-based systems

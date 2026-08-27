@@ -17,7 +17,6 @@
 
 # Exit on error, treat unset variables as errors, and propagate pipeline errors.
 set -euo pipefail
-set -x
 
 if [[ $# -ne 0 ]]; then
     echo "This script requires no argument."
@@ -27,12 +26,51 @@ fi
 
 INSTALL_DIR="/usr/local" # Installation directory
 
+# Upgrade Python first, as gcloud requires a version between 3.9 and 3.13.
+# The upgrade_python3.sh script installs Python 3.11.9 (or skips if already installed).
+"$(dirname "$0")/upgrade_python3.sh"
+export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
+export PATH="$HOME/.local/python-3.11.9/bin:$PATH"
+
+GCLOUD_BIN=""
+CURRENT_VER=""
+
+check_existing_gcloud() {
+    if [[ -x "${INSTALL_DIR}/google-cloud-sdk/bin/gcloud" ]]; then
+        GCLOUD_BIN="${INSTALL_DIR}/google-cloud-sdk/bin/gcloud"
+    elif command -v gcloud >/dev/null 2>&1; then
+        GCLOUD_BIN=$(command -v gcloud)
+    fi
+
+    if [[ -n "$GCLOUD_BIN" ]]; then
+        local gcloud_ver
+        gcloud_ver=$("$GCLOUD_BIN" version 2>/dev/null || true)
+        CURRENT_VER=$(echo "$gcloud_ver" | grep "Google Cloud SDK" | awk '{print $4}')
+        local has_alpha=false
+        if echo "$gcloud_ver" | grep -q "alpha"; then
+            has_alpha=true
+        fi
+
+        # Fetch latest published version from Google Cloud SDK rapid release channel manifest
+        local latest_ver
+        latest_ver=$(curl -s --connect-timeout 5 https://dl.google.com/dl/cloudsdk/channels/rapid/components-2.json | grep -m 1 -o '"version": "[^"]*"' | cut -d'"' -f4 || true)
+
+        # Ensure local version matches the latest available version and has alpha component
+        if [[ -n "$latest_ver" && "$CURRENT_VER" == "$latest_ver" && "$has_alpha" == "true" ]]; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+if check_existing_gcloud; then
+    export PATH="${INSTALL_DIR}/google-cloud-sdk/bin:$PATH"
+    echo "gcloud is already at the latest version ($CURRENT_VER) with alpha component installed at $GCLOUD_BIN."
+    exit 0
+fi
+
 install_latest_gcloud() {
-    # Upgrade Python first, as gcloud requires a version between 3.9 and 3.13.
-    # The upgrade_python3.sh script installs Python 3.11.9.
-    "$(dirname "$0")/upgrade_python3.sh"
-    # Set CLOUDSDK_PYTHON to point to the newly installed Python executable.
-    export CLOUDSDK_PYTHON="$HOME/.local/python-3.11.9/bin/python3.11"
+    set -x
 
     local temp_dir
     temp_dir=$(mktemp -d /tmp/gcloud_install_src.XXXXXX)
