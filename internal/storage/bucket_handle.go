@@ -129,24 +129,22 @@ func (b *bucketHandle) DeleteObject(ctx context.Context, req *gcs.DeleteObjectRe
 	}
 
 	err := obj.Delete(ctx)
-	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error
-	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/7ad451c6f2ead7992e030503e5b66c555b2ebf71/vendor/cloud.google.com/go/storage/http_client.go#L399
 	if err != nil {
-		switch ee := err.(type) {
-		case *googleapi.Error:
-			if ee.Code == http.StatusPreconditionFailed {
-				err = &gcs.PreconditionError{Err: ee}
+		var gErr *googleapi.Error
+		if errors.As(err, &gErr) {
+			if gErr.Code == http.StatusPreconditionFailed {
+				return &gcs.PreconditionError{Err: gErr}
 			}
-		default:
-			if err == storage.ErrObjectNotExist {
-				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
-			} else {
-				err = fmt.Errorf("error in deleting object: %w", err)
+			if gErr.Code == http.StatusNotFound {
+				return &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
 			}
 		}
+		if errors.Is(err, storage.ErrObjectNotExist) {
+			return &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+		}
+		return fmt.Errorf("error in deleting object: %w", err)
 	}
-	return err
-
+	return nil
 }
 
 func (b *bucketHandle) StatObject(ctx context.Context,
@@ -156,8 +154,13 @@ func (b *bucketHandle) StatObject(ctx context.Context,
 	attrs, err = b.bucket.Object(req.Name).Attrs(ctx)
 
 	// If error is of type storage.ErrObjectNotExist
-	if err == storage.ErrObjectNotExist {
+	if errors.Is(err, storage.ErrObjectNotExist) {
 		err = &gcs.NotFoundError{Err: err} // Special case error that object not found in the bucket.
+		return
+	}
+	var gErr *googleapi.Error
+	if errors.As(err, &gErr) && gErr.Code == http.StatusNotFound {
+		err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
 		return
 	}
 	if err != nil {
@@ -255,17 +258,22 @@ func (b *bucketHandle) CopyObject(ctx context.Context, req *gcs.CopyObjectReques
 	objAttrs, err := dstObj.CopierFrom(srcObj).Run(ctx)
 
 	if err != nil {
-		switch ee := err.(type) {
-		case *googleapi.Error:
-			if ee.Code == http.StatusPreconditionFailed {
-				err = &gcs.PreconditionError{Err: ee}
+		var gErr *googleapi.Error
+		if errors.As(err, &gErr) {
+			if gErr.Code == http.StatusPreconditionFailed {
+				err = &gcs.PreconditionError{Err: gErr}
+				return
 			}
-			if ee.Code == http.StatusNotFound {
+			if gErr.Code == http.StatusNotFound {
 				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+				return
 			}
-		default:
-			err = fmt.Errorf("error in copying object: %w", err)
 		}
+		if errors.Is(err, storage.ErrObjectNotExist) {
+			err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+			return
+		}
+		err = fmt.Errorf("error in copying object: %w", err)
 		return
 	}
 	// Converting objAttrs to type *Object
@@ -394,19 +402,24 @@ func (b *bucketHandle) UpdateObject(ctx context.Context, req *gcs.UpdateObjectRe
 		return
 	}
 
-	// If storage object does not exist, httpclient is returning ErrObjectNotExist error instead of googleapi error
-	// https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/vendor/cloud.google.com/go/storage/http_client.go#L516
-	switch ee := err.(type) {
-	case *googleapi.Error:
-		if ee.Code == http.StatusPreconditionFailed {
-			err = &gcs.PreconditionError{Err: ee}
+	if err != nil {
+		var gErr *googleapi.Error
+		if errors.As(err, &gErr) {
+			if gErr.Code == http.StatusPreconditionFailed {
+				err = &gcs.PreconditionError{Err: gErr}
+				return
+			}
+			if gErr.Code == http.StatusNotFound {
+				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+				return
+			}
 		}
-	default:
-		if err == storage.ErrObjectNotExist {
+		if errors.Is(err, storage.ErrObjectNotExist) {
 			err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
-		} else {
-			err = fmt.Errorf("error in updating object: %w", err)
+			return
 		}
+		err = fmt.Errorf("error in updating object: %w", err)
+		return
 	}
 
 	return
@@ -451,17 +464,22 @@ func (b *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObjec
 	// Composing Source Objects to Destination Object using Composer created through Go Storage Client.
 	attrs, err := dstObj.ComposerFrom(srcObjList...).Run(ctx)
 	if err != nil {
-		switch ee := err.(type) {
-		case *googleapi.Error:
-			if ee.Code == http.StatusPreconditionFailed {
-				err = &gcs.PreconditionError{Err: ee}
+		var gErr *googleapi.Error
+		if errors.As(err, &gErr) {
+			if gErr.Code == http.StatusPreconditionFailed {
+				err = &gcs.PreconditionError{Err: gErr}
+				return
 			}
-			if ee.Code == http.StatusNotFound {
+			if gErr.Code == http.StatusNotFound {
 				err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+				return
 			}
-		default:
-			err = fmt.Errorf("error in composing object: %w", err)
 		}
+		if errors.Is(err, storage.ErrObjectNotExist) {
+			err = &gcs.NotFoundError{Err: storage.ErrObjectNotExist}
+			return
+		}
+		err = fmt.Errorf("error in composing object: %w", err)
 		return
 	}
 
