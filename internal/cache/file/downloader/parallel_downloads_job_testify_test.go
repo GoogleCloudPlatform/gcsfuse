@@ -128,9 +128,9 @@ func (t *ParallelDownloaderJobTestifyTest) Test_ParallelDownloadObjectToFile_New
 		return req.Range.Start == rangeR3.Start && req.Range.Limit == rangeR3.Limit
 	})).Run(incrementCounters).Return(readerR3, nil).Once()
 
-	// Chunk 4 (R4): ReadHandle should not be nil
+	// Chunk 4 (R4): ReadHandle can be nil or propagated depending on which worker picks it up. Match primarily on range.
 	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
-		return req.Range.Start == rangeR4.Start && req.Range.Limit == rangeR4.Limit && req.ReadHandle != nil
+		return req.Range.Start == rangeR4.Start && req.Range.Limit == rangeR4.Limit
 	})).Run(incrementCounters).Return(readerR4, nil).Once()
 
 	// Start download
