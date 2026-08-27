@@ -740,23 +740,22 @@ func (cht *cacheHandleTest) Test_Read_FileInfoRemoved() {
 	dst := make([]byte, ReadContentSize)
 	cht.cacheHandle.isSequential.Store(true)
 	cht.cacheHandle.cacheFileForRangeRead = true
-	// First let the cache populated (we are doing this so that we can externally
-	// modify file info cache for this unit test without hampering download job).
-	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
+	// First let the cache be fully populated (we are doing this so that we can externally
+	// modify file info cache for this unit test without ongoing background download updates).
+	jobStatus, err := cht.cacheHandle.fileDownloadJob.Download(context.Background(), int64(cht.object.Size), true)
 	assert.Nil(cht.T(), err)
-	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	assert.GreaterOrEqual(cht.T(), jobStatus.Offset, int64(ReadContentSize))
+	assert.Equal(cht.T(), int64(cht.object.Size), jobStatus.Offset)
+
 	fileInfoKey := data.FileInfoKey{
 		BucketName: cht.bucket.Name(),
 		ObjectName: cht.object.Name,
 	}
 	fileInfoKeyName, err := fileInfoKey.Key()
 	assert.Nil(cht.T(), err)
-	assert.False(cht.T(), cacheHit)
 
 	// Delete the file info entry and again perform read
 	_ = cht.cache.Erase(fileInfoKeyName)
-	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
+	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 
 	assert.NotNil(cht.T(), err)
 	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileInfoCache))
@@ -767,13 +766,12 @@ func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 	dst := make([]byte, ReadContentSize)
 	cht.cacheHandle.isSequential.Store(true)
 	cht.cacheHandle.cacheFileForRangeRead = true
-	// First let the cache populated (we are doing this so that we can externally
-	// modify file info cache for this unit test without hampering download job).
-	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
+	// First let the cache be fully populated (we are doing this so that we can externally
+	// modify file info cache for this unit test without ongoing background download updates).
+	jobStatus, err := cht.cacheHandle.fileDownloadJob.Download(context.Background(), int64(cht.object.Size), true)
 	assert.Nil(cht.T(), err)
-	assert.False(cht.T(), cacheHit)
-	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
-	assert.GreaterOrEqual(cht.T(), jobStatus.Offset, int64(ReadContentSize))
+	assert.Equal(cht.T(), int64(cht.object.Size), jobStatus.Offset)
+
 	fileInfoKey := data.FileInfoKey{
 		BucketName: cht.bucket.Name(),
 		ObjectName: cht.object.Name,
@@ -787,7 +785,7 @@ func (cht *cacheHandleTest) Test_Read_FileInfoGenerationChanged() {
 	fileInfoData.ObjectGeneration = 1
 	err = cht.cache.UpdateWithoutChangingOrder(fileInfoKeyName, fileInfoData)
 	assert.Nil(cht.T(), err)
-	_, cacheHit, err = cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
+	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, 0, dst)
 
 	assert.NotNil(cht.T(), err)
 	assert.True(cht.T(), errors.Is(err, util.ErrInvalidFileInfoCache))
