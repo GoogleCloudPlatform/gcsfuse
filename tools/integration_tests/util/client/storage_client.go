@@ -206,6 +206,9 @@ func DeleteAllObjectsWithPrefix(ctx context.Context, client *storage.Client, pre
 		if err == iterator.Done {
 			break
 		}
+		if err != nil {
+			return fmt.Errorf("error iterating objects with prefix %q: %w", prefix, err)
+		}
 		if err := DeleteObjectOnGCS(ctx, client, attrs.Name); err != nil {
 			return err
 		}
