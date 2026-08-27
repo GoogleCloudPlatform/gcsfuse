@@ -43,8 +43,6 @@ check_existing_go() {
     local go_bin=""
     if [[ -x "${INSTALL_DIR}/go/bin/go" ]]; then
         go_bin="${INSTALL_DIR}/go/bin/go"
-    elif command -v go >/dev/null 2>&1; then
-        go_bin=$(command -v go)
     fi
 
     if [[ -n "$go_bin" ]]; then

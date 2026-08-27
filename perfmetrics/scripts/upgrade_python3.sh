@@ -21,8 +21,6 @@ check_existing_python() {
     local python_bin=""
     if [[ -x "$INSTALL_PREFIX/bin/python3.11" ]]; then
         python_bin="$INSTALL_PREFIX/bin/python3.11"
-    elif command -v python3.11 >/dev/null 2>&1; then
-        python_bin=$(command -v python3.11)
     fi
 
     if [[ -n "$python_bin" ]]; then

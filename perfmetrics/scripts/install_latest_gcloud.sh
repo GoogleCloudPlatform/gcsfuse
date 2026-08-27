@@ -38,8 +38,6 @@ CURRENT_VER=""
 check_existing_gcloud() {
     if [[ -x "${INSTALL_DIR}/google-cloud-sdk/bin/gcloud" ]]; then
         GCLOUD_BIN="${INSTALL_DIR}/google-cloud-sdk/bin/gcloud"
-    elif command -v gcloud >/dev/null 2>&1; then
-        GCLOUD_BIN=$(command -v gcloud)
     fi
 
     if [[ -n "$GCLOUD_BIN" ]]; then
