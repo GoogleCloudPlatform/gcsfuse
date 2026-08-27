@@ -174,6 +174,7 @@ func CloseFiles(t *testing.T, files []*os.File) {
 		err := file.Close()
 		assert.NoError(t, err)
 	}
+	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterCloseZB)
 }
 
 // Deprecated: please use CloseFileShouldNotThrowError instead.
@@ -248,14 +249,6 @@ func WriteChunkOfRandomBytesToFiles(files []*os.File, chunkSize int, offset int6
 
 		if n != chunkSize {
 			return fmt.Errorf("incorrect number of bytes written in the file %s actual %d, expected %d", file.Name(), n, chunkSize)
-		}
-
-		if !setup.IsZonalBucketRun() {
-			err = file.Sync()
-			if err != nil {
-				return fmt.Errorf("error in syncing file: %v", err)
-			}
-			WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterFlushZB)
 		}
 	}
 
