@@ -74,6 +74,6 @@ echo "Installing GKE managed Cloud Storage FUSE CSI driver..."
 gcloud container clusters update "${CLUSTER_NAME}" \
   --location="${CLUSTER_LOCATION}" \
   --project="${CLUSTER_PROJECT}" \
-  --enable-gcs-fuse-csi-driver
+  --update-addons=GcsFuseCsiDriver=ENABLED
 
 echo "GKE Managed Cloud Storage FUSE CSI driver successfully installed."
