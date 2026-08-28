@@ -1271,6 +1271,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 		f.bwh, err = bufferedwrites.NewBWHandler(&bufferedwrites.CreateBWHandlerRequest{
 			Object:                   latestGcsObj,
 			ObjectName:               f.name.GcsObjectName(),
+			FilePath:                 f.name.String(),
 			Bucket:                   f.bucket,
 			BlockSize:                int64(writeCtx.Config.Write.BlockSizeMb * float64(util.MiB)),
 			MaxBlocksPerFile:         writeCtx.Config.Write.MaxBlocksPerFile,

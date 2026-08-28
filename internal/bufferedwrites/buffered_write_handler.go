@@ -66,6 +66,7 @@ type BufferedWriteHandler interface {
 // bufferedWriteHandlerImpl is responsible for filling up the buffers with the data
 // as it receives and handing over to uploadHandler which uploads to GCS.
 type bufferedWriteHandlerImpl struct {
+	filePath      string
 	current       block.Block
 	blockPool     *block.GenBlockPool[block.Block]
 	uploadHandler *UploadHandler
@@ -103,6 +104,7 @@ var ErrOutOfOrderWrite = errors.New("outOfOrder write detected")
 type CreateBWHandlerRequest struct {
 	Object                   *gcs.Object
 	ObjectName               string
+	FilePath                 string
 	Bucket                   gcs.Bucket
 	BlockSize                int64
 	MaxBlocksPerFile         int64
@@ -129,7 +131,13 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 		mh = metrics.NewNoopMetrics()
 	}
 
+	filePath := req.FilePath
+	if filePath == "" {
+		filePath = req.ObjectName
+	}
+
 	bwh = &bufferedWriteHandlerImpl{
+		filePath:  filePath,
 		current:   nil,
 		blockPool: bp,
 		uploadHandler: newUploadHandler(&CreateUploadHandlerRequest{
@@ -148,10 +156,15 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 		mtime:         time.Now(),
 		truncatedSize: -1,
 	}
+
+	logger.Infof("Buffered write handler initialized for file: %s", filePath)
+
 	return
 }
 
 func (wh *bufferedWriteHandlerImpl) Write(ctx context.Context, data []byte, offset int64) (err error) {
+	logger.Infof("Buffered write handler write for file: %s, offset: %d, size: %d", wh.filePath, offset, len(data))
+
 	now := time.Now()
 	if wh.startTime.IsZero() {
 		wh.startTime = now
@@ -232,6 +245,8 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(ctx context.Context, data []byt
 }
 
 func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject, err error) {
+	logger.Infof("Buffered write handler sync for file: %s, total size: %d", wh.filePath, wh.totalSize)
+
 	// Upload current block (for both regional and zonal buckets).
 	if wh.current != nil && wh.current.Size() != 0 {
 		err = wh.uploadHandler.Upload(ctx, wh.current)
@@ -270,6 +285,8 @@ func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject,
 
 // Flush finalizes the upload.
 func (wh *bufferedWriteHandlerImpl) Flush(ctx context.Context) (*gcs.MinObject, error) {
+	logger.Infof("Buffered write handler flush for file: %s, total size: %d", wh.filePath, wh.totalSize)
+
 	flushStart := time.Now()
 	if wh.startTime.IsZero() {
 		wh.startTime = flushStart
@@ -302,6 +319,8 @@ func (wh *bufferedWriteHandlerImpl) Flush(ctx context.Context) (*gcs.MinObject, 
 	if err != nil {
 		return nil, fmt.Errorf("BufferedWriteHandler.Flush(): %w", err)
 	}
+
+	logger.Infof("Buffered write handler finalized file: %s, size: %d", wh.filePath, wh.totalSize)
 
 	if obj != nil && obj.Size != uint64(wh.totalSize) {
 		return nil, fmt.Errorf("could not upload entire data, expected size %d, got %d", wh.totalSize, obj.Size)
