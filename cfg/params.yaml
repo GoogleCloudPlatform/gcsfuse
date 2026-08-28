@@ -451,9 +451,8 @@ params:
     flag-name: "fuse-max-request-size-kb"
     type: "int"
     usage: >-
-      Sets the target maximum request size in KiB that FUSE can process in a single request
-      (currently used to control read requests only). This is translated to the kernel max_pages
-      limit based on host page size. As max_pages_limit is a global, machine-level configuration
+      Sets the target maximum request size in KiB that FUSE can process in a single request.
+      This is translated to the kernel max_pages limit based on host page size. As max_pages_limit is a global, machine-level configuration
       across all mounts, the host's limit is only updated if the calculated pages value is greater
       than the current system limit. Note that the FUSE kernel max_pages limit can be set to at most
       65535 (fuse_max_max_pages), so the value of this parameter must be > 0 and translate to at most 65535 pages. 
@@ -473,10 +472,13 @@ params:
     usage: >-
       Sets the target maximum write size in KiB that FUSE can process in a single write request.
       If fuse-max-request-size-kb is less than fuse-max-write-size-kb, we will restrict
-      fuse-max-write-size-kb to fuse-max-request-size-kb. Right now only a maximum value
-      of 1MB is supported.
-    default: 1024
+      fuse-max-write-size-kb to fuse-max-request-size-kb.
+    default: "StorageClassRapid.DefaultFuseMaxRequestSizeKb()"
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "flat, hierarchical"
+          value: "StorageClassStandard.DefaultFuseMaxRequestSizeKb()"
 
   - config-path: "file-system.fuse-options"
     flag-name: "o"

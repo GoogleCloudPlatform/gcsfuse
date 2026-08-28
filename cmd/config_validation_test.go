@@ -217,8 +217,13 @@ func TestValidateCliFlag(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "invalid exceeds 1MB fuse-max-write-size-kb",
+			name:    "valid >1MB fuse-max-write-size-kb",
 			args:    []string{"--fuse-max-write-size-kb=2048"},
+			wantErr: false,
+		},
+		{
+			name:    "invalid exceeding max pages fuse-max-write-size-kb",
+			args:    []string{"--fuse-max-write-size-kb=10000000"},
 			wantErr: true,
 		},
 	}

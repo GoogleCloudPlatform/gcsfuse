@@ -427,6 +427,83 @@ func TestApplyOptimizations(t *testing.T) {
 			})
 		}
 	})
+	// Tests for file-system.fuse-max-write-size-kb
+	t.Run("file-system.fuse-max-write-size-kb", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			userSetFlags    map[string]any
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name:   "user_set",
+				config: Config{},
+				userSetFlags: map[string]any{
+					"file-system.fuse-max-write-size-kb": 98765,
+					"machine-type":                       "a2-megagpu-16g",
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeFlat},
+				expectOptimized: false,
+				expectedValue:   int64(98765),
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   StorageClassRapid.DefaultFuseMaxRequestSizeKb(),
+			},
+			{
+				name:            "bucket_type_flat",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeFlat},
+				expectOptimized: true,
+				expectedValue:   StorageClassStandard.DefaultFuseMaxRequestSizeKb(),
+			},
+			{
+				name:            "bucket_type_hierarchical",
+				config:          Config{Profile: ""},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
+				expectOptimized: true,
+				expectedValue:   StorageClassStandard.DefaultFuseMaxRequestSizeKb(),
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.FileSystem.FuseMaxWriteSizeKb = tc.expectedValue.(int64)
+				} else {
+					c.FileSystem.FuseMaxWriteSizeKb = int64(StorageClassRapid.DefaultFuseMaxRequestSizeKb())
+				}
+
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "file-system.fuse-max-write-size-kb")
+				} else {
+					assert.NotContains(t, optimizedFlags, "file-system.fuse-max-write-size-kb")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.FileSystem.FuseMaxWriteSizeKb)
+			})
+		}
+	})
 	// Tests for implicit-dirs
 	t.Run("implicit-dirs", func(t *testing.T) {
 		testCases := []struct {

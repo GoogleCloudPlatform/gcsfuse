@@ -929,3 +929,50 @@ func TestResolveOnlyDir(t *testing.T) {
 		})
 	}
 }
+
+func TestRationalize_FileSystemConfig(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		config                 *Config
+		userSetFlags           map[string]any
+		expectedMaxWriteSizeKb int64
+	}{
+		{
+			name: "fuse_max_write_size_unset_takes_fuse_max_request_size",
+			config: &Config{
+				FileSystem: FileSystemConfig{
+					FuseMaxRequestSizeKb: 16384,
+					FuseMaxWriteSizeKb:   1024,
+				},
+			},
+			userSetFlags:           map[string]any{},
+			expectedMaxWriteSizeKb: 16384,
+		},
+		{
+			name: "fuse_max_write_size_set_by_user_remains_unchanged",
+			config: &Config{
+				FileSystem: FileSystemConfig{
+					FuseMaxRequestSizeKb: 16384,
+					FuseMaxWriteSizeKb:   4096,
+				},
+			},
+			userSetFlags: map[string]any{
+				"file-system.fuse-max-write-size-kb": 4096,
+			},
+			expectedMaxWriteSizeKb: 4096,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := viper.New()
+			for k, val := range tc.userSetFlags {
+				v.Set(k, val)
+			}
+			err := Rationalize(v, tc.config, []string{})
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedMaxWriteSizeKb, tc.config.FileSystem.FuseMaxWriteSizeKb)
+		})
+	}
+}

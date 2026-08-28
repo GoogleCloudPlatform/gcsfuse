@@ -176,6 +176,12 @@ func resolveOnlyDir(c *Config) {
 	}
 }
 
+func resolveFileSystemConfig(v *viper.Viper, c *FileSystemConfig) {
+	if !v.IsSet("file-system.fuse-max-write-size-kb") && c.FuseMaxRequestSizeKb > 0 {
+		c.FuseMaxWriteSizeKb = c.FuseMaxRequestSizeKb
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	var err error
@@ -191,6 +197,7 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	resolveTraceConfig(&c.Trace)
 	resolveReadConfig(&c.Read)
 	resolveStreamingWriteConfig(&c.Write)
+	resolveFileSystemConfig(v, &c.FileSystem)
 	resolveMetadataCacheConfig(v, &c.MetadataCache, optimizedFlags)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)

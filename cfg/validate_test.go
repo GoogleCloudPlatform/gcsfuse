@@ -1558,6 +1558,9 @@ func Test_isValidFuseMaxWriteSizeKb_ValidScenarios(t *testing.T) {
 		{"valid_1024_kb", 1024},
 		{"valid_min_page_size", pageSizeKb},
 		{"valid_512_kb", 512},
+		{"valid_2048_kb", 2048},
+		{"valid_16384_kb", 16384},
+		{"valid_max_pages", (int64(FuseMaxPagesLimit) * int64(kernelPageSize)) / 1024},
 	}
 
 	for _, tc := range testCases {
@@ -1576,8 +1579,7 @@ func Test_isValidFuseMaxWriteSizeKb_ErrorScenarios(t *testing.T) {
 	}{
 		{"invalid_zero", 0},
 		{"invalid_negative", -10},
-		{"invalid_exceeds_1_mib", 1025},
-		{"invalid_2_mib", 2048},
+		{"invalid_exceeds_max_pages", (int64(FuseMaxPagesLimit+1) * int64(kernelPageSize)) / 1024},
 		{"invalid_overflow", int64(math.MaxInt)},
 	}
 
