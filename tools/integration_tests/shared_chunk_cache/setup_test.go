@@ -57,15 +57,11 @@ func TestMain(m *testing.M) {
 	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
 
 	// 2. Create storage client before running tests.
-	var err error
-	testEnv.storageClient, err = client.CreateStorageClient(testEnv.ctx)
-	if err != nil {
-		log.Printf("Error creating storage client: %v\n", err)
-		os.Exit(1)
-	}
+	closeStorageClient := client.CreateStorageClientWithCancel(&testEnv.ctx, &testEnv.storageClient)
 	defer func() {
-		if err := testEnv.storageClient.Close(); err != nil {
-			log.Printf("Error closing storage client: %v\n", err)
+		err := closeStorageClient()
+		if err != nil {
+			log.Fatalf("closeStorageClient failed: %v", err)
 		}
 	}()
 
@@ -93,5 +89,8 @@ func TestMain(m *testing.M) {
 	successCode := m.Run()
 
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, testDirName))
+	if err := closeStorageClient(); err != nil {
+		log.Printf("closeStorageClient failed: %v\n", err)
+	}
 	os.Exit(successCode)
 }

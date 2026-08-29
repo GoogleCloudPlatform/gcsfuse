@@ -201,11 +201,11 @@ func (t *BaseSuite) getCacheFileModTimes() map[string]os.FileInfo {
 // Reading 2MB starting at 10MB offset will download and cache the entire 10MB chunk (2nd chunk).
 func (t *SharedChunkCacheTestSuite) TestCacheMiss() {
 	const (
-		testFileName = "test_cache_miss.txt"
-		fileSize     = 30 * util.MiB
-		readSize     = 2 * util.MiB  // Read only 2MB
-		readOffset   = 10 * util.MiB // Start at 10MB (in the 2nd chunk)
+		fileSize   = 30 * util.MiB
+		readSize   = 2 * util.MiB  // Read only 2MB
+		readOffset = 10 * util.MiB // Start at 10MB (in the 2nd chunk)
 	)
+	testFileName := "test_cache_miss_" + setup.GenerateRandomString(5) + ".txt"
 
 	// Arrange: Set up test file and verify initial cache state
 	t.createTestFile(testFileName, fileSize)
@@ -232,11 +232,11 @@ func (t *SharedChunkCacheTestSuite) TestCacheMiss() {
 // This test verifies cache hits by checking that cache files are not modified.
 func (t *SharedChunkCacheTestSuite) TestCacheHit() {
 	const (
-		testFileName = "test_cache_hit.txt"
-		fileSize     = 30 * util.MiB
-		readSize     = 2 * util.MiB  // Read only 2MB
-		readOffset   = 10 * util.MiB // Start at 10MB (in the 2nd chunk)
+		fileSize   = 30 * util.MiB
+		readSize   = 2 * util.MiB  // Read only 2MB
+		readOffset = 10 * util.MiB // Start at 10MB (in the 2nd chunk)
 	)
+	testFileName := "test_cache_hit_" + setup.GenerateRandomString(5) + ".txt"
 
 	// Arrange: Set up test file and populate cache via primary mount
 	t.createTestFile(testFileName, fileSize)
@@ -292,11 +292,11 @@ func (t *SharedChunkCacheTestSuite) TestCacheHit() {
 // Subsequent read of the same chunk should be a cache hit (served from cache).
 func (t *SharedChunkCacheTestSuite) TestCacheHitSingleMount() {
 	const (
-		testFileName = "test_cache_hit_single_mount.txt"
-		fileSize     = 30 * util.MiB
-		readSize     = 2 * util.MiB  // Read only 2MB
-		readOffset   = 10 * util.MiB // Start at 10MB (in the 2nd chunk)
+		fileSize   = 30 * util.MiB
+		readSize   = 2 * util.MiB  // Read only 2MB
+		readOffset = 10 * util.MiB // Start at 10MB (in the 2nd chunk)
 	)
+	testFileName := "test_cache_hit_single_mount_" + setup.GenerateRandomString(5) + ".txt"
 
 	// Arrange: Set up test file, verify empty cache, and perform first read to populate cache
 	t.createTestFile(testFileName, fileSize)
@@ -351,10 +351,10 @@ func RunTests(t *testing.T, runName string, factory func(primaryFlags, secondary
 	for _, cfg := range testEnv.cfg.Configs {
 		if cfg.Run == runName {
 			for i, flagStr := range cfg.Flags {
-				primaryFlags := strings.Split(flagStr, ",")
+				primaryFlags := strings.Fields(strings.ReplaceAll(flagStr, ",", " "))
 				var secondaryFlags []string
 				if len(cfg.SecondaryFlags) > i {
-					secondaryFlags = strings.Split(cfg.SecondaryFlags[i], ",")
+					secondaryFlags = strings.Fields(strings.ReplaceAll(cfg.SecondaryFlags[i], ",", " "))
 				}
 				suite.Run(t, factory(primaryFlags, secondaryFlags))
 			}
