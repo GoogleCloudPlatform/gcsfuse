@@ -72,7 +72,9 @@ func (rx *ResumableUpload) Progress() int64 {
 // off specifies the offset in rx.Media from which data is drawn.
 // size is the number of bytes in data.
 // final specifies whether data is the final chunk to be uploaded.
-func (rx *ResumableUpload) doUploadRequest(ctx context.Context, data io.Reader, off, size int64, final bool) (*http.Response, error) {
+func (rx *ResumableUpload) doUploadRequest(ctx context.Context, data io.Reader, off, size int64, final bool) (resp *http.Response, err error) {
+	log.Printf("GCSFuse-Debug: doUploadRequest start, off: %d, size: %d, final: %t", off, size, final)
+	defer func() { log.Printf("GCSFuse-Debug: doUploadRequest end, off: %d, size: %d, final: %t, err: %v", off, size, final, err) }()
 	req, err := http.NewRequest("POST", rx.URI, data)
 	if err != nil {
 		return nil, err
@@ -116,7 +118,8 @@ func (rx *ResumableUpload) doUploadRequest(ctx context.Context, data io.Reader, 
 		req.Header.Set(hashHeaderKey, fmt.Sprintf("%v=%v", crc32cPrefix, encodeUint32(rx.Media.fullObjectChecksum)))
 	}
 
-	return SendRequest(ctx, rx.Client, req)
+	resp, err = SendRequest(ctx, rx.Client, req)
+	return resp, err
 }
 
 func statusResumeIncomplete(resp *http.Response) bool {
