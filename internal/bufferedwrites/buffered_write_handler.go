@@ -163,7 +163,10 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 }
 
 func (wh *bufferedWriteHandlerImpl) Write(ctx context.Context, data []byte, offset int64) (err error) {
-	logger.Infof("Buffered write handler write for file: %s, offset: %d, size: %d", wh.filePath, offset, len(data))
+	logger.Infof("Buffered write handler write start for file: %s, offset: %d, size: %d", wh.filePath, offset, len(data))
+	defer func() {
+		logger.Infof("Buffered write handler write end for file: %s, offset: %d, size: %d, err: %v", wh.filePath, offset, len(data), err)
+	}()
 
 	now := time.Now()
 	if wh.startTime.IsZero() {
@@ -245,7 +248,10 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(ctx context.Context, data []byt
 }
 
 func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject, err error) {
-	logger.Infof("Buffered write handler sync for file: %s, total size: %d", wh.filePath, wh.totalSize)
+	logger.Infof("Buffered write handler sync start for file: %s, total size: %d", wh.filePath, wh.totalSize)
+	defer func() {
+		logger.Infof("Buffered write handler sync end for file: %s, total size: %d, err: %v", wh.filePath, wh.totalSize, err)
+	}()
 
 	// Upload current block (for both regional and zonal buckets).
 	if wh.current != nil && wh.current.Size() != 0 {
@@ -284,8 +290,11 @@ func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject,
 }
 
 // Flush finalizes the upload.
-func (wh *bufferedWriteHandlerImpl) Flush(ctx context.Context) (*gcs.MinObject, error) {
-	logger.Infof("Buffered write handler flush for file: %s, total size: %d", wh.filePath, wh.totalSize)
+func (wh *bufferedWriteHandlerImpl) Flush(ctx context.Context) (minObject *gcs.MinObject, err error) {
+	logger.Infof("Buffered write handler flush start for file: %s, total size: %d", wh.filePath, wh.totalSize)
+	defer func() {
+		logger.Infof("Buffered write handler flush end for file: %s, total size: %d, err: %v", wh.filePath, wh.totalSize, err)
+	}()
 
 	flushStart := time.Now()
 	if wh.startTime.IsZero() {
@@ -295,7 +304,7 @@ func (wh *bufferedWriteHandlerImpl) Flush(ctx context.Context) (*gcs.MinObject, 
 	}
 
 	// Fail early if upload already failed.
-	err := wh.uploadHandler.UploadError()
+	err = wh.uploadHandler.UploadError()
 	if err != nil {
 		return nil, err
 	}
