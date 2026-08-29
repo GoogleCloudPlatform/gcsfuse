@@ -3019,6 +3019,8 @@ func (fs *fileSystem) ReleaseDirHandle(
 func (fs *fileSystem) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
+	logger.Infof("GCSFuse-Debug: OpenFile start for inode %v", op.Inode)
+	defer func() { logger.Infof("GCSFuse-Debug: OpenFile end for inode %v, err: %v", op.Inode, err) }()
 	// For file handles opened in O_DIRECT mode, we must set UseDirectIO.
 	// This tells the kernel to bypass its page cache (for file reads and
 	// writes) and **size checks**, forwarding read requests directly to
@@ -3083,6 +3085,8 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
+	logger.Infof("GCSFuse-Debug: ReadFile start for inode %v, offset %v, len %v", op.Inode, op.Offset, len(op.Dst))
+	defer func() { logger.Infof("GCSFuse-Debug: ReadFile end for inode %v, bytes read %v, err: %v", op.Inode, op.BytesRead, err) }()
 	ctx = fs.getInterruptlessContext(ctx)
 
 	// Find the handle and lock it.
@@ -3189,6 +3193,8 @@ func (fs *fileSystem) ReadSymlink(
 func (fs *fileSystem) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
+	logger.Infof("GCSFuse-Debug: WriteFile start for inode %v, offset %v, len %v", op.Inode, op.Offset, len(op.Data))
+	defer func() { logger.Infof("GCSFuse-Debug: WriteFile end for inode %v, offset %v, len %v, err: %v", op.Inode, op.Offset, len(op.Data), err) }()
 	ctx = fs.getInterruptlessContext(ctx)
 
 	// Find the inode( and file handle in case of appends).
@@ -3232,6 +3238,8 @@ func (fs *fileSystem) WriteFile(
 func (fs *fileSystem) SyncFile(
 	ctx context.Context,
 	op *fuseops.SyncFileOp) (err error) {
+	logger.Infof("GCSFuse-Debug: SyncFile start for inode %v", op.Inode)
+	defer func() { logger.Infof("GCSFuse-Debug: SyncFile end for inode %v, err: %v", op.Inode, err) }()
 	ctx = fs.getInterruptlessContext(ctx)
 	// Find the inode.
 	fs.mu.Lock()
@@ -3259,6 +3267,8 @@ func (fs *fileSystem) SyncFile(
 func (fs *fileSystem) FlushFile(
 	ctx context.Context,
 	op *fuseops.FlushFileOp) (err error) {
+	logger.Infof("GCSFuse-Debug: FlushFile start for inode %v", op.Inode)
+	defer func() { logger.Infof("GCSFuse-Debug: FlushFile end for inode %v, err: %v", op.Inode, err) }()
 	ctx = fs.getInterruptlessContext(ctx)
 	// Find the inode.
 	fs.mu.Lock()
@@ -3280,6 +3290,8 @@ func (fs *fileSystem) FlushFile(
 func (fs *fileSystem) ReleaseFileHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) (err error) {
+	logger.Infof("GCSFuse-Debug: ReleaseFileHandle start for handle %v", op.Handle)
+	defer func() { logger.Infof("GCSFuse-Debug: ReleaseFileHandle end for handle %v, err: %v", op.Handle, err) }()
 	fs.mu.Lock()
 
 	fileHandle := fs.handles[op.Handle].(*handle.FileHandle)
