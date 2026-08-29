@@ -135,19 +135,7 @@ elif [ "${BENCHMARK_TYPE:-}" == "local_tests" ]; then
     UPLOAD_FLAGS="--upload_gs"
   fi
 
-  COMMON_MOUNT_FLAGS="--debug_fuse --debug_gcs --log-format \"text\""
-
-  run_load_test_and_fetch_metrics() {
-    local FIO_START=$SECONDS
-    local fio_flags="$1"
-    local bucket_name="$2"
-    local spreadsheet_id="$3"
-    local gcsfuse_flags="$COMMON_MOUNT_FLAGS $fio_flags"
-    
-    echo "Starting FIO Load Test on $bucket_name..."
-    ./run_load_test_and_fetch_metrics.sh "$gcsfuse_flags" "$UPLOAD_FLAGS" "$bucket_name" "$spreadsheet_id"
-    print_duration "FIO Load Test ($bucket_name)" "$FIO_START"
-  }
+  COMMON_MOUNT_FLAGS="--log-severity trace --log-format \"text\""
 
   run_ls_benchmark() {
     local LS_START=$SECONDS
@@ -167,15 +155,11 @@ elif [ "${BENCHMARK_TYPE:-}" == "local_tests" ]; then
   echo "Starting Flat Bucket Tests..."
   FLAT_START=$SECONDS
   
-  LOG_FILE_FIO_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-fio-flat.txt"
   LOG_FILE_LS_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-ls-flat.txt"
-  GCSFUSE_FIO_FLAGS="--implicit-dirs --stackdriver-export-interval=30s --log-file $LOG_FILE_FIO_TESTS"
-  GCSFUSE_LS_FLAGS="--implicit-dirs --log-file $LOG_FILE_LS_TESTS"
-  BUCKET_NAME="periodic-perf-tests"
+  GCSFUSE_LS_FLAGS="--implicit-dirs --client-protocol http1 --log-file $LOG_FILE_LS_TESTS"
   SPREADSHEET_ID='1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
   LIST_CONFIG_FILE="config.json"
   
-  run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
   run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
   
   print_duration "Flat Bucket Benchmarks (Total)" "$FLAT_START"
@@ -184,16 +168,23 @@ elif [ "${BENCHMARK_TYPE:-}" == "local_tests" ]; then
   echo "Starting HNS Bucket Tests..."
   HNS_START=$SECONDS
   
-  LOG_FILE_FIO_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-fio-hns.txt"
-  LOG_FILE_LS_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-ls-hns.txt"
-  GCSFUSE_FIO_FLAGS="--stackdriver-export-interval=30s --log-file $LOG_FILE_FIO_TESTS"
-  GCSFUSE_LS_FLAGS="--log-file $LOG_FILE_LS_TESTS"
-  BUCKET_NAME="periodic-perf-tests-hns"
   SPREADSHEET_ID='1wXRGYyAWvasU8U4KaP7NGPHEvgiOSgMd1sCLxsQUwf0'
   LIST_CONFIG_FILE="config-hns.json"
   
-  run_load_test_and_fetch_metrics "$GCSFUSE_FIO_FLAGS" "$BUCKET_NAME" "$SPREADSHEET_ID"
-  run_ls_benchmark "$GCSFUSE_LS_FLAGS" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
+  # 1. HNS with HTTP/1.1
+  LOG_FILE_LS_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-ls-hns.txt"
+  GCSFUSE_LS_FLAGS_HTTP1="--client-protocol http1 --log-file $LOG_FILE_LS_TESTS"
+  run_ls_benchmark "$GCSFUSE_LS_FLAGS_HTTP1" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
+  
+  # 2. HNS with gRPC (default pool size)
+  LOG_FILE_LS_TESTS_GRPC="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-ls-hns-grpc.txt"
+  GCSFUSE_LS_FLAGS_GRPC="--client-protocol grpc --log-file $LOG_FILE_LS_TESTS_GRPC"
+  run_ls_benchmark "$GCSFUSE_LS_FLAGS_GRPC" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
+  
+  # 3. HNS with gRPC (conn pool size 4)
+  LOG_FILE_LS_TESTS_GRPC_POOL4="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-ls-hns-grpc-pool4.txt"
+  GCSFUSE_LS_FLAGS_GRPC_POOL4="--client-protocol grpc --experimental-grpc-conn-pool-size 4 --log-file $LOG_FILE_LS_TESTS_GRPC_POOL4"
+  run_ls_benchmark "$GCSFUSE_LS_FLAGS_GRPC_POOL4" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE"
   
   print_duration "HNS Bucket Benchmarks (Total)" "$HNS_START"
 
@@ -203,6 +194,7 @@ elif [ "${BENCHMARK_TYPE:-}" == "local_tests" ]; then
   
   cd "./hns_rename_folders_metrics"
   ./run_rename_benchmark.sh $UPLOAD_FLAGS
+  cd "../"
   
   print_duration "Rename Benchmark" "$RENAME_START"
 
@@ -222,7 +214,3 @@ else
   echo "Unknown or unspecified BENCHMARK_TYPE: ${BENCHMARK_TYPE:-}"
   exit 1
 fi
-# TODO: Testing for hns bucket with client protocol set to grpc. To be done when
-#  includeFolderAsPrefixes is supported in grpc.
-# TODO: Testing for hns bucket with client protocol set to grpc with grpc-conn-pool-size
-# set to 4. To be done when includeFolderAsPrefixes is supported in grpc.
