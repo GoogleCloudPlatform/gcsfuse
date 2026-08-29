@@ -133,6 +133,7 @@ elif [ "${BENCHMARK_TYPE:-}" == "local_tests" ]; then
      [ "${KOKORO_JOB_TYPE:-}" == "PRESUBMIT_GITHUB" ] || \
      [ "${KOKORO_JOB_TYPE:-}" == "SUB_JOB" ]; then
     UPLOAD_FLAGS="--upload_gs"
+    gcloud storage cp gs://periodic-perf-tests/creds.json ./gsheet/
   fi
 
   COMMON_MOUNT_FLAGS="--log-severity trace --log-format \"text\""
@@ -143,11 +144,12 @@ elif [ "${BENCHMARK_TYPE:-}" == "local_tests" ]; then
     local spreadsheet_id="$2"
     local config_file="$3"
     local message="${4:-"Testing CT setup."}"
+    local clear_sheet_flag="${5:-}"
     local gcsfuse_flags="$COMMON_MOUNT_FLAGS $ls_flags"
     
     echo "Starting LS Benchmark ($message) with $config_file..."
     cd "./ls_metrics"
-    ./run_ls_benchmark.sh "$gcsfuse_flags" "$UPLOAD_FLAGS" "$spreadsheet_id" "$config_file" "$message"
+    ./run_ls_benchmark.sh "$gcsfuse_flags" "$UPLOAD_FLAGS" "$spreadsheet_id" "$config_file" "$message" "$clear_sheet_flag"
     cd "../"
     print_duration "LS Benchmark - $message ($config_file)" "$LS_START"
   }
@@ -159,10 +161,10 @@ elif [ "${BENCHMARK_TYPE:-}" == "local_tests" ]; then
   SPREADSHEET_ID='1kvHv1OBCzr9GnFxRu9RTJC7jjQjc9M4rAiDnhyak2Sg'
   LIST_CONFIG_FILE="config.json"
   
-  # 1. Flat with HTTP/1.1
+  # 1. Flat with HTTP/1.1 (clears previous day's results from sheet)
   LOG_FILE_LS_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-ls-flat.txt"
   GCSFUSE_LS_FLAGS_HTTP1="--implicit-dirs --client-protocol http1 --log-file $LOG_FILE_LS_TESTS"
-  run_ls_benchmark "$GCSFUSE_LS_FLAGS_HTTP1" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE" "Flat Bucket (HTTP/1.1)"
+  run_ls_benchmark "$GCSFUSE_LS_FLAGS_HTTP1" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE" "Flat Bucket (HTTP/1.1)" "--clear_sheet"
   
   # 2. Flat with gRPC (default pool size)
   LOG_FILE_LS_TESTS_GRPC="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-ls-flat-grpc.txt"
@@ -183,10 +185,10 @@ elif [ "${BENCHMARK_TYPE:-}" == "local_tests" ]; then
   SPREADSHEET_ID='1wXRGYyAWvasU8U4KaP7NGPHEvgiOSgMd1sCLxsQUwf0'
   LIST_CONFIG_FILE="config-hns.json"
   
-  # 1. HNS with HTTP/1.1
+  # 1. HNS with HTTP/1.1 (clears previous day's results from sheet)
   LOG_FILE_LS_TESTS="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-ls-hns.txt"
   GCSFUSE_LS_FLAGS_HTTP1="--client-protocol http1 --log-file $LOG_FILE_LS_TESTS"
-  run_ls_benchmark "$GCSFUSE_LS_FLAGS_HTTP1" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE" "HNS (HTTP/1.1)"
+  run_ls_benchmark "$GCSFUSE_LS_FLAGS_HTTP1" "$SPREADSHEET_ID" "$LIST_CONFIG_FILE" "HNS (HTTP/1.1)" "--clear_sheet"
   
   # 2. HNS with gRPC (default pool size)
   LOG_FILE_LS_TESTS_GRPC="${KOKORO_ARTIFACTS_DIR}/gcsfuse-logs-ls-hns-grpc.txt"

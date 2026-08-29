@@ -484,23 +484,32 @@ def _parse_arguments(argv):
       default=False,
       required=False,
   )
+  parser.add_argument(
+      '--clear_sheet',
+      help='Clear the worksheet prior to writing results? [True/False]',
+      action='store_true',
+      default=False,
+      required=False,
+  )
   # Ignoring the first parameter, as it is the path of this python
   # script itself.
   return parser.parse_args(argv[1:])
 
 
-def _export_to_gsheet(worksheet, ls_data, spreadsheet_id=""):
+def _export_to_gsheet(worksheet, ls_data, spreadsheet_id="", clear_sheet=False):
   """Writes list results to Google Spreadsheets
   Args:
     worksheet (str): Google sheet name to which results will be uploaded
     ls_data (list): List results to be uploaded
+    spreadsheet_id (str): Google spreadsheet ID
+    clear_sheet (bool): Whether to clear rows A2:end before writing
   """
   # Changing directory to comply with "cred.json" path in "gsheet.py".
   os.chdir('..')
   if spreadsheet_id != "":
-    gsheet.write_to_google_sheet(worksheet, ls_data, spreadsheet_id)
+    gsheet.write_to_google_sheet(worksheet, ls_data, spreadsheet_id, clear_sheet)
   else:
-    gsheet.write_to_google_sheet(worksheet, ls_data)
+    gsheet.write_to_google_sheet(worksheet, ls_data, clear_sheet=clear_sheet)
   os.chdir('./ls_metrics')  # Changing the directory back to current directory.
   return
 
@@ -600,8 +609,9 @@ if __name__ == '__main__':
   if args.upload_gs:
     log.info('Uploading files to the Google Sheet.\n')
     _export_to_gsheet(WORKSHEET_NAME_GCS, upload_values_gcs,
-                      args.spreadsheet_id)
-    _export_to_gsheet(WORKSHEET_NAME_PD, upload_values_pd, args.spreadsheet_id)
+                      args.spreadsheet_id, clear_sheet=args.clear_sheet)
+    _export_to_gsheet(WORKSHEET_NAME_PD, upload_values_pd,
+                      args.spreadsheet_id, clear_sheet=args.clear_sheet)
 
   if args.upload_bq:
     if not args.config_id or not args.start_time_build:

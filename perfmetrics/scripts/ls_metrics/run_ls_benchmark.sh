@@ -27,4 +27,5 @@ UPLOAD_FLAGS=$2
 SPREADSHEET_ID=$3
 CONFIG_FILE=$4
 MESSAGE=${5:-"Testing CT setup."}
-python3 listing_benchmark.py $CONFIG_FILE --gcsfuse_flags "$GCSFUSE_FLAGS" $UPLOAD_FLAGS --command "ls -R" --num_samples 30 --message "$MESSAGE" --spreadsheet_id=$SPREADSHEET_ID
+CLEAR_SHEET_FLAG=$6
+python3 listing_benchmark.py $CONFIG_FILE --gcsfuse_flags "$GCSFUSE_FLAGS" $UPLOAD_FLAGS --command "ls -R" --num_samples 30 --message "$MESSAGE" --spreadsheet_id=$SPREADSHEET_ID $CLEAR_SHEET_FLAG
