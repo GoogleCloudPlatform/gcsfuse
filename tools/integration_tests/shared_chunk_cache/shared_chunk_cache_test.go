@@ -21,10 +21,12 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -107,7 +109,7 @@ func (t *BaseSuite) TearDownTest() {
 
 	if testEnv.cfg.GKEMountedDirectory != "" {
 		// GKE Mode: Just cleanup files
-		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
+		setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, testDirName))
 	} else {
 		// GCE Mode: Unmount and clean up
 		t.unmountAndCleanupMount(t.primaryMount, "primary")
@@ -144,13 +146,12 @@ func (t *BaseSuite) mountGcsfuse(mnt mountPoint, mountType string, flags []strin
 func (t *BaseSuite) unmountAndCleanupMount(m mountPoint, name string) {
 	setup.UnmountGCSFuse(m.mntDir)
 	// Cleaning up the intermediate generated test files.
-	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
+	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, testDirName))
 }
 
 func (t *BaseSuite) createTestFile(fileName string, fileSize int) {
 	t.T().Helper()
-	testFilePath := path.Join(t.primaryMount.testDirPath, fileName)
-	operations.CreateFileOfSize(int64(fileSize), testFilePath, t.T())
+	client.SetupFileInTestDirectory(testEnv.ctx, testEnv.storageClient, testDirName, fileName, int64(fileSize), t.T())
 }
 
 func (t *BaseSuite) getCachedChunkCount() int {
@@ -214,7 +215,7 @@ func (t *SharedChunkCacheTestSuite) TestCacheMiss() {
 	// Act: Read 2MB from the 2nd chunk (triggers download and caching of entire 10MB chunk)
 	primaryFilePath := path.Join(t.primaryMount.testDirPath, testFileName)
 	startTime := time.Now()
-	chunk, err := operations.ReadChunkFromFile(primaryFilePath, readSize, readOffset, os.O_RDONLY)
+	chunk, err := operations.ReadChunkFromFile(primaryFilePath, readSize, readOffset, os.O_RDONLY|syscall.O_DIRECT)
 	cacheMissTime := time.Since(startTime)
 
 	// Assert: Verify read succeeded and entire chunk was cached
@@ -241,7 +242,7 @@ func (t *SharedChunkCacheTestSuite) TestCacheHit() {
 	t.createTestFile(testFileName, fileSize)
 	primaryFilePath := path.Join(t.primaryMount.testDirPath, testFileName)
 	primaryStartTime := time.Now()
-	primaryChunk, err := operations.ReadChunkFromFile(primaryFilePath, readSize, readOffset, os.O_RDONLY)
+	primaryChunk, err := operations.ReadChunkFromFile(primaryFilePath, readSize, readOffset, os.O_RDONLY|syscall.O_DIRECT)
 	primaryCacheMissTime := time.Since(primaryStartTime)
 	require.NoError(t.T(), err, "Failed to read chunk from primary mount")
 	require.Equal(t.T(), int(readSize), len(primaryChunk), "Read chunk size mismatch on primary mount")
@@ -261,7 +262,7 @@ func (t *SharedChunkCacheTestSuite) TestCacheHit() {
 	_, err = os.Stat(secondaryFilePath)
 	require.NoError(t.T(), err, "Failed to stat file on secondary mount")
 	secondaryStartTime := time.Now()
-	secondaryChunk, err := operations.ReadChunkFromFile(secondaryFilePath, readSize, readOffset, os.O_RDONLY)
+	secondaryChunk, err := operations.ReadChunkFromFile(secondaryFilePath, readSize, readOffset, os.O_RDONLY|syscall.O_DIRECT)
 	cacheHitTime := time.Since(secondaryStartTime)
 
 	// Assert: Verify read succeeded from cache without re-downloading
@@ -303,7 +304,7 @@ func (t *SharedChunkCacheTestSuite) TestCacheHitSingleMount() {
 	require.Equal(t.T(), 0, initialCacheCount, "Cache should be empty initially")
 	primaryFilePath := path.Join(t.primaryMount.testDirPath, testFileName)
 	firstReadStart := time.Now()
-	firstChunk, err := operations.ReadChunkFromFile(primaryFilePath, readSize, readOffset, os.O_RDONLY)
+	firstChunk, err := operations.ReadChunkFromFile(primaryFilePath, readSize, readOffset, os.O_RDONLY|syscall.O_DIRECT)
 	cacheMissTime := time.Since(firstReadStart)
 	require.NoError(t.T(), err, "Failed to read chunk on first read (cache miss)")
 	require.Equal(t.T(), int(readSize), len(firstChunk), "Read chunk size mismatch on first read")
@@ -317,7 +318,7 @@ func (t *SharedChunkCacheTestSuite) TestCacheHitSingleMount() {
 
 	// Act: Read the same chunk again from the same mount (should hit cache)
 	secondReadStart := time.Now()
-	secondChunk, err := operations.ReadChunkFromFile(primaryFilePath, readSize, readOffset, os.O_RDONLY)
+	secondChunk, err := operations.ReadChunkFromFile(primaryFilePath, readSize, readOffset, os.O_RDONLY|syscall.O_DIRECT)
 	cacheHitTime := time.Since(secondReadStart)
 
 	// Assert: Verify second read succeeded from cache without re-downloading
@@ -350,10 +351,10 @@ func RunTests(t *testing.T, runName string, factory func(primaryFlags, secondary
 	for _, cfg := range testEnv.cfg.Configs {
 		if cfg.Run == runName {
 			for i, flagStr := range cfg.Flags {
-				primaryFlags := strings.Fields(flagStr)
+				primaryFlags := strings.Split(flagStr, ",")
 				var secondaryFlags []string
 				if len(cfg.SecondaryFlags) > i {
-					secondaryFlags = strings.Fields(cfg.SecondaryFlags[i])
+					secondaryFlags = strings.Split(cfg.SecondaryFlags[i], ",")
 				}
 				suite.Run(t, factory(primaryFlags, secondaryFlags))
 			}
