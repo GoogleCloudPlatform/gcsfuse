@@ -171,7 +171,7 @@ async def check_prerequisites():
               "apt",
               "install",
               "-y",
-              "google-cloud-sdk-gke-gcloud-auth-plugin",
+              "google-cloud-cli-gke-gcloud-auth-plugin",
           ])
         except (FileNotFoundError, subprocess.CalledProcessError) as e:
           print(
