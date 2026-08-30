@@ -233,6 +233,8 @@ func ReadFileSequentially(file *os.File, chunkSize int64) (content []byte, err e
 	return
 }
 
+// WriteChunkOfRandomBytesToFiles writes a chunk of random bytes to multiple files at a given offset.
+// This function does not sync or close the files, the responsibility falls on the caller instead.
 func WriteChunkOfRandomBytesToFiles(files []*os.File, chunkSize int, offset int64) error {
 	// Generate random data of chunk size.
 	chunk, err := GenerateRandomData(int64(chunkSize))
