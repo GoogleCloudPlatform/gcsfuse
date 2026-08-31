@@ -231,7 +231,7 @@ func (t *mrdWrapperTest) TestReadContextCancelledWithInterruptsDisabled() {
 			bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), tracing.NewNoopTracer(), false)
 
 			require.NoError(t.T(), err)
-			assert.Equal(t.T(), 100, bytesRead)
+			assert.Equal(t.T(), int(t.object.Size), bytesRead)
 		})
 	}
 }
