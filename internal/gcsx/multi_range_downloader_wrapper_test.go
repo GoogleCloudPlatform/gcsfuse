@@ -174,29 +174,66 @@ func (t *mrdWrapperTest) Test_Read_ShortRead() {
 }
 
 func (t *mrdWrapperTest) TestReadContextCancelledWithInterruptsEnabled() {
-	t.mrdWrapper.Wrapped = nil
-	t.mrdWrapper.config = &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}
-	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond), nil).Once()
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	testCases := []struct {
+		name      string
+		sleepTime time.Duration
+	}{
+		{
+			name:      "ZeroSleep",
+			sleepTime: 0,
+		},
+		{
+			name:      "NonZeroSleep",
+			sleepTime: 10 * time.Millisecond,
+		},
+	}
 
-	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), tracing.NewNoopTracer(), false)
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.mrdWrapper.Wrapped = nil
+			t.mrdWrapper.config = &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: false}}
+			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, tc.sleepTime), nil).Once()
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
 
-	require.Error(t.T(), err)
-	assert.ErrorContains(t.T(), err, "context canceled")
-	assert.Equal(t.T(), 0, bytesRead)
+			bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), tracing.NewNoopTracer(), false)
+
+			require.Error(t.T(), err)
+			assert.ErrorContains(t.T(), err, "context canceled")
+			assert.Equal(t.T(), 0, bytesRead)
+		})
+	}
 }
 
 func (t *mrdWrapperTest) TestReadContextCancelledWithInterruptsDisabled() {
-	t.mrdWrapper.config = &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: true}}
-	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, time.Microsecond), nil).Once()
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	testCases := []struct {
+		name      string
+		sleepTime time.Duration
+	}{
+		{
+			name:      "ZeroSleep",
+			sleepTime: 0,
+		},
+		{
+			name:      "NonZeroSleep",
+			sleepTime: 10 * time.Millisecond,
+		},
+	}
 
-	bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), tracing.NewNoopTracer(), false)
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.mrdWrapper.Wrapped = nil
+			t.mrdWrapper.config = &cfg.Config{FileSystem: cfg.FileSystemConfig{IgnoreInterrupts: true}}
+			t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, t.objectData, tc.sleepTime), nil).Once()
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
 
-	require.NoError(t.T(), err)
-	assert.Equal(t.T(), 100, bytesRead)
+			bytesRead, err := t.mrdWrapper.Read(ctx, make([]byte, t.object.Size), 0, int64(t.object.Size), metrics.NewNoopMetrics(), tracing.NewNoopTracer(), false)
+
+			require.NoError(t.T(), err)
+			assert.Equal(t.T(), int(t.object.Size), bytesRead)
+		})
+	}
 }
 
 func (t *mrdWrapperTest) Test_Read_EOF() {
