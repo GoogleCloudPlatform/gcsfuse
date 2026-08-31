@@ -30,9 +30,8 @@ import (
 // Create an objectCreator that accepts a source object and the contents that
 // should be "appended" to it, storing temporary objects using the supplied
 // prefix.
-//
-// Note that the Create method will attempt to remove any temporary junk left
-// behind, but it may fail to do so. Users should arrange for garbage collection.
+// Note that the Create method uses DeleteSourceObjects to automatically delete
+// temporary objects when composing.
 //
 // Create guarantees to return *gcs.PreconditionError when the source object
 // has been clobbered.
@@ -107,17 +106,19 @@ func (oc *composeObjectCreator) Create(
 		return
 	}
 
-	// Attempt to delete the temporary object when we're done.
+	// Attempt to delete the temporary object if composition fails.
+	// On success, DeleteSourceObjects deletes it atomically.
 	defer func() {
-		deleteErr := oc.bucket.DeleteObject(
-			ctx,
-			&gcs.DeleteObjectRequest{
-				Name:       tmp.Name,
-				Generation: 0, // Delete the latest generation of temporary object.
-			})
-
-		if err == nil && deleteErr != nil {
-			err = fmt.Errorf("DeleteObject: %w", deleteErr)
+		if err != nil {
+			deleteErr := oc.bucket.DeleteObject(
+				ctx,
+				&gcs.DeleteObjectRequest{
+					Name:       tmp.Name,
+					Generation: 0, // Delete the latest generation of temporary object.
+				})
+			if deleteErr != nil {
+				err = errors.Join(err, fmt.Errorf("DeleteObject: %w", deleteErr))
+			}
 		}
 	}()
 
@@ -148,14 +149,15 @@ func (oc *composeObjectCreator) Create(
 					Generation: tmp.Generation,
 				},
 			},
-			Metadata:           MetadataMap,
-			CacheControl:       srcObject.CacheControl,
-			ContentDisposition: srcObject.ContentDisposition,
-			ContentEncoding:    srcObject.ContentEncoding,
-			ContentType:        srcObject.ContentType,
-			CustomTime:         srcObject.CustomTime,
-			EventBasedHold:     srcObject.EventBasedHold,
-			StorageClass:       srcObject.StorageClass,
+			Metadata:            MetadataMap,
+			CacheControl:        srcObject.CacheControl,
+			ContentDisposition:  srcObject.ContentDisposition,
+			ContentEncoding:     srcObject.ContentEncoding,
+			ContentType:         srcObject.ContentType,
+			CustomTime:          srcObject.CustomTime,
+			EventBasedHold:      srcObject.EventBasedHold,
+			StorageClass:        srcObject.StorageClass,
+			DeleteSourceObjects: true,
 		})
 	if err != nil {
 		// A not found error means that either the source object was clobbered or the
