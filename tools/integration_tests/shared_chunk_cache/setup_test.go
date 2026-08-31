@@ -89,8 +89,5 @@ func TestMain(m *testing.M) {
 	successCode := m.Run()
 
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(testEnv.cfg.TestBucket, testDirName))
-	if err := closeStorageClient(); err != nil {
-		log.Printf("closeStorageClient failed: %v\n", err)
-	}
 	os.Exit(successCode)
 }

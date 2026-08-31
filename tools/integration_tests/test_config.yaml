@@ -2126,9 +2126,9 @@ shared_chunk_cache:
     test_bucket: "${BUCKET_NAME}"
     configs:
       - flags:
-          - "--enable-experimental-shared-chunk-cache,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/shared-cache"
+          - "--enable-experimental-shared-chunk-cache,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/shared-cache,--enable-kernel-reader=false"
         secondary_flags:
-          - "--enable-experimental-shared-chunk-cache,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/shared-cache"
+          - "--enable-experimental-shared-chunk-cache,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/shared-cache,--enable-kernel-reader=false"
         compatible:
           flat: true
           hns: true
