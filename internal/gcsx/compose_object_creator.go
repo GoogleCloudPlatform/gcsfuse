@@ -110,12 +110,15 @@ func (oc *composeObjectCreator) Create(
 	// On success, DeleteSourceObjects deletes it atomically.
 	defer func() {
 		if err != nil {
-			_ = oc.bucket.DeleteObject(
+			deleteErr := oc.bucket.DeleteObject(
 				ctx,
 				&gcs.DeleteObjectRequest{
 					Name:       tmp.Name,
-					Generation: 0,
+					Generation: 0, // Delete the latest generation of temporary object.
 				})
+			if deleteErr != nil {
+				err = errors.Join(err, fmt.Errorf("DeleteObject: %w", deleteErr))
+			}
 		}
 	}()
 

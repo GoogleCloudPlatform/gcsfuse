@@ -372,6 +372,8 @@ func TestComposeObjectCreator_ComposeObjectsFails_DeleteObjectFails(t *testing.T
 
 	h.assert.ErrorContains(err, "ComposeObjects")
 	h.assert.ErrorContains(err, "compose failed")
+	h.assert.ErrorContains(err, "DeleteObject")
+	h.assert.ErrorContains(err, "delete failed")
 }
 
 func TestComposeObjectCreator_ComposeSucceeds(t *testing.T) {
