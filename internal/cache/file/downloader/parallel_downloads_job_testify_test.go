@@ -15,13 +15,13 @@
 package downloader
 
 import (
+	"bytes"
+	"context"
 	"io"
 	"os"
 	"strings"
 	"sync"
 	"testing"
-
-	"context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
@@ -156,6 +156,78 @@ func (t *ParallelDownloaderJobTestifyTest) Test_ParallelDownloadObjectToFile_New
 	assert.Equal(t.T(), nil, err)
 	jobStatus, ok := <-notificationC
 	assert.Equal(t.T(), true, ok)
+	// Check the notification is sent after subscribed offset
+	assert.GreaterOrEqual(t.T(), jobStatus.Offset, subscribedOffset)
+	t.job.mu.Lock()
+	defer t.job.mu.Unlock()
+	// Verify file is downloaded
+	verifyCompleteFile(t.T(), t.fileSpec, objectContent)
+	// Verify fileInfoCache update
+	verifyFileInfoEntry(t.T(), t.mockBucket, t.object, t.cache, uint64(objectSize))
+}
+
+func (t *ParallelDownloaderJobTestifyTest) Test_ParallelDownloadObjectToFile_ReadHandleReused() {
+	objectName := "path/in/gcs/foo.txt"
+	objectSize := 9 * util.MiB
+	chunkSize := 3 * util.MiB
+	objectContent := testutil.GenerateRandomBytes(objectSize)
+
+	// Set ParallelDownloadsPerFile = 1 to guarantee sequential chunk execution
+	// by a single worker, allowing deterministic validation of ReadHandle reuse across chunks.
+	t.defaultFileCacheConfig.ParallelDownloadsPerFile = 1
+	t.defaultFileCacheConfig.DownloadChunkSizeMb = 3
+
+	t.initReadCacheTestifyTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(2*objectSize), func() {})
+	t.job.cancelCtx, t.job.cancelFunc = context.WithCancel(context.Background())
+	defer t.job.cancelFunc()
+
+	// Add subscriber
+	subscribedOffset := int64(1 * util.MiB)
+	notificationC := t.job.subscribe(subscribedOffset)
+	file, err := util.CreateFile(data.FileSpec{Path: t.job.fileSpec.Path,
+		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
+	assert.NoError(t.T(), err)
+	defer func() {
+		_ = file.Close()
+	}()
+
+	handle1 := []byte("opaque-handle-1")
+	handle2 := []byte("opaque-handle-2")
+	handle3 := []byte("opaque-handle-3")
+
+	rangeR1 := &gcs.ByteRange{Start: uint64(0 * chunkSize), Limit: uint64(1 * chunkSize)}
+	rangeR2 := &gcs.ByteRange{Start: uint64(1 * chunkSize), Limit: uint64(2 * chunkSize)}
+	rangeR3 := &gcs.ByteRange{Start: uint64(2 * chunkSize), Limit: uint64(3 * chunkSize)}
+
+	readerR1 := &fake.FakeReader{ReadCloser: io.NopCloser(strings.NewReader(string(objectContent[0*chunkSize : 1*chunkSize]))), Handle: handle1}
+	readerR2 := &fake.FakeReader{ReadCloser: io.NopCloser(strings.NewReader(string(objectContent[1*chunkSize : 2*chunkSize]))), Handle: handle2}
+	readerR3 := &fake.FakeReader{ReadCloser: io.NopCloser(strings.NewReader(string(objectContent[2*chunkSize : 3*chunkSize]))), Handle: handle3}
+
+	t.mockBucket.On("Name").Return(storage.TestBucketName)
+
+	// Chunk 1 (R1): Must have ReadHandle: nil and returns handle1
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
+		return req.Range.Start == rangeR1.Start && req.Range.Limit == rangeR1.Limit && req.ReadHandle == nil
+	})).Return(readerR1, nil).Once()
+
+	// Chunk 2 (R2): Must have ReadHandle equal to handle1 returned by Chunk 1
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
+		return req.Range.Start == rangeR2.Start && req.Range.Limit == rangeR2.Limit && bytes.Equal(req.ReadHandle, handle1)
+	})).Return(readerR2, nil).Once()
+
+	// Chunk 3 (R3): Must have ReadHandle equal to handle2 returned by Chunk 2
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.MatchedBy(func(req *gcs.ReadObjectRequest) bool {
+		return req.Range.Start == rangeR3.Start && req.Range.Limit == rangeR3.Limit && bytes.Equal(req.ReadHandle, handle2)
+	})).Return(readerR3, nil).Once()
+
+	// Start download
+	err = t.job.parallelDownloadObjectToFile(file)
+
+	assert.NoError(t.T(), err, "parallelDownloadObjectToFile should not return an error")
+	t.mockBucket.AssertExpectations(t.T())
+
+	jobStatus, ok := <-notificationC
+	assert.True(t.T(), ok)
 	// Check the notification is sent after subscribed offset
 	assert.GreaterOrEqual(t.T(), jobStatus.Offset, subscribedOffset)
 	t.job.mu.Lock()
