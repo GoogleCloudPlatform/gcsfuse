@@ -555,13 +555,20 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 
 	f.writeHandleCount--
 
-	// All write fileHandles associated with bwh are closed. So safe to set bwh to nil.
-	if f.writeHandleCount == 0 && f.bwh != nil {
-		err := f.bwh.Destroy()
-		if err != nil {
-			logger.Warnf("Error while destroying the bufferedWritesHandler: %v", err)
+	// All write fileHandles are closed.
+	if f.writeHandleCount == 0 {
+		if f.bwh != nil {
+			err := f.bwh.Destroy()
+			if err != nil {
+				logger.Warnf("Error while destroying the bufferedWritesHandler: %v", err)
+			}
+			f.bwh = nil
 		}
-		f.bwh = nil
+		// If there is an unsynced/abandoned temp file, destroy it to reclaim disk space.
+		if !f.localFileCache && f.content != nil {
+			f.content.Destroy()
+			f.content = nil
+		}
 	}
 }
 
