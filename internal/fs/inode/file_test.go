@@ -2100,6 +2100,86 @@ func (t *FileTest) TestRegisterFileHandle() {
 	}
 }
 
+func (t *FileTest) TestDeRegisterFileHandle() {
+	tbl := []struct {
+		name             string
+		readonly         bool
+		currentVal       int32
+		expectedVal      int32
+		hasContent       bool
+		localFileCache   bool
+		expectContentNil bool
+	}{
+		{
+			name:             "ReadOnlyHandle",
+			readonly:         true,
+			currentVal:       10,
+			expectedVal:      10,
+			hasContent:       true,
+			localFileCache:   false,
+			expectContentNil: false,
+		},
+		{
+			name:             "NonZeroCurrentValueForWriteHandle",
+			readonly:         false,
+			currentVal:       10,
+			expectedVal:      9,
+			hasContent:       true,
+			localFileCache:   false,
+			expectContentNil: false,
+		},
+		{
+			name:             "LastWriteHandleToDeregister_DestroysContent",
+			readonly:         false,
+			currentVal:       1,
+			expectedVal:      0,
+			hasContent:       true,
+			localFileCache:   false,
+			expectContentNil: true,
+		},
+		{
+			name:             "LastWriteHandleToDeregister_LocalFileCache_PreservesContent",
+			readonly:         false,
+			currentVal:       1,
+			expectedVal:      0,
+			hasContent:       true,
+			localFileCache:   true,
+			expectContentNil: false,
+		},
+		{
+			name:             "LastWriteHandleToDeregister_NoContent",
+			readonly:         false,
+			currentVal:       1,
+			expectedVal:      0,
+			hasContent:       false,
+			localFileCache:   false,
+			expectContentNil: true,
+		},
+	}
+	for _, tc := range tbl {
+		t.Run(tc.name, func() {
+			t.in.writeHandleCount = tc.currentVal
+			t.in.localFileCache = tc.localFileCache
+			if tc.hasContent {
+				err := t.in.CreateEmptyTempFile(t.ctx)
+				require.NoError(t.T(), err)
+				require.NotNil(t.T(), t.in.content)
+			} else {
+				t.in.content = nil
+			}
+
+			t.in.DeRegisterFileHandle(tc.readonly)
+
+			assert.Equal(t.T(), tc.expectedVal, t.in.writeHandleCount)
+			if tc.expectContentNil {
+				assert.Nil(t.T(), t.in.content)
+			} else {
+				assert.NotNil(t.T(), t.in.content)
+			}
+		})
+	}
+}
+
 func getWriteConfig() *cfg.WriteConfig {
 	return &cfg.WriteConfig{
 		MaxBlocksPerFile:      10,
