@@ -555,13 +555,20 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 
 	f.writeHandleCount--
 
-	// All write fileHandles associated with streamingWriteHandler are closed. So safe to set streamingWriteHandler to nil.
-	if f.writeHandleCount == 0 && f.streamingWriteHandler != nil {
-		err := f.streamingWriteHandler.Destroy()
-		if err != nil {
-			logger.Warnf("Error while destroying the streamingWriteHandler: %v", err)
+	// All write fileHandles are closed.
+	if f.writeHandleCount == 0 {
+		if f.streamingWriteHandler != nil {
+			err := f.streamingWriteHandler.Destroy()
+			if err != nil {
+				logger.Warnf("Error while destroying the streamingWriteHandler: %v", err)
+			}
+			f.streamingWriteHandler = nil
 		}
-		f.streamingWriteHandler = nil
+		// If there is an unsynced/abandoned temp file, destroy it to reclaim disk space.
+		if !f.localFileCache && f.content != nil {
+			f.content.Destroy()
+			f.content = nil
+		}
 	}
 }
 
