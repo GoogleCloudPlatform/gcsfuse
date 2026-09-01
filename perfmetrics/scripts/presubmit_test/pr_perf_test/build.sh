@@ -31,7 +31,15 @@ readonly EXECUTE_ORBAX_BENCHMARK_LABEL="execute-orbax-benchmark"
 readonly EXECUTE_MACHINE_TYPE_TEST_LABEL="execute-machine-type-test"
 readonly BUCKET_LOCATION=us-west4
 
-curl -s "https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/${KOKORO_GITHUB_PULL_REQUEST_NUMBER}" >> pr.json
+if [[ -z "${KOKORO_GITHUB_PULL_REQUEST_NUMBER}" ]]; then
+  echo "Error: KOKORO_GITHUB_PULL_REQUEST_NUMBER is not set." >&2
+  exit 1
+fi
+
+if ! curl -f -s "https://api.github.com/repos/GoogleCloudPlatform/gcsfuse/pulls/${KOKORO_GITHUB_PULL_REQUEST_NUMBER}" > pr.json; then
+  echo "Error: Failed to fetch PR details from GitHub API." >&2
+  exit 1
+fi
 perfTest=$(grep "$EXECUTE_PERF_TEST_LABEL" pr.json || true)
 integrationTests=$(grep "\"$EXECUTE_INTEGRATION_TEST_LABEL\"" pr.json || true)
 integrationTestsOnZB=$(grep "\"$EXECUTE_INTEGRATION_TEST_LABEL_ON_ZB\"" pr.json || true)
