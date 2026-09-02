@@ -28,6 +28,9 @@ import (
 )
 
 func TestWritesWithDifferentConfig(t *testing.T) {
+	if setup.IsPirloBucketRun() {
+		t.Skip("Skip test for Pirlo buckets.")
+	}
 	// Do not run this test with mounted directory flag.
 	if testEnv.cfg.GKEMountedDirectory != "" {
 		t.SkipNow()
