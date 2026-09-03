@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -29,6 +31,12 @@ import (
 )
 
 func MountGcsfuseWithOnlyDirWithConfigFile(config *test_suite.TestConfig, flags []string) (err error) {
+	if ce := setup.CustomEndpoint(); ce != "" {
+		flags = slices.DeleteFunc(flags, func(s string) bool {
+			return strings.HasPrefix(s, "--custom-endpoint")
+		})
+		flags = append(flags, "--custom-endpoint="+ce)
+	}
 	defaultArg := []string{"--only-dir",
 		setup.OnlyDirMounted(),
 		"--log-severity=trace",

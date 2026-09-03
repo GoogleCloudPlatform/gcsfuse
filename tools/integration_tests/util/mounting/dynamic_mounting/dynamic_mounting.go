@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"log"
 	"path"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting"
@@ -27,6 +29,12 @@ import (
 )
 
 func MountGcsfuseWithDynamicMountingWithConfig(cfg *test_suite.TestConfig, flags []string) (err error) {
+	if ce := setup.CustomEndpoint(); ce != "" {
+		flags = slices.DeleteFunc(flags, func(s string) bool {
+			return strings.HasPrefix(s, "--custom-endpoint")
+		})
+		flags = append(flags, "--custom-endpoint="+ce)
+	}
 	defaultArg := []string{"--log-severity=trace",
 		"--log-file=" + cfg.LogFile,
 		cfg.GCSFuseMountedDirectory}
