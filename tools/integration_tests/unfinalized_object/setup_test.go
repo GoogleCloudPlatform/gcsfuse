@@ -60,8 +60,8 @@ func TestMain(m *testing.M) {
 	testEnv.cfg = &cfg.UnfinalizedObject[0]
 	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
 
-	if !setup.IsZonalBucketRun() {
-		log.Printf("This test is only for Zonal buckets.")
+	if !setup.IsZonalBucketRun() && !setup.IsPirloBucketRun() {
+		log.Printf("This test is only for Zonal and Pirlo buckets.")
 		os.Exit(0)
 	}
 
