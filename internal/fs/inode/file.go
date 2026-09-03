@@ -555,21 +555,48 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 
 	f.writeHandleCount--
 
-	// All write fileHandles are closed.
-	if f.writeHandleCount == 0 {
-		if f.bwh != nil {
-			err := f.bwh.Destroy()
-			if err != nil {
-				logger.Warnf("Error while destroying the bufferedWritesHandler: %v", err)
-			}
-			f.bwh = nil
-		}
-		// If there is an unsynced/abandoned temp file, destroy it to reclaim disk space.
-		if !f.localFileCache && f.content != nil {
-			f.content.Destroy()
-			f.content = nil
-		}
+	if f.writeHandleCount != 0 {
+		return
 	}
+
+	// All write fileHandles are closed.
+	if f.bwh != nil {
+		err := f.bwh.Destroy()
+		if err != nil {
+			logger.Warnf("Error while destroying the bufferedWritesHandler: %v", err)
+		}
+		f.bwh = nil
+	}
+
+	f.cleanupContentOnLastHandleRelease()
+}
+
+// cleanupContentOnLastHandleRelease ensures that the on-disk staging temporary
+// file (used for staged writes and random-write fallback) is destroyed once the
+// last write handle for the inode is released.
+//
+// This serves as a backstop for cases where FUSE_FLUSH is not invoked:
+//  1. When writeback cache is enabled and a write error occurs, the Linux FUSE
+//     kernel module marks AS_EIO on the mapping and skips FUSE_FLUSH on close().
+//  2. When an unsynced file handle is closed without an explicit flush.
+//
+// Under these conditions, relying on ForgetInode for cleanup causes disk space to
+// be leaked indefinitely until dentry cache eviction.
+//
+// This intentionally does not attempt to sync content to GCS. FUSE_RELEASE cannot
+// return errors to the application, and any unsynced content at this stage reflects
+// a failed or aborted write. Mirroring the discard contract of bwh.Destroy(), the
+// uncommitted temporary file is discarded.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) cleanupContentOnLastHandleRelease() {
+	// localFileCache content is managed by ContentCache, so do not destroy it here.
+	if f.localFileCache || f.content == nil {
+		return
+	}
+
+	f.content.Destroy()
+	f.content = nil
 }
 
 // LOCKS_REQUIRED(f.mu)
