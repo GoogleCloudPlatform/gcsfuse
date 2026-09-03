@@ -125,12 +125,12 @@ func populateProtoMetadata(params []Param) error {
 		if param.ConfigPath == "" {
 			continue
 		}
-		pt, pn, err := computeProtoMetadata(param.ConfigPath, param.Type)
+		protoType, protoFieldName, err := computeProtoMetadata(param.ConfigPath, param.Type)
 		if err != nil {
 			return err
 		}
-		param.ProtoType = pt
-		param.ProtoFieldName = pn
+		param.ProtoType = protoType
+		param.ProtoFieldName = protoFieldName
 	}
 	return nil
 }
@@ -233,14 +233,7 @@ func validateParam(param Param) error {
 	}
 
 	// Validate the data type.
-	idx := slices.IndexFunc(
-		[]string{"int", "float64", "bool", "string", "duration", "octal", "[]int",
-			"[]string", "logSeverity", "protocol", "resolvedPath", "directPathStrategy"},
-		func(dt string) bool {
-			return dt == param.Type
-		},
-	)
-	if idx == -1 {
+	if !isValidDataType(param.Type) {
 		return fmt.Errorf("unsupported datatype: %s", param.Type)
 	}
 
