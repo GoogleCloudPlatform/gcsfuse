@@ -1,0 +1,3018 @@
+{
+  "10MB": {
+    "iter_1": {
+      "stats": [
+        {
+          "elapsed_sec": 0,
+          "active_files": 48,
+          "total_streams": 101,
+          "total_pending_ranges": 128,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 1,
+          "active_files": 48,
+          "total_streams": 112,
+          "total_pending_ranges": 148,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 2,
+          "active_files": 48,
+          "total_streams": 117,
+          "total_pending_ranges": 164,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 3,
+          "active_files": 48,
+          "total_streams": 121,
+          "total_pending_ranges": 170,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 4,
+          "active_files": 48,
+          "total_streams": 122,
+          "total_pending_ranges": 127,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 5,
+          "active_files": 48,
+          "total_streams": 129,
+          "total_pending_ranges": 157,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 6,
+          "active_files": 48,
+          "total_streams": 133,
+          "total_pending_ranges": 148,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 7,
+          "active_files": 48,
+          "total_streams": 136,
+          "total_pending_ranges": 132,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 8,
+          "active_files": 48,
+          "total_streams": 139,
+          "total_pending_ranges": 160,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 9,
+          "active_files": 48,
+          "total_streams": 140,
+          "total_pending_ranges": 146,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 10,
+          "active_files": 48,
+          "total_streams": 140,
+          "total_pending_ranges": 115,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 11,
+          "active_files": 48,
+          "total_streams": 143,
+          "total_pending_ranges": 141,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 12,
+          "active_files": 48,
+          "total_streams": 144,
+          "total_pending_ranges": 173,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 13,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 130,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 14,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 111,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 15,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 139,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 16,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 147,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 17,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 156,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 18,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 98,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 19,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 151,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 20,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 117,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 21,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 142,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 22,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 122,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 23,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 131,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 24,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 143,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 25,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 114,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 26,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 149,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 27,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 140,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 28,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 144,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 29,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 127,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 30,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 130,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 31,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 122,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 32,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 133,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 33,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 121,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 34,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 122,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 35,
+          "active_files": 48,
+          "total_streams": 148,
+          "total_pending_ranges": 163,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 36,
+          "active_files": 48,
+          "total_streams": 149,
+          "total_pending_ranges": 145,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 37,
+          "active_files": 48,
+          "total_streams": 149,
+          "total_pending_ranges": 124,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 38,
+          "active_files": 48,
+          "total_streams": 149,
+          "total_pending_ranges": 173,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 39,
+          "active_files": 48,
+          "total_streams": 149,
+          "total_pending_ranges": 141,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 40,
+          "active_files": 48,
+          "total_streams": 150,
+          "total_pending_ranges": 158,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 41,
+          "active_files": 48,
+          "total_streams": 152,
+          "total_pending_ranges": 124,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 42,
+          "active_files": 48,
+          "total_streams": 161,
+          "total_pending_ranges": 64,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 43,
+          "active_files": 48,
+          "total_streams": 161,
+          "total_pending_ranges": 0,
+          "total_at_capacity": 0
+        }
+      ],
+      "bandwidth": "11.1 GiB/s"
+    },
+    "iter_2": {
+      "stats": [
+        {
+          "elapsed_sec": 0,
+          "active_files": 48,
+          "total_streams": 102,
+          "total_pending_ranges": 143,
+          "total_at_capacity": 1
+        },
+        {
+          "elapsed_sec": 1,
+          "active_files": 48,
+          "total_streams": 110,
+          "total_pending_ranges": 137,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 2,
+          "active_files": 48,
+          "total_streams": 117,
+          "total_pending_ranges": 123,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 3,
+          "active_files": 48,
+          "total_streams": 123,
+          "total_pending_ranges": 153,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 4,
+          "active_files": 48,
+          "total_streams": 126,
+          "total_pending_ranges": 169,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 5,
+          "active_files": 48,
+          "total_streams": 133,
+          "total_pending_ranges": 133,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 6,
+          "active_files": 48,
+          "total_streams": 134,
+          "total_pending_ranges": 163,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 7,
+          "active_files": 48,
+          "total_streams": 141,
+          "total_pending_ranges": 148,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 8,
+          "active_files": 48,
+          "total_streams": 142,
+          "total_pending_ranges": 128,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 9,
+          "active_files": 48,
+          "total_streams": 144,
+          "total_pending_ranges": 143,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 10,
+          "active_files": 48,
+          "total_streams": 144,
+          "total_pending_ranges": 138,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 11,
+          "active_files": 48,
+          "total_streams": 144,
+          "total_pending_ranges": 145,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 12,
+          "active_files": 48,
+          "total_streams": 145,
+          "total_pending_ranges": 126,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 13,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 135,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 14,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 136,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 15,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 95,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 16,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 161,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 17,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 173,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 18,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 176,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 19,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 103,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 20,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 146,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 21,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 148,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 22,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 154,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 23,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 160,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 24,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 109,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 25,
+          "active_files": 48,
+          "total_streams": 146,
+          "total_pending_ranges": 111,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 26,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 168,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 27,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 174,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 28,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 150,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 29,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 106,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 30,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 155,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 31,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 150,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 32,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 105,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 33,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 99,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 34,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 137,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 35,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 129,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 36,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 194,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 37,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 140,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 38,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 128,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 39,
+          "active_files": 48,
+          "total_streams": 147,
+          "total_pending_ranges": 177,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 40,
+          "active_files": 48,
+          "total_streams": 148,
+          "total_pending_ranges": 120,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 41,
+          "active_files": 48,
+          "total_streams": 152,
+          "total_pending_ranges": 159,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 42,
+          "active_files": 48,
+          "total_streams": 160,
+          "total_pending_ranges": 24,
+          "total_at_capacity": 0
+        }
+      ],
+      "bandwidth": "11.2 GiB/s"
+    }
+  },
+  "20MB": {
+    "iter_1": {
+      "stats": [
+        {
+          "elapsed_sec": 0,
+          "active_files": 48,
+          "total_streams": 50,
+          "total_pending_ranges": 157,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 1,
+          "active_files": 48,
+          "total_streams": 58,
+          "total_pending_ranges": 163,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 2,
+          "active_files": 48,
+          "total_streams": 61,
+          "total_pending_ranges": 147,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 3,
+          "active_files": 48,
+          "total_streams": 66,
+          "total_pending_ranges": 134,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 4,
+          "active_files": 48,
+          "total_streams": 67,
+          "total_pending_ranges": 158,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 5,
+          "active_files": 48,
+          "total_streams": 71,
+          "total_pending_ranges": 162,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 6,
+          "active_files": 48,
+          "total_streams": 76,
+          "total_pending_ranges": 147,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 7,
+          "active_files": 48,
+          "total_streams": 77,
+          "total_pending_ranges": 146,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 8,
+          "active_files": 48,
+          "total_streams": 79,
+          "total_pending_ranges": 144,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 9,
+          "active_files": 48,
+          "total_streams": 79,
+          "total_pending_ranges": 135,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 10,
+          "active_files": 48,
+          "total_streams": 82,
+          "total_pending_ranges": 156,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 11,
+          "active_files": 48,
+          "total_streams": 86,
+          "total_pending_ranges": 131,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 12,
+          "active_files": 48,
+          "total_streams": 86,
+          "total_pending_ranges": 136,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 13,
+          "active_files": 48,
+          "total_streams": 89,
+          "total_pending_ranges": 129,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 14,
+          "active_files": 48,
+          "total_streams": 90,
+          "total_pending_ranges": 151,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 15,
+          "active_files": 48,
+          "total_streams": 92,
+          "total_pending_ranges": 137,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 16,
+          "active_files": 48,
+          "total_streams": 94,
+          "total_pending_ranges": 139,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 17,
+          "active_files": 48,
+          "total_streams": 94,
+          "total_pending_ranges": 164,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 18,
+          "active_files": 48,
+          "total_streams": 94,
+          "total_pending_ranges": 146,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 19,
+          "active_files": 48,
+          "total_streams": 94,
+          "total_pending_ranges": 148,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 20,
+          "active_files": 48,
+          "total_streams": 94,
+          "total_pending_ranges": 158,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 21,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 132,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 22,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 132,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 23,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 136,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 24,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 160,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 25,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 105,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 26,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 168,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 27,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 130,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 28,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 113,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 29,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 138,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 30,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 156,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 31,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 162,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 32,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 150,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 33,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 157,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 34,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 166,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 35,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 135,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 36,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 153,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 37,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 128,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 38,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 115,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 39,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 135,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 40,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 137,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 41,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 163,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 42,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 154,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 43,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 117,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 44,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 127,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 45,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 142,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 46,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 125,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 47,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 155,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 48,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 191,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 49,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 157,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 50,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 155,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 51,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 160,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 52,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 145,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 53,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 78,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 54,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 20,
+          "total_at_capacity": 0
+        }
+      ],
+      "bandwidth": "9103.0 MiB/s"
+    },
+    "iter_2": {
+      "stats": [
+        {
+          "elapsed_sec": 0,
+          "active_files": 48,
+          "total_streams": 54,
+          "total_pending_ranges": 128,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 1,
+          "active_files": 48,
+          "total_streams": 58,
+          "total_pending_ranges": 161,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 2,
+          "active_files": 48,
+          "total_streams": 61,
+          "total_pending_ranges": 143,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 3,
+          "active_files": 48,
+          "total_streams": 65,
+          "total_pending_ranges": 174,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 4,
+          "active_files": 48,
+          "total_streams": 68,
+          "total_pending_ranges": 147,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 5,
+          "active_files": 48,
+          "total_streams": 70,
+          "total_pending_ranges": 141,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 6,
+          "active_files": 48,
+          "total_streams": 72,
+          "total_pending_ranges": 149,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 7,
+          "active_files": 48,
+          "total_streams": 75,
+          "total_pending_ranges": 164,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 8,
+          "active_files": 48,
+          "total_streams": 77,
+          "total_pending_ranges": 143,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 9,
+          "active_files": 48,
+          "total_streams": 79,
+          "total_pending_ranges": 150,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 10,
+          "active_files": 48,
+          "total_streams": 82,
+          "total_pending_ranges": 150,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 11,
+          "active_files": 48,
+          "total_streams": 84,
+          "total_pending_ranges": 147,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 12,
+          "active_files": 48,
+          "total_streams": 86,
+          "total_pending_ranges": 138,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 13,
+          "active_files": 48,
+          "total_streams": 87,
+          "total_pending_ranges": 134,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 14,
+          "active_files": 48,
+          "total_streams": 89,
+          "total_pending_ranges": 150,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 15,
+          "active_files": 48,
+          "total_streams": 90,
+          "total_pending_ranges": 168,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 16,
+          "active_files": 48,
+          "total_streams": 91,
+          "total_pending_ranges": 141,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 17,
+          "active_files": 48,
+          "total_streams": 91,
+          "total_pending_ranges": 149,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 18,
+          "active_files": 48,
+          "total_streams": 91,
+          "total_pending_ranges": 158,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 19,
+          "active_files": 48,
+          "total_streams": 92,
+          "total_pending_ranges": 124,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 20,
+          "active_files": 48,
+          "total_streams": 94,
+          "total_pending_ranges": 127,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 21,
+          "active_files": 48,
+          "total_streams": 94,
+          "total_pending_ranges": 155,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 22,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 129,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 23,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 181,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 24,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 142,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 25,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 177,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 26,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 119,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 27,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 156,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 28,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 106,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 29,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 161,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 30,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 172,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 31,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 147,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 32,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 142,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 33,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 157,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 34,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 140,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 35,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 170,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 36,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 149,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 37,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 137,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 38,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 130,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 39,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 192,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 40,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 156,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 41,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 123,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 42,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 158,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 43,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 147,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 44,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 178,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 45,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 149,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 46,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 132,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 47,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 161,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 48,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 149,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 49,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 153,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 50,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 187,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 51,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 129,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 52,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 107,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 53,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 106,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 54,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 18,
+          "total_at_capacity": 0
+        }
+      ],
+      "bandwidth": "8991.0 MiB/s"
+    }
+  },
+  "25MB": {
+    "iter_1": {
+      "stats": [
+        {
+          "elapsed_sec": 0,
+          "active_files": 48,
+          "total_streams": 52,
+          "total_pending_ranges": 155,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 1,
+          "active_files": 48,
+          "total_streams": 56,
+          "total_pending_ranges": 166,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 2,
+          "active_files": 48,
+          "total_streams": 60,
+          "total_pending_ranges": 186,
+          "total_at_capacity": 1
+        },
+        {
+          "elapsed_sec": 3,
+          "active_files": 48,
+          "total_streams": 65,
+          "total_pending_ranges": 162,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 4,
+          "active_files": 48,
+          "total_streams": 67,
+          "total_pending_ranges": 123,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 5,
+          "active_files": 48,
+          "total_streams": 72,
+          "total_pending_ranges": 164,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 6,
+          "active_files": 48,
+          "total_streams": 73,
+          "total_pending_ranges": 151,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 7,
+          "active_files": 48,
+          "total_streams": 75,
+          "total_pending_ranges": 160,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 8,
+          "active_files": 48,
+          "total_streams": 76,
+          "total_pending_ranges": 160,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 9,
+          "active_files": 48,
+          "total_streams": 79,
+          "total_pending_ranges": 183,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 10,
+          "active_files": 48,
+          "total_streams": 81,
+          "total_pending_ranges": 151,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 11,
+          "active_files": 48,
+          "total_streams": 85,
+          "total_pending_ranges": 144,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 12,
+          "active_files": 48,
+          "total_streams": 89,
+          "total_pending_ranges": 146,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 13,
+          "active_files": 48,
+          "total_streams": 92,
+          "total_pending_ranges": 190,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 14,
+          "active_files": 48,
+          "total_streams": 92,
+          "total_pending_ranges": 199,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 15,
+          "active_files": 48,
+          "total_streams": 93,
+          "total_pending_ranges": 140,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 16,
+          "active_files": 48,
+          "total_streams": 94,
+          "total_pending_ranges": 164,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 17,
+          "active_files": 48,
+          "total_streams": 94,
+          "total_pending_ranges": 152,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 18,
+          "active_files": 48,
+          "total_streams": 94,
+          "total_pending_ranges": 122,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 19,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 137,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 20,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 134,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 21,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 143,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 22,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 150,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 23,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 143,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 24,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 190,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 25,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 166,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 26,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 205,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 27,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 156,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 28,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 163,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 29,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 146,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 30,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 155,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 31,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 139,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 32,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 118,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 33,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 198,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 34,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 114,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 35,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 147,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 36,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 141,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 37,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 177,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 38,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 139,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 39,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 133,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 40,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 193,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 41,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 135,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 42,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 164,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 43,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 138,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 44,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 170,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 45,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 145,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 46,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 175,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 47,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 177,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 48,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 153,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 49,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 132,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 50,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 137,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 51,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 140,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 52,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 98,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 53,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 40,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 54,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 0,
+          "total_at_capacity": 0
+        }
+      ],
+      "bandwidth": "9013.0 MiB/s"
+    },
+    "iter_2": {
+      "stats": [
+        {
+          "elapsed_sec": 0,
+          "active_files": 48,
+          "total_streams": 56,
+          "total_pending_ranges": 156,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 1,
+          "active_files": 48,
+          "total_streams": 59,
+          "total_pending_ranges": 142,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 2,
+          "active_files": 48,
+          "total_streams": 63,
+          "total_pending_ranges": 148,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 3,
+          "active_files": 48,
+          "total_streams": 66,
+          "total_pending_ranges": 169,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 4,
+          "active_files": 48,
+          "total_streams": 66,
+          "total_pending_ranges": 162,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 5,
+          "active_files": 48,
+          "total_streams": 69,
+          "total_pending_ranges": 141,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 6,
+          "active_files": 48,
+          "total_streams": 73,
+          "total_pending_ranges": 134,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 7,
+          "active_files": 48,
+          "total_streams": 75,
+          "total_pending_ranges": 168,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 8,
+          "active_files": 48,
+          "total_streams": 78,
+          "total_pending_ranges": 149,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 9,
+          "active_files": 48,
+          "total_streams": 81,
+          "total_pending_ranges": 161,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 10,
+          "active_files": 48,
+          "total_streams": 85,
+          "total_pending_ranges": 144,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 11,
+          "active_files": 48,
+          "total_streams": 88,
+          "total_pending_ranges": 155,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 12,
+          "active_files": 48,
+          "total_streams": 88,
+          "total_pending_ranges": 167,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 13,
+          "active_files": 48,
+          "total_streams": 89,
+          "total_pending_ranges": 183,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 14,
+          "active_files": 48,
+          "total_streams": 89,
+          "total_pending_ranges": 165,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 15,
+          "active_files": 48,
+          "total_streams": 89,
+          "total_pending_ranges": 129,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 16,
+          "active_files": 48,
+          "total_streams": 91,
+          "total_pending_ranges": 146,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 17,
+          "active_files": 48,
+          "total_streams": 91,
+          "total_pending_ranges": 163,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 18,
+          "active_files": 48,
+          "total_streams": 93,
+          "total_pending_ranges": 151,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 19,
+          "active_files": 48,
+          "total_streams": 94,
+          "total_pending_ranges": 146,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 20,
+          "active_files": 48,
+          "total_streams": 94,
+          "total_pending_ranges": 143,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 21,
+          "active_files": 48,
+          "total_streams": 94,
+          "total_pending_ranges": 141,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 22,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 128,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 23,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 152,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 24,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 133,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 25,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 145,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 26,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 148,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 27,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 163,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 28,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 172,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 29,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 134,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 30,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 156,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 31,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 164,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 32,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 158,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 33,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 162,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 34,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 147,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 35,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 149,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 36,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 145,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 37,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 130,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 38,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 163,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 39,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 152,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 40,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 135,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 41,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 138,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 42,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 145,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 43,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 141,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 44,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 128,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 45,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 156,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 46,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 130,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 47,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 164,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 48,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 134,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 49,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 128,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 50,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 161,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 51,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 145,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 52,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 114,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 53,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 58,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 54,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 22,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 55,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 0,
+          "total_at_capacity": 0
+        }
+      ],
+      "bandwidth": "8873.0 MiB/s"
+    }
+  },
+  "50MB": {
+    "iter_1": {
+      "stats": [
+        {
+          "elapsed_sec": 0,
+          "active_files": 48,
+          "total_streams": 52,
+          "total_pending_ranges": 152,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 1,
+          "active_files": 48,
+          "total_streams": 56,
+          "total_pending_ranges": 179,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 2,
+          "active_files": 48,
+          "total_streams": 56,
+          "total_pending_ranges": 172,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 3,
+          "active_files": 48,
+          "total_streams": 57,
+          "total_pending_ranges": 124,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 4,
+          "active_files": 48,
+          "total_streams": 61,
+          "total_pending_ranges": 172,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 5,
+          "active_files": 48,
+          "total_streams": 64,
+          "total_pending_ranges": 155,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 6,
+          "active_files": 48,
+          "total_streams": 70,
+          "total_pending_ranges": 180,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 7,
+          "active_files": 48,
+          "total_streams": 74,
+          "total_pending_ranges": 154,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 8,
+          "active_files": 48,
+          "total_streams": 77,
+          "total_pending_ranges": 133,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 9,
+          "active_files": 48,
+          "total_streams": 80,
+          "total_pending_ranges": 158,
+          "total_at_capacity": 1
+        },
+        {
+          "elapsed_sec": 10,
+          "active_files": 48,
+          "total_streams": 82,
+          "total_pending_ranges": 127,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 11,
+          "active_files": 48,
+          "total_streams": 86,
+          "total_pending_ranges": 168,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 12,
+          "active_files": 48,
+          "total_streams": 88,
+          "total_pending_ranges": 158,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 13,
+          "active_files": 48,
+          "total_streams": 90,
+          "total_pending_ranges": 169,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 14,
+          "active_files": 48,
+          "total_streams": 91,
+          "total_pending_ranges": 132,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 15,
+          "active_files": 48,
+          "total_streams": 91,
+          "total_pending_ranges": 162,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 16,
+          "active_files": 48,
+          "total_streams": 92,
+          "total_pending_ranges": 160,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 17,
+          "active_files": 48,
+          "total_streams": 93,
+          "total_pending_ranges": 123,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 18,
+          "active_files": 48,
+          "total_streams": 93,
+          "total_pending_ranges": 131,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 19,
+          "active_files": 48,
+          "total_streams": 94,
+          "total_pending_ranges": 146,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 20,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 175,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 21,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 107,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 22,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 113,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 23,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 146,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 24,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 152,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 25,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 133,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 26,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 141,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 27,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 155,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 28,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 160,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 29,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 173,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 30,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 136,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 31,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 169,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 32,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 132,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 33,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 134,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 34,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 142,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 35,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 145,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 36,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 179,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 37,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 162,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 38,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 145,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 39,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 182,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 40,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 131,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 41,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 182,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 42,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 123,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 43,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 140,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 44,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 176,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 45,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 155,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 46,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 156,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 47,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 116,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 48,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 165,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 49,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 148,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 50,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 173,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 51,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 175,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 52,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 96,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 53,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 84,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 54,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 20,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 55,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 28,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 56,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 16,
+          "total_at_capacity": 0
+        }
+      ],
+      "bandwidth": "8653.0 MiB/s"
+    },
+    "iter_2": {
+      "stats": [
+        {
+          "elapsed_sec": 0,
+          "active_files": 48,
+          "total_streams": 52,
+          "total_pending_ranges": 153,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 1,
+          "active_files": 48,
+          "total_streams": 56,
+          "total_pending_ranges": 153,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 2,
+          "active_files": 48,
+          "total_streams": 62,
+          "total_pending_ranges": 168,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 3,
+          "active_files": 48,
+          "total_streams": 68,
+          "total_pending_ranges": 138,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 4,
+          "active_files": 48,
+          "total_streams": 72,
+          "total_pending_ranges": 145,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 5,
+          "active_files": 48,
+          "total_streams": 80,
+          "total_pending_ranges": 148,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 6,
+          "active_files": 48,
+          "total_streams": 84,
+          "total_pending_ranges": 147,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 7,
+          "active_files": 48,
+          "total_streams": 85,
+          "total_pending_ranges": 104,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 8,
+          "active_files": 48,
+          "total_streams": 87,
+          "total_pending_ranges": 152,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 9,
+          "active_files": 48,
+          "total_streams": 88,
+          "total_pending_ranges": 116,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 10,
+          "active_files": 48,
+          "total_streams": 90,
+          "total_pending_ranges": 148,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 11,
+          "active_files": 48,
+          "total_streams": 93,
+          "total_pending_ranges": 150,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 12,
+          "active_files": 48,
+          "total_streams": 93,
+          "total_pending_ranges": 149,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 13,
+          "active_files": 48,
+          "total_streams": 93,
+          "total_pending_ranges": 155,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 14,
+          "active_files": 48,
+          "total_streams": 93,
+          "total_pending_ranges": 159,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 15,
+          "active_files": 48,
+          "total_streams": 93,
+          "total_pending_ranges": 152,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 16,
+          "active_files": 48,
+          "total_streams": 94,
+          "total_pending_ranges": 130,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 17,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 135,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 18,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 124,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 19,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 168,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 20,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 141,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 21,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 142,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 22,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 159,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 23,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 174,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 24,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 111,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 25,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 161,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 26,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 148,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 27,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 112,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 28,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 161,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 29,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 128,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 30,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 150,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 31,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 150,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 32,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 139,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 33,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 177,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 34,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 204,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 35,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 142,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 36,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 140,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 37,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 140,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 38,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 176,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 39,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 196,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 40,
+          "active_files": 48,
+          "total_streams": 95,
+          "total_pending_ranges": 158,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 41,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 148,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 42,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 142,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 43,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 141,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 44,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 151,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 45,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 167,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 46,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 176,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 47,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 162,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 48,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 188,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 49,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 152,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 50,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 141,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 51,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 79,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 52,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 58,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 53,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 18,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 54,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 24,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 55,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 32,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 56,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 22,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 57,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 26,
+          "total_at_capacity": 0
+        },
+        {
+          "elapsed_sec": 58,
+          "active_files": 48,
+          "total_streams": 96,
+          "total_pending_ranges": 0,
+          "total_at_capacity": 0
+        }
+      ],
+      "bandwidth": "8437.0 MiB/s"
+    }
+  }
+}
