@@ -48,6 +48,10 @@ jobs:
         go-version-file: '.go-version'
     - name: Install goimports
       run: go install golang.org/x/tools/cmd/goimports@latest
+    - name: Install Protoc & protoc-gen-go
+      run: |
+        sudo apt-get update && sudo apt-get install -y protobuf-compiler
+        go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
     - name: CodeGen
       run: go generate ./...
     - name: Formatting and Imports check
