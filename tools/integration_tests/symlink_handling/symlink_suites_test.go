@@ -140,7 +140,7 @@ func (s *BaseSymlinkSuite) createGCSSymlinkObject(linkName, target string) {
 	_, err := w.Write(content)
 	s.Require().NoError(err)
 	s.Require().NoError(w.Close())
-	operations.WaitForSizeUpdate(setup.IsZonalBucketRun(), operations.WaitDurationAfterCloseZB)
+	operations.WaitForSizeUpdate(w.Append && !w.FinalizeOnClose, operations.WaitDurationAfterCloseRapid)
 }
 
 ////////////////////////////////////////////////////////////////////////
