@@ -70,6 +70,76 @@ func computeProtoFields(params []Param) []protoFieldTemplateData {
 	return fields
 }
 
+type protoMappingTemplateData struct {
+	ProtoFieldName string
+	GoExpression   string
+	ProtoTag       int
+}
+
+func computeProtoMappings(params []Param) ([]protoMappingTemplateData, error) {
+	var mappings []protoMappingTemplateData
+	for _, p := range params {
+		if p.ConfigPath == "" || p.ProtoFieldName == "" || p.ProtoType == "" {
+			continue
+		}
+
+		segments := strings.Split(p.ConfigPath, ".")
+		goParts := make([]string, 0, len(segments))
+		for _, s := range segments {
+			capSeg, err := capitalizeIdentifier(s)
+			if err != nil {
+				return nil, err
+			}
+			goParts = append(goParts, capSeg)
+		}
+		goAccess := "c." + strings.Join(goParts, ".")
+
+		protoGoField, err := capitalizeIdentifier(strings.ReplaceAll(p.ProtoFieldName, "_", "-"))
+		if err != nil {
+			return nil, err
+		}
+
+		var expr string
+		if highRiskTextTypes[p.Type] {
+			switch p.Type {
+			case "[]string":
+				expr = fmt.Sprintf("len(%s) > 0", goAccess)
+			case "resolvedPath":
+				expr = fmt.Sprintf("string(%s) != \"\"", goAccess)
+			default:
+				expr = fmt.Sprintf("%s != \"\"", goAccess)
+			}
+		} else {
+			switch p.Type {
+			case "bool", "float64":
+				expr = goAccess
+			case "int", "octal":
+				expr = fmt.Sprintf("int32(%s)", goAccess)
+			case "duration":
+				expr = fmt.Sprintf("int64(%s)", goAccess)
+			case "protocol", "directPathStrategy", "logSeverity":
+				expr = fmt.Sprintf("string(%s)", goAccess)
+			case "[]int":
+				expr = goAccess
+			default:
+				return nil, fmt.Errorf("unsupported param type %q for proto mapping", p.Type)
+			}
+		}
+
+		mappings = append(mappings, protoMappingTemplateData{
+			ProtoFieldName: protoGoField,
+			GoExpression:   expr,
+			ProtoTag:       p.ProtoTag,
+		})
+	}
+
+	slices.SortFunc(mappings, func(a, b protoMappingTemplateData) int {
+		return cmp.Compare(a.ProtoTag, b.ProtoTag)
+	})
+
+	return mappings, nil
+}
+
 func formatReservedTags(tags []int) string {
 	if len(tags) == 0 {
 		return ""
