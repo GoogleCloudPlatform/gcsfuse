@@ -44,6 +44,7 @@ type templateData struct {
 	TypeTemplateData      []typeTemplateData
 	FlagTemplateData      []flagTemplateData
 	ProtoFields           []protoFieldTemplateData
+	ProtoMappings         []protoMappingTemplateData
 	ReservedTags          string
 	MachineTypeToGroupMap map[string]string
 	MachineTypeGroups     map[string][]string
@@ -129,6 +130,10 @@ func main() {
 	}
 
 	protoFields := computeProtoFields(paramsYAML.Params)
+	protoMappings, err := computeProtoMappings(paramsYAML.Params)
+	if err != nil {
+		panic(err)
+	}
 
 	// Sort to have reliable ordering.
 	slices.SortFunc(td, func(i, j typeTemplateData) int {
@@ -145,6 +150,7 @@ func main() {
 		{"config", "config.go"},
 		{"config_test", "config_test.go"},
 		{"config_proto", "config.proto"},
+		{"config_proto_mapper", "config_proto.go"},
 	}
 
 	for _, file := range outputFiles {
@@ -154,6 +160,7 @@ func main() {
 			FlagTemplateData:      fd,
 			TypeTemplateData:      td,
 			ProtoFields:           protoFields,
+			ProtoMappings:         protoMappings,
 			ReservedTags:          formatReservedTags(paramsYAML.RetiredParams),
 			MachineTypeToGroupMap: machineTypeToGroupMap,
 			MachineTypeGroups:     paramsYAML.MachineTypeGroups,
