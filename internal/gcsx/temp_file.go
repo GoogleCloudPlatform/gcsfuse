@@ -146,9 +146,9 @@ type fileState string
 
 const (
 	fileIncomplete fileState = "fileIncomplete"
-	fileComplete             = "fileComplete"
-	fileDirty                = "fileDirty"
-	fileDestroyed            = "fileDestroyed"
+	fileComplete   fileState = "fileComplete"
+	fileDirty      fileState = "fileDirty"
+	fileDestroyed  fileState = "fileDestroyed"
 )
 
 type tempFile struct {
@@ -208,7 +208,7 @@ func (tf *tempFile) CheckInvariants() {
 		panic(fmt.Errorf("stat: %w", err))
 	}
 
-	if !(sr.DirtyThreshold <= sr.Size) {
+	if sr.DirtyThreshold > sr.Size {
 		panic(fmt.Errorf("mismatch: %d vs. %d", sr.DirtyThreshold, sr.Size))
 	}
 
@@ -218,10 +218,18 @@ func (tf *tempFile) CheckInvariants() {
 	}
 }
 
+func (tf *tempFile) closeSource() {
+	if tf.source != nil {
+		_ = tf.source.Close()
+		tf.source = nil
+	}
+}
+
 func (tf *tempFile) Destroy() {
 	tf.state = fileDestroyed
+	tf.closeSource()
 	// Throw away the file (for anonymous files).
-	tf.f.Close()
+	_ = tf.f.Close()
 
 	tf.f = nil
 }
@@ -288,9 +296,45 @@ func (tf *tempFile) WriteAt(p []byte, offset int64) (int, error) {
 }
 
 func (tf *tempFile) Truncate(n int64) error {
-	err := tf.ensureComplete()
-	if err != nil {
-		return fmt.Errorf("cannot Truncate incomplete file: %w", err)
+	if tf.state == fileDestroyed {
+		return fmt.Errorf("cannot Truncate: file destroyed")
+	}
+
+	if n == 0 {
+		// Close source reader if incomplete to avoid downloading it.
+		if tf.state == fileIncomplete && tf.source != nil {
+			tf.closeSource()
+		}
+		tf.state = fileDirty
+		tf.dirtyThreshold = 0
+		newMtime := tf.clock.Now()
+		tf.mtime = &newMtime
+		return tf.f.Truncate(0)
+	}
+
+	if tf.state == fileIncomplete {
+		size, err := tf.f.Seek(0, 2)
+		if err != nil {
+			return fmt.Errorf("seek: %w", err)
+		}
+		tf.dirtyThreshold = size
+		if size < n {
+			bytesToDownload := n - size
+			written, err := io.CopyN(tf.f, tf.source, bytesToDownload)
+			if err != nil && err != io.EOF {
+				return fmt.Errorf("io.CopyN: %w", err)
+			}
+			tf.dirtyThreshold = size + written
+			if err == io.EOF {
+				tf.closeSource()
+				tf.state = fileComplete
+			}
+		}
+
+		if tf.state == fileIncomplete {
+			tf.closeSource()
+			tf.state = fileDirty
+		}
 	}
 
 	// Update our state regarding being dirty.
@@ -333,13 +377,16 @@ func (tf *tempFile) ensure(limit int64) error {
 	switch tf.state {
 	case fileIncomplete:
 		size, err := tf.f.Seek(0, 2)
+		if err != nil {
+			return fmt.Errorf("seek: %w", err)
+		}
 		if size >= limit {
 			return nil
 		}
 		n := max(limit-size, minCopyLength)
 		n, err = io.CopyN(tf.f, tf.source, n)
 		if err == io.EOF {
-			tf.source.Close()
+			tf.closeSource()
 			tf.dirtyThreshold = size + n
 			tf.state = fileComplete
 			err = nil
