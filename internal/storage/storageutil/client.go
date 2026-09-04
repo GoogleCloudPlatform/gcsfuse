@@ -15,6 +15,7 @@
 package storageutil
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -23,8 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"context"
-
+	"github.com/google/s2a-go"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
@@ -63,6 +63,8 @@ type StorageClientConfig struct {
 	RetryMultiplier    float64
 	EnableMountRetries bool
 	LocalSocketAddress string
+	S2AAddress         string
+	S2ASpiffeID        string
 
 	/** HTTP client parameters. */
 	MaxConnsPerHost            int
@@ -113,11 +115,24 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 		dialer.Resolver = dns.NewCachingResolver(nil, dns.MinCacheTTL(1*time.Minute))
 	}
 
+	var dialTLSContext func(ctx context.Context, network, addr string) (net.Conn, error)
+	if storageClientConfig.S2AAddress != "" {
+		var localIdentity s2a.Identity
+		if storageClientConfig.S2ASpiffeID != "" {
+			localIdentity = s2a.NewSpiffeID(storageClientConfig.S2ASpiffeID)
+		}
+		dialTLSContext = s2a.NewS2ADialTLSContextFunc(&s2a.ClientOptions{
+			S2AAddress:    storageClientConfig.S2AAddress,
+			LocalIdentity: localIdentity,
+		})
+	}
+
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
 	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
 		transport = &http.Transport{
 			DialContext:         dialer.DialContext,
+			DialTLSContext:      dialTLSContext,
 			Proxy:               http.ProxyFromEnvironment,
 			MaxConnsPerHost:     storageClientConfig.MaxConnsPerHost,
 			MaxIdleConnsPerHost: storageClientConfig.MaxIdleConnsPerHost,
@@ -130,6 +145,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 		// For http2, change in MaxConnsPerHost doesn't affect the performance.
 		transport = &http.Transport{
 			DialContext:       dialer.DialContext,
+			DialTLSContext:    dialTLSContext,
 			Proxy:             http.ProxyFromEnvironment,
 			DisableKeepAlives: true,
 			MaxConnsPerHost:   storageClientConfig.MaxConnsPerHost,
@@ -145,41 +161,48 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 		// While the "WithUserAgent" option could set a custom User-Agent, it's incompatible
 		// with the "WithHTTPClient" option, preventing the direct injection of a user agent
 		// when authentication is skipped.
-		httpClient = &http.Client{
+		return &http.Client{
 			Timeout: storageClientConfig.HttpClientTimeout,
-		}
+		}, nil
+	}
+
+	var clientTransport http.RoundTripper = transport
+	if storageClientConfig.S2AAddress != "" {
+		// When S2A is enabled, authentication is handled via mTLS at the transport level.
 	} else {
 		if tokenSrc == nil {
 			// CreateTokenSource only if tokenSrc is nil, which means it wasn't provided externally.
 			// This indicates the EnableGoogleLibAuth flag is disabled.
 			tokenSrc, err = CreateTokenSource(storageClientConfig)
 			if err != nil {
-				err = fmt.Errorf("while fetching tokenSource: %w", err)
-				return nil, err
+				return nil, fmt.Errorf("while fetching tokenSource: %w", err)
 			}
 		}
 
-		// Custom http client for Go Client.
-		httpClient = &http.Client{
-			Transport: &oauth2.Transport{
-				Base:   transport,
-				Source: tokenSrc,
-			},
-			Timeout: storageClientConfig.HttpClientTimeout,
-		}
-		// Setting UserAgent through RoundTripper middleware
-		httpClient.Transport = &userAgentRoundTripper{
-			wrapped:   httpClient.Transport,
-			UserAgent: storageClientConfig.UserAgent,
-		}
-
-		if storageClientConfig.TracingEnabled {
-			httpClient.Transport = otelhttp.NewTransport(httpClient.Transport, otelhttp.WithClientTrace(func(ctx context.Context) *httptrace.ClientTrace {
-				return otelhttptrace.NewClientTrace(ctx)
-			}), otelhttp.WithTracerProvider(otel.GetTracerProvider()))
+		clientTransport = &oauth2.Transport{
+			Base:   transport,
+			Source: tokenSrc,
 		}
 	}
-	return httpClient, err
+
+	httpClient = &http.Client{
+		Transport: clientTransport,
+		Timeout:   storageClientConfig.HttpClientTimeout,
+	}
+
+	// Setting UserAgent through RoundTripper middleware
+	httpClient.Transport = &userAgentRoundTripper{
+		wrapped:   httpClient.Transport,
+		UserAgent: storageClientConfig.UserAgent,
+	}
+
+	if storageClientConfig.TracingEnabled {
+		httpClient.Transport = otelhttp.NewTransport(httpClient.Transport, otelhttp.WithClientTrace(func(ctx context.Context) *httptrace.ClientTrace {
+			return otelhttptrace.NewClientTrace(ctx)
+		}), otelhttp.WithTracerProvider(otel.GetTracerProvider()))
+	}
+
+	return httpClient, nil
 }
 
 // It creates the token-source from the provided
