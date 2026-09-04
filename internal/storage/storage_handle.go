@@ -29,6 +29,7 @@ import (
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"cloud.google.com/go/storage/experimental"
+	"github.com/google/s2a-go"
 	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -101,7 +102,21 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 	}
 
 	// Configure authentication.
-	if clientConfig.AnonymousAccess {
+	if clientConfig.S2AAddress != "" {
+		var localIdentity s2a.Identity
+		if clientConfig.S2ASpiffeID != "" {
+			localIdentity = s2a.NewSpiffeID(clientConfig.S2ASpiffeID)
+		}
+		creds, err := s2a.NewClientCreds(&s2a.ClientOptions{
+			S2AAddress:    clientConfig.S2AAddress,
+			LocalIdentity: localIdentity,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create S2A gRPC credentials: %w", err)
+		}
+		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(creds)))
+		clientOpts = append(clientOpts, option.WithoutAuthentication())
+	} else if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else if clientConfig.EnableGoogleLibAuth {
 		var authOpts []option.ClientOption
@@ -275,7 +290,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	var clientOpts []option.ClientOption
 	var tokenSrc oauth2.TokenSource = nil
 
-	if clientConfig.AnonymousAccess {
+	if clientConfig.S2AAddress != "" || clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else if clientConfig.EnableGoogleLibAuth {
 		var authOpts []option.ClientOption
