@@ -57,10 +57,37 @@ jobs:
         go mod tidy
         git diff --exit-code --name-only
 
-  linux-tests:
+  build:
+    name: Build
     needs: filter
+    if: ${{ needs.filter.outputs.run_tests == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - name: Set up Go
+      uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+      with:
+        go-version-file: '.go-version'
+    - name: Build
+      run: CGO_ENABLED=0 go build ./...
+
+  linux-tests-matrix:
+    name: Linux tests (${{ matrix.suite }})
+    needs: filter
+    if: ${{ needs.filter.outputs.run_tests == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: unit
+            test-cmd: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v 'tools/integration_tests'`
+            upload-coverage: true
+          - suite: race
+            test-cmd: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
+            upload-coverage: false
 
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -70,25 +97,49 @@ jobs:
         go-version-file: '.go-version'
     - name: Install fuse
       run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
-    - name: Build
-      if: ${{ needs.filter.outputs.run_tests == 'true' }}
-      run: |
-        CGO_ENABLED=0 go build ./...
-        go install ./tools/build_gcsfuse
-        build_gcsfuse . /tmp ${GITHUB_SHA}
-    - name: Test all
-      if: ${{ needs.filter.outputs.run_tests == 'true' }}
-      run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v 'tools/integration_tests'`
-    - name: RaceDetector Test
-      if: ${{ needs.filter.outputs.run_tests == 'true' }}
-      run: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
+    - name: Run Test (${{ matrix.suite }})
+      run: ${{ matrix.test-cmd }}
     - name: Upload coverage reports to Codecov
+      if: matrix.upload-coverage
       uses: codecov/codecov-action@5ecb98a3c6b747ed38dc09f787459979aebb39be # v4.3.1
       timeout-minutes: 5
       with:
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: unittests
+
+  linux-tests:
+    needs: [filter, linux-tests-matrix]
+    if: ${{ needs.filter.outputs.run_tests == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+    - run: echo "All linux tests passed"
+
+  flake-detector:
+    name: Flake detector (${{ matrix.suite }})
+    needs: filter
+    if: ${{ needs.filter.outputs.run_tests == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: unit
+            test-cmd: CGO_ENABLED=0 go test -p 1 -count 5 -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
+          - suite: race
+            test-cmd: CGO_ENABLED=0 go test -p 1 -count 5 ./internal/cache/... ./internal/gcsx/...
+
+    steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - name: Set up Go
+      uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+      with:
+        go-version-file: '.go-version'
+    - name: Install fuse
+      run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
+    - name: Deflake Test (${{ matrix.suite }})
+      run: ${{ matrix.test-cmd }}
 
   lint:
     name: Lint
