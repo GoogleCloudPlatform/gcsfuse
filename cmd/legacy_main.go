@@ -174,6 +174,8 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		TracingEnabled:             cfg.IsTracingEnabled(newConfig),
 		EnableHTTPDNSCache:         newConfig.GcsConnection.EnableHttpDnsCache,
 		LocalSocketAddress:         newConfig.GcsConnection.ExperimentalLocalSocketAddress,
+		S2AAddress:                 newConfig.GcsAuth.S2aAddress,
+		S2ASpiffeID:                newConfig.GcsAuth.S2aSpiffeId,
 		EnableGrpcMetrics:          newConfig.Metrics.ExperimentalEnableGrpcMetrics,
 		IsGKE:                      isGKE,
 		WriteConfig:                &newConfig.Write,

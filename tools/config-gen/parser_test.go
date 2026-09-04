@@ -26,7 +26,7 @@ import (
 )
 
 func TestCheckFlagName_Valid(t *testing.T) {
-	validNames := []string{"a", "abc", "ab-c", "ab-c-d", "a_b"}
+	validNames := []string{"a", "abc", "ab-c", "ab-c-d", "a_b", "s2a-address", "s2a-spiffe-id"}
 
 	for _, name := range validNames {
 		t.Run(name, func(t *testing.T) {

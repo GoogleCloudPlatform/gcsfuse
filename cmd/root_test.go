@@ -753,12 +753,14 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 	}{
 		{
 			name: "Test gcs auth flags.",
-			args: []string{"gcsfuse", "--anonymous-access", "--key-file=key.file", "--reuse-token-from-url", "--token-url=www.abc.com", "abc", "pqr"},
+			args: []string{"gcsfuse", "--anonymous-access", "--key-file=key.file", "--reuse-token-from-url", "--s2a-address=/var/run/s2a/s2a.sock", "--s2a-spiffe-id=spiffe://example.com/sa", "--token-url=www.abc.com", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				GcsAuth: cfg.GcsAuthConfig{
 					AnonymousAccess:   true,
 					KeyFile:           cfg.ResolvedPath(path.Join(wd, "key.file")),
 					ReuseTokenFromUrl: true,
+					S2aAddress:        "/var/run/s2a/s2a.sock",
+					S2aSpiffeId:       "spiffe://example.com/sa",
 					TokenUrl:          "www.abc.com",
 				},
 			},
@@ -771,6 +773,8 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 					AnonymousAccess:   false,
 					KeyFile:           "",
 					ReuseTokenFromUrl: true,
+					S2aAddress:        "",
+					S2aSpiffeId:       "",
 					TokenUrl:          "",
 				},
 			},
