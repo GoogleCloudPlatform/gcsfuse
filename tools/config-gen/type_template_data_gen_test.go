@@ -126,3 +126,80 @@ func TestConstructTypeTemplateData(t *testing.T) {
 	require.Len(t, loggingMsg.Fields, 1)
 	assert.Equal(t, "Severity", loggingMsg.Fields[0].FieldName)
 }
+
+func TestComputeProtoMappings(t *testing.T) {
+	params := []Param{
+		{
+			FlagName:       "file-cache-max-size-mb",
+			ConfigPath:     "file-cache.max-size-mb",
+			Type:           "int",
+			ProtoType:      "int32",
+			ProtoFieldName: "file_cache_max_size_mb",
+			ProtoTag:       3,
+		},
+		{
+			FlagName:       "app-name",
+			ConfigPath:     "app-name",
+			Type:           "string",
+			ProtoType:      "bool",
+			ProtoFieldName: "is_app_name_set",
+			ProtoTag:       1,
+		},
+		{
+			FlagName:       "cache-dir",
+			ConfigPath:     "cache-dir",
+			Type:           "resolvedPath",
+			ProtoType:      "bool",
+			ProtoFieldName: "is_cache_dir_set",
+			ProtoTag:       2,
+		},
+		{
+			FlagName:       "fuse-options",
+			ConfigPath:     "file-system.fuse-options",
+			Type:           "[]string",
+			ProtoType:      "bool",
+			ProtoFieldName: "is_file_system_fuse_options_set",
+			ProtoTag:       4,
+		},
+		{
+			FlagName:       "client-protocol",
+			ConfigPath:     "gcs-connection.client-protocol",
+			Type:           "protocol",
+			ProtoType:      "string",
+			ProtoFieldName: "gcs_connection_client_protocol",
+			ProtoTag:       5,
+		},
+		{
+			FlagName:       "deprecated-flag",
+			ConfigPath:     "",
+			Type:           "bool",
+			ProtoType:      "",
+			ProtoFieldName: "",
+			ProtoTag:       0,
+		},
+	}
+
+	mappings, err := computeProtoMappings(params)
+	require.NoError(t, err)
+	require.Len(t, mappings, 5)
+
+	assert.Equal(t, "IsAppNameSet", mappings[0].ProtoFieldName)
+	assert.Equal(t, `c.AppName != ""`, mappings[0].GoExpression)
+	assert.Equal(t, 1, mappings[0].ProtoTag)
+
+	assert.Equal(t, "IsCacheDirSet", mappings[1].ProtoFieldName)
+	assert.Equal(t, `string(c.CacheDir) != ""`, mappings[1].GoExpression)
+	assert.Equal(t, 2, mappings[1].ProtoTag)
+
+	assert.Equal(t, "FileCacheMaxSizeMb", mappings[2].ProtoFieldName)
+	assert.Equal(t, "int32(c.FileCache.MaxSizeMb)", mappings[2].GoExpression)
+	assert.Equal(t, 3, mappings[2].ProtoTag)
+
+	assert.Equal(t, "IsFileSystemFuseOptionsSet", mappings[3].ProtoFieldName)
+	assert.Equal(t, "len(c.FileSystem.FuseOptions) > 0", mappings[3].GoExpression)
+	assert.Equal(t, 4, mappings[3].ProtoTag)
+
+	assert.Equal(t, "GcsConnectionClientProtocol", mappings[4].ProtoFieldName)
+	assert.Equal(t, "string(c.GcsConnection.ClientProtocol)", mappings[4].GoExpression)
+	assert.Equal(t, 5, mappings[4].ProtoTag)
+}
