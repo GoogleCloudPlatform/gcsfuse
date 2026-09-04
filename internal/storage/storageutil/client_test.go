@@ -16,17 +16,22 @@
 package storageutil
 
 import (
+	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"golang.org/x/oauth2"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -218,4 +223,93 @@ func (t *clientTest) TestCreateHttpClientWithInvalidSocketAddress() {
 
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), httpClient)
+}
+
+func (t *clientTest) TestCreateHttpClientWithS2A_HTTP1() {
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.ClientProtocol = cfg.HTTP1
+	sc.S2AAddress = "localhost:8080"
+
+	httpClient, err := CreateHttpClient(&sc, nil)
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), httpClient)
+	assert.Equal(t.T(), sc.HttpClientTimeout, httpClient.Timeout)
+}
+
+func (t *clientTest) TestCreateHttpClientWithS2A_HTTP2() {
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.ClientProtocol = cfg.HTTP2
+	sc.S2AAddress = "localhost:8080"
+	sc.S2ASpiffeID = "spiffe://example.com/sa/my-sa"
+
+	httpClient, err := CreateHttpClient(&sc, nil)
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), httpClient)
+	assert.Equal(t.T(), sc.HttpClientTimeout, httpClient.Timeout)
+}
+
+func (t *clientTest) TestCreateHttpClientWithoutS2A_EmptyAddress() {
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.ClientProtocol = cfg.HTTP1
+	sc.S2AAddress = ""
+
+	// When S2AAddress is empty, it uses token/credential flow from keyFile.
+	httpClient, err := CreateHttpClient(&sc, nil)
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), httpClient)
+}
+
+func (t *clientTest) TestCreateHttpClientWithS2A_DialVerification() {
+	var s2aConnections int32
+	s2aListener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t.T(), err)
+	defer func() { _ = s2aListener.Close() }()
+
+	go func() {
+		for {
+			conn, err := s2aListener.Accept()
+			if err != nil {
+				return
+			}
+			atomic.AddInt32(&s2aConnections, 1)
+			_ = conn.Close()
+		}
+	}()
+
+	// Start a local target server so TCP connection succeeds
+	targetListener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t.T(), err)
+	defer func() { _ = targetListener.Close() }()
+
+	go func() {
+		for {
+			conn, err := targetListener.Accept()
+			if err != nil {
+				return
+			}
+			// Keep target connection open briefly for handshake attempt
+			time.Sleep(100 * time.Millisecond)
+			_ = conn.Close()
+		}
+	}()
+
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.ClientProtocol = cfg.HTTP1
+	sc.S2AAddress = s2aListener.Addr().String()
+	sc.S2ASpiffeID = "spiffe://example.com/sa/test-sa"
+	sc.HttpClientTimeout = 2 * time.Second
+
+	httpClient, err := CreateHttpClient(&sc, nil)
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), httpClient)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, fmt.Sprintf("https://%s/test", targetListener.Addr().String()), nil)
+	require.NoError(t.T(), err)
+
+	_, _ = httpClient.Do(req)
+
+	assert.Greater(t.T(), atomic.LoadInt32(&s2aConnections), int32(0), "Expected S2A daemon to be dialed by DialTLSContext")
 }
