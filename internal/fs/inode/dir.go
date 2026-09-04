@@ -254,7 +254,7 @@ type dirInode struct {
 	mu locker.RWLocker
 
 	// GUARDED_BY(mu)
-	lc lookupCount
+	lookupCount
 
 	// cache.CheckInvariants() does not panic.
 	//
@@ -369,8 +369,6 @@ func NewDirInode(
 		cache = metadata.NewTypeCache(cfg.MetadataCache.TypeCacheMaxSizeMb, typeCacheTTL)
 		typed.cache = cache
 	}
-
-	typed.lc.Init(id)
 
 	// Set up invariant checking.
 	typed.mu = locker.NewRW(name.GcsObjectName(), typed.checkInvariants)
@@ -593,21 +591,11 @@ func (d *dirInode) Name() Name {
 }
 
 // LOCKS_REQUIRED(d)
-func (d *dirInode) IncrementLookupCount() {
-	d.lc.Inc()
-}
-
-// LOCKS_REQUIRED(d)
-func (d *dirInode) DecrementLookupCount(n uint64) (destroy bool) {
-	destroy = d.lc.Dec(n)
-	return
-}
-
-// LOCKS_REQUIRED(d)
 func (d *dirInode) Destroy() (err error) {
 	// When destroying the inode, we cancel its subdirectory prefetches.
 	// This cleans up any curr dir + child dir prefetchers.
 	d.CancelSubdirectoryPrefetches()
+	d.lookupCount.Destroy()
 	return
 }
 

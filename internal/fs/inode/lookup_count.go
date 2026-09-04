@@ -16,48 +16,47 @@ package inode
 
 import (
 	"fmt"
-
-	"github.com/jacobsa/fuse/fuseops"
+	"sync/atomic"
 )
 
 // A helper struct for implementing lookup counts. The only value added is some
 // paranoid panics. External synchronization is required.
 //
 // May be embedded within a larger struct. Use Init to initialize.
-type lookupCount struct {
-	id        fuseops.InodeID
-	count     uint64
-	destroyed bool
+type lookupCount int64
+
+func (lc *lookupCount) IncrementLookupCount() {
+	for {
+		val := atomic.LoadInt64((*int64)(lc))
+		if val == -1 {
+			panic("Inode has already been destroyed")
+		}
+		if atomic.CompareAndSwapInt64((*int64)(lc), val, val+1) {
+			return
+		}
+	}
 }
 
-func (lc *lookupCount) Init(id fuseops.InodeID) {
-	lc.id = id
+func (lc *lookupCount) DecrementLookupCount(n uint64) (destroy bool) {
+	for {
+		val := atomic.LoadInt64((*int64)(lc))
+		if val == -1 {
+			panic("Inode has already been destroyed")
+		}
+
+		if n > uint64(val) {
+			panic(fmt.Sprintf(
+				"n is greater than lookup count: %v vs. %v",
+				n,
+				val))
+		}
+
+		if atomic.CompareAndSwapInt64((*int64)(lc), val, val-int64(n)) {
+			return (val - int64(n)) == 0
+		}
+	}
 }
 
-func (lc *lookupCount) Inc() {
-	if lc.destroyed {
-		panic(fmt.Sprintf("Inode %v has already been destroyed", lc.id))
-	}
-
-	lc.count++
-}
-
-func (lc *lookupCount) Dec(n uint64) (destroy bool) {
-	if lc.destroyed {
-		panic(fmt.Sprintf("Inode %v has already been destroyed", lc.id))
-	}
-
-	// Make sure n is in range.
-	if n > lc.count {
-		panic(fmt.Sprintf(
-			"n is greater than lookup count: %v vs. %v",
-			n,
-			lc.count))
-	}
-
-	// Decrement.
-	lc.count -= n
-
-	destroy = lc.count == 0
-	return
+func (lc *lookupCount) Destroy() {
+	atomic.StoreInt64((*int64)(lc), -1)
 }
