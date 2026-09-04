@@ -97,7 +97,6 @@ func (s *InactiveTimeoutReaderTestSuite) setupReader() {
 	var err error
 	// Use NewInactiveTimeoutReader directly as NewStorageReaderWithInactiveTimeout is deprecated.
 	s.reader, err = NewInactiveTimeoutReaderWithClock(s.ctx, s.mockBucket, s.object, s.readHandle, gcs.ByteRange{Start: uint64(0), Limit: s.object.Size}, s.timeout, s.simulatedClock)
-	time.Sleep(5 * time.Millisecond) // Allow time to schedule and create a timer.
 	s.Require().Nil(err)
 	s.Require().NotNil(s.reader)
 }
@@ -187,7 +186,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_ReconnectFails() {
 	s.Require().Equal(5, n)
 	// First timeout fire will make the reader inactive.
 	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
-	// Wait for the monitor routine to make the read inactive.
+	// Wait for the monitor routine to make the reader inactive.
 	require.Eventually(s.T(), func() bool {
 		rr := s.reader.(*InactiveTimeoutReader)
 		rr.mu.Lock()
@@ -229,7 +228,7 @@ func (s *InactiveTimeoutReaderTestSuite) Test_Read_TimeoutAndSuccessfulReconnect
 	s.Equal("abcdefghij", string(buf[:n]))
 	// First timeout fire will make the reader inactive.
 	s.simulatedClock.AdvanceTime(s.timeout + time.Millisecond)
-	// Wait for the monitor routine to make the read inactive.
+	// Wait for the monitor routine to make the reader inactive.
 	require.Eventually(s.T(), func() bool {
 		rr := s.reader.(*InactiveTimeoutReader)
 		rr.mu.Lock()
