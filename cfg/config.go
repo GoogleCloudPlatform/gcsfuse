@@ -78,6 +78,12 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: bool(true),
 		},
 	},
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-checkpointing",
+			Value: bool(true),
+		},
+	},
 }, "file-system.fuse-max-request-size-kb": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{

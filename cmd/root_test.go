@@ -412,6 +412,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  1600,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedFinalizeFileForRapid:  true,
 		},
 		{
 			name:                          "Test_optimization_fallback_to_default_config_with_un-overridden_profile_on_low-end_machine",
@@ -422,6 +423,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedFinalizeFileForRapid:  true,
 		},
 		{
 			name:                          "Test_optimization_overriden_by_user_config_with_profile_set_on_high-end_machine",
@@ -432,6 +434,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  200,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedFinalizeFileForRapid:  true,
 		},
 		{
 			name:                          "Test_optimizationoverriden_by_user_config_with_profile_set_on_low-end_machine",
@@ -442,6 +445,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  16,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedFinalizeFileForRapid:  true,
 		},
 		{
 			name:                          "Test enable-rapid-writes and finalize-file-for-rapid flags.",
