@@ -273,6 +273,7 @@ type dirInode struct {
 	includeFoldersAsPrefixes   bool
 	enableNonexistentTypeCache bool
 	isHNSEnabled               bool
+	largeDirWarningThreshold   int64
 
 	// activeWriters tracks the number of ongoing write operations in this directory.
 	// It is used to prevent metadata prefetching while writes are in progress.
@@ -351,6 +352,7 @@ func NewDirInode(
 		ctx:                                    ctx,
 		cancel:                                 cancel,
 		metadataCacheTtlSecs:                   cfg.MetadataCache.TtlSecs,
+		largeDirWarningThreshold:               cfg.FileSystem.ExperimentalLargeDirWarningThreshold,
 	}
 
 	// Init Prefetcher only if it is enabled, stat cache ttl != 0 and stat cache size != 0.
@@ -590,6 +592,10 @@ func (d *dirInode) ID() fuseops.InodeID {
 
 func (d *dirInode) Name() Name {
 	return d.name
+}
+
+func (d *dirInode) LargeDirWarningThreshold() int64 {
+	return d.largeDirWarningThreshold
 }
 
 // LOCKS_REQUIRED(d)
