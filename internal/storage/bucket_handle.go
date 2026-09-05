@@ -224,20 +224,12 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	wc := obj.NewWriter(ctx)
 	wc.ChunkRetryDeadline = time.Duration(req.ChunkRetryDeadlineSecs) * time.Second
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
-	wc = storageutil.SetAttrsInWriter(wc, req)
+	wc.EnableParallelUpload = true
+	wc.ParallelUploadConfig = storage.ParallelUploadConfig{
+		PartSize:       32 * 1024 * 1024,
+		MaxConcurrency: 4,
+	}
 	wc.ProgressFunc = req.CallBack
-	// Zonal buckets strictly require the appendable API. For Pirlo buckets, the
-	// appendable API provides file-like semantics (immediate data visibility)
-	// but defers regional durability until the object is finalized. Users can
-	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
-	// to false, which allows further appends, but if they keep it unfinalized
-	// it never becomes regionally durable.
-	wc.Append = bh.BucketType().RapidWritesEnabled()
-	// By default, objects in zonal buckets are not finalized on close, whereas objects in
-	// pirlo buckets are. This behavior is controlled by the finalizeFileForRapid flag.
-	// When writer.Append is false, then this parameter is anyways ignored.
-	// Refer: https://github.com/googleapis/google-cloud-go/blob/bf56afb2a15301500b9981ee76ccc5f449e3f545/storage/writer.go#L160
-	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileForRapid
 
 	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
@@ -264,23 +256,16 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
 	wc := &ObjectWriter{obj.NewWriter(ctx)}
-	wc.ChunkSize = chunkSize
+	wc.EnableParallelUpload = true
+	wc.ParallelUploadConfig = storage.ParallelUploadConfig{
+		PartSize:       chunkSize,
+		MaxConcurrency: 4,
+	}
+
 	wc.Writer = storageutil.SetAttrsInWriter(wc.Writer, req)
 	wc.ChunkRetryDeadline = time.Duration(req.ChunkRetryDeadlineSecs) * time.Second
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
 	wc.ProgressFunc = callBack
-	// Zonal buckets strictly require the appendable API. For Pirlo buckets, the
-	// appendable API provides file-like semantics (immediate data visibility)
-	// but defers regional durability until the object is finalized. Users can
-	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
-	// to false, which allows further appends, but if they keep it unfinalized
-	// it never becomes regionally durable.
-	wc.Append = bh.BucketType().RapidWritesEnabled()
-	// By default, objects in zonal buckets are not finalized on close, whereas objects in
-	// pirlo buckets are. This behavior is controlled by the finalizeFileForRapid flag.
-	// When writer.Append is false, then this parameter is anyways ignored.
-	// Refer: https://github.com/googleapis/google-cloud-go/blob/bf56afb2a15301500b9981ee76ccc5f449e3f545/storage/writer.go#L160
-	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileForRapid
 	return wc, nil
 }
 
