@@ -923,6 +923,50 @@ func (testSuite *StorageHandleTest) Test_CreateHTTPClientHandle_WithoutGoogleLib
 	assert.NotNil(testSuite.T(), httpClient)
 }
 
+func (testSuite *StorageHandleTest) Test_CreateHTTPClientHandle_WithS2A() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.S2AAddress = "localhost:8080"
+	sc.S2ASpiffeID = "spiffe://example.com/sa/test-sa"
+
+	httpClient, err := createHTTPClientHandle(context.TODO(), &sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), httpClient)
+}
+
+func (testSuite *StorageHandleTest) Test_CreateHTTPClientHandle_WithoutS2A_EmptyAddress() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.S2AAddress = ""
+	sc.S2ASpiffeID = ""
+
+	httpClient, err := createHTTPClientHandle(context.TODO(), &sc)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), httpClient)
+}
+
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithS2A() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.S2AAddress = "localhost:8080"
+	sc.S2ASpiffeID = "spiffe://example.com/sa/test-sa"
+
+	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), clientOption)
+}
+
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithoutS2A_EmptyAddress() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.S2AAddress = ""
+	sc.S2ASpiffeID = ""
+
+	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), clientOption)
+}
+
 func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithTracing() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 	sc.TracingEnabled = true
