@@ -174,9 +174,8 @@ func CloseFiles(t *testing.T, files []*os.File) {
 		err := file.Close()
 		assert.NoError(t, err)
 	}
-	// We don't wait for Pirlo since by default Pirlo creates finalized objects
-	// on close. Update it to check for Pirlo if in the future this method is
-	// used for creating unfinalized objects in Pirlo.
+	// Pirlo creates finalized objects on close by default, so we don't wait for it here.
+	// Update this condition if this method is used to create unfinalized Pirlo objects in the future.
 	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterCloseRapid)
 }
 
@@ -185,9 +184,8 @@ func CloseFile(file *os.File) {
 	if err := file.Close(); err != nil {
 		log.Fatalf("error in closing: %v", err)
 	}
-	// We don't wait for Pirlo since by default Pirlo creates finalized objects
-	// on close. Update it to check for Pirlo if in the future this method is
-	// used for creating unfinalized objects in Pirlo.
+	// Pirlo creates finalized objects on close by default, so we don't wait for it here.
+	// Update this condition if this method is used to create unfinalized Pirlo objects in the future.
 	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterCloseRapid)
 }
 
@@ -587,9 +585,8 @@ func WriteAt(content string, offset int64, fh *os.File, t testing.TB) {
 func CloseFileShouldNotThrowError(t testing.TB, file *os.File) {
 	err := file.Close()
 	assert.NoError(t, err)
-	// We don't wait for Pirlo since by default Pirlo creates finalized objects
-	// on close. Update it to check for Pirlo if in the future this method is
-	// used for creating unfinalized objects in Pirlo.
+	// Pirlo creates finalized objects on close by default, so we don't wait for it here.
+	// Update this condition if this method is used to create unfinalized Pirlo objects in the future.
 	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterCloseRapid)
 }
 
