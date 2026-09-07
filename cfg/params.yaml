@@ -1509,6 +1509,13 @@ params:
       requirements.
     default: 32
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "pirlo"
+          conditions:
+            write.enable-rapid-writes: true
+            write.enable-rapid-appends: false
+          value: 1.0
 
   - config-path: "write.create-empty-file"
     proto-tag: 152
@@ -1566,6 +1573,12 @@ params:
       machine-based-optimization:
         - group: "high-performance"
           value: 1600
+      bucket-type-optimization:
+        - bucket-type: "pirlo"
+          conditions:
+            write.enable-rapid-writes: true
+            write.enable-rapid-appends: false
+          value: 16
 
   - config-path: "write.max-blocks-per-file"
     proto-tag: 158
@@ -1576,6 +1589,13 @@ params:
       streaming writes. The value should be >= 1 or -1 (for infinite blocks).
     default: 1
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "pirlo"
+          conditions:
+            write.enable-rapid-writes: true
+            write.enable-rapid-appends: false
+          value: 4
 
   - flag-name: "debug_fs"
     type: "bool"

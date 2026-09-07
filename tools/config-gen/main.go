@@ -77,8 +77,9 @@ func write(dataObj any, outputFile, templateFile string) (err error) {
 	}()
 	// Define the custom function map.
 	funcMap := template.FuncMap{
-		"formatValue": formatValue,
-		"title":       cases.Title(language.English).String,
+		"formatValue":   formatValue,
+		"sortedMapKeys": sortedMapKeys,
+		"title":         cases.Title(language.English).String,
 	}
 
 	file := path.Base(templateFile)
@@ -174,4 +175,17 @@ func formatValue(v any) string {
 		// Use %v for other types like int, bool, etc.
 		return fmt.Sprintf("%v", v)
 	}
+}
+
+// sortedMapKeys returns the keys of a map sorted alphabetically for deterministic code generation.
+func sortedMapKeys(m map[string]any) []string {
+	if len(m) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	return keys
 }

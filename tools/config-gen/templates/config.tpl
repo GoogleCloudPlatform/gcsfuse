@@ -42,14 +42,21 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
 		{{- end }}
 		{{- if .Optimizations.BucketTypeOptimization }}
 		BucketTypeOptimization: []shared.BucketTypeOptimization{
-			{{- range .Optimizations.BucketTypeOptimization }}
+			{{- range $bto := .Optimizations.BucketTypeOptimization }}
 			{
 				BucketTypes: shared.BucketTypeList{
-					{{- range .BucketTypes }}
+					{{- range $bto.BucketTypes }}
 					"{{ . }}",
 					{{- end }}
 				},
-				Value:      {{$goType}}({{ formatValue .Value }}),
+				{{- if $bto.Conditions }}
+				Conditions: map[string]any{
+					{{- range $k := sortedMapKeys $bto.Conditions }}
+					"{{ $k }}": {{ formatValue (index $bto.Conditions $k) }},
+					{{- end }}
+				},
+				{{- end }}
+				Value:      {{$goType}}({{ formatValue $bto.Value }}),
 			},
 			{{- end }}
 		},
@@ -99,7 +106,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 {{- if .Optimizations }}
 	if !v.IsSet("{{ .ConfigPath }}") {
 		rules := AllFlagOptimizationRules["{{ .ConfigPath }}"]
-		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.({{ .GoType }}); ok {
 				if c.{{ .GoPath }} != val {

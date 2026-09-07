@@ -32,6 +32,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
+			conditions      map[string]any
 			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
@@ -63,6 +64,13 @@ func TestApplyOptimizations(t *testing.T) {
 				{{- if .Optimizations.BucketTypeOptimization }}
 				{{- $bto := index .Optimizations.BucketTypeOptimization 0 }}
 				{{- $bt := index $bto.BucketTypes 0 }}
+				{{- if $bto.Conditions }}
+				conditions: map[string]any{
+					{{- range $k := sortedMapKeys $bto.Conditions }}
+					"{{ $k }}": {{ formatValue (index $bto.Conditions $k) }},
+					{{- end }}
+				},
+				{{- end }}
 				input:           &OptimizationInput{BucketType: BucketType{{ $bt | title }}},
 				{{- else }}
 				input:           nil,
@@ -117,6 +125,13 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "bucket_type_{{$bt}}",
 				config: Config{Profile: ""},
+				{{- if $bto.Conditions }}
+				conditions: map[string]any{
+					{{- range $k := sortedMapKeys $bto.Conditions }}
+					"{{ $k }}": {{ formatValue (index $bto.Conditions $k) }},
+					{{- end }}
+				},
+				{{- end }}
 				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketType{{ $bt | title }}},
 				expectOptimized: {{if ne (printf "%v" $bto.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
@@ -146,6 +161,13 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "profile_overrides_bucket_type",
 				config: Config{Profile: "{{$profile.Name}}"},
+				{{- if $bto.Conditions }}
+				conditions: map[string]any{
+					{{- range $k := sortedMapKeys $bto.Conditions }}
+					"{{ $k }}": {{ formatValue (index $bto.Conditions $k) }},
+					{{- end }}
+				},
+				{{- end }}
 				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketType{{ $bt | title }}},
 				expectOptimized: {{if ne (printf "%v" $profile.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
@@ -160,6 +182,13 @@ func TestApplyOptimizations(t *testing.T) {
 			{
 				name:   "machine_type_overrides_bucket_type",
 				config: Config{Profile: ""},
+				{{- if $bto.Conditions }}
+				conditions: map[string]any{
+					{{- range $k := sortedMapKeys $bto.Conditions }}
+					"{{ $k }}": {{ formatValue (index $bto.Conditions $k) }},
+					{{- end }}
+				},
+				{{- end }}
 				userSetFlags: map[string]any{
 					"machine-type": "{{$machineType}}",
 				},
@@ -207,6 +236,9 @@ func TestApplyOptimizations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// We need a copy of the config for each test case.
 				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
 					c.{{$flag.GoPath}} = tc.expectedValue.({{$flag.GoType}})

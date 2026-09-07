@@ -603,6 +603,48 @@ params:
 `,
 			expectedErrorSubstring: "bucket-type list is empty",
 		},
+		{
+			name: "UnknownConditionConfigPath",
+			yamlContent: `
+params:
+  - config-path: "test-param"
+    proto-tag: 1
+    flag-name: "test-flag"
+    type: "bool"
+    default: false
+    usage: "Test flag"
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "pirlo"
+          conditions:
+            unknown.config.path: true
+          value: true
+`,
+			expectedErrorSubstring: "unknown condition config-path \"unknown.config.path\"",
+		},
+		{
+			name: "DuplicateBucketTypeWithSameConditions",
+			yamlContent: `
+params:
+  - config-path: "test-param"
+    proto-tag: 1
+    flag-name: "test-flag"
+    type: "bool"
+    default: false
+    usage: "Test flag"
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "pirlo"
+          conditions:
+            test-param: true
+          value: true
+        - bucket-type: "pirlo"
+          conditions:
+            test-param: true
+          value: false
+`,
+			expectedErrorSubstring: "duplicate bucket-type \"pirlo;test-param=true\"",
+		},
 	}
 
 	for _, tc := range testCases {

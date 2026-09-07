@@ -29,6 +29,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
+			conditions      map[string]any
 			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
@@ -93,6 +94,9 @@ func TestApplyOptimizations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// We need a copy of the config for each test case.
 				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
 					c.FileSystem.CongestionThreshold = tc.expectedValue.(int64)
@@ -122,6 +126,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
+			conditions      map[string]any
 			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
@@ -170,6 +175,9 @@ func TestApplyOptimizations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// We need a copy of the config for each test case.
 				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
 					c.FileSystem.EnableKernelReader = tc.expectedValue.(bool)
@@ -199,6 +207,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
+			conditions      map[string]any
 			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
@@ -249,6 +258,9 @@ func TestApplyOptimizations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// We need a copy of the config for each test case.
 				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
 					c.FileCache.CacheFileForRangeRead = tc.expectedValue.(bool)
@@ -278,6 +290,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
+			conditions      map[string]any
 			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
@@ -326,6 +339,9 @@ func TestApplyOptimizations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// We need a copy of the config for each test case.
 				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
 					c.Write.FinalizeFileForRapid = tc.expectedValue.(bool)
@@ -355,6 +371,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
+			conditions      map[string]any
 			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
@@ -403,6 +420,9 @@ func TestApplyOptimizations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// We need a copy of the config for each test case.
 				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
 					c.FileSystem.FuseMaxRequestSizeKb = tc.expectedValue.(int64)
@@ -432,6 +452,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
+			conditions      map[string]any
 			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
@@ -519,6 +540,9 @@ func TestApplyOptimizations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// We need a copy of the config for each test case.
 				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
 					c.ImplicitDirs = tc.expectedValue.(bool)
@@ -548,6 +572,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
+			conditions      map[string]any
 			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
@@ -590,6 +615,9 @@ func TestApplyOptimizations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// We need a copy of the config for each test case.
 				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
 					c.FileSystem.KernelListCacheTtlSecs = tc.expectedValue.(int64)
@@ -619,6 +647,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
+			conditions      map[string]any
 			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
@@ -683,6 +712,9 @@ func TestApplyOptimizations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// We need a copy of the config for each test case.
 				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
 					c.FileSystem.MaxBackground = tc.expectedValue.(int64)
@@ -712,6 +744,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
+			conditions      map[string]any
 			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
@@ -776,6 +809,9 @@ func TestApplyOptimizations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// We need a copy of the config for each test case.
 				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
 					c.FileSystem.MaxReadAheadKb = tc.expectedValue.(int64)
@@ -805,6 +841,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
+			conditions      map[string]any
 			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
@@ -892,6 +929,9 @@ func TestApplyOptimizations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// We need a copy of the config for each test case.
 				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
 					c.MetadataCache.NegativeTtlSecs = tc.expectedValue.(int64)
@@ -921,6 +961,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
+			conditions      map[string]any
 			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
@@ -1008,6 +1049,9 @@ func TestApplyOptimizations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// We need a copy of the config for each test case.
 				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
 					c.MetadataCache.TtlSecs = tc.expectedValue.(int64)
@@ -1037,6 +1081,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
+			conditions      map[string]any
 			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
@@ -1117,6 +1162,9 @@ func TestApplyOptimizations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// We need a copy of the config for each test case.
 				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
 					c.FileSystem.RenameDirLimit = tc.expectedValue.(int64)
@@ -1146,6 +1194,7 @@ func TestApplyOptimizations(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
+			conditions      map[string]any
 			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
@@ -1233,6 +1282,9 @@ func TestApplyOptimizations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// We need a copy of the config for each test case.
 				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
 					c.MetadataCache.StatCacheMaxSizeMb = tc.expectedValue.(int64)
@@ -1257,11 +1309,93 @@ func TestApplyOptimizations(t *testing.T) {
 			})
 		}
 	})
+	// Tests for write.block-size-mb
+	t.Run("write.block-size-mb", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			conditions      map[string]any
+			userSetFlags    map[string]any
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name:   "user_set",
+				config: Config{},
+				userSetFlags: map[string]any{
+					"write.block-size-mb": 32 + 1.23,
+					"machine-type":        "a2-megagpu-16g",
+				},
+				conditions: map[string]any{
+					"write.enable-rapid-appends": false,
+					"write.enable-rapid-writes":  true,
+				},
+				input:           &OptimizationInput{BucketType: BucketTypePirlo},
+				expectOptimized: false,
+				expectedValue:   32 + 1.23,
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   32,
+			},
+			{
+				name:   "bucket_type_pirlo",
+				config: Config{Profile: ""},
+				conditions: map[string]any{
+					"write.enable-rapid-appends": false,
+					"write.enable-rapid-writes":  true,
+				},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypePirlo},
+				expectOptimized: true,
+				expectedValue:   1,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.Write.BlockSizeMb = tc.expectedValue.(float64)
+				} else {
+					c.Write.BlockSizeMb = float64(32)
+				}
+
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "write.block-size-mb")
+				} else {
+					assert.NotContains(t, optimizedFlags, "write.block-size-mb")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.Write.BlockSizeMb)
+			})
+		}
+	})
 	// Tests for write.global-max-blocks
 	t.Run("write.global-max-blocks", func(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
+			conditions      map[string]any
 			userSetFlags    map[string]any
 			input           *OptimizationInput
 			expectOptimized bool
@@ -1274,7 +1408,11 @@ func TestApplyOptimizations(t *testing.T) {
 					"write.global-max-blocks": 98765,
 					"machine-type":            "a2-megagpu-16g",
 				},
-				input:           nil,
+				conditions: map[string]any{
+					"write.enable-rapid-appends": false,
+					"write.enable-rapid-writes":  true,
+				},
+				input:           &OptimizationInput{BucketType: BucketTypePirlo},
 				expectOptimized: false,
 				expectedValue:   int64(98765),
 			},
@@ -1295,6 +1433,32 @@ func TestApplyOptimizations(t *testing.T) {
 					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
+				expectOptimized: true,
+				expectedValue:   1600,
+			},
+			{
+				name:   "bucket_type_pirlo",
+				config: Config{Profile: ""},
+				conditions: map[string]any{
+					"write.enable-rapid-appends": false,
+					"write.enable-rapid-writes":  true,
+				},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypePirlo},
+				expectOptimized: true,
+				expectedValue:   16,
+			},
+			{
+				name:   "machine_type_overrides_bucket_type",
+				config: Config{Profile: ""},
+				conditions: map[string]any{
+					"write.enable-rapid-appends": false,
+					"write.enable-rapid-writes":  true,
+				},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
+				},
+				input:           &OptimizationInput{BucketType: BucketTypePirlo},
 				expectOptimized: true,
 				expectedValue:   1600,
 			}, {
@@ -1322,6 +1486,9 @@ func TestApplyOptimizations(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// We need a copy of the config for each test case.
 				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
 					c.Write.GlobalMaxBlocks = tc.expectedValue.(int64)
@@ -1343,6 +1510,87 @@ func TestApplyOptimizations(t *testing.T) {
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.Write.GlobalMaxBlocks)
+			})
+		}
+	})
+	// Tests for write.max-blocks-per-file
+	t.Run("write.max-blocks-per-file", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			conditions      map[string]any
+			userSetFlags    map[string]any
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name:   "user_set",
+				config: Config{},
+				userSetFlags: map[string]any{
+					"write.max-blocks-per-file": 98765,
+					"machine-type":              "a2-megagpu-16g",
+				},
+				conditions: map[string]any{
+					"write.enable-rapid-appends": false,
+					"write.enable-rapid-writes":  true,
+				},
+				input:           &OptimizationInput{BucketType: BucketTypePirlo},
+				expectOptimized: false,
+				expectedValue:   int64(98765),
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   1,
+			},
+			{
+				name:   "bucket_type_pirlo",
+				config: Config{Profile: ""},
+				conditions: map[string]any{
+					"write.enable-rapid-appends": false,
+					"write.enable-rapid-writes":  true,
+				},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypePirlo},
+				expectOptimized: true,
+				expectedValue:   4,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				for k, v := range tc.conditions {
+					_ = setConfigValueByPath(&c, k, v)
+				}
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.Write.MaxBlocksPerFile = tc.expectedValue.(int64)
+				} else {
+					c.Write.MaxBlocksPerFile = int64(1)
+				}
+
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "write.max-blocks-per-file")
+				} else {
+					assert.NotContains(t, optimizedFlags, "write.max-blocks-per-file")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.Write.MaxBlocksPerFile)
 			})
 		}
 	})

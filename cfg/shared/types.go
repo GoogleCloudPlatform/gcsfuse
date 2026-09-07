@@ -55,6 +55,7 @@ type MachineBasedOptimization struct {
 // BucketTypeOptimization defines a bucket-type-based optimization.
 type BucketTypeOptimization struct {
 	BucketTypes BucketTypeList `yaml:"bucket-type"`
+	Conditions  map[string]any `yaml:"conditions,omitempty"`
 	Value       any            `yaml:"value"`
 }
 

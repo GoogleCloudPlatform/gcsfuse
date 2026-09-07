@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -131,6 +132,7 @@ func getOptimizedValue(
 	machineType string,
 	input *OptimizationInput,
 	machineTypeToGroupMap map[string]string,
+	c *Config,
 ) OptimizationResult {
 	// Precedence: Profile -> Machine-type -> Bucket-type -> Default
 	// Assuming Machine and Bucket optimizations are applied on mutually exclusive flags, so
@@ -164,10 +166,14 @@ func getOptimizedValue(
 	if input != nil && input.BucketType.IsValid() {
 		for _, bto := range rules.BucketTypeOptimization {
 			for _, bt := range bto.BucketTypes {
-				if BucketType(bt) == input.BucketType {
+				if BucketType(bt) == input.BucketType && matchesConditions(c, bto.Conditions) {
+					reason := fmt.Sprintf("bucket-type %q", input.BucketType)
+					if len(bto.Conditions) > 0 {
+						reason = fmt.Sprintf("bucket-type %q with matching conditions", input.BucketType)
+					}
 					return OptimizationResult{
 						FinalValue:         bto.Value,
-						OptimizationReason: fmt.Sprintf("bucket-type %q", input.BucketType),
+						OptimizationReason: reason,
 						Optimized:          true,
 					}
 				}
@@ -180,6 +186,188 @@ func getOptimizedValue(
 		FinalValue: currentValue,
 		Optimized:  false,
 	}
+}
+
+// matchesConditions checks if the current config satisfies all the given conditions.
+// If conditions is empty or nil, it returns true.
+func matchesConditions(c *Config, conditions map[string]any) bool {
+	if len(conditions) == 0 {
+		return true
+	}
+	if c == nil {
+		return false
+	}
+	for path, expectedVal := range conditions {
+		actualVal, ok := getConfigValueByPath(c, path)
+		if !ok || !valuesMatch(actualVal, expectedVal) {
+			return false
+		}
+	}
+	return true
+}
+
+// getConfigValueByPath traverses a struct by yaml tags corresponding to the dot-separated path.
+func getConfigValueByPath(config any, path string) (any, bool) {
+	if config == nil || path == "" {
+		return nil, false
+	}
+	parts := strings.Split(path, ".")
+	curr := reflect.ValueOf(config)
+	for curr.Kind() == reflect.Pointer || curr.Kind() == reflect.Interface {
+		if curr.IsNil() {
+			return nil, false
+		}
+		curr = curr.Elem()
+	}
+
+	for _, part := range parts {
+		if curr.Kind() != reflect.Struct {
+			return nil, false
+		}
+		found := false
+		currType := curr.Type()
+		for i := 0; i < curr.NumField(); i++ {
+			field := currType.Field(i)
+			tag := field.Tag.Get("yaml")
+			tagName := strings.Split(tag, ",")[0]
+			if tagName == part {
+				curr = curr.Field(i)
+				for curr.Kind() == reflect.Pointer || curr.Kind() == reflect.Interface {
+					if curr.IsNil() {
+						return nil, false
+					}
+					curr = curr.Elem()
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, false
+		}
+	}
+	if !curr.CanInterface() {
+		return nil, false
+	}
+	return curr.Interface(), true
+}
+
+// setConfigValueByPath sets a field on a struct pointer by traversing yaml tags.
+func setConfigValueByPath(config any, path string, val any) error {
+	if config == nil || path == "" {
+		return fmt.Errorf("invalid config or path")
+	}
+	curr := reflect.ValueOf(config)
+	if curr.Kind() != reflect.Pointer || curr.IsNil() {
+		return fmt.Errorf("config must be a non-nil pointer")
+	}
+	curr = curr.Elem()
+
+	parts := strings.Split(path, ".")
+	for i, part := range parts {
+		for curr.Kind() == reflect.Pointer || curr.Kind() == reflect.Interface {
+			if curr.IsNil() {
+				return fmt.Errorf("nil pointer at %s", part)
+			}
+			curr = curr.Elem()
+		}
+		if curr.Kind() != reflect.Struct {
+			return fmt.Errorf("expected struct at %s", part)
+		}
+		found := false
+		currType := curr.Type()
+		for j := 0; j < curr.NumField(); j++ {
+			field := currType.Field(j)
+			tag := field.Tag.Get("yaml")
+			tagName := strings.Split(tag, ",")[0]
+			if tagName == part {
+				fieldVal := curr.Field(j)
+				if i == len(parts)-1 {
+					if !fieldVal.CanSet() {
+						return fmt.Errorf("cannot set field %s", field.Name)
+					}
+					valToSet := reflect.ValueOf(val)
+					if !valToSet.IsValid() {
+						return fmt.Errorf("invalid value to set")
+					}
+					if valToSet.Type().ConvertibleTo(fieldVal.Type()) {
+						fieldVal.Set(valToSet.Convert(fieldVal.Type()))
+					} else {
+						fieldVal.Set(valToSet)
+					}
+					return nil
+				}
+				curr = fieldVal
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("field %s not found in path %s", part, path)
+		}
+	}
+	return nil
+}
+
+func isIntKind(k reflect.Kind) bool {
+	return k >= reflect.Int && k <= reflect.Int64
+}
+
+func isUintKind(k reflect.Kind) bool {
+	return k >= reflect.Uint && k <= reflect.Uint64
+}
+
+func isFloatKind(k reflect.Kind) bool {
+	return k == reflect.Float32 || k == reflect.Float64
+}
+
+// valuesMatch compares two values, allowing for type flexibility between integers and floats.
+func valuesMatch(actual, expected any) bool {
+	if reflect.DeepEqual(actual, expected) {
+		return true
+	}
+	actualVal := reflect.ValueOf(actual)
+	expectedVal := reflect.ValueOf(expected)
+	if !actualVal.IsValid() || !expectedVal.IsValid() {
+		return false
+	}
+
+	if actualVal.Kind() == reflect.Bool && expectedVal.Kind() == reflect.Bool {
+		return actualVal.Bool() == expectedVal.Bool()
+	}
+	if actualVal.Kind() == reflect.String && expectedVal.Kind() == reflect.String {
+		return actualVal.String() == expectedVal.String()
+	}
+
+	if isIntKind(actualVal.Kind()) && isIntKind(expectedVal.Kind()) {
+		return actualVal.Int() == expectedVal.Int()
+	}
+	if isUintKind(actualVal.Kind()) && isUintKind(expectedVal.Kind()) {
+		return actualVal.Uint() == expectedVal.Uint()
+	}
+	if isFloatKind(actualVal.Kind()) && isFloatKind(expectedVal.Kind()) {
+		return actualVal.Float() == expectedVal.Float()
+	}
+	if isIntKind(actualVal.Kind()) && isUintKind(expectedVal.Kind()) {
+		return actualVal.Int() >= 0 && uint64(actualVal.Int()) == expectedVal.Uint()
+	}
+	if isUintKind(actualVal.Kind()) && isIntKind(expectedVal.Kind()) {
+		return expectedVal.Int() >= 0 && actualVal.Uint() == uint64(expectedVal.Int())
+	}
+	if isIntKind(actualVal.Kind()) && isFloatKind(expectedVal.Kind()) {
+		return float64(actualVal.Int()) == expectedVal.Float()
+	}
+	if isFloatKind(actualVal.Kind()) && isIntKind(expectedVal.Kind()) {
+		return actualVal.Float() == float64(expectedVal.Int())
+	}
+	if isUintKind(actualVal.Kind()) && isFloatKind(expectedVal.Kind()) {
+		return float64(actualVal.Uint()) == expectedVal.Float()
+	}
+	if isFloatKind(actualVal.Kind()) && isUintKind(expectedVal.Kind()) {
+		return actualVal.Float() == float64(expectedVal.Uint())
+	}
+
+	return false
 }
 
 // CreateHierarchicalOptimizedFlags converts a flat map with dot-separated keys

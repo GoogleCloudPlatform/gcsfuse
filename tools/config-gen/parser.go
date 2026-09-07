@@ -199,10 +199,24 @@ func validateParam(param Param) error {
 					return fmt.Errorf("invalid bucket-type %q for flag %s; must be one of: %v",
 						bt, param.FlagName, validBucketTypes)
 				}
-				if seenBucketTypes[bt] {
-					return fmt.Errorf("duplicate bucket-type %q for flag %s", bt, param.FlagName)
+				ruleKey := bt
+				if len(bto.Conditions) > 0 {
+					var condKeys []string
+					for k := range bto.Conditions {
+						condKeys = append(condKeys, k)
+					}
+					slices.Sort(condKeys)
+					var b strings.Builder
+					b.WriteString(bt)
+					for _, k := range condKeys {
+						fmt.Fprintf(&b, ";%s=%v", k, bto.Conditions[k])
+					}
+					ruleKey = b.String()
 				}
-				seenBucketTypes[bt] = true
+				if seenBucketTypes[ruleKey] {
+					return fmt.Errorf("duplicate bucket-type %q for flag %s", ruleKey, param.FlagName)
+				}
+				seenBucketTypes[ruleKey] = true
 			}
 		}
 	}
@@ -235,10 +249,25 @@ func validateParams(params []Param) error {
 	if err := validateForDuplicates(params, func(param Param) string { return param.ConfigPath }); err != nil {
 		return fmt.Errorf("duplicate config-paths found: %w", err)
 	}
+	knownConfigPaths := make(map[string]bool, len(params))
+	for _, p := range params {
+		if p.ConfigPath != "" {
+			knownConfigPaths[p.ConfigPath] = true
+		}
+	}
 	for _, param := range params {
 		err := validateParam(param)
 		if err != nil {
 			return err
+		}
+		if param.Optimizations != nil {
+			for _, bto := range param.Optimizations.BucketTypeOptimization {
+				for k := range bto.Conditions {
+					if !knownConfigPaths[k] {
+						return fmt.Errorf("unknown condition config-path %q in optimization for flag %s", k, param.FlagName)
+					}
+				}
+			}
 		}
 	}
 	return nil

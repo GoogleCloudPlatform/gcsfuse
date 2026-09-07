@@ -287,6 +287,198 @@ func TestApplyOptimizations_Success(t *testing.T) {
 	assert.EqualValues(t, 200000, cfg.FileSystem.RenameDirLimit)
 }
 
+func TestApplyOptimizations_ConditionalBucketType_PirloWithConditions(t *testing.T) {
+	t.Run("Conditions_Met_Optimizes_Write_Params", func(t *testing.T) {
+		cfg := defaultConfig()
+		cfg.Write.EnableRapidWrites = true
+		cfg.Write.EnableRapidAppends = false
+		cfg.Write.BlockSizeMb = 32
+		cfg.Write.MaxBlocksPerFile = 1
+		cfg.Write.GlobalMaxBlocks = 4
+
+		v := viper.New()
+		optimizedFlags := cfg.ApplyOptimizations(v, &OptimizationInput{BucketType: BucketTypePirlo})
+
+		assert.Contains(t, optimizedFlags, "write.block-size-mb")
+		assert.EqualValues(t, 1.0, cfg.Write.BlockSizeMb)
+		assert.Equal(t, `bucket-type "pirlo" with matching conditions`, optimizedFlags["write.block-size-mb"].OptimizationReason)
+
+		assert.Contains(t, optimizedFlags, "write.max-blocks-per-file")
+		assert.EqualValues(t, 4, cfg.Write.MaxBlocksPerFile)
+		assert.Equal(t, `bucket-type "pirlo" with matching conditions`, optimizedFlags["write.max-blocks-per-file"].OptimizationReason)
+
+		assert.Contains(t, optimizedFlags, "write.global-max-blocks")
+		assert.EqualValues(t, 16, cfg.Write.GlobalMaxBlocks)
+		assert.Equal(t, `bucket-type "pirlo" with matching conditions`, optimizedFlags["write.global-max-blocks"].OptimizationReason)
+	})
+
+	t.Run("Conditions_Not_Met_RapidWrites_False", func(t *testing.T) {
+		cfg := defaultConfig()
+		cfg.Write.EnableRapidWrites = false
+		cfg.Write.EnableRapidAppends = false
+		cfg.Write.BlockSizeMb = 32
+		cfg.Write.MaxBlocksPerFile = 1
+		cfg.Write.GlobalMaxBlocks = 4
+
+		v := viper.New()
+		optimizedFlags := cfg.ApplyOptimizations(v, &OptimizationInput{BucketType: BucketTypePirlo})
+
+		assert.NotContains(t, optimizedFlags, "write.block-size-mb")
+		assert.EqualValues(t, 32, cfg.Write.BlockSizeMb)
+		assert.NotContains(t, optimizedFlags, "write.max-blocks-per-file")
+		assert.EqualValues(t, 1, cfg.Write.MaxBlocksPerFile)
+		assert.NotContains(t, optimizedFlags, "write.global-max-blocks")
+		assert.EqualValues(t, 4, cfg.Write.GlobalMaxBlocks)
+	})
+
+	t.Run("Conditions_Not_Met_RapidAppends_True", func(t *testing.T) {
+		cfg := defaultConfig()
+		cfg.Write.EnableRapidWrites = true
+		cfg.Write.EnableRapidAppends = true
+		cfg.Write.BlockSizeMb = 32
+		cfg.Write.MaxBlocksPerFile = 1
+		cfg.Write.GlobalMaxBlocks = 4
+
+		v := viper.New()
+		optimizedFlags := cfg.ApplyOptimizations(v, &OptimizationInput{BucketType: BucketTypePirlo})
+
+		assert.NotContains(t, optimizedFlags, "write.block-size-mb")
+		assert.EqualValues(t, 32, cfg.Write.BlockSizeMb)
+		assert.NotContains(t, optimizedFlags, "write.max-blocks-per-file")
+		assert.EqualValues(t, 1, cfg.Write.MaxBlocksPerFile)
+		assert.NotContains(t, optimizedFlags, "write.global-max-blocks")
+		assert.EqualValues(t, 4, cfg.Write.GlobalMaxBlocks)
+	})
+
+	t.Run("Non_Pirlo_Bucket_No_Optimization", func(t *testing.T) {
+		cfg := defaultConfig()
+		cfg.Write.EnableRapidWrites = true
+		cfg.Write.EnableRapidAppends = false
+		cfg.Write.BlockSizeMb = 32
+		cfg.Write.MaxBlocksPerFile = 1
+		cfg.Write.GlobalMaxBlocks = 4
+
+		v := viper.New()
+		optimizedFlags := cfg.ApplyOptimizations(v, &OptimizationInput{BucketType: BucketTypeZonal})
+
+		assert.NotContains(t, optimizedFlags, "write.block-size-mb")
+		assert.EqualValues(t, 32, cfg.Write.BlockSizeMb)
+		assert.NotContains(t, optimizedFlags, "write.max-blocks-per-file")
+		assert.EqualValues(t, 1, cfg.Write.MaxBlocksPerFile)
+		assert.NotContains(t, optimizedFlags, "write.global-max-blocks")
+		assert.EqualValues(t, 4, cfg.Write.GlobalMaxBlocks)
+	})
+
+	t.Run("User_Set_Flag_Takes_Precedence", func(t *testing.T) {
+		cfg := defaultConfig()
+		cfg.Write.EnableRapidWrites = true
+		cfg.Write.EnableRapidAppends = false
+		cfg.Write.BlockSizeMb = 8.0
+		cfg.Write.MaxBlocksPerFile = 1
+		cfg.Write.GlobalMaxBlocks = 4
+
+		v := viper.New()
+		v.Set("write.block-size-mb", 8.0)
+
+		optimizedFlags := cfg.ApplyOptimizations(v, &OptimizationInput{BucketType: BucketTypePirlo})
+
+		assert.NotContains(t, optimizedFlags, "write.block-size-mb")
+		assert.EqualValues(t, 8.0, cfg.Write.BlockSizeMb)
+		// Other flags should still be optimized
+		assert.Contains(t, optimizedFlags, "write.max-blocks-per-file")
+		assert.EqualValues(t, 4, cfg.Write.MaxBlocksPerFile)
+		assert.Contains(t, optimizedFlags, "write.global-max-blocks")
+		assert.EqualValues(t, 16, cfg.Write.GlobalMaxBlocks)
+	})
+
+	t.Run("DisableAutoconfig_Skips_Optimization", func(t *testing.T) {
+		cfg := defaultConfig()
+		cfg.DisableAutoconfig = true
+		cfg.Write.EnableRapidWrites = true
+		cfg.Write.EnableRapidAppends = false
+		cfg.Write.BlockSizeMb = 32
+		cfg.Write.MaxBlocksPerFile = 1
+		cfg.Write.GlobalMaxBlocks = 4
+
+		v := viper.New()
+		optimizedFlags := cfg.ApplyOptimizations(v, &OptimizationInput{BucketType: BucketTypePirlo})
+
+		assert.Empty(t, optimizedFlags)
+		assert.EqualValues(t, 32, cfg.Write.BlockSizeMb)
+		assert.EqualValues(t, 1, cfg.Write.MaxBlocksPerFile)
+		assert.EqualValues(t, 4, cfg.Write.GlobalMaxBlocks)
+	})
+
+	t.Run("High_Performance_Machine_Precedence_For_GlobalMaxBlocks", func(t *testing.T) {
+		cfg := defaultConfig()
+		cfg.Write.EnableRapidWrites = true
+		cfg.Write.EnableRapidAppends = false
+		cfg.Write.BlockSizeMb = 32
+		cfg.Write.MaxBlocksPerFile = 1
+		cfg.Write.GlobalMaxBlocks = 4
+
+		v := viper.New()
+		v.Set("machine-type", "a3-highgpu-8g")
+
+		optimizedFlags := cfg.ApplyOptimizations(v, &OptimizationInput{BucketType: BucketTypePirlo})
+
+		// Machine-type optimization takes precedence for global-max-blocks: 1600 instead of 16
+		assert.Contains(t, optimizedFlags, "write.global-max-blocks")
+		assert.EqualValues(t, 1600, cfg.Write.GlobalMaxBlocks)
+		assert.Equal(t, `machine-type group "high-performance"`, optimizedFlags["write.global-max-blocks"].OptimizationReason)
+
+		// Bucket-type optimizations still apply to the other write parameters
+		assert.Contains(t, optimizedFlags, "write.block-size-mb")
+		assert.EqualValues(t, 1.0, cfg.Write.BlockSizeMb)
+		assert.Contains(t, optimizedFlags, "write.max-blocks-per-file")
+		assert.EqualValues(t, 4, cfg.Write.MaxBlocksPerFile)
+	})
+}
+
+func TestGetAndSetConfigValueByPath(t *testing.T) {
+	cfg := defaultConfig()
+
+	// Test getConfigValueByPath
+	val, ok := getConfigValueByPath(&cfg, "write.enable-streaming-writes")
+	assert.True(t, ok)
+	assert.Equal(t, true, val)
+
+	val, ok = getConfigValueByPath(&cfg, "non.existent.path")
+	assert.False(t, ok)
+	assert.Nil(t, val)
+
+	// Test setConfigValueByPath
+	err := setConfigValueByPath(&cfg, "write.block-size-mb", 64.0)
+	assert.NoError(t, err)
+	assert.Equal(t, 64.0, cfg.Write.BlockSizeMb)
+
+	err = setConfigValueByPath(&cfg, "write.global-max-blocks", int64(100))
+	assert.NoError(t, err)
+	assert.EqualValues(t, 100, cfg.Write.GlobalMaxBlocks)
+
+	err = setConfigValueByPath(&cfg, "non.existent.path", true)
+	assert.Error(t, err)
+}
+
+func TestValuesMatch(t *testing.T) {
+	assert.True(t, valuesMatch(true, true))
+	assert.True(t, valuesMatch(false, false))
+	assert.False(t, valuesMatch(true, false))
+
+	assert.True(t, valuesMatch("hello", "hello"))
+	assert.False(t, valuesMatch("hello", "world"))
+
+	// Cross-type numeric comparisons
+	assert.True(t, valuesMatch(int(10), int64(10)))
+	assert.True(t, valuesMatch(int64(10), int(10)))
+	assert.True(t, valuesMatch(float64(1.0), int(1)))
+	assert.True(t, valuesMatch(int(1), float64(1.0)))
+	assert.True(t, valuesMatch(uint(5), int64(5)))
+	assert.True(t, valuesMatch(int64(5), uint(5)))
+	assert.False(t, valuesMatch(int(-5), uint(5)))
+	assert.False(t, valuesMatch(int(10), int(20)))
+}
+
 func TestCreateHierarchicalOptimizedFlags_Positive(t *testing.T) {
 	testCases := []struct {
 		name     string

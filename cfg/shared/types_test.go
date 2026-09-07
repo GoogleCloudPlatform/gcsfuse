@@ -82,3 +82,22 @@ func TestBucketTypeListUnmarshalYAMLErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestBucketTypeOptimizationWithConditionsUnmarshalYAML(t *testing.T) {
+	yamlStr := `
+bucket-type: "pirlo"
+conditions:
+  write.enable-rapid-writes: true
+  write.enable-rapid-appends: false
+value: 1.0
+`
+	var bto BucketTypeOptimization
+	err := yaml.Unmarshal([]byte(yamlStr), &bto)
+	require.NoError(t, err)
+	assert.Equal(t, BucketTypeList{"pirlo"}, bto.BucketTypes)
+	assert.Equal(t, map[string]any{
+		"write.enable-rapid-writes":  true,
+		"write.enable-rapid-appends": false,
+	}, bto.Conditions)
+	assert.Equal(t, 1.0, bto.Value)
+}

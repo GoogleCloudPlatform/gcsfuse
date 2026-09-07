@@ -282,6 +282,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 				if err := cfg.Rationalize(serverCfg.ViperConfig, serverCfg.NewConfig, optimizedFlagNames); err != nil {
 					logger.Warnf("GCSFuse Config: error in rationalize after applying bucket-type optimizations: %v", err)
 				}
+				fs.globalMaxWriteBlocksSem = semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks)
 			}
 		} else {
 			logger.Warnf("Cannot apply bucket-type optimizations as ViperConfig is nil")
