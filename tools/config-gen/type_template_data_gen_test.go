@@ -28,7 +28,7 @@ func TestComputeProtoFields(t *testing.T) {
 		{
 			FlagName:       "file-cache-max-size-mb",
 			ConfigPath:     "file-cache.max-size-mb",
-			ProtoType:      "int32",
+			ProtoType:      "sint64",
 			ProtoFieldName: "file_cache_max_size_mb",
 			ProtoTag:       3,
 		},
@@ -68,7 +68,7 @@ func TestComputeProtoFields(t *testing.T) {
 
 	assert.Equal(t, "file_cache_max_size_mb", protoFields[2].ProtoFieldName)
 	assert.Equal(t, 3, protoFields[2].ProtoTag)
-	assert.Equal(t, "int32", protoFields[2].ProtoType)
+	assert.Equal(t, "sint64", protoFields[2].ProtoType)
 }
 
 func TestFormatReservedTags(t *testing.T) {

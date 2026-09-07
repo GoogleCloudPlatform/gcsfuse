@@ -103,7 +103,9 @@ func computeProtoMetadata(configPath string, paramType string) (protoType, proto
 	switch paramType {
 	case "bool":
 		return "bool", name, nil
-	case "int", "octal":
+	case "int":
+		return "sint64", name, nil
+	case "octal":
 		return "int32", name, nil
 	case "duration":
 		return "int64", name, nil // Mapped as nanoseconds
@@ -112,7 +114,7 @@ func computeProtoMetadata(configPath string, paramType string) (protoType, proto
 	case "protocol", "directPathStrategy", "logSeverity":
 		return "string", name, nil
 	case "[]int":
-		return "repeated int32", name, nil
+		return "repeated sint64", name, nil
 	default:
 		return "", "", fmt.Errorf("unknown configuration type [%s] declared for config-path [%s]", paramType, configPath)
 	}
