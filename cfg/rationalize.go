@@ -176,6 +176,18 @@ func resolveOnlyDir(c *Config) {
 	}
 }
 
+// resolveKernelReadAhead auto-adjusts max-read-ahead-kb to match fuse-max-request-size-kb
+// when kernel reader is enabled, unless the user explicitly configured max-read-ahead-kb.
+func resolveKernelReadAhead(v *viper.Viper, c *Config) {
+	if !c.FileSystem.EnableKernelReader {
+		return
+	}
+	if v != nil && v.IsSet("file-system.max-read-ahead-kb") {
+		return
+	}
+	c.FileSystem.MaxReadAheadKb = max(c.FileSystem.MaxReadAheadKb, c.FileSystem.FuseMaxRequestSizeKb)
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	var err error
@@ -198,6 +210,7 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	resolveFileCacheAndBufferedReadConflict(v, c)
 	resolveGCSRetriesConfig(&c.GcsRetries)
 	resolveOnlyDir(c)
+	resolveKernelReadAhead(v, c)
 
 	return nil
 }
