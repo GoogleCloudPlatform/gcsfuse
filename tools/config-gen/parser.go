@@ -95,9 +95,14 @@ var highRiskTextTypes = map[string]bool{
 	"[]string":     true,
 }
 
+var whitelistedTextConfigPaths = map[string]bool{
+	"profile":      true,
+	"machine-type": true,
+}
+
 func computeProtoMetadata(configPath string, paramType string) (protoType, protoFieldName string, err error) {
 	name := strings.ReplaceAll(strings.ReplaceAll(configPath, ".", "_"), "-", "_")
-	if highRiskTextTypes[paramType] {
+	if highRiskTextTypes[paramType] && !whitelistedTextConfigPaths[configPath] {
 		return "bool", fmt.Sprintf("is_%s_set", name), nil
 	}
 	switch paramType {
@@ -111,7 +116,7 @@ func computeProtoMetadata(configPath string, paramType string) (protoType, proto
 		return "int64", name, nil // Mapped as nanoseconds
 	case "float64":
 		return "double", name, nil
-	case "protocol", "directPathStrategy", "logSeverity":
+	case "string", "protocol", "directPathStrategy", "logSeverity":
 		return "string", name, nil
 	case "[]int":
 		return "repeated sint64", name, nil

@@ -725,3 +725,38 @@ params:
 
 	assert.Equal(t, []int{13, 14}, parsedYAML.RetiredParams)
 }
+
+func TestPopulateProtoMetadataWhitelistedText(t *testing.T) {
+	yamlContent := `
+params:
+  - config-path: "app-name"
+    proto-tag: 1
+    flag-name: "app-name"
+    type: "string"
+    usage: "test"
+  - config-path: "machine-type"
+    proto-tag: 2
+    flag-name: "machine-type"
+    type: "string"
+    usage: "test"
+  - config-path: "profile"
+    proto-tag: 3
+    flag-name: "profile"
+    type: "string"
+    usage: "test"
+`
+	parsedYAML, err := parseParamsYAMLStr(yamlContent)
+	require.NoError(t, err)
+
+	require.Len(t, parsedYAML.Params, 3)
+	// Non-whitelisted string field is scrubbed to bool is_<name>_set.
+	assert.Equal(t, "bool", parsedYAML.Params[0].ProtoType)
+	assert.Equal(t, "is_app_name_set", parsedYAML.Params[0].ProtoFieldName)
+
+	// Whitelisted fields retain their string type and exact field name.
+	assert.Equal(t, "string", parsedYAML.Params[1].ProtoType)
+	assert.Equal(t, "machine_type", parsedYAML.Params[1].ProtoFieldName)
+
+	assert.Equal(t, "string", parsedYAML.Params[2].ProtoType)
+	assert.Equal(t, "profile", parsedYAML.Params[2].ProtoFieldName)
+}

@@ -129,7 +129,7 @@ message Config {
   sint64 logging_log_rotate_max_file_size_mb = 105;
   string logging_severity = 106;
   bool is_logging_wire_log_set = 107;
-  bool is_machine_type_set = 108;
+  string machine_type = 108;
   sint64 metadata_cache_deprecated_stat_cache_capacity = 109;
   int64 metadata_cache_deprecated_stat_cache_ttl = 110;
   int64 metadata_cache_deprecated_type_cache_ttl = 111;
@@ -156,7 +156,7 @@ message Config {
   bool is_mount_id_set = 132;
   sint64 mrd_pool_size = 133;
   bool is_only_dir_set = 134;
-  bool is_profile_set = 135;
+  string profile = 135;
   sint64 read_block_size_mb = 136;
   bool read_enable_buffered_read = 137;
   bool read_enable_grpc_read_checksums = 138;
