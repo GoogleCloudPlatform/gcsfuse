@@ -282,6 +282,9 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 				if err := cfg.Rationalize(serverCfg.ViperConfig, serverCfg.NewConfig, optimizedFlagNames); err != nil {
 					logger.Warnf("GCSFuse Config: error in rationalize after applying bucket-type optimizations: %v", err)
 				}
+				// Re-initialize the write blocks semaphore since ApplyOptimizations/Rationalize
+				// may have updated Write.GlobalMaxBlocks (e.g. for Pirlo bucket optimizations),
+				// overriding the initial value assigned during fileSystem struct initialization.
 				fs.globalMaxWriteBlocksSem = semaphore.NewWeighted(serverCfg.NewConfig.Write.GlobalMaxBlocks)
 			}
 		} else {
