@@ -1336,6 +1336,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					ExperimentalODirect:  false,
 					Uid:                  -1,
 					EnableKernelReader:   true,
+					MaxReadAheadKb:       1024,
 				},
 			},
 		},

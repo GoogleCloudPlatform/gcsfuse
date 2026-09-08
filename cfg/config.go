@@ -1325,7 +1325,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("max-idle-conns-per-host", "", 100, "The number of maximum idle connections allowed per server.")
 
-	flagSet.IntP("max-read-ahead-kb", "", 0, "Sets max kernel-read-ahead for the mount in KiB. 0 means system default. Requires sudo permission to set this value, otherwise the value will be ignored and system default will be used.")
+	flagSet.IntP("max-read-ahead-kb", "", 0, "Sets max kernel-read-ahead for the mount in KiB. 0 means system default. Requires sudo permission to set this value, otherwise the value will be ignored and system default will be used. When enable-kernel-reader is enabled and this flag is not explicitly set, max-read-ahead-kb is automatically adjusted to match fuse-max-request-size-kb if fuse-max-request-size-kb is larger.")
 
 	if err := flagSet.MarkHidden("max-read-ahead-kb"); err != nil {
 		return err
