@@ -189,6 +189,9 @@ func (mi *MrdInstance) Read(ctx context.Context, p []byte, offset int64, metrics
 		case <-ctx.Done():
 			return 0, ctx.Err()
 		case res := <-done:
+			if ctx.Err() != nil {
+				return 0, ctx.Err()
+			}
 			if res.err != nil && res.err != io.EOF {
 				return res.bytesRead, fmt.Errorf("Error in Add call: %w", res.err)
 			}

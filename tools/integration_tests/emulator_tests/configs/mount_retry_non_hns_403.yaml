@@ -1,0 +1,6 @@
+targetHost: http://localhost:9000
+retryConfig:
+- method: JsonStat
+  retryInstruction: "return-403"
+  retryCount: 1
+  skipCount: 0

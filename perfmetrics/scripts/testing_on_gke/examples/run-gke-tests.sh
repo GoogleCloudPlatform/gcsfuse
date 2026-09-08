@@ -347,7 +347,7 @@ function installDependencies() {
   # Ensure that make is installed.
   which make >/dev/null || ( sudo apt-get install -y make time >/dev/null && which make >/dev/null )
   # Ensure that go is installed.
-  which go || (version=1.22.4 && wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz 1>/dev/null && sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz 1>/dev/null && sudo mv go /usr/local && echo $PATH && export PATH=$PATH:/usr/local/go/bin && echo $PATH && echo 'export PATH=$PATH:/usr/local/go/bin'>>~/.bashrc && go version)
+  which go || (version=1.27.0 && wget -O go_tar.tar.gz https://go.dev/dl/go${version}.linux-amd64.tar.gz 1>/dev/null && sudo rm -rf /usr/local/go && tar -xzf go_tar.tar.gz 1>/dev/null && sudo mv go /usr/local && echo $PATH && export PATH=$PATH:/usr/local/go/bin && echo $PATH && echo 'export PATH=$PATH:/usr/local/go/bin'>>~/.bashrc && go version)
   # for some reason, the above is unable to update the value of $PATH, so doing it explicitly below.
   export PATH=$PATH:/usr/local/go/bin
   which go >/dev/null

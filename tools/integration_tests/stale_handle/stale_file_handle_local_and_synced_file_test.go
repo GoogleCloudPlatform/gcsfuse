@@ -67,9 +67,9 @@ func (s *staleFileHandleEmptyGcsFile) TearDownTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandleError() {
-	// TODO(b/410698332): Remove skip condition once takeover support is available.
-	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
-		s.T().Skip("Skip test due to takeover support not available.")
+	// TODO(b/554936573): Align the test with appendable object behavior and enable for zonal and pirlo.
+	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsPirloBucketRun()) {
+		s.T().Skip("Skip test until aligned with appendable object behavior.")
 	}
 	// Dirty the file by giving it some contents.
 	_, err := s.f1.WriteAt([]byte(s.data), 0)
@@ -86,9 +86,9 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandle
 }
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
-	// TODO(b/410698332): Remove skip condition once takeover support is available.
-	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
-		s.T().Skip("Skip test due to takeover support not available.")
+	// TODO(b/554936573): Align the test with appendable object behavior and enable for zonal and pirlo.
+	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsPirloBucketRun()) {
+		s.T().Skip("Skip test until aligned with appendable object behavior.")
 	}
 	// Clobber file by replacing the underlying object with a new generation.
 	err := WriteToObject(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, s.fileName), FileContents, storage.Conditions{})
@@ -105,9 +105,9 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFile
 }
 
 func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
-	// TODO(mohitkyadav): Enable test once fix in b/415713332 is released
-	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
-		s.T().Skip("Skip test due to bug (b/415713332) in client.")
+	// TODO(b/554936573): Align test with appendable object behavior where deleting an object after write without subsequent writes does not return an error on Close().
+	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsPirloBucketRun()) {
+		s.T().Skip("Skip test until aligned with appendable object behavior where deleting an object after write without subsequent writes does not return an error on Close().")
 	}
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())

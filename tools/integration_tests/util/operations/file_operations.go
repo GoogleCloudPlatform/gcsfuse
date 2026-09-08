@@ -174,6 +174,7 @@ func CloseFiles(t *testing.T, files []*os.File) {
 		err := file.Close()
 		assert.NoError(t, err)
 	}
+	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterCloseZB)
 }
 
 // Deprecated: please use CloseFileShouldNotThrowError instead.
@@ -232,6 +233,8 @@ func ReadFileSequentially(file *os.File, chunkSize int64) (content []byte, err e
 	return
 }
 
+// WriteChunkOfRandomBytesToFiles writes a chunk of random bytes to multiple files at a given offset.
+// This function does not sync or close the files, the responsibility falls on the caller instead.
 func WriteChunkOfRandomBytesToFiles(files []*os.File, chunkSize int, offset int64) error {
 	// Generate random data of chunk size.
 	chunk, err := GenerateRandomData(int64(chunkSize))
@@ -248,14 +251,6 @@ func WriteChunkOfRandomBytesToFiles(files []*os.File, chunkSize int, offset int6
 
 		if n != chunkSize {
 			return fmt.Errorf("incorrect number of bytes written in the file %s actual %d, expected %d", file.Name(), n, chunkSize)
-		}
-
-		if !setup.IsZonalBucketRun() {
-			err = file.Sync()
-			if err != nil {
-				return fmt.Errorf("error in syncing file: %v", err)
-			}
-			WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterFlushZB)
 		}
 	}
 

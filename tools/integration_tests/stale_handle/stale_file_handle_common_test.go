@@ -58,9 +58,9 @@ func (s *staleFileHandleCommon) TearDownSuite() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
-	// TODO(b/410698332): Remove skip condition once takeover support is available.
-	if s.isStreamingWritesEnabled && setup.IsZonalBucketRun() {
-		s.T().Skip("Skip test due to unable to overwrite the unfinalized zonal object.")
+	// TODO(b/554936573): Align test with appendable object behavior where clobbering an unfinalized object does not fail Close().
+	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsPirloBucketRun()) {
+		s.T().Skip("Skip test until aligned with appendable object behavior where clobbering an unfinalized object does not fail Close().")
 	}
 	// Dirty the file by giving it some contents.
 	operations.WriteWithoutClose(s.f1, s.data, s.T())

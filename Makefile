@@ -13,6 +13,7 @@
 # limitations under the License.
 
 CSI_VERSION ?= main
+GCSFUSE_TAG ?= master
 GCSFUSE_VERSION ?= $(shell HASH=$$(git rev-parse --short=6 HEAD 2>/dev/null); if [ -z "$$HASH" ]; then echo "unknown"; else if [ -n "$$(git status --porcelain)" ]; then echo "$$HASH-dirty"; else echo "$$HASH"; fi; fi)
 GOLANG_VERSION := $(shell cat .go-version)
 BUILD_ARM ?= true
@@ -35,10 +36,65 @@ STAGINGVERSION ?= $(_STAGINGVERSION_FALLBACK)
 # Enforce the prefix (Idempotent: removes prefix if present, then adds it)
 override STAGINGVERSION := $(STAGINGVERSIONPREFIX)$(patsubst $(STAGINGVERSIONPREFIX)%,%,$(STAGINGVERSION))
 
+# Active gcloud project
 PROJECT ?= $(shell gcloud config get-value project 2>/dev/null)
+
+# Cluster configuration derived from active kubectl context (gke_PROJECT_LOCATION_CLUSTERNAME)
+CLUSTER_PROJECT ?= $(shell kubectl config current-context 2>/dev/null | awk -F'_' '{print $$2}')
+CLUSTER_NAME ?= $(shell kubectl config current-context 2>/dev/null | awk -F'_' '{print $$NF}')
+CLUSTER_LOCATION ?= $(shell kubectl config current-context 2>/dev/null | awk -F'_' '{print $$(NF-1)}')
+OVERLAY ?= stable
 .DEFAULT_GOAL := build
 
-.PHONY: generate imports fmt vet lint build buildTest install test clean-gen clean clean-all build-csi
+.PHONY: help generate imports fmt vet lint build buildTest install test clean-gen clean clean-all build-csi install-custom-csi uninstall-custom-csi install-managed-csi uninstall-managed-csi
+
+help:
+	@echo "Usage: make [target] [VARIABLE=value...]"
+	@echo ""
+	@echo "Available Targets:"
+	@echo "  build                  - Lint and compile gcsfuse binaries (default)"
+	@echo "  install                - Install gcsfuse binaries locally to \$$GOPATH/bin"
+	@echo "  test                   - Run unit tests"
+	@echo "  lint                   - Run golangci-lint and go vet"
+	@echo "  vet                    - Run go vet static analysis"
+	@echo "  fmt                    - Format Go source code and run go mod tidy"
+	@echo "  imports                - Organize Go imports and run go generate"
+	@echo "  generate               - Run go generate for config files"
+	@echo "  buildTest              - Compile test packages without executing tests"
+	@echo "  clean                  - Remove build artifacts and caches"
+	@echo "  clean-all              - Remove build artifacts and all installed binaries"
+	@echo "  build-csi              - Build and stage CSI driver images via Google Cloud Build"
+	@echo "  install-custom-csi     - Build and install custom CSI driver onto the target GKE cluster"
+	@echo "  uninstall-custom-csi   - Uninstall custom CSI driver from the target GKE cluster"
+	@echo "  install-managed-csi    - Install GKE managed CSI driver on the target GKE cluster"
+	@echo "  uninstall-managed-csi  - Uninstall GKE managed CSI driver from the target GKE cluster"
+	@echo "  e2e-test               - Run end-to-end integration tests"
+	@echo ""
+	@echo "Configuration Options & Variables:"
+	@echo "  PROJECT          - GCP project ID for Cloud Build and e2e test bucket creation"
+	@echo "                     (default: from active gcloud config: $(PROJECT))"
+	@echo "  CLUSTER_PROJECT  - GCP project ID hosting the target GKE cluster"
+	@echo "                     (default: from active kubectl context: $(CLUSTER_PROJECT))"
+	@echo "  CLUSTER_NAME     - Name of the target GKE cluster for CSI install/uninstall"
+	@echo "                     (default: from active kubectl context: $(CLUSTER_NAME))"
+	@echo "  CLUSTER_LOCATION - Zone/region of the target GKE cluster (e.g., us-central1-c)"
+	@echo "                     (default: from active kubectl context: $(CLUSTER_LOCATION))"
+	@echo "  CSI_VERSION      - Git branch or tag of gcs-fuse-csi-driver to use"
+	@echo "                     (default: $(CSI_VERSION))"
+	@echo "  GCSFUSE_TAG      - Git branch or tag of gcsfuse to build in CSI driver"
+	@echo "                     (default: $(GCSFUSE_TAG))"
+	@echo "  OVERLAY          - Kustomize overlay to deploy during CSI installation (e.g. stable, dev)"
+	@echo "                     (default: $(OVERLAY))"
+	@echo "  GCSFUSE_VERSION  - gcsfuse version string to embed in Cloud Build CSI driver build"
+	@echo "                     (default: $(GCSFUSE_VERSION))"
+	@echo "  GOLANG_VERSION   - Go compiler version used for container image builds"
+	@echo "                     (default: $(GOLANG_VERSION))"
+	@echo "  BUILD_ARM        - Build multi-arch ARM64 images alongside AMD64 (true/false)"
+	@echo "                     (default: $(BUILD_ARM))"
+	@echo "  STAGINGVERSION   - Image tag version used for staging built CSI driver images"
+	@echo "                     (default: $(STAGINGVERSION))"
+	@echo "  ARGS             - Additional arguments and flags passed to improved_run_e2e_tests.sh"
+	@echo "                     (e.g. make e2e-test ARGS=\"--help\", make e2e-test ARGS=\"--run-package operations --presubmit\")"
 
 generate:
 	go generate ./...
@@ -83,9 +139,17 @@ build-csi:
 	# Actual build commands would go here...
 	gcloud builds submit --config csi_driver_build.yml --project=$(PROJECT) --substitutions=_GOLANG_VERSION=$(GOLANG_VERSION),_CSI_VERSION=$(CSI_VERSION),_GCSFUSE_VERSION=$(GCSFUSE_VERSION),_BUILD_ARM=$(BUILD_ARM),_STAGINGVERSION=$(STAGINGVERSION)
 
+install-custom-csi:
+	@tools/scripts/csi/install_custom.sh "$(CLUSTER_PROJECT)" "$(CLUSTER_NAME)" "$(CLUSTER_LOCATION)" "$(GCSFUSE_TAG)" "$(CSI_VERSION)" "$(OVERLAY)"
+
+uninstall-custom-csi:
+	@tools/scripts/csi/uninstall_custom.sh "$(CLUSTER_PROJECT)" "$(CLUSTER_NAME)" "$(CLUSTER_LOCATION)" "$(CSI_VERSION)"
+
+install-managed-csi:
+	@tools/scripts/csi/install_managed.sh "$(CLUSTER_PROJECT)" "$(CLUSTER_NAME)" "$(CLUSTER_LOCATION)"
+
+uninstall-managed-csi:
+	@tools/scripts/csi/uninstall_managed.sh "$(CLUSTER_PROJECT)" "$(CLUSTER_NAME)" "$(CLUSTER_LOCATION)"
+
 e2e-test:
-	ZONE=$$(curl -H "Metadata-Flavor: Google" metadata.google.internal/computeMetadata/v1/instance/zone | awk -F'/' '{print $$NF}'); \
-	echo $$ZONE; \
-	REGION=$$(echo $$ZONE | sed 's/-[a-z]$$//'); \
-	echo $$REGION; \
-	tools/integration_tests/improved_run_e2e_tests.sh --bucket-location $$REGION $(if $(PROJECT),--project-id $(PROJECT))
+	@tools/integration_tests/improved_run_e2e_tests.sh $(if $(PROJECT),--project-id $(PROJECT)) $(ARGS)

@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@
 # deprecated: Specifies whether the param is deprecated. This will cause warnings when the user specifies the flag.
 # deprecationWarning: The warning that should be issued when the user specifies a deprecated flag.
 # hide-flag: Whether to hide flag from the helpdoc.
+# proto-tag: Unique, immutable integer field number assigned to the parameter for Protobuf wire serialization.
 #
 # The params must be kept sorted in ascending order.
 # The linear order between any two params, p1 and p2 is defined as following:
@@ -31,6 +32,12 @@
 # 3. If p1.config-path != "" && p2.config-path == "" then p1 < p2 and vice versa.
 #
 ###################################### DOCUMENTATION ENDS ######################
+
+# Add retired proto-tag numbers here when deleted from active params list.
+# Preserves tag reservation for Protobuf schema generation.
+retired-params: []
+# Example of retired parameters entry:
+#   retired-params: [28, 42]
 
 # Keep this section at the top of the file.
 machine-type-groups:
@@ -64,17 +71,20 @@ machine-type-groups:
 
 params:
   - config-path: "app-name"
+    proto-tag: 1
     flag-name: "app-name"
     type: "string"
     usage: "The application name of this mount."
     default: ""
 
   - config-path: "cache-dir"
+    proto-tag: 2
     flag-name: "cache-dir"
     type: "resolvedPath"
     usage: "Enables file-caching. Specifies the directory to use for file-cache."
 
   - config-path: "cloud-profiler.allocated-heap"
+    proto-tag: 3
     flag-name: "cloud-profiler-allocated-heap"
     type: "bool"
     usage: "Enables allocated heap (HeapProfileAllocs) profiling. This only works when --enable-cloud-profiler is set to true."
@@ -82,6 +92,7 @@ params:
     hide-flag: true
 
   - config-path: "cloud-profiler.cpu"
+    proto-tag: 4
     flag-name: "cloud-profiler-cpu"
     type: "bool"
     usage: "Enables cpu profiling. This only works when --enable-cloud-profiler is set to true."
@@ -89,6 +100,7 @@ params:
     hide-flag: true
 
   - config-path: "cloud-profiler.enabled"
+    proto-tag: 5
     flag-name: "enable-cloud-profiler"
     type: "bool"
     usage: "Enables cloud-profiler, by default disabled."
@@ -96,6 +108,7 @@ params:
     hide-flag: true
 
   - config-path: "cloud-profiler.goroutines"
+    proto-tag: 6
     flag-name: "cloud-profiler-goroutines"
     type: "bool"
     usage: "Enables goroutines cloud-profiler. This only works when --enable-cloud-profiler is set to true."
@@ -103,6 +116,7 @@ params:
     hide-flag: true
 
   - config-path: "cloud-profiler.heap"
+    proto-tag: 7
     flag-name: "cloud-profiler-heap"
     type: "bool"
     usage: "Enables heap cloud-profiler. This only works when --enable-cloud-profiler is set to true."
@@ -110,6 +124,7 @@ params:
     hide-flag: true
 
   - config-path: "cloud-profiler.label"
+    proto-tag: 8
     flag-name: "cloud-profiler-label"
     type: "string"
     usage: >-
@@ -119,6 +134,7 @@ params:
     hide-flag: true
 
   - config-path: "cloud-profiler.mutex"
+    proto-tag: 9
     flag-name: "cloud-profiler-mutex"
     type: "bool"
     usage: "Enables mutex cloud-profiler. This only works when --enable-cloud-profiler is set to true."
@@ -126,6 +142,7 @@ params:
     hide-flag: true
 
   - config-path: "cloud-profiler.service-name"
+    proto-tag: 10
     flag-name: "cloud-profiler-service-name"
     type: "string"
     usage: "The service name for cloud-profiler. This only works when --enable-cloud-profiler is set to true."
@@ -133,12 +150,14 @@ params:
     hide-flag: true
 
   - config-path: "debug.exit-on-invariant-violation"
+    proto-tag: 11
     flag-name: "debug_invariants"
     type: "bool"
     usage: "Exit when internal invariants are violated."
     default: false
 
   - config-path: "debug.fuse"
+    proto-tag: 12
     flag-name: "debug_fuse"
     type: "bool"
     usage: "Enables debug logs."
@@ -147,6 +166,7 @@ params:
     deprecation-warning: "Please set log-severity to TRACE instead."
 
   - config-path: "debug.gcs"
+    proto-tag: 13
     flag-name: "debug_gcs"
     type: "bool"
     usage: "Enables debug logs."
@@ -155,12 +175,14 @@ params:
     deprecation-warning: "Please set log-severity to TRACE instead."
 
   - config-path: "debug.log-mutex"
+    proto-tag: 14
     flag-name: "debug_mutex"
     type: "bool"
     usage: "Print debug messages when a mutex is held too long."
     default: false
 
   - config-path: "disable-autoconfig"
+    proto-tag: 15
     flag-name: "disable-autoconfig"
     type: "bool"
     usage: "Disable optimizing configuration automatically for a machine"
@@ -168,6 +190,7 @@ params:
     hide-flag: true
 
   - config-path: "dummy-io.enable"
+    proto-tag: 16
     flag-name: "enable-dummy-io"
     type: "bool"
     usage: >-
@@ -179,6 +202,7 @@ params:
     hide-flag: true
 
   - config-path: "dummy-io.per-mb-latency"
+    proto-tag: 17
     flag-name: "dummy-io-per-mb-latency"
     type: "duration"
     usage: >-
@@ -188,6 +212,7 @@ params:
     hide-flag: true
 
   - config-path: "dummy-io.reader-latency"
+    proto-tag: 18
     flag-name: "dummy-io-reader-latency"
     type: "duration"
     usage: >-
@@ -197,6 +222,7 @@ params:
     hide-flag: true
 
   - config-path: "enable-atomic-rename-object"
+    proto-tag: 19
     flag-name: "enable-atomic-rename-object"
     type: "bool"
     usage: "Enables support for atomic rename object operation on HNS bucket."
@@ -205,12 +231,14 @@ params:
 
   - flag-name: "enable-google-lib-auth"
     config-path: "enable-google-lib-auth"
+    proto-tag: 20
     type: "bool"
     usage: "Enable google library authentication method to fetch the credentials"
     default: true
     hide-flag: true
 
   - config-path: "enable-hns"
+    proto-tag: 21
     flag-name: "enable-hns"
     type: "bool"
     usage: "Enables support for HNS buckets"
@@ -218,6 +246,7 @@ params:
     hide-flag: true
 
   - config-path: "enable-new-reader"
+    proto-tag: 22
     flag-name: "enable-new-reader"
     type: "bool"
     usage: "Enables support for new reader implementation."
@@ -225,6 +254,7 @@ params:
     hide-flag: true
 
   - config-path: "enable-standard-symlinks"
+    proto-tag: 23
     flag-name: "enable-standard-symlinks"
     type: "bool"
     usage: >-
@@ -235,6 +265,7 @@ params:
     hide-flag: true
 
   - config-path: "enable-type-cache-deprecation"
+    proto-tag: 24
     flag-name: "enable-type-cache-deprecation"
     type: "bool"
     usage: "Enables support to deprecate type cache."
@@ -242,6 +273,7 @@ params:
     hide-flag: true
 
   - config-path: "enable-unsupported-path-support"
+    proto-tag: 25
     flag-name: "enable-unsupported-path-support"
     type: "bool"
     usage: >-
@@ -252,6 +284,7 @@ params:
     hide-flag: true
 
   - config-path: "file-cache.cache-file-for-range-read"
+    proto-tag: 26
     flag-name: "file-cache-cache-file-for-range-read"
     type: "bool"
     usage: "Whether to cache file for range reads."
@@ -264,12 +297,14 @@ params:
           value: true
 
   - config-path: "file-cache.download-chunk-size-mb"
+    proto-tag: 27
     flag-name: "file-cache-download-chunk-size-mb"
     type: "int"
     usage: "Size of chunks in MiB that each concurrent request downloads."
     default: "200"
 
   - config-path: "file-cache.enable-crc"
+    proto-tag: 28
     flag-name: "file-cache-enable-crc"
     type: "bool"
     usage: "Performs CRC to ensure that file is correctly downloaded into cache. No op for rapid storage."
@@ -277,6 +312,7 @@ params:
     hide-flag: true
 
   - config-path: "file-cache.enable-experimental-shared-chunk-cache"
+    proto-tag: 29
     flag-name: "enable-experimental-shared-chunk-cache"
     type: "bool"
     usage: >-
@@ -289,6 +325,7 @@ params:
     hide-flag: false
 
   - config-path: "file-cache.enable-o-direct"
+    proto-tag: 30
     flag-name: "file-cache-enable-o-direct"
     type: "bool"
     usage: "Whether to use O_DIRECT while writing to file-cache in case of parallel downloads."
@@ -296,18 +333,21 @@ params:
     hide-flag: true
 
   - config-path: "file-cache.enable-parallel-downloads"
+    proto-tag: 31
     flag-name: "file-cache-enable-parallel-downloads"
     type: "bool"
     usage: "Enable parallel downloads."
     default: false
 
   - config-path: "file-cache.exclude-regex"
+    proto-tag: 32
     flag-name: "file-cache-exclude-regex"
     type: "string"
     usage: "Exclude file paths (in the format bucket_name/object_key) specified by this regex from file caching."
     default: ""
 
   - config-path: "file-cache.experimental-disable-size-calculation-fix"
+    proto-tag: 33
     flag-name: "file-cache-experimental-disable-size-calculation-fix"
     type: "bool"
     usage: "Disable the fix in calculation of disk-utilization of file-cache."
@@ -315,6 +355,7 @@ params:
     hide-flag: true
 
   - config-path: "file-cache.experimental-enable-chunk-cache"
+    proto-tag: 34
     flag-name: "file-cache-experimental-enable-chunk-cache"
     type: "bool"
     usage: "Enable chunk cache mode for random I/O optimization that downloads only requested blocks."
@@ -322,6 +363,7 @@ params:
     hide-flag: true
 
   - config-path: "file-cache.experimental-parallel-downloads-default-on"
+    proto-tag: 35
     flag-name: "file-cache-experimental-parallel-downloads-default-on"
     type: "bool"
     usage: "Enable parallel downloads by default on experimental basis."
@@ -329,30 +371,35 @@ params:
     hide-flag: true
 
   - config-path: "file-cache.include-regex"
+    proto-tag: 36
     flag-name: "file-cache-include-regex"
     type: "string"
     usage: "Include file paths (in the format bucket_name/object_key) specified by this regex for file caching."
     default: ""
 
   - config-path: "file-cache.max-parallel-downloads"
+    proto-tag: 37
     flag-name: "file-cache-max-parallel-downloads"
     type: "int"
     usage: "Sets an uber limit of number of concurrent file download requests that are made across all files."
     default: "DefaultMaxParallelDownloads()"
 
   - config-path: "file-cache.max-size-mb"
+    proto-tag: 38
     flag-name: "file-cache-max-size-mb"
     type: "int"
     usage: "Maximum size of the file-cache in MiBs"
     default: "-1"
 
   - config-path: "file-cache.parallel-downloads-per-file"
+    proto-tag: 39
     flag-name: "file-cache-parallel-downloads-per-file"
     type: "int"
     usage: "Number of concurrent download requests per file."
     default: "16"
 
   - config-path: "file-cache.shared-cache-chunk-size-mb"
+    proto-tag: 40
     flag-name: "file-cache-shared-cache-chunk-size-mb"
     type: "int"
     usage: "Chunk size in MiBs for shared chunk cache. Each chunk is downloaded on-demand."
@@ -360,6 +407,7 @@ params:
     hide-flag: true
 
   - config-path: "file-cache.write-buffer-size"
+    proto-tag: 41
     flag-name: "file-cache-write-buffer-size"
     type: "int"
     usage: "Size of in-memory buffer that is used per goroutine in parallel downloads while writing to file-cache."
@@ -367,6 +415,7 @@ params:
     hide-flag: true
 
   - config-path: "file-system.congestion-threshold"
+    proto-tag: 42
     flag-name: "congestion-threshold"
     type: "int"
     usage: >-
@@ -383,12 +432,14 @@ params:
           value: "StorageClassStandard.DefaultCongestionThreshold()"
 
   - config-path: "file-system.dir-mode"
+    proto-tag: 43
     flag-name: "dir-mode"
     type: "octal"
     usage: "Permissions bits for directories, in octal."
     default: "0755"
 
   - config-path: "file-system.disable-parallel-dirops"
+    proto-tag: 44
     flag-name: "disable-parallel-dirops"
     type: "bool"
     usage: "Specifies whether to allow parallel dir operations (lookups and readers)"
@@ -396,6 +447,7 @@ params:
     hide-flag: true
 
   - config-path: "file-system.enable-kernel-reader"
+    proto-tag: 45
     flag-name: "enable-kernel-reader"
     type: "bool"
     usage: >-
@@ -409,6 +461,7 @@ params:
           value: true
 
   - config-path: "file-system.experimental-enable-dentry-cache"
+    proto-tag: 46
     flag-name: "experimental-enable-dentry-cache"
     type: "bool"
     usage: >-
@@ -419,6 +472,7 @@ params:
     hide-flag: true
 
   - config-path: "file-system.experimental-enable-pirlo"
+    proto-tag: 47
     flag-name: "experimental-enable-pirlo"
     type: "bool"
     usage: "Enables support for pirlo."
@@ -426,6 +480,7 @@ params:
     hide-flag: true
 
   - config-path: "file-system.experimental-enable-readdirplus"
+    proto-tag: 48
     flag-name: "experimental-enable-readdirplus"
     type: "bool"
     usage: "Enables ReadDirPlus capability"
@@ -433,6 +488,7 @@ params:
     hide-flag: true
 
   - config-path: "file-system.experimental-o-direct"
+    proto-tag: 49
     flag-name: "experimental-o-direct"
     type: "bool"
     usage: >-
@@ -442,12 +498,14 @@ params:
     hide-flag: true
 
   - config-path: "file-system.file-mode"
+    proto-tag: 50
     flag-name: "file-mode"
     type: "octal"
     usage: "Permissions bits for files, in octal."
     default: "0644"
 
   - config-path: "file-system.fuse-max-request-size-kb"
+    proto-tag: 51
     flag-name: "fuse-max-request-size-kb"
     type: "int"
     usage: >-
@@ -468,6 +526,7 @@ params:
           value: "StorageClassStandard.DefaultFuseMaxRequestSizeKb()"
 
   - config-path: "file-system.fuse-max-write-size-kb"
+    proto-tag: 52
     flag-name: "fuse-max-write-size-kb"
     type: "int"
     usage: >-
@@ -479,17 +538,20 @@ params:
     hide-flag: true
 
   - config-path: "file-system.fuse-options"
+    proto-tag: 53
     flag-name: "o"
     type: "[]string"
     usage: "Additional system-specific mount options. Multiple options can be passed as comma separated. For readonly, use --o ro"
 
   - config-path: "file-system.gid"
+    proto-tag: 54
     flag-name: "gid"
     type: "int"
     default: -1
     usage: "GID owner of all inodes."
 
   - config-path: "file-system.ignore-interrupts"
+    proto-tag: 55
     flag-name: "ignore-interrupts"
     type: "bool"
     usage: >-
@@ -499,6 +561,7 @@ params:
     default: true
 
   - config-path: "file-system.inactive-mrd-cache-size"
+    proto-tag: 56
     flag-name: "inactive-mrd-cache-size"
     type: "int"
     usage: >-
@@ -509,6 +572,7 @@ params:
     hide-flag: true
 
   - config-path: "file-system.kernel-list-cache-ttl-secs"
+    proto-tag: 57
     flag-name: "kernel-list-cache-ttl-secs"
     type: "int"
     usage: >-
@@ -525,6 +589,7 @@ params:
           value: -1
 
   - config-path: "file-system.kernel-params-file"
+    proto-tag: 58
     flag-name: "kernel-params-file"
     type: "resolvedPath"
     usage: >-
@@ -532,6 +597,7 @@ params:
     hide-flag: true
 
   - config-path: "file-system.max-background"
+    proto-tag: 59
     flag-name: "max-background"
     type: "int"
     usage: >-
@@ -549,6 +615,7 @@ params:
           value: "StorageClassStandard.DefaultMaxBackground()"
 
   - config-path: "file-system.max-read-ahead-kb"
+    proto-tag: 60
     flag-name: "max-read-ahead-kb"
     type: "int"
     usage: >-
@@ -565,6 +632,7 @@ params:
           value: "StorageClassStandard.DefaultMaxReadAheadKb()"
 
   - config-path: "file-system.rename-dir-limit"
+    proto-tag: 61
     flag-name: "rename-dir-limit"
     type: "int"
     usage: "Allow rename a directory containing fewer descendants than this limit."
@@ -578,6 +646,7 @@ params:
           value: 200000
 
   - config-path: "file-system.strong-consistency-on-open"
+    proto-tag: 62
     flag-name: "strong-consistency-on-open"
     type: "bool"
     usage: >-
@@ -587,6 +656,7 @@ params:
     hide-flag: false
 
   - config-path: "file-system.temp-dir"
+    proto-tag: 63
     flag-name: "temp-dir"
     type: "resolvedPath"
     usage: >-
@@ -595,6 +665,7 @@ params:
     default: ""
 
   - config-path: "file-system.uid"
+    proto-tag: 64
     flag-name: "uid"
     type: "int"
     default: -1
@@ -602,34 +673,40 @@ params:
 
   - flag-name: "foreground"
     config-path: "foreground"
+    proto-tag: 65
     type: "bool"
     usage: "Stay in the foreground after mounting."
     default: false
 
   - config-path: "gcs-auth.anonymous-access"
+    proto-tag: 66
     flag-name: "anonymous-access"
     type: "bool"
     usage: "This flag disables authentication."
     default: false
 
   - config-path: "gcs-auth.key-file"
+    proto-tag: 67
     flag-name: "key-file"
     type: "resolvedPath"
     usage: "Absolute path to JSON key file for use with GCS. If this flag is left unset, Google application default credentials are used."
 
   - config-path: "gcs-auth.reuse-token-from-url"
+    proto-tag: 68
     flag-name: "reuse-token-from-url"
     type: "bool"
     usage: "If false, the token acquired from token-url is not reused."
     default: "true"
 
   - config-path: "gcs-auth.token-url"
+    proto-tag: 69
     flag-name: "token-url"
     type: "string"
     usage: "A url for getting an access token when the key-file is absent."
     default: ""
 
   - config-path: "gcs-connection.billing-project"
+    proto-tag: 70
     flag-name: "billing-project"
     type: "string"
     usage: >-
@@ -638,6 +715,7 @@ params:
     default: ""
 
   - config-path: "gcs-connection.client-protocol"
+    proto-tag: 71
     flag-name: "client-protocol"
     type: "protocol"
     usage: >-
@@ -647,6 +725,7 @@ params:
     default: "http1"
 
   - config-path: "gcs-connection.custom-endpoint"
+    proto-tag: 72
     flag-name: "custom-endpoint"
     type: "string"
     usage: >-
@@ -654,6 +733,7 @@ params:
     default: ""
 
   - config-path: "gcs-connection.enable-http-dns-cache"
+    proto-tag: 73
     flag-name: "enable-http-dns-cache"
     type: "bool"
     usage: "Enables DNS cache for HTTP/1 connections"
@@ -661,6 +741,7 @@ params:
     hide-flag: true
 
   - config-path: "gcs-connection.experimental-enable-json-read"
+    proto-tag: 74
     flag-name: "experimental-enable-json-read"
     type: "bool"
     usage: >-
@@ -671,6 +752,7 @@ params:
     deprecation-warning: "Experimental flag: could be dropped even in a minor release."
 
   - config-path: "gcs-connection.experimental-local-socket-address"
+    proto-tag: 75
     flag-name: "experimental-local-socket-address"
     type: "string"
     usage: "The local socket address to bind to. This is useful in multi-NIC scenarios. This is an experimental flag."
@@ -678,6 +760,7 @@ params:
     hide-flag: true
 
   - config-path: "gcs-connection.grpc-conn-pool-size"
+    proto-tag: 76
     flag-name: "experimental-grpc-conn-pool-size"
     type: "int"
     usage: "The number of gRPC channel in grpc client."
@@ -686,6 +769,7 @@ params:
     deprecation-warning: "Experimental flag: can be removed in a minor release."
 
   - config-path: "gcs-connection.grpc-path-strategy"
+    proto-tag: 77
     flag-name: "grpc-path-strategy"
     type: "directPathStrategy"
     usage: >-
@@ -695,6 +779,7 @@ params:
     hide-flag: true
 
   - config-path: "gcs-connection.http-client-timeout"
+    proto-tag: 78
     flag-name: "http-client-timeout"
     type: "duration"
     usage: >-
@@ -703,18 +788,21 @@ params:
     default: "0s"
 
   - config-path: "gcs-connection.limit-bytes-per-sec"
+    proto-tag: 79
     flag-name: "limit-bytes-per-sec"
     type: "float64"
     usage: "Bandwidth limit for reading data, measured over a 30-second window. (use -1 for no limit)"
     default: "-1"
 
   - config-path: "gcs-connection.limit-ops-per-sec"
+    proto-tag: 80
     flag-name: "limit-ops-per-sec"
     type: "float64"
     usage: "Operations per second limit, measured over a 30-second window (use -1 for no limit)"
     default: "-1"
 
   - config-path: "gcs-connection.max-conns-per-host"
+    proto-tag: 81
     flag-name: "max-conns-per-host"
     type: "int"
     usage: >-
@@ -724,18 +812,21 @@ params:
     default: "0"
 
   - config-path: "gcs-connection.max-idle-conns-per-host"
+    proto-tag: 82
     flag-name: "max-idle-conns-per-host"
     type: "int"
     usage: "The number of maximum idle connections allowed per server."
     default: "100"
 
   - config-path: "gcs-connection.sequential-read-size-mb"
+    proto-tag: 83
     flag-name: "sequential-read-size-mb"
     type: "int"
     usage: "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported"
     default: "200"
 
   - config-path: "gcs-retries.chunk-retry-deadline-secs"
+    proto-tag: 84
     flag-name: "chunk-retry-deadline-secs"
     type: "int"
     usage: >-
@@ -745,6 +836,7 @@ params:
     hide-flag: true
 
   - config-path: "gcs-retries.chunk-transfer-timeout-secs"
+    proto-tag: 85
     flag-name: "chunk-transfer-timeout-secs"
     type: "int"
     usage: >-
@@ -756,6 +848,7 @@ params:
     hide-flag: true
 
   - config-path: "gcs-retries.enable-mount-retries"
+    proto-tag: 86
     flag-name: "enable-mount-retries"
     type: "bool"
     usage: >-
@@ -767,6 +860,7 @@ params:
     hide-flag: true
 
   - config-path: "gcs-retries.max-retry-attempts"
+    proto-tag: 87
     flag-name: "max-retry-attempts"
     type: "int"
     usage: >-
@@ -776,6 +870,7 @@ params:
     default: "0"
 
   - config-path: "gcs-retries.max-retry-sleep"
+    proto-tag: 88
     flag-name: "max-retry-sleep"
     type: "duration"
     usage: >-
@@ -784,6 +879,7 @@ params:
     default: "30s"
 
   - config-path: "gcs-retries.multiplier"
+    proto-tag: 89
     flag-name: "retry-multiplier"
     type: "float64"
     usage: >-
@@ -792,6 +888,7 @@ params:
     default: 2
 
   - config-path: "gcs-retries.read-stall.enable"
+    proto-tag: 90
     flag-name: "enable-read-stall-retry"
     type: "bool"
     usage: >-
@@ -801,6 +898,7 @@ params:
     hide-flag: true
 
   - config-path: "gcs-retries.read-stall.initial-req-timeout"
+    proto-tag: 91
     flag-name: "read-stall-initial-req-timeout"
     type: "duration"
     usage: Initial value of the read-request dynamic timeout.
@@ -808,6 +906,7 @@ params:
     hide-flag: true
 
   - config-path: "gcs-retries.read-stall.max-req-timeout"
+    proto-tag: 92
     flag-name: "read-stall-max-req-timeout"
     type: "duration"
     usage: Upper bound of the read-request dynamic timeout.
@@ -815,6 +914,7 @@ params:
     hide-flag: true
 
   - config-path: "gcs-retries.read-stall.min-req-timeout"
+    proto-tag: 93
     flag-name: "read-stall-min-req-timeout"
     type: "duration"
     usage: Lower bound of the read request dynamic timeout.
@@ -822,6 +922,7 @@ params:
     hide-flag: true
 
   - config-path: "gcs-retries.read-stall.req-increase-rate"
+    proto-tag: 94
     flag-name: "read-stall-req-increase-rate"
     type: "float64"
     usage: Determines how many increase calls it takes for dynamic timeout to double.
@@ -829,6 +930,7 @@ params:
     hide-flag: true
 
   - config-path: "gcs-retries.read-stall.req-target-percentile"
+    proto-tag: 95
     flag-name: "read-stall-req-target-percentile"
     type: "float64"
     usage: Retry the request which take more than p(targetPercentile * 100) of past similar request.
@@ -836,6 +938,7 @@ params:
     hide-flag: true
 
   - config-path: "implicit-dirs"
+    proto-tag: 96
     flag-name: "implicit-dirs"
     type: "bool"
     usage: "Implicitly define directories based on content. See files and directories in docs/semantics for more information"
@@ -853,6 +956,7 @@ params:
           value: true
 
   - config-path: "list.enable-empty-managed-folders"
+    proto-tag: 97
     flag-name: "enable-empty-managed-folders"
     type: "bool"
     usage: >-
@@ -866,6 +970,7 @@ params:
     hide-flag: true
 
   - config-path: "logging.experimental-enable-otel-logging"
+    proto-tag: 98
     flag-name: "experimental-enable-otel-logging"
     type: "bool"
     usage: "Enable OpenTelemetry log exporting."
@@ -873,6 +978,7 @@ params:
     hide-flag: true
 
   - config-path: "logging.experimental-otel-logging-endpoint"
+    proto-tag: 99
     flag-name: "experimental-otel-logging-endpoint"
     type: "string"
     usage: "The OTLP HTTP endpoint for OpenTelemetry logs."
@@ -880,6 +986,7 @@ params:
     hide-flag: true
 
   - config-path: "logging.experimental-otel-logging-project-id"
+    proto-tag: 100
     flag-name: "experimental-otel-logging-project-id"
     type: "string"
     usage: "Specify the GCP project id to which OTel logs will be exported. When unset, a project id will be inferred as per the default credential detection process."
@@ -887,6 +994,7 @@ params:
     hide-flag: true
 
   - config-path: "logging.file-path"
+    proto-tag: 101
     flag-name: "log-file"
     type: "resolvedPath"
     usage: >-
@@ -896,12 +1004,14 @@ params:
       background.
 
   - config-path: "logging.format"
+    proto-tag: 102
     flag-name: "log-format"
     type: "string"
     usage: "The format of the log file: 'text' or 'json'."
     default: "json"
 
   - config-path: "logging.log-rotate.backup-file-count"
+    proto-tag: 103
     flag-name: "log-rotate-backup-file-count"
     type: "int"
     usage: >-
@@ -910,24 +1020,28 @@ params:
     default: "10"
 
   - config-path: "logging.log-rotate.compress"
+    proto-tag: 104
     flag-name: "log-rotate-compress"
     type: "bool"
     usage: "Controls whether the rotated log files should be compressed using gzip."
     default: "true"
 
   - config-path: "logging.log-rotate.max-file-size-mb"
+    proto-tag: 105
     flag-name: "log-rotate-max-file-size-mb"
     type: "int"
     usage: "The maximum size in megabytes that a log file can reach before it is rotated."
     default: "512"
 
   - config-path: "logging.severity"
+    proto-tag: 106
     flag-name: "log-severity"
     type: "logSeverity"
     usage: "Specifies the logging severity expressed as one of [trace, debug, info, warning, error, off]"
     default: "info"
 
   - config-path: "logging.wire-log"
+    proto-tag: 107
     flag-name: "wire-log"
     type: "resolvedPath"
     usage: >-
@@ -936,6 +1050,7 @@ params:
     hide-flag: true
 
   - config-path: "machine-type"
+    proto-tag: 108
     flag-name: "machine-type"
     type: "string"
     usage: "Type of the machine on which gcsfuse is being run e.g. a3-highgpu-4g"
@@ -943,6 +1058,7 @@ params:
     hide-flag: true
 
   - config-path: "metadata-cache.deprecated-stat-cache-capacity"
+    proto-tag: 109
     flag-name: "stat-cache-capacity"
     type: "int"
     usage: >-
@@ -958,6 +1074,7 @@ params:
     default: "20460"
 
   - config-path: "metadata-cache.deprecated-stat-cache-ttl"
+    proto-tag: 110
     flag-name: "stat-cache-ttl"
     type: "duration"
     usage: >-
@@ -973,6 +1090,7 @@ params:
       metadata-cache-ttl-secs.
 
   - config-path: "metadata-cache.deprecated-type-cache-ttl"
+    proto-tag: 111
     flag-name: "type-cache-ttl"
     type: "duration"
     usage: >-
@@ -988,6 +1106,7 @@ params:
       metadata-cache-ttl-secs.
 
   - config-path: "metadata-cache.enable-metadata-prefetch"
+    proto-tag: 112
     flag-name: "enable-metadata-prefetch"
     type: "bool"
     usage: >-
@@ -998,6 +1117,7 @@ params:
     hide-flag: false
 
   - config-path: "metadata-cache.enable-nonexistent-type-cache"
+    proto-tag: 113
     flag-name: "enable-nonexistent-type-cache"
     type: "bool"
     usage: >-
@@ -1010,12 +1130,14 @@ params:
     default: false
 
   - config-path: "metadata-cache.experimental-enable-optimized-metadata-cache"
+    proto-tag: 114
     flag-name: "experimental-enable-optimized-metadata-cache"
     type: "bool"
     usage: "This flag enables the radix tree based lru cache"
     default: false
 
   - config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
+    proto-tag: 115
     flag-name: "experimental-metadata-prefetch-on-mount"
     type: "string"
     usage: >-
@@ -1029,6 +1151,7 @@ params:
     deprecation-warning: "Experimental flag: could be removed even in a minor release."
 
   - config-path: "metadata-cache.metadata-prefetch-entries-limit"
+    proto-tag: 116
     flag-name: "metadata-prefetch-entries-limit"
     type: "int"
     usage: >
@@ -1041,6 +1164,7 @@ params:
     hide-flag: false
 
   - config-path: "metadata-cache.metadata-prefetch-max-workers"
+    proto-tag: 117
     flag-name: "metadata-prefetch-max-workers"
     type: "int"
     usage: >
@@ -1051,6 +1175,7 @@ params:
     hide-flag: false
 
   - config-path: "metadata-cache.negative-ttl-secs"
+    proto-tag: 118
     flag-name: "metadata-cache-negative-ttl-secs"
     type: "int"
     usage: >-
@@ -1071,6 +1196,7 @@ params:
           value: 0
 
   - config-path: "metadata-cache.stat-cache-max-size-mb"
+    proto-tag: 119
     flag-name: "stat-cache-max-size-mb"
     type: "int"
     usage: >-
@@ -1090,6 +1216,7 @@ params:
           value: -1
 
   - config-path: "metadata-cache.ttl-secs"
+    proto-tag: 120
     flag-name: "metadata-cache-ttl-secs"
     type: "int"
     usage: >-
@@ -1110,12 +1237,14 @@ params:
           value: -1
 
   - config-path: "metadata-cache.type-cache-max-size-mb"
+    proto-tag: 121
     flag-name: "type-cache-max-size-mb"
     type: "int"
     usage: "Max size of type-cache maps which are maintained at a per-directory level. This flag has been deprecated in favour of a single unified flag stat-cache-max-size-mb."
     default: "4"
 
   - config-path: "metrics.buffer-size"
+    proto-tag: 122
     flag-name: "metrics-buffer-size"
     type: "int"
     usage: "The maximum number of histogram metric updates in the queue."
@@ -1123,12 +1252,14 @@ params:
     hide-flag: true
 
   - config-path: "metrics.cloud-metrics-export-interval-secs"
+    proto-tag: 123
     flag-name: "cloud-metrics-export-interval-secs"
     type: "int"
     usage: "Specifies the interval at which the metrics are uploaded to cloud monitoring"
     default: 0
 
   - config-path: "metrics.experimental-enable-grpc-metrics"
+    proto-tag: 124
     flag-name: "experimental-enable-grpc-metrics"
     type: "bool"
     usage: "Enables support for gRPC metrics"
@@ -1136,6 +1267,7 @@ params:
     hide-flag: true
 
   - config-path: "metrics.experimental-enable-otel-metrics"
+    proto-tag: 125
     flag-name: "experimental-enable-otel-metrics"
     type: "bool"
     usage: "Enable OpenTelemetry metrics exporting. Must also set cloud-metrics-export-interval-secs > 0 to take effect."
@@ -1143,6 +1275,7 @@ params:
     hide-flag: true
 
   - config-path: "metrics.experimental-otel-metrics-endpoint"
+    proto-tag: 126
     flag-name: "experimental-otel-metrics-endpoint"
     type: "string"
     usage: "The OTLP HTTP endpoint for OpenTelemetry metrics."
@@ -1150,6 +1283,7 @@ params:
     hide-flag: true
 
   - config-path: "metrics.experimental-otel-metrics-project-id"
+    proto-tag: 127
     flag-name: "experimental-otel-metrics-project-id"
     type: "string"
     usage: "Specify the GCP project id to which OTel metrics will be exported. When unset, a project id will be inferred as per the default credential detection process."
@@ -1157,12 +1291,14 @@ params:
     hide-flag: true
 
   - config-path: "metrics.prometheus-port"
+    proto-tag: 128
     flag-name: "prometheus-port"
     type: "int"
     usage: "Expose Prometheus metrics endpoint on this port and a path of /metrics."
     default: "0"
 
   - config-path: "metrics.stackdriver-export-interval"
+    proto-tag: 129
     flag-name: "stackdriver-export-interval"
     type: "duration"
     usage: >-
@@ -1173,6 +1309,7 @@ params:
     deprecation-warning: "Please use --cloud-metrics-export-interval-secs instead."
 
   - config-path: "metrics.use-new-names"
+    proto-tag: 130
     flag-name: "metrics-use-new-names"
     type: "bool"
     usage: "Use the new metric names."
@@ -1180,6 +1317,7 @@ params:
     hide-flag: true
 
   - config-path: "metrics.workers"
+    proto-tag: 131
     flag-name: "metrics-workers"
     type: "int"
     usage: "The number of workers that update histogram metrics concurrently."
@@ -1187,6 +1325,7 @@ params:
     hide-flag: true
 
   - config-path: "mount-id"
+    proto-tag: 132
     flag-name: "mount-id"
     type: "string"
     usage: "Custom identifier to be appended to the mount ID and printed in all logs."
@@ -1194,6 +1333,7 @@ params:
     hide-flag: true
 
   - config-path: "mrd.pool-size"
+    proto-tag: 133
     flag-name: "mrd-pool-size"
     type: "int"
     usage: >-
@@ -1202,18 +1342,21 @@ params:
     hide-flag: true
 
   - config-path: "only-dir"
+    proto-tag: 134
     flag-name: "only-dir"
     type: "string"
     usage: "Mount only a specific directory within the bucket. See docs/mounting for more information"
     default: ""
 
   - config-path: "profile"
+    proto-tag: 135
     flag-name: "profile"
     type: "string"
     usage: "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing"
     default: ""
 
   - config-path: "read.block-size-mb"
+    proto-tag: 136
     flag-name: "read-block-size-mb"
     type: "int"
     usage: >-
@@ -1223,6 +1366,7 @@ params:
     hide-flag: true
 
   - config-path: "read.enable-buffered-read"
+    proto-tag: 137
     flag-name: "enable-buffered-read"
     type: "bool"
     usage: >-
@@ -1232,6 +1376,7 @@ params:
     default: false
 
   - config-path: "read.enable-grpc-read-checksums"
+    proto-tag: 138
     flag-name: "enable-grpc-read-checksums"
     type: "bool"
     usage: "Enables chunk-level CRC32C checksum validation for gRPC read operations. Disabled by default to optimize CPU utilization."
@@ -1239,6 +1384,7 @@ params:
     hide-flag: true
 
   - config-path: "read.global-max-blocks"
+    proto-tag: 139
     flag-name: "read-global-max-blocks"
     type: "int"
     usage: >-
@@ -1248,6 +1394,7 @@ params:
     default: 40
 
   - config-path: "read.inactive-stream-timeout"
+    proto-tag: 140
     flag-name: "read-inactive-stream-timeout"
     type: "duration"
     usage: >-
@@ -1258,6 +1405,7 @@ params:
     hide-flag: true
 
   - config-path: "read.max-blocks-per-handle"
+    proto-tag: 141
     flag-name: "read-max-blocks-per-handle"
     type: "int"
     usage: >-
@@ -1268,6 +1416,7 @@ params:
     hide-flag: true
 
   - config-path: "read.min-blocks-per-handle"
+    proto-tag: 142
     flag-name: "read-min-blocks-per-handle"
     type: "int"
     usage: >-
@@ -1277,6 +1426,7 @@ params:
     hide-flag: true
 
   - config-path: "read.random-seek-threshold"
+    proto-tag: 143
     flag-name: "read-random-seek-threshold"
     type: "int"
     usage: >-
@@ -1285,6 +1435,7 @@ params:
     hide-flag: true
 
   - config-path: "read.start-blocks-per-handle"
+    proto-tag: 144
     flag-name: "read-start-blocks-per-handle"
     type: "int"
     usage: >-
@@ -1293,6 +1444,7 @@ params:
     hide-flag: true
 
   - config-path: "trace.exporters"
+    proto-tag: 145
     flag-name: "trace-exporters"
     type: "[]string"
     usage: "Specify comma separated value of the exporters where traces are exported to. Supported values: stdout(writes traces to stdout), gcpexporter(exports traces to google cloud trace)"
@@ -1300,6 +1452,7 @@ params:
     hide-flag: true
 
   - config-path: "trace.project-id"
+    proto-tag: 146
     flag-name: "trace-project-id"
     type: "string"
     usage: "Specify the GCP project id to which traces will be exported. When unset, a project id will be inferred as per the default credential detection process"
@@ -1307,12 +1460,14 @@ params:
     hide-flag: true
 
   - config-path: "trace.sampling-ratio"
+    proto-tag: 147
     flag-name: "trace-sampling-ratio"
     type: "float64"
     usage: "Specifies the fraction of traces to export, ranging from 0.0 to 1.0. Setting a value greater than 0 enables tracing; 1.0 exports all traces, while 0.0 (default) disables them. Use this to balance the number of traces exported with the tradeoff of higher perf and cost impact."
     default: 0
 
   - config-path: "workload-insight.forward-merge-threshold-mb"
+    proto-tag: 148
     flag-name: "workload-insight-forward-merge-threshold-mb"
     type: "int"
     usage: >-
@@ -1324,6 +1479,7 @@ params:
     hide-flag: true
 
   - config-path: "workload-insight.output-file"
+    proto-tag: 149
     flag-name: "workload-insight-output-file"
     type: "string"
     usage: >-
@@ -1333,6 +1489,7 @@ params:
     hide-flag: true
 
   - config-path: "workload-insight.visualize"
+    proto-tag: 150
     flag-name: "visualize-workload-insight"
     type: "bool"
     usage: >-
@@ -1343,6 +1500,7 @@ params:
     hide-flag: true
 
   - config-path: "write.block-size-mb"
+    proto-tag: 151
     flag-name: "write-block-size-mb"
     type: "float64"
     usage: >-
@@ -1353,6 +1511,7 @@ params:
     hide-flag: true
 
   - config-path: "write.create-empty-file"
+    proto-tag: 152
     flag-name: "create-empty-file"
     type: "bool"
     usage: "For a new file, it creates an empty file in Cloud Storage bucket as a hold."
@@ -1360,24 +1519,28 @@ params:
     hide-flag: true
 
   - config-path: "write.enable-rapid-appends"
+    proto-tag: 153
     flag-name: "enable-rapid-appends"
     type: "bool"
     usage: "Enables support for appends to unfinalized object using streaming writes"
     default: true
 
   - config-path: "write.enable-rapid-writes"
+    proto-tag: 154
     flag-name: "enable-rapid-writes"
     type: "bool"
     usage: "For pirlo, toggles between using STANDARD class and RAPID class for writes."
     default: false
 
   - config-path: "write.enable-streaming-writes"
+    proto-tag: 155
     flag-name: "enable-streaming-writes"
     type: "bool"
     usage: "Enables streaming uploads during write file operation."
     default: true
 
   - config-path: "write.finalize-file-for-rapid"
+    proto-tag: 156
     flag-name: "finalize-file-for-rapid"
     type: "bool"
     usage: "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files."
@@ -1391,6 +1554,7 @@ params:
           value: true
 
   - config-path: "write.global-max-blocks"
+    proto-tag: 157
     flag-name: "write-global-max-blocks"
     type: "int"
     usage: >-
@@ -1404,6 +1568,7 @@ params:
           value: 1600
 
   - config-path: "write.max-blocks-per-file"
+    proto-tag: 158
     flag-name: "write-max-blocks-per-file"
     type: "int"
     usage: >-
