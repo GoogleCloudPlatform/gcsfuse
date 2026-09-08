@@ -235,7 +235,7 @@ type MetricHandle interface {
 	// MetadataCacheReadCount - Total number of read requests to the metadata cache. Use attributes to analyze hit/miss ratios, entry types, and specific lookup outcomes (e.g., expiration vs. total absence).
 	MetadataCacheReadCount(inc int64, cacheHit bool, entryStatus EntryStatus, lookupDetail LookupDetail)
 
-	// MetadataCacheSize - The total size of the entries in the metadata cache
+	// MetadataCacheSize - The total memory size (in bytes) of the entries in the metadata cache
 	MetadataCacheSize(inc int64, entryStatus EntryStatus)
 
 	// ReadBlockSizes - The cumulative distribution of read block sizes across different bucket boundaries

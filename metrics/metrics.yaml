@@ -276,8 +276,9 @@
     - not_found
 
 - metric-name: "metadata_cache/size"
-  description: "The total size of the entries in the metadata cache"
+  description: "The total memory size (in bytes) of the entries in the metadata cache"
   type: "int_up_down_counter"
+  unit: "By"
   attributes:
   - attribute-name: entry_status
     attribute-type: string

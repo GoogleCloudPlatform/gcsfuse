@@ -3839,8 +3839,8 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		}))
 
 	_, err17 := meter.Int64ObservableUpDownCounter("metadata_cache/size",
-		metric.WithDescription("The total size of the entries in the metadata cache"),
-		metric.WithUnit(""),
+		metric.WithDescription("The total memory size (in bytes) of the entries in the metadata cache"),
+		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
 			observeUpDownCounter(obsrv, &metadataCacheSizeEntryStatusNegativeAtomic, metadataCacheSizeEntryStatusNegativeAttrSet)
 			observeUpDownCounter(obsrv, &metadataCacheSizeEntryStatusPositiveAtomic, metadataCacheSizeEntryStatusPositiveAttrSet)
