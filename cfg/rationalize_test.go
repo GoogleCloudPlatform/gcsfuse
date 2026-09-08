@@ -930,7 +930,7 @@ func TestResolveOnlyDir(t *testing.T) {
 	}
 }
 
-func TestResolveKernelReadAhead(t *testing.T) {
+func Test_resolve_kernel_read_ahead(t *testing.T) {
 	testCases := []struct {
 		name                string
 		userSetFlags        map[string]any
@@ -941,28 +941,28 @@ func TestResolveKernelReadAhead(t *testing.T) {
 		expectedReadAheadKb int64
 	}{
 		{
-			name:                "AC1: kernel reader enabled, read-ahead unset, request size larger than default",
+			name:                "enabled_unset_large_request_size",
 			enableKernelReader:  true,
 			initialReadAheadKb:  131072, // 128 MiB (regional default)
 			requestSizeKb:       261120, // 255 MiB
 			expectedReadAheadKb: 261120,
 		},
 		{
-			name:                "AC1: kernel reader enabled, read-ahead unset, unoptimized startup (0) adjusted to request size",
+			name:                "enabled_startup_zero_adjusted",
 			enableKernelReader:  true,
 			initialReadAheadKb:  0,
 			requestSizeKb:       261120,
 			expectedReadAheadKb: 261120,
 		},
 		{
-			name:                "AC1: kernel reader enabled, read-ahead unset, startup default request size (1024)",
+			name:                "enabled_startup_default_request_size",
 			enableKernelReader:  true,
 			initialReadAheadKb:  0,
 			requestSizeKb:       1024,
 			expectedReadAheadKb: 1024,
 		},
 		{
-			name:                "AC2: kernel reader enabled, read-ahead explicitly set lower than request size",
+			name:                "enabled_explicit_read_ahead_lower",
 			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 1024},
 			enableKernelReader:  true,
 			initialReadAheadKb:  1024,
@@ -970,7 +970,7 @@ func TestResolveKernelReadAhead(t *testing.T) {
 			expectedReadAheadKb: 1024,
 		},
 		{
-			name:                "AC2: kernel reader enabled, read-ahead explicitly set to 0",
+			name:                "enabled_explicit_zero_preserved",
 			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 0},
 			enableKernelReader:  true,
 			initialReadAheadKb:  0,
@@ -978,7 +978,7 @@ func TestResolveKernelReadAhead(t *testing.T) {
 			expectedReadAheadKb: 0,
 		},
 		{
-			name:                "AC2: kernel reader enabled, read-ahead explicitly set higher than request size",
+			name:                "enabled_explicit_read_ahead_higher",
 			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 524288},
 			enableKernelReader:  true,
 			initialReadAheadKb:  524288,
@@ -986,56 +986,56 @@ func TestResolveKernelReadAhead(t *testing.T) {
 			expectedReadAheadKb: 524288,
 		},
 		{
-			name:                "AC3: kernel reader enabled, request size equal to default read-ahead",
+			name:                "enabled_request_size_equal_read_ahead",
 			enableKernelReader:  true,
 			initialReadAheadKb:  131072,
 			requestSizeKb:       131072,
 			expectedReadAheadKb: 131072,
 		},
 		{
-			name:                "AC3: kernel reader enabled, request size smaller than default read-ahead (16 MiB default)",
+			name:                "enabled_request_size_smaller_read_ahead",
 			enableKernelReader:  true,
 			initialReadAheadKb:  131072, // 128 MiB
 			requestSizeKb:       16384,  // 16 MiB
 			expectedReadAheadKb: 131072,
 		},
 		{
-			name:                "AC3: kernel reader enabled, request size explicitly small (8 MiB)",
+			name:                "enabled_explicit_small_request_size",
 			enableKernelReader:  true,
 			initialReadAheadKb:  131072,
 			requestSizeKb:       8192,
 			expectedReadAheadKb: 131072,
 		},
 		{
-			name:                "AC3: kernel reader enabled, request size unset / 0",
+			name:                "enabled_request_size_zero",
 			enableKernelReader:  true,
 			initialReadAheadKb:  131072,
 			requestSizeKb:       0,
 			expectedReadAheadKb: 131072,
 		},
 		{
-			name:                "AC4: kernel reader disabled, request size larger than default read-ahead",
+			name:                "disabled_large_request_size",
 			enableKernelReader:  false,
 			initialReadAheadKb:  131072,
 			requestSizeKb:       261120,
 			expectedReadAheadKb: 131072,
 		},
 		{
-			name:                "AC4: kernel reader disabled, startup initial read-ahead 0",
+			name:                "disabled_startup_zero",
 			enableKernelReader:  false,
 			initialReadAheadKb:  0,
 			requestSizeKb:       261120,
 			expectedReadAheadKb: 0,
 		},
 		{
-			name:                "Rapid: rapid defaults preserved (16 MiB read-ahead, 1 MiB request size)",
+			name:                "rapid_defaults_preserved",
 			enableKernelReader:  true,
 			initialReadAheadKb:  16384, // 16 MiB rapid default
 			requestSizeKb:       1024,  // 1 MiB rapid default
 			expectedReadAheadKb: 16384,
 		},
 		{
-			name:                "Rapid: explicit read-ahead preserved on rapid bucket",
+			name:                "rapid_explicit_read_ahead_preserved",
 			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 4096},
 			enableKernelReader:  true,
 			initialReadAheadKb:  4096,
@@ -1043,7 +1043,7 @@ func TestResolveKernelReadAhead(t *testing.T) {
 			expectedReadAheadKb: 4096,
 		},
 		{
-			name:                "Rapid: explicit read-ahead lower than request size preserved on rapid bucket",
+			name:                "rapid_explicit_lower_preserved",
 			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 512},
 			enableKernelReader:  true,
 			initialReadAheadKb:  512,
@@ -1051,7 +1051,7 @@ func TestResolveKernelReadAhead(t *testing.T) {
 			expectedReadAheadKb: 512,
 		},
 		{
-			name:                "Rapid: explicit read-ahead higher than default preserved on rapid bucket",
+			name:                "rapid_explicit_higher_preserved",
 			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 32768},
 			enableKernelReader:  true,
 			initialReadAheadKb:  32768,
@@ -1059,7 +1059,7 @@ func TestResolveKernelReadAhead(t *testing.T) {
 			expectedReadAheadKb: 32768,
 		},
 		{
-			name:                "Edge Case: nil viper does not panic and applies auto-adjustment",
+			name:                "nil_viper_auto_adjustment",
 			nilViper:            true,
 			enableKernelReader:  true,
 			initialReadAheadKb:  131072,
@@ -1093,7 +1093,7 @@ func TestResolveKernelReadAhead(t *testing.T) {
 	}
 }
 
-func TestRationalize_KernelReadAhead(t *testing.T) {
+func Test_rationalize_kernel_read_ahead(t *testing.T) {
 	testCases := []struct {
 		name                string
 		userSetFlags        map[string]any
@@ -1103,14 +1103,14 @@ func TestRationalize_KernelReadAhead(t *testing.T) {
 		expectedReadAheadKb int64
 	}{
 		{
-			name:                "Rationalize adjusts read-ahead when kernel reader enabled and request size > default",
+			name:                "adjusts_large_request_size",
 			enableKernelReader:  true,
 			initialReadAheadKb:  131072,
 			requestSizeKb:       261120,
 			expectedReadAheadKb: 261120,
 		},
 		{
-			name:                "Rationalize preserves explicit read-ahead even if lower than request size",
+			name:                "preserves_explicit_read_ahead",
 			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 2048},
 			enableKernelReader:  true,
 			initialReadAheadKb:  2048,
@@ -1118,21 +1118,21 @@ func TestRationalize_KernelReadAhead(t *testing.T) {
 			expectedReadAheadKb: 2048,
 		},
 		{
-			name:                "Rationalize preserves default read-ahead when request size <= default",
+			name:                "preserves_default_read_ahead",
 			enableKernelReader:  true,
 			initialReadAheadKb:  131072,
 			requestSizeKb:       16384,
 			expectedReadAheadKb: 131072,
 		},
 		{
-			name:                "Rationalize does not override read-ahead when kernel reader is disabled",
+			name:                "disabled_reader_preserves_read_ahead",
 			enableKernelReader:  false,
 			initialReadAheadKb:  131072,
 			requestSizeKb:       261120,
 			expectedReadAheadKb: 131072,
 		},
 		{
-			name:                "Rationalize preserves rapid bucket defaults",
+			name:                "preserves_rapid_defaults",
 			enableKernelReader:  true,
 			initialReadAheadKb:  16384,
 			requestSizeKb:       1024,
@@ -1163,7 +1163,7 @@ func TestRationalize_KernelReadAhead(t *testing.T) {
 	}
 }
 
-func TestRationalize_WithBucketOptimization(t *testing.T) {
+func Test_rationalize_with_bucket_optimization(t *testing.T) {
 	testCases := []struct {
 		name                string
 		bucketType          BucketType
@@ -1174,7 +1174,7 @@ func TestRationalize_WithBucketOptimization(t *testing.T) {
 		expectedKernelRd    bool
 	}{
 		{
-			name:       "Standard bucket with kernel reader and large request size (255 MiB) auto-adjusts read-ahead",
+			name:       "flat_bucket_large_request_size",
 			bucketType: BucketTypeFlat,
 			userSetFlags: map[string]any{
 				"file-system.enable-kernel-reader":     true,
@@ -1189,7 +1189,7 @@ func TestRationalize_WithBucketOptimization(t *testing.T) {
 			expectedKernelRd:    true,
 		},
 		{
-			name:       "Standard bucket with kernel reader and default request size preserves 128 MiB default read-ahead",
+			name:       "flat_bucket_default_request_size",
 			bucketType: BucketTypeFlat,
 			userSetFlags: map[string]any{
 				"file-system.enable-kernel-reader": true,
@@ -1202,7 +1202,7 @@ func TestRationalize_WithBucketOptimization(t *testing.T) {
 			expectedKernelRd:    true,
 		},
 		{
-			name:       "Standard bucket with explicit read-ahead preserves user value despite large request size",
+			name:       "flat_bucket_explicit_read_ahead",
 			bucketType: BucketTypeFlat,
 			userSetFlags: map[string]any{
 				"file-system.enable-kernel-reader":     true,
@@ -1219,7 +1219,7 @@ func TestRationalize_WithBucketOptimization(t *testing.T) {
 			expectedKernelRd:    true,
 		},
 		{
-			name:         "Rapid bucket default optimization preserves 16 MiB read-ahead and auto-enables kernel reader",
+			name:         "rapid_bucket_default_optimization",
 			bucketType:   BucketTypeZonal,
 			userSetFlags: map[string]any{},
 			setupConfig: func(c *Config) {
@@ -1230,7 +1230,7 @@ func TestRationalize_WithBucketOptimization(t *testing.T) {
 			expectedKernelRd:    true,
 		},
 		{
-			name:       "Rapid bucket with explicit read-ahead preserves user value",
+			name:       "rapid_bucket_explicit_read_ahead",
 			bucketType: BucketTypeZonal,
 			userSetFlags: map[string]any{
 				"file-system.max-read-ahead-kb": 8192,

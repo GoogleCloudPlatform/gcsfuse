@@ -131,7 +131,7 @@ func getMountInfoForTest(t *testing.T, args []string) (*mountInfo, error) {
 	return &info, nil
 }
 
-func TestRationalizeKernelReadAhead_CLIFlags(t *testing.T) {
+func Test_rationalize_kernel_read_ahead_cli_flags(t *testing.T) {
 	testCases := []struct {
 		name                string
 		args                []string
@@ -140,49 +140,49 @@ func TestRationalizeKernelReadAhead_CLIFlags(t *testing.T) {
 		expectedReadAheadKb int64
 	}{
 		{
-			name:                "enable-kernel-reader flag alone adjusts to default request size (1024 KiB)",
+			name:                "default_request_size",
 			args:                []string{"--enable-kernel-reader"},
 			expectedKernelRd:    true,
 			expectedRequestKb:   1024,
 			expectedReadAheadKb: 1024,
 		},
 		{
-			name:                "enable-kernel-reader with large request size (255 MiB) adjusts read-ahead to 261120 KiB",
+			name:                "large_request_size",
 			args:                []string{"--enable-kernel-reader", "--fuse-max-request-size-kb=261120"},
 			expectedKernelRd:    true,
 			expectedRequestKb:   261120,
 			expectedReadAheadKb: 261120,
 		},
 		{
-			name:                "enable-kernel-reader with large request size and explicit read-ahead preserves user value (4096 KiB)",
+			name:                "explicit_read_ahead_preserved",
 			args:                []string{"--enable-kernel-reader", "--fuse-max-request-size-kb=261120", "--max-read-ahead-kb=4096"},
 			expectedKernelRd:    true,
 			expectedRequestKb:   261120,
 			expectedReadAheadKb: 4096,
 		},
 		{
-			name:                "enable-kernel-reader with large request size and explicit read-ahead 0 preserves 0 KiB",
+			name:                "explicit_zero_preserved",
 			args:                []string{"--enable-kernel-reader", "--fuse-max-request-size-kb=261120", "--max-read-ahead-kb=0"},
 			expectedKernelRd:    true,
 			expectedRequestKb:   261120,
 			expectedReadAheadKb: 0,
 		},
 		{
-			name:                "enable-kernel-reader with large request size and explicit read-ahead 1 preserves 1 KiB",
+			name:                "explicit_one_preserved",
 			args:                []string{"--enable-kernel-reader", "--fuse-max-request-size-kb=261120", "--max-read-ahead-kb=1"},
 			expectedKernelRd:    true,
 			expectedRequestKb:   261120,
 			expectedReadAheadKb: 1,
 		},
 		{
-			name:                "Single-hyphen flags convert correctly and auto-adjust read-ahead",
+			name:                "single_hyphen_auto_adjusts",
 			args:                []string{"-enable-kernel-reader", "-fuse-max-request-size-kb=261120"},
 			expectedKernelRd:    true,
 			expectedRequestKb:   261120,
 			expectedReadAheadKb: 261120,
 		},
 		{
-			name:                "Single-hyphen flags preserve explicit max-read-ahead-kb=0",
+			name:                "single_hyphen_preserves_zero",
 			args:                []string{"-enable-kernel-reader", "-fuse-max-request-size-kb=261120", "-max-read-ahead-kb=0"},
 			expectedKernelRd:    true,
 			expectedRequestKb:   261120,
@@ -201,7 +201,7 @@ func TestRationalizeKernelReadAhead_CLIFlags(t *testing.T) {
 	}
 }
 
-func TestRationalizeKernelReadAhead_DisabledKernelReader(t *testing.T) {
+func Test_rationalize_kernel_read_ahead_disabled(t *testing.T) {
 	testCases := []struct {
 		name                string
 		args                []string
@@ -210,21 +210,21 @@ func TestRationalizeKernelReadAhead_DisabledKernelReader(t *testing.T) {
 		expectedReadAheadKb int64
 	}{
 		{
-			name:                "Disabled kernel reader with large request size does not adjust read-ahead (remains 0)",
+			name:                "implicit_disabled_large_request_size",
 			args:                []string{"--fuse-max-request-size-kb=261120"},
 			expectedKernelRd:    false,
 			expectedRequestKb:   261120,
 			expectedReadAheadKb: 0,
 		},
 		{
-			name:                "Explicitly disabled kernel reader with large request size preserves read-ahead at 0",
+			name:                "explicit_disabled_large_request_size",
 			args:                []string{"--enable-kernel-reader=false", "--fuse-max-request-size-kb=261120"},
 			expectedKernelRd:    false,
 			expectedRequestKb:   261120,
 			expectedReadAheadKb: 0,
 		},
 		{
-			name:                "Explicitly disabled kernel reader preserves explicit user read-ahead (2048 KiB)",
+			name:                "explicit_disabled_preserves_read_ahead",
 			args:                []string{"--enable-kernel-reader=false", "--fuse-max-request-size-kb=261120", "--max-read-ahead-kb=2048"},
 			expectedKernelRd:    false,
 			expectedRequestKb:   261120,
@@ -243,7 +243,7 @@ func TestRationalizeKernelReadAhead_DisabledKernelReader(t *testing.T) {
 	}
 }
 
-func TestRationalizeKernelReadAhead_ConfigFile(t *testing.T) {
+func Test_rationalize_kernel_read_ahead_config_file(t *testing.T) {
 	testCases := []struct {
 		name                string
 		yamlContent         string
@@ -252,7 +252,7 @@ func TestRationalizeKernelReadAhead_ConfigFile(t *testing.T) {
 		expectedReadAheadKb int64
 	}{
 		{
-			name: "Config file enables kernel reader and sets large request size -> read-ahead adjusts to 261120",
+			name: "config_file_large_request_size",
 			yamlContent: `file-system:
   enable-kernel-reader: true
   fuse-max-request-size-kb: 261120
@@ -262,7 +262,7 @@ func TestRationalizeKernelReadAhead_ConfigFile(t *testing.T) {
 			expectedReadAheadKb: 261120,
 		},
 		{
-			name: "Config file enables kernel reader with explicit max-read-ahead-kb: 0 -> 0 preserved",
+			name: "config_file_explicit_zero_preserved",
 			yamlContent: `file-system:
   enable-kernel-reader: true
   fuse-max-request-size-kb: 261120
@@ -273,7 +273,7 @@ func TestRationalizeKernelReadAhead_ConfigFile(t *testing.T) {
 			expectedReadAheadKb: 0,
 		},
 		{
-			name: "Config file enables kernel reader with explicit max-read-ahead-kb: 1 -> 1 preserved",
+			name: "config_file_explicit_one_preserved",
 			yamlContent: `file-system:
   enable-kernel-reader: true
   fuse-max-request-size-kb: 261120
@@ -284,7 +284,7 @@ func TestRationalizeKernelReadAhead_ConfigFile(t *testing.T) {
 			expectedReadAheadKb: 1,
 		},
 		{
-			name: "Config file enables kernel reader with explicit max-read-ahead-kb: 4096 -> 4096 preserved",
+			name: "config_file_explicit_read_ahead_preserved",
 			yamlContent: `file-system:
   enable-kernel-reader: true
   fuse-max-request-size-kb: 261120
@@ -295,7 +295,7 @@ func TestRationalizeKernelReadAhead_ConfigFile(t *testing.T) {
 			expectedReadAheadKb: 4096,
 		},
 		{
-			name: "Config file disables kernel reader -> read-ahead remains 0 despite large request size",
+			name: "config_file_disabled_remains_zero",
 			yamlContent: `file-system:
   enable-kernel-reader: false
   fuse-max-request-size-kb: 261120
@@ -318,7 +318,7 @@ func TestRationalizeKernelReadAhead_ConfigFile(t *testing.T) {
 	}
 }
 
-func TestRationalizeKernelReadAhead_ConfigFileVsCLIFlags(t *testing.T) {
+func Test_rationalize_kernel_read_ahead_config_vs_cli(t *testing.T) {
 	testCases := []struct {
 		name                string
 		yamlContent         string
@@ -328,7 +328,7 @@ func TestRationalizeKernelReadAhead_ConfigFileVsCLIFlags(t *testing.T) {
 		expectedReadAheadKb int64
 	}{
 		{
-			name: "Config file sets explicit read-ahead (2048); CLI sets large request size (261120) -> 2048 preserved",
+			name: "config_explicit_read_ahead_cli_large_request",
 			yamlContent: `file-system:
   enable-kernel-reader: true
   max-read-ahead-kb: 2048
@@ -339,7 +339,7 @@ func TestRationalizeKernelReadAhead_ConfigFileVsCLIFlags(t *testing.T) {
 			expectedReadAheadKb: 2048,
 		},
 		{
-			name: "Config file sets large request size (261120); CLI sets explicit read-ahead (8192) -> 8192 preserved",
+			name: "config_large_request_cli_explicit_read_ahead",
 			yamlContent: `file-system:
   enable-kernel-reader: true
   fuse-max-request-size-kb: 261120
@@ -350,7 +350,7 @@ func TestRationalizeKernelReadAhead_ConfigFileVsCLIFlags(t *testing.T) {
 			expectedReadAheadKb: 8192,
 		},
 		{
-			name: "Config file sets explicit read-ahead (4096); CLI overrides with max-read-ahead-kb=0 -> 0 preserved",
+			name: "config_explicit_read_ahead_cli_override_zero",
 			yamlContent: `file-system:
   enable-kernel-reader: true
   fuse-max-request-size-kb: 261120
@@ -362,7 +362,7 @@ func TestRationalizeKernelReadAhead_ConfigFileVsCLIFlags(t *testing.T) {
 			expectedReadAheadKb: 0,
 		},
 		{
-			name: "Config file sets explicit read-ahead (0); CLI overrides with max-read-ahead-kb=8192 -> 8192 preserved",
+			name: "config_explicit_zero_cli_override_read_ahead",
 			yamlContent: `file-system:
   enable-kernel-reader: true
   fuse-max-request-size-kb: 261120
@@ -374,7 +374,7 @@ func TestRationalizeKernelReadAhead_ConfigFileVsCLIFlags(t *testing.T) {
 			expectedReadAheadKb: 8192,
 		},
 		{
-			name: "Config file disables kernel reader; CLI flag enables it -> auto-adjusts to 261120",
+			name: "config_disabled_cli_enabled",
 			yamlContent: `file-system:
   enable-kernel-reader: false
   fuse-max-request-size-kb: 261120
@@ -385,7 +385,7 @@ func TestRationalizeKernelReadAhead_ConfigFileVsCLIFlags(t *testing.T) {
 			expectedReadAheadKb: 261120,
 		},
 		{
-			name: "Config file enables kernel reader; CLI flag disables it -> read-ahead remains 0",
+			name: "config_enabled_cli_disabled",
 			yamlContent: `file-system:
   enable-kernel-reader: true
   fuse-max-request-size-kb: 261120
@@ -410,7 +410,7 @@ func TestRationalizeKernelReadAhead_ConfigFileVsCLIFlags(t *testing.T) {
 	}
 }
 
-func TestRationalizeKernelReadAhead_ViperIsSet(t *testing.T) {
+func Test_rationalize_kernel_read_ahead_viper_is_set(t *testing.T) {
 	testCases := []struct {
 		name          string
 		yamlContent   string
@@ -418,17 +418,17 @@ func TestRationalizeKernelReadAhead_ViperIsSet(t *testing.T) {
 		expectedIsSet bool
 	}{
 		{
-			name:          "CLI flag --max-read-ahead-kb=0 marks Viper IsSet as true",
+			name:          "cli_flag_zero_is_set",
 			cliArgs:       []string{"--enable-kernel-reader", "--max-read-ahead-kb=0"},
 			expectedIsSet: true,
 		},
 		{
-			name:          "CLI flag --max-read-ahead-kb=1 marks Viper IsSet as true",
+			name:          "cli_flag_one_is_set",
 			cliArgs:       []string{"--enable-kernel-reader", "--max-read-ahead-kb=1"},
 			expectedIsSet: true,
 		},
 		{
-			name: "Config file max-read-ahead-kb: 0 marks Viper IsSet as true",
+			name: "config_file_zero_is_set",
 			yamlContent: `file-system:
   enable-kernel-reader: true
   max-read-ahead-kb: 0
@@ -436,7 +436,7 @@ func TestRationalizeKernelReadAhead_ViperIsSet(t *testing.T) {
 			expectedIsSet: true,
 		},
 		{
-			name: "Config file max-read-ahead-kb: 1 marks Viper IsSet as true",
+			name: "config_file_one_is_set",
 			yamlContent: `file-system:
   enable-kernel-reader: true
   max-read-ahead-kb: 1
@@ -444,17 +444,17 @@ func TestRationalizeKernelReadAhead_ViperIsSet(t *testing.T) {
 			expectedIsSet: true,
 		},
 		{
-			name:          "Only --enable-kernel-reader does NOT mark max-read-ahead-kb as IsSet",
+			name:          "only_enable_kernel_reader_not_set",
 			cliArgs:       []string{"--enable-kernel-reader"},
 			expectedIsSet: false,
 		},
 		{
-			name:          "Only --fuse-max-request-size-kb does NOT mark max-read-ahead-kb as IsSet",
+			name:          "only_fuse_max_request_size_not_set",
 			cliArgs:       []string{"--fuse-max-request-size-kb=261120"},
 			expectedIsSet: false,
 		},
 		{
-			name:          "No flags does NOT mark max-read-ahead-kb as IsSet",
+			name:          "no_flags_not_set",
 			cliArgs:       []string{},
 			expectedIsSet: false,
 		},
