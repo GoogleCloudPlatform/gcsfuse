@@ -208,8 +208,14 @@ type MetricHandle interface {
 	// FsOpsLatency - The cumulative distribution of file system operation latencies
 	FsOpsLatency(ctx context.Context, latency time.Duration, fsOp FsOp)
 
+	// FsReadBytesCount - The cumulative number of bytes read from GCS fuse by kernel
+	FsReadBytesCount(inc int64)
+
 	// FsStreamingWriteFallbackCount - The cumulative number of streaming write fallbacks with reason attached
 	FsStreamingWriteFallbackCount(inc int64, openMode OpenMode, writeFallbackReason WriteFallbackReason)
+
+	// FsWriteBytesCount - The cumulative number of bytes written to GCS fuse by kernel
+	FsWriteBytesCount(inc int64)
 
 	// GcsDownloadBytesCount - The cumulative number of bytes downloaded from GCS along with type - Sequential/Random
 	GcsDownloadBytesCount(inc int64, readType ReadType)
@@ -234,6 +240,9 @@ type MetricHandle interface {
 
 	// MetadataCacheReadCount - Total number of read requests to the metadata cache. Use attributes to analyze hit/miss ratios, entry types, and specific lookup outcomes (e.g., expiration vs. total absence).
 	MetadataCacheReadCount(inc int64, cacheHit bool, entryStatus EntryStatus, lookupDetail LookupDetail)
+
+	// MetadataCacheSize - The total size of the entries in the metadata cache
+	MetadataCacheSize(inc int64, entryStatus EntryStatus)
 
 	// ReadBlockSizes - The cumulative distribution of read block sizes across different bucket boundaries
 	ReadBlockSizes(ctx context.Context, value int64)

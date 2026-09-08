@@ -4570,6 +4570,31 @@ func TestFsOpsLatency(t *testing.T) {
 	}
 }
 
+func TestFsReadBytesCount(t *testing.T) {
+	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
+	m, rd := setupOTel(ctx, t)
+
+	m.FsReadBytesCount(1024)
+	m.FsReadBytesCount(2048)
+	waitForMetricsProcessing()
+
+	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok := metrics["fs/read_bytes_count"]
+	require.True(t, ok, "fs/read_bytes_count metric not found")
+	s := attribute.NewSet()
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
+
+	// Test negative increment
+	m.FsReadBytesCount(-100)
+	waitForMetricsProcessing()
+
+	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok = metrics["fs/read_bytes_count"]
+	require.True(t, ok, "fs/read_bytes_count metric not found after negative increment")
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Negative increment should not change the metric value.")
+}
+
 func TestFsStreamingWriteFallbackCount(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -4799,6 +4824,31 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 			assert.Equal(t, expectedMap, metric)
 		})
 	}
+}
+
+func TestFsWriteBytesCount(t *testing.T) {
+	ctx := context.Background()
+	encoder := attribute.DefaultEncoder()
+	m, rd := setupOTel(ctx, t)
+
+	m.FsWriteBytesCount(1024)
+	m.FsWriteBytesCount(2048)
+	waitForMetricsProcessing()
+
+	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok := metrics["fs/write_bytes_count"]
+	require.True(t, ok, "fs/write_bytes_count metric not found")
+	s := attribute.NewSet()
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
+
+	// Test negative increment
+	m.FsWriteBytesCount(-100)
+	waitForMetricsProcessing()
+
+	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
+	metric, ok = metrics["fs/write_bytes_count"]
+	require.True(t, ok, "fs/write_bytes_count metric not found after negative increment")
+	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Negative increment should not change the metric value.")
 }
 
 func TestGcsDownloadBytesCount(t *testing.T) {
@@ -5698,6 +5748,75 @@ func TestMetadataCacheReadCount(t *testing.T) {
 				return
 			}
 			require.True(t, ok, "metadata_cache/read_count metric not found")
+			expectedMap := make(map[string]int64)
+			for k, v := range tc.expected {
+				expectedMap[k.Encoded(encoder)] = v
+			}
+			assert.Equal(t, expectedMap, metric)
+		})
+	}
+}
+
+func TestMetadataCacheSize(t *testing.T) {
+	tests := []struct {
+		name     string
+		f        func(m *otelMetrics)
+		expected map[attribute.Set]int64
+	}{
+		{
+			name: "entry_status_negative",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheSize(5, "negative")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("entry_status", "negative")): 5,
+			},
+		},
+		{
+			name: "entry_status_positive",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheSize(5, "positive")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("entry_status", "positive")): 5,
+			},
+		}, {
+			name: "multiple_attributes_summed",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheSize(5, "negative")
+				m.MetadataCacheSize(2, "positive")
+				m.MetadataCacheSize(3, "negative")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("entry_status", "negative")): 8,
+				attribute.NewSet(attribute.String("entry_status", "positive")): 2,
+			},
+		},
+		{
+			name: "negative_increment",
+			f: func(m *otelMetrics) {
+				m.MetadataCacheSize(-5, "negative")
+				m.MetadataCacheSize(2, "negative")
+			},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("entry_status", "negative")): -3},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			encoder := attribute.DefaultEncoder()
+			m, rd := setupOTel(ctx, t)
+
+			tc.f(m)
+			waitForMetricsProcessing()
+
+			metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
+			metric, ok := metrics["metadata_cache/size"]
+			if len(tc.expected) == 0 {
+				assert.False(t, ok, "metadata_cache/size metric should not be found")
+				return
+			}
+			require.True(t, ok, "metadata_cache/size metric not found")
 			expectedMap := make(map[string]int64)
 			for k, v := range tc.expected {
 				expectedMap[k.Encoded(encoder)] = v
