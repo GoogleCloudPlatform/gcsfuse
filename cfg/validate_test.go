@@ -1590,7 +1590,7 @@ func Test_isValidFuseMaxWriteSizeKb_ErrorScenarios(t *testing.T) {
 	}
 }
 
-func Test_is_valid_max_read_ahead_kb_valid(t *testing.T) {
+func TestIsValidMaxReadAheadKbValid(t *testing.T) {
 	testCases := []struct {
 		name        string
 		readAheadKb int64
@@ -1610,7 +1610,7 @@ func Test_is_valid_max_read_ahead_kb_valid(t *testing.T) {
 	}
 }
 
-func Test_is_valid_max_read_ahead_kb_error(t *testing.T) {
+func TestIsValidMaxReadAheadKbError(t *testing.T) {
 	testCases := []struct {
 		name        string
 		readAheadKb int64

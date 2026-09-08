@@ -930,7 +930,7 @@ func TestResolveOnlyDir(t *testing.T) {
 	}
 }
 
-func Test_resolve_kernel_read_ahead(t *testing.T) {
+func TestResolveKernelReadAhead(t *testing.T) {
 	testCases := []struct {
 		name                string
 		userSetFlags        map[string]any
@@ -1077,7 +1077,6 @@ func Test_resolve_kernel_read_ahead(t *testing.T) {
 					v.Set(key, val)
 				}
 			}
-
 			c := &Config{
 				FileSystem: FileSystemConfig{
 					EnableKernelReader:   tc.enableKernelReader,
@@ -1085,7 +1084,6 @@ func Test_resolve_kernel_read_ahead(t *testing.T) {
 					FuseMaxRequestSizeKb: tc.requestSizeKb,
 				},
 			}
-
 			resolveKernelReadAhead(v, c)
 
 			assert.Equal(t, tc.expectedReadAheadKb, c.FileSystem.MaxReadAheadKb)
@@ -1093,7 +1091,7 @@ func Test_resolve_kernel_read_ahead(t *testing.T) {
 	}
 }
 
-func Test_rationalize_kernel_read_ahead(t *testing.T) {
+func TestRationalizeKernelReadAhead(t *testing.T) {
 	testCases := []struct {
 		name                string
 		userSetFlags        map[string]any
@@ -1146,7 +1144,6 @@ func Test_rationalize_kernel_read_ahead(t *testing.T) {
 			for key, val := range tc.userSetFlags {
 				v.Set(key, val)
 			}
-
 			c := &Config{
 				FileSystem: FileSystemConfig{
 					EnableKernelReader:   tc.enableKernelReader,
@@ -1154,7 +1151,6 @@ func Test_rationalize_kernel_read_ahead(t *testing.T) {
 					FuseMaxRequestSizeKb: tc.requestSizeKb,
 				},
 			}
-
 			err := Rationalize(v, c, []string{})
 
 			require.NoError(t, err)
@@ -1163,7 +1159,7 @@ func Test_rationalize_kernel_read_ahead(t *testing.T) {
 	}
 }
 
-func Test_rationalize_with_bucket_optimization(t *testing.T) {
+func TestRationalizeWithBucketOptimization(t *testing.T) {
 	testCases := []struct {
 		name                string
 		bucketType          BucketType
@@ -1251,7 +1247,6 @@ func Test_rationalize_with_bucket_optimization(t *testing.T) {
 			for key, val := range tc.userSetFlags {
 				v.Set(key, val)
 			}
-
 			c := &Config{}
 			tc.setupConfig(c)
 

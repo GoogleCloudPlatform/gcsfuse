@@ -131,7 +131,7 @@ func getMountInfoForTest(t *testing.T, args []string) (*mountInfo, error) {
 	return &info, nil
 }
 
-func Test_rationalize_kernel_read_ahead_cli_flags(t *testing.T) {
+func TestRationalizeKernelReadAheadCliFlags(t *testing.T) {
 	testCases := []struct {
 		name                string
 		args                []string
@@ -201,7 +201,7 @@ func Test_rationalize_kernel_read_ahead_cli_flags(t *testing.T) {
 	}
 }
 
-func Test_rationalize_kernel_read_ahead_disabled(t *testing.T) {
+func TestRationalizeKernelReadAheadDisabled(t *testing.T) {
 	testCases := []struct {
 		name                string
 		args                []string
@@ -243,7 +243,7 @@ func Test_rationalize_kernel_read_ahead_disabled(t *testing.T) {
 	}
 }
 
-func Test_rationalize_kernel_read_ahead_config_file(t *testing.T) {
+func TestRationalizeKernelReadAheadConfigFile(t *testing.T) {
 	testCases := []struct {
 		name                string
 		yamlContent         string
@@ -318,7 +318,7 @@ func Test_rationalize_kernel_read_ahead_config_file(t *testing.T) {
 	}
 }
 
-func Test_rationalize_kernel_read_ahead_config_vs_cli(t *testing.T) {
+func TestRationalizeKernelReadAheadConfigVsCli(t *testing.T) {
 	testCases := []struct {
 		name                string
 		yamlContent         string
@@ -410,7 +410,7 @@ func Test_rationalize_kernel_read_ahead_config_vs_cli(t *testing.T) {
 	}
 }
 
-func Test_rationalize_kernel_read_ahead_viper_is_set(t *testing.T) {
+func TestRationalizeKernelReadAheadViperIsSet(t *testing.T) {
 	testCases := []struct {
 		name          string
 		yamlContent   string
@@ -418,17 +418,17 @@ func Test_rationalize_kernel_read_ahead_viper_is_set(t *testing.T) {
 		expectedIsSet bool
 	}{
 		{
-			name:          "cli_flag_zero_is_set",
+			name:          "cli_flag_is_set_with_value_zero",
 			cliArgs:       []string{"--enable-kernel-reader", "--max-read-ahead-kb=0"},
 			expectedIsSet: true,
 		},
 		{
-			name:          "cli_flag_one_is_set",
+			name:          "cli_flag_is_set_with_value_one",
 			cliArgs:       []string{"--enable-kernel-reader", "--max-read-ahead-kb=1"},
 			expectedIsSet: true,
 		},
 		{
-			name: "config_file_zero_is_set",
+			name: "config_file_is_set_with_value_zero",
 			yamlContent: `file-system:
   enable-kernel-reader: true
   max-read-ahead-kb: 0
@@ -436,7 +436,7 @@ func Test_rationalize_kernel_read_ahead_viper_is_set(t *testing.T) {
 			expectedIsSet: true,
 		},
 		{
-			name: "config_file_one_is_set",
+			name: "config_file_is_set_with_value_one",
 			yamlContent: `file-system:
   enable-kernel-reader: true
   max-read-ahead-kb: 1
@@ -444,17 +444,17 @@ func Test_rationalize_kernel_read_ahead_viper_is_set(t *testing.T) {
 			expectedIsSet: true,
 		},
 		{
-			name:          "only_enable_kernel_reader_not_set",
+			name:          "cli_flag_is_not_set_with_only_enable_kernel_reader",
 			cliArgs:       []string{"--enable-kernel-reader"},
 			expectedIsSet: false,
 		},
 		{
-			name:          "only_fuse_max_request_size_not_set",
+			name:          "cli_flag_is_not_set_with_only_fuse_max_request_size",
 			cliArgs:       []string{"--fuse-max-request-size-kb=261120"},
 			expectedIsSet: false,
 		},
 		{
-			name:          "no_flags_not_set",
+			name:          "no_flags_set",
 			cliArgs:       []string{},
 			expectedIsSet: false,
 		},
