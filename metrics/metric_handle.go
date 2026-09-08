@@ -208,14 +208,8 @@ type MetricHandle interface {
 	// FsOpsLatency - The cumulative distribution of file system operation latencies
 	FsOpsLatency(ctx context.Context, latency time.Duration, fsOp FsOp)
 
-	// FsReadBytesCount - The cumulative number of bytes read from GCS fuse by kernel
-	FsReadBytesCount(inc int64)
-
 	// FsStreamingWriteFallbackCount - The cumulative number of streaming write fallbacks with reason attached
 	FsStreamingWriteFallbackCount(inc int64, openMode OpenMode, writeFallbackReason WriteFallbackReason)
-
-	// FsWriteBytesCount - The cumulative number of bytes written to GCS fuse by kernel
-	FsWriteBytesCount(inc int64)
 
 	// GcsDownloadBytesCount - The cumulative number of bytes downloaded from GCS along with type - Sequential/Random
 	GcsDownloadBytesCount(inc int64, readType ReadType)

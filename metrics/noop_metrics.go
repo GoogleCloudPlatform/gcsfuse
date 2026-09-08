@@ -39,12 +39,8 @@ func (*noopMetrics) FsOpsErrorCount(inc int64, fsErrorCategory FsErrorCategory, 
 
 func (*noopMetrics) FsOpsLatency(ctx context.Context, latency time.Duration, fsOp FsOp) {}
 
-func (*noopMetrics) FsReadBytesCount(inc int64) {}
-
 func (*noopMetrics) FsStreamingWriteFallbackCount(inc int64, openMode OpenMode, writeFallbackReason WriteFallbackReason) {
 }
-
-func (*noopMetrics) FsWriteBytesCount(inc int64) {}
 
 func (*noopMetrics) GcsDownloadBytesCount(inc int64, readType ReadType) {}
 

@@ -4570,31 +4570,6 @@ func TestFsOpsLatency(t *testing.T) {
 	}
 }
 
-func TestFsReadBytesCount(t *testing.T) {
-	ctx := context.Background()
-	encoder := attribute.DefaultEncoder()
-	m, rd := setupOTel(ctx, t)
-
-	m.FsReadBytesCount(1024)
-	m.FsReadBytesCount(2048)
-	waitForMetricsProcessing()
-
-	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
-	metric, ok := metrics["fs/read_bytes_count"]
-	require.True(t, ok, "fs/read_bytes_count metric not found")
-	s := attribute.NewSet()
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
-
-	// Test negative increment
-	m.FsReadBytesCount(-100)
-	waitForMetricsProcessing()
-
-	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
-	metric, ok = metrics["fs/read_bytes_count"]
-	require.True(t, ok, "fs/read_bytes_count metric not found after negative increment")
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Negative increment should not change the metric value.")
-}
-
 func TestFsStreamingWriteFallbackCount(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -4824,31 +4799,6 @@ func TestFsStreamingWriteFallbackCount(t *testing.T) {
 			assert.Equal(t, expectedMap, metric)
 		})
 	}
-}
-
-func TestFsWriteBytesCount(t *testing.T) {
-	ctx := context.Background()
-	encoder := attribute.DefaultEncoder()
-	m, rd := setupOTel(ctx, t)
-
-	m.FsWriteBytesCount(1024)
-	m.FsWriteBytesCount(2048)
-	waitForMetricsProcessing()
-
-	metrics := gatherNonZeroCounterMetrics(ctx, t, rd)
-	metric, ok := metrics["fs/write_bytes_count"]
-	require.True(t, ok, "fs/write_bytes_count metric not found")
-	s := attribute.NewSet()
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Positive increments should be summed.")
-
-	// Test negative increment
-	m.FsWriteBytesCount(-100)
-	waitForMetricsProcessing()
-
-	metrics = gatherNonZeroCounterMetrics(ctx, t, rd)
-	metric, ok = metrics["fs/write_bytes_count"]
-	require.True(t, ok, "fs/write_bytes_count metric not found after negative increment")
-	assert.Equal(t, map[string]int64{s.Encoded(encoder): 3072}, metric, "Negative increment should not change the metric value.")
 }
 
 func TestGcsDownloadBytesCount(t *testing.T) {
