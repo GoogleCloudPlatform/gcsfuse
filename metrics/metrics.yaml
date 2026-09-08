@@ -275,6 +275,17 @@
     - ttl_expired
     - not_found
 
+- metric-name: "metadata_cache/size"
+  description: "The total memory size (in bytes) of the entries in the metadata cache"
+  type: "int_up_down_counter"
+  unit: "By"
+  attributes:
+  - attribute-name: entry_status
+    attribute-type: string
+    values:
+    - positive
+    - negative
+
 - metric-name: "read/block_sizes"
   description: "The cumulative distribution of read block sizes across different bucket boundaries"
   type: "int_histogram"
