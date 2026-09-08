@@ -348,17 +348,8 @@ func (t *SharedChunkCacheTestSuite) TestCacheHitSingleMount() {
 ////////////////////////////////////////////////////////////////////////
 
 func RunTests(t *testing.T, runName string, factory func(primaryFlags, secondaryFlags []string) suite.TestingSuite) {
-	for _, cfg := range testEnv.cfg.Configs {
-		if cfg.Run == runName {
-			for i, flagStr := range cfg.Flags {
-				primaryFlags := strings.Fields(strings.ReplaceAll(flagStr, ",", " "))
-				var secondaryFlags []string
-				if len(cfg.SecondaryFlags) > i {
-					secondaryFlags = strings.Fields(strings.ReplaceAll(cfg.SecondaryFlags[i], ",", " "))
-				}
-				suite.Run(t, factory(primaryFlags, secondaryFlags))
-			}
-		}
+	for _, flags := range setup.BuildDualMountFlagSets(*testEnv.cfg, testEnv.bucketType, runName) {
+		suite.Run(t, factory(flags.Primary, flags.Secondary))
 	}
 }
 

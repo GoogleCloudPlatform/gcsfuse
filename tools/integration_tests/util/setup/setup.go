@@ -638,11 +638,48 @@ func bucketType(ctx context.Context, testBucket string) (bType string, err error
 	return FlatBucket, nil
 }
 
-// BuildFlagSets dynamically builds a list of flag sets based on bucket compatibility.
-// bucketType should be "flat", "hns", "zonal", "flat_pirlo", or "hns_pirlo".
-// The testName parameter filters flag sets based on the 'Run' field in the test
-// configuration, which typically corresponds to a specific test name. If testName is
-// an empty string, all flag sets for the package are returned.
+// DualMountFlags holds a paired set of primary and secondary mount flags.
+type DualMountFlags struct {
+	Primary   []string
+	Secondary []string
+}
+
+func isConfigCompatible(testConfig *test_suite.ConfigItem, bucketType string, testName string) bool {
+	isBucketCompatible := false
+	switch bucketType {
+	case FlatPirloBucket:
+		isBucketCompatible = testConfig.RunOnPirlo.Flat.SameZone || testConfig.RunOnPirlo.Flat.DifferentZone
+	case HNSPirloBucket:
+		isBucketCompatible = testConfig.RunOnPirlo.Hns.SameZone || testConfig.RunOnPirlo.Hns.DifferentZone
+	default:
+		var ok bool
+		isBucketCompatible, ok = testConfig.Compatible[bucketType]
+		if !ok {
+			isBucketCompatible = false
+		}
+	}
+	isTPCCompatible := (TestOnTPCEndPoint() == testConfig.TPC)
+	if !isBucketCompatible || !isTPCCompatible {
+		return false
+	}
+
+	// The skip field is intended for function-level test suites where testName is specified (e.g. t.Name()).
+	// Package-level test executions (where testName is empty) do not support skip in test_config.yaml.
+	if testName == "" && len(testConfig.Skip) > 0 {
+		log.Fatalf("Invalid configuration: skip field is not supported when testName is empty in test_config.yaml")
+	}
+
+	if slices.Contains(testConfig.Skip, testName) || (testConfig.Run != "" && testName != testConfig.Run) {
+		return false
+	}
+
+	return true
+}
+
+// BuildFlagSets dynamically generates flag sets based on bucket type compatibility,
+// TPC configurations, and skip/run test rules. If testName is provided, only configs
+// matching testName (via run or skip) are included. If testName is an empty string,
+// all flag sets for the package are returned.
 func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, testName string) [][]string {
 	// In case of mounted-directory, no need to
 	// parse flags. Just return a single
@@ -656,33 +693,7 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, testName string
 
 	// 1. Iterate through each defined test configuration (e.g., HTTP, gRPC).
 	for _, testConfig := range cfg.Configs {
-		// 2. Check if the current test case is compatible with the bucket type.
-		// For Pirlo runs, evaluate the RunOnPirlo struct. Otherwise, check the standard Compatible map.
-		isBucketCompatible := false
-		switch bucketType {
-		case FlatPirloBucket:
-			isBucketCompatible = testConfig.RunOnPirlo.Flat.SameZone || testConfig.RunOnPirlo.Flat.DifferentZone
-		case HNSPirloBucket:
-			isBucketCompatible = testConfig.RunOnPirlo.Hns.SameZone || testConfig.RunOnPirlo.Hns.DifferentZone
-		default:
-			var ok bool
-			isBucketCompatible, ok = testConfig.Compatible[bucketType]
-			if !ok {
-				isBucketCompatible = false
-			}
-		}
-		isTPCCompatible := (TestOnTPCEndPoint() == testConfig.TPC)
-		if !isBucketCompatible || !isTPCCompatible {
-			continue
-		}
-
-		// The skip field is intended for function-level test suites where testName is specified (e.g. t.Name()).
-		// Package-level test executions (where testName is empty) do not support skip in test_config.yaml.
-		if testName == "" && len(testConfig.Skip) > 0 {
-			log.Fatalf("Invalid configuration: skip field is not supported when testName is empty in test_config.yaml")
-		}
-
-		if slices.Contains(testConfig.Skip, testName) || (testConfig.Run != "" && testName != testConfig.Run) {
+		if !isConfigCompatible(&testConfig, bucketType, testName) {
 			continue
 		}
 
@@ -690,6 +701,32 @@ func BuildFlagSets(cfg test_suite.TestConfig, bucketType string, testName string
 		for _, flagString := range testConfig.Flags {
 			flagString = strings.ReplaceAll(flagString, ",", " ")
 			dynamicFlags = append(dynamicFlags, strings.Fields(flagString))
+		}
+	}
+	return dynamicFlags
+}
+
+// BuildDualMountFlagSets dynamically generates paired primary and secondary flag sets
+// for dual-mount test suites based on bucket type compatibility, TPC configurations,
+// and skip/run test rules.
+func BuildDualMountFlagSets(cfg test_suite.TestConfig, bucketType string, testName string) []DualMountFlags {
+	var dynamicFlags []DualMountFlags
+
+	for _, testConfig := range cfg.Configs {
+		if !isConfigCompatible(&testConfig, bucketType, testName) {
+			continue
+		}
+
+		for i, flagString := range testConfig.Flags {
+			primaryFlags := strings.Fields(strings.ReplaceAll(flagString, ",", " "))
+			var secondaryFlags []string
+			if len(testConfig.SecondaryFlags) > i {
+				secondaryFlags = strings.Fields(strings.ReplaceAll(testConfig.SecondaryFlags[i], ",", " "))
+			}
+			dynamicFlags = append(dynamicFlags, DualMountFlags{
+				Primary:   primaryFlags,
+				Secondary: secondaryFlags,
+			})
 		}
 	}
 	return dynamicFlags

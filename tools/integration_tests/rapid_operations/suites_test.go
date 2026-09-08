@@ -18,11 +18,9 @@ import (
 	"log"
 	"os"
 	"path"
-	"slices"
+	"strings"
 	"testing"
 	"time"
-
-	"strings"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
@@ -205,40 +203,7 @@ func (t *BaseSuite) isMetadataCacheEnabled() bool {
 }
 
 func RunTests(t *testing.T, testName string, factory func(primaryFlags, secondaryFlags []string) suite.TestingSuite) {
-	for _, testConfig := range testEnv.cfg.Configs {
-		isBucketCompatible := false
-		switch testEnv.bucketType {
-		case setup.FlatPirloBucket:
-			isBucketCompatible = testConfig.RunOnPirlo.Flat.SameZone || testConfig.RunOnPirlo.Flat.DifferentZone
-		case setup.HNSPirloBucket:
-			isBucketCompatible = testConfig.RunOnPirlo.Hns.SameZone || testConfig.RunOnPirlo.Hns.DifferentZone
-		default:
-			isBucketCompatible = testConfig.Compatible[testEnv.bucketType]
-		}
-		isTPCCompatible := (setup.TestOnTPCEndPoint() == testConfig.TPC)
-		if !isBucketCompatible || !isTPCCompatible {
-			continue
-		}
-
-		// The skip field is intended for function-level test suites where testName is specified (e.g. t.Name()).
-		// Package-level test executions (where testName is empty) do not support skip in test_config.yaml.
-		if testName == "" && len(testConfig.Skip) > 0 {
-			log.Fatalf("Invalid configuration: skip field is not supported when testName is empty in test_config.yaml")
-		}
-
-		if slices.Contains(testConfig.Skip, testName) || (testConfig.Run != "" && testName != testConfig.Run) {
-			continue
-		}
-
-		for i, flagStr := range testConfig.Flags {
-			flagStr = strings.ReplaceAll(flagStr, ",", " ")
-			primaryFlags := strings.Fields(flagStr)
-			var secondaryFlags []string
-			if len(testConfig.SecondaryFlags) > i {
-				secFlagStr := strings.ReplaceAll(testConfig.SecondaryFlags[i], ",", " ")
-				secondaryFlags = strings.Fields(secFlagStr)
-			}
-			suite.Run(t, factory(primaryFlags, secondaryFlags))
-		}
+	for _, flags := range setup.BuildDualMountFlagSets(*testEnv.cfg, testEnv.bucketType, testName) {
+		suite.Run(t, factory(flags.Primary, flags.Secondary))
 	}
 }
