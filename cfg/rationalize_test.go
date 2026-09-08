@@ -941,28 +941,28 @@ func TestResolveKernelReadAhead(t *testing.T) {
 		expectedReadAheadKb int64
 	}{
 		{
-			name:                "enabled_unset_large_request_size",
+			name:                "kr_enabled_unset_large_request_size",
 			enableKernelReader:  true,
 			initialReadAheadKb:  131072, // 128 MiB (regional default)
 			requestSizeKb:       261120, // 255 MiB
 			expectedReadAheadKb: 261120,
 		},
 		{
-			name:                "enabled_startup_zero_adjusted",
+			name:                "kr_enabled_startup_zero_adjusted",
 			enableKernelReader:  true,
 			initialReadAheadKb:  0,
 			requestSizeKb:       261120,
 			expectedReadAheadKb: 261120,
 		},
 		{
-			name:                "enabled_startup_default_request_size",
+			name:                "kr_enabled_startup_default_request_size",
 			enableKernelReader:  true,
 			initialReadAheadKb:  0,
 			requestSizeKb:       1024,
 			expectedReadAheadKb: 1024,
 		},
 		{
-			name:                "enabled_explicit_read_ahead_lower",
+			name:                "kr_enabled_explicit_read_ahead_lower",
 			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 1024},
 			enableKernelReader:  true,
 			initialReadAheadKb:  1024,
@@ -970,7 +970,7 @@ func TestResolveKernelReadAhead(t *testing.T) {
 			expectedReadAheadKb: 1024,
 		},
 		{
-			name:                "enabled_explicit_zero_preserved",
+			name:                "kr_enabled_explicit_zero_preserved",
 			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 0},
 			enableKernelReader:  true,
 			initialReadAheadKb:  0,
@@ -978,7 +978,7 @@ func TestResolveKernelReadAhead(t *testing.T) {
 			expectedReadAheadKb: 0,
 		},
 		{
-			name:                "enabled_explicit_read_ahead_higher",
+			name:                "kr_enabled_explicit_read_ahead_higher",
 			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 524288},
 			enableKernelReader:  true,
 			initialReadAheadKb:  524288,
@@ -986,42 +986,42 @@ func TestResolveKernelReadAhead(t *testing.T) {
 			expectedReadAheadKb: 524288,
 		},
 		{
-			name:                "enabled_request_size_equal_read_ahead",
+			name:                "kr_enabled_request_size_equal_read_ahead",
 			enableKernelReader:  true,
 			initialReadAheadKb:  131072,
 			requestSizeKb:       131072,
 			expectedReadAheadKb: 131072,
 		},
 		{
-			name:                "enabled_request_size_smaller_read_ahead",
+			name:                "kr_enabled_request_size_smaller_read_ahead",
 			enableKernelReader:  true,
 			initialReadAheadKb:  131072, // 128 MiB
 			requestSizeKb:       16384,  // 16 MiB
 			expectedReadAheadKb: 131072,
 		},
 		{
-			name:                "enabled_explicit_small_request_size",
+			name:                "kr_enabled_explicit_small_request_size",
 			enableKernelReader:  true,
 			initialReadAheadKb:  131072,
 			requestSizeKb:       8192,
 			expectedReadAheadKb: 131072,
 		},
 		{
-			name:                "enabled_request_size_zero",
+			name:                "kr_enabled_request_size_zero",
 			enableKernelReader:  true,
 			initialReadAheadKb:  131072,
 			requestSizeKb:       0,
 			expectedReadAheadKb: 131072,
 		},
 		{
-			name:                "disabled_large_request_size",
+			name:                "kr_disabled_large_request_size",
 			enableKernelReader:  false,
 			initialReadAheadKb:  131072,
 			requestSizeKb:       261120,
 			expectedReadAheadKb: 131072,
 		},
 		{
-			name:                "disabled_startup_zero",
+			name:                "kr_disabled_startup_zero",
 			enableKernelReader:  false,
 			initialReadAheadKb:  0,
 			requestSizeKb:       261120,
