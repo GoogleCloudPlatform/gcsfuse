@@ -48,7 +48,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false, false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "AppName-Config", metrics.NewNoopMetrics(), false, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -60,7 +60,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false, false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "AppName-Config", metrics.NewNoopMetrics(), false, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -72,7 +72,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPCIsGKE() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), true, false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "AppName-Config", metrics.NewNoopMetrics(), true, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -276,6 +276,18 @@ func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSe
 
 	userAgent := getUserAgent("", getConfigForUserAgent(mountConfig), "testFS-123")
 
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
+}
+
+func (t *MainTest) TestGetUserAgentWithConfig_SanitizationAndSerialization() {
+	t.T().Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
+	mountConfig := &cfg.Config{}
+
+	userAgent := getUserAgentWithConfig("AppName", getConfigForUserAgent(mountConfig), mountConfig, "testFS-123")
+
+	expectedConfigProto, err := cfg.SerializeConfigToProtoBase64(mountConfig)
+	require.NoError(t.T(), err)
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0:0:0) (CfgProto:%s) (mount-id:testFS-123)", common.GetVersion(), expectedConfigProto))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
