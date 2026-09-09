@@ -153,23 +153,10 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 		}
 	}
 
-	if storageClientConfig.AnonymousAccess {
-		// UserAgent will not be added if authentication is disabled.
-		// Bypassing authentication prevents the creation of an HTTP transport
-		// because it requires a token source.
-		// Setting a dummy token would conflict with the "WithoutAuthentication" option.
-		// While the "WithUserAgent" option could set a custom User-Agent, it's incompatible
-		// with the "WithHTTPClient" option, preventing the direct injection of a user agent
-		// when authentication is skipped.
-		return &http.Client{
-			Timeout: storageClientConfig.HttpClientTimeout,
-		}, nil
-	}
-
 	var clientTransport http.RoundTripper = transport
-	if storageClientConfig.S2AAddress != "" {
-		// When S2A is enabled, authentication is handled via mTLS at the transport level.
-	} else {
+	// Wrap transport with OAuth2 token source only when neither anonymous access nor S2A is used.
+	// When anonymous access or S2A is enabled, authentication is bypassed or handled via mTLS at the transport level.
+	if !storageClientConfig.AnonymousAccess && storageClientConfig.S2AAddress == "" {
 		if tokenSrc == nil {
 			// CreateTokenSource only if tokenSrc is nil, which means it wasn't provided externally.
 			// This indicates the EnableGoogleLibAuth flag is disabled.
