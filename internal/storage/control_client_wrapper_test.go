@@ -42,13 +42,15 @@ type stallingStorageControlClient struct {
 }
 
 func (s *stallingStorageControlClient) stall(ctx context.Context, stallDuration *time.Duration) error {
-	if stallDuration != nil && *stallDuration > 0 {
-		timer := time.NewTimer(*stallDuration)
-		defer timer.Stop()
-		select {
-		case <-timer.C:
-		case <-ctx.Done():
-		}
+	if stallDuration == nil || *stallDuration <= 0 {
+		return ctx.Err()
+	}
+
+	timer := time.NewTimer(*stallDuration)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+	case <-ctx.Done():
 	}
 	return ctx.Err()
 }
