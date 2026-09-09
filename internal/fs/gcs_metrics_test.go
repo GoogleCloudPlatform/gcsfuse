@@ -224,7 +224,7 @@ func TestGCSMetrics_RequestLatencies(t *testing.T) {
 	require.NoError(t, err)
 	waitForMetricsProcessing()
 
-	metrics.VerifyHistogramMetric(t, ctx, reader, "gcs/request_latencies",
+	metrics.VerifyHistogramMetric(t, ctx, reader, "gcs/request_duration_seconds",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
 		3)
 }

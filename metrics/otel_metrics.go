@@ -474,31 +474,31 @@ var (
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAttrSet                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "SyncFile")))
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "Unlink")))
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAttrSet                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_error_category", "TOO_MANY_OPEN_FILES"), attribute.String("fs_op", "WriteFile")))
-	fsOpsLatencyFsOpBatchForgetAttrSet                                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "BatchForget")))
-	fsOpsLatencyFsOpCreateFileAttrSet                                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateFile")))
-	fsOpsLatencyFsOpCreateLinkAttrSet                                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateLink")))
-	fsOpsLatencyFsOpCreateSymlinkAttrSet                                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateSymlink")))
-	fsOpsLatencyFsOpFlushFileAttrSet                                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "FlushFile")))
-	fsOpsLatencyFsOpForgetInodeAttrSet                                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ForgetInode")))
-	fsOpsLatencyFsOpGetInodeAttributesAttrSet                                                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "GetInodeAttributes")))
-	fsOpsLatencyFsOpLookUpInodeAttrSet                                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "LookUpInode")))
-	fsOpsLatencyFsOpMkDirAttrSet                                                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "MkDir")))
-	fsOpsLatencyFsOpMkNodeAttrSet                                                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "MkNode")))
-	fsOpsLatencyFsOpOpenDirAttrSet                                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenDir")))
-	fsOpsLatencyFsOpOpenFileAttrSet                                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenFile")))
-	fsOpsLatencyFsOpOthersAttrSet                                                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Others")))
-	fsOpsLatencyFsOpReadDirAttrSet                                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadDir")))
-	fsOpsLatencyFsOpReadDirPlusAttrSet                                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadDirPlus")))
-	fsOpsLatencyFsOpReadFileAttrSet                                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadFile")))
-	fsOpsLatencyFsOpReadSymlinkAttrSet                                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadSymlink")))
-	fsOpsLatencyFsOpReleaseDirHandleAttrSet                                                                = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReleaseDirHandle")))
-	fsOpsLatencyFsOpReleaseFileHandleAttrSet                                                               = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReleaseFileHandle")))
-	fsOpsLatencyFsOpRenameAttrSet                                                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Rename")))
-	fsOpsLatencyFsOpRmDirAttrSet                                                                           = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "RmDir")))
-	fsOpsLatencyFsOpSetInodeAttributesAttrSet                                                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SetInodeAttributes")))
-	fsOpsLatencyFsOpSyncFileAttrSet                                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SyncFile")))
-	fsOpsLatencyFsOpUnlinkAttrSet                                                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Unlink")))
-	fsOpsLatencyFsOpWriteFileAttrSet                                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "WriteFile")))
+	fsOpsLatenciesFsOpBatchForgetAttrSet                                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "BatchForget")))
+	fsOpsLatenciesFsOpCreateFileAttrSet                                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateFile")))
+	fsOpsLatenciesFsOpCreateLinkAttrSet                                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateLink")))
+	fsOpsLatenciesFsOpCreateSymlinkAttrSet                                                                 = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "CreateSymlink")))
+	fsOpsLatenciesFsOpFlushFileAttrSet                                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "FlushFile")))
+	fsOpsLatenciesFsOpForgetInodeAttrSet                                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ForgetInode")))
+	fsOpsLatenciesFsOpGetInodeAttributesAttrSet                                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "GetInodeAttributes")))
+	fsOpsLatenciesFsOpLookUpInodeAttrSet                                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "LookUpInode")))
+	fsOpsLatenciesFsOpMkDirAttrSet                                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "MkDir")))
+	fsOpsLatenciesFsOpMkNodeAttrSet                                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "MkNode")))
+	fsOpsLatenciesFsOpOpenDirAttrSet                                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenDir")))
+	fsOpsLatenciesFsOpOpenFileAttrSet                                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "OpenFile")))
+	fsOpsLatenciesFsOpOthersAttrSet                                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Others")))
+	fsOpsLatenciesFsOpReadDirAttrSet                                                                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadDir")))
+	fsOpsLatenciesFsOpReadDirPlusAttrSet                                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadDirPlus")))
+	fsOpsLatenciesFsOpReadFileAttrSet                                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadFile")))
+	fsOpsLatenciesFsOpReadSymlinkAttrSet                                                                   = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReadSymlink")))
+	fsOpsLatenciesFsOpReleaseDirHandleAttrSet                                                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReleaseDirHandle")))
+	fsOpsLatenciesFsOpReleaseFileHandleAttrSet                                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "ReleaseFileHandle")))
+	fsOpsLatenciesFsOpRenameAttrSet                                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Rename")))
+	fsOpsLatenciesFsOpRmDirAttrSet                                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "RmDir")))
+	fsOpsLatenciesFsOpSetInodeAttributesAttrSet                                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SetInodeAttributes")))
+	fsOpsLatenciesFsOpSyncFileAttrSet                                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "SyncFile")))
+	fsOpsLatenciesFsOpUnlinkAttrSet                                                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "Unlink")))
+	fsOpsLatenciesFsOpWriteFileAttrSet                                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("fs_op", "WriteFile")))
 	fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonConcurrencyLimitBreachedAttrSet           = metric.WithAttributeSet(attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "concurrency_limit_breached")))
 	fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonExistingFileAttrSet                       = metric.WithAttributeSet(attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "existing_file")))
 	fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOtherAttrSet                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("open_mode", "other"), attribute.String("write_fallback_reason", "other")))
@@ -1115,7 +1115,7 @@ type otelMetrics struct {
 	testUpdownCounterWithAttrsRequestTypeAttr2Atomic                                                      *atomic.Int64
 	bufferedReadReadLatency                                                                               metric.Int64Histogram
 	fileCacheReadLatencies                                                                                metric.Int64Histogram
-	fsOpsLatency                                                                                          metric.Int64Histogram
+	fsOpsLatencies                                                                                        metric.Int64Histogram
 	gcsRequestLatencies                                                                                   metric.Int64Histogram
 	readBlockSizes                                                                                        metric.Int64Histogram
 }
@@ -2194,60 +2194,60 @@ func (o *otelMetrics) FsOpsErrorCount(
 	}
 }
 
-func (o *otelMetrics) FsOpsLatency(
+func (o *otelMetrics) FsOpsLatencies(
 	ctx context.Context, latency time.Duration, fsOp FsOp) {
 	var record histogramRecord
 	switch fsOp {
 	case FsOpBatchForgetAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpBatchForgetAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpBatchForgetAttrSet}
 	case FsOpCreateFileAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateFileAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpCreateFileAttrSet}
 	case FsOpCreateLinkAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateLinkAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpCreateLinkAttrSet}
 	case FsOpCreateSymlinkAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpCreateSymlinkAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpCreateSymlinkAttrSet}
 	case FsOpFlushFileAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpFlushFileAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpFlushFileAttrSet}
 	case FsOpForgetInodeAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpForgetInodeAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpForgetInodeAttrSet}
 	case FsOpGetInodeAttributesAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpGetInodeAttributesAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpGetInodeAttributesAttrSet}
 	case FsOpLookUpInodeAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpLookUpInodeAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpLookUpInodeAttrSet}
 	case FsOpMkDirAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpMkDirAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpMkDirAttrSet}
 	case FsOpMkNodeAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpMkNodeAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpMkNodeAttrSet}
 	case FsOpOpenDirAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpOpenDirAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpOpenDirAttrSet}
 	case FsOpOpenFileAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpOpenFileAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpOpenFileAttrSet}
 	case FsOpOthersAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpOthersAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpOthersAttrSet}
 	case FsOpReadDirAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadDirAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpReadDirAttrSet}
 	case FsOpReadDirPlusAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadDirPlusAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpReadDirPlusAttrSet}
 	case FsOpReadFileAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadFileAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpReadFileAttrSet}
 	case FsOpReadSymlinkAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReadSymlinkAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpReadSymlinkAttrSet}
 	case FsOpReleaseDirHandleAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReleaseDirHandleAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpReleaseDirHandleAttrSet}
 	case FsOpReleaseFileHandleAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpReleaseFileHandleAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpReleaseFileHandleAttrSet}
 	case FsOpRenameAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRenameAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpRenameAttrSet}
 	case FsOpRmDirAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpRmDirAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpRmDirAttrSet}
 	case FsOpSetInodeAttributesAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSetInodeAttributesAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpSetInodeAttributesAttrSet}
 	case FsOpSyncFileAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpSyncFileAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpSyncFileAttrSet}
 	case FsOpUnlinkAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpUnlinkAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpUnlinkAttrSet}
 	case FsOpWriteFileAttr:
-		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatency, value: latency.Microseconds(), attributes: fsOpsLatencyFsOpWriteFileAttrSet}
+		record = histogramRecord{ctx: ctx, instrument: o.fsOpsLatencies, value: latency.Microseconds(), attributes: fsOpsLatenciesFsOpWriteFileAttrSet}
 	default:
 		updateUnrecognizedAttribute(string(fsOp))
 		return
@@ -3682,7 +3682,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	fsOpsLatency, err7 := meter.Int64Histogram("fs/ops_latency",
+	fsOpsLatencies, err7 := meter.Int64Histogram("fs/ops_latencies",
 		metric.WithDescription("The cumulative distribution of file system operation latencies"),
 		metric.WithUnit("us"),
 		metric.WithExplicitBucketBoundaries(50, 100, 200, 400, 800, 1500, 3000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000, 20000000, 50000000, 100000000, 200000000, 500000000))
@@ -4289,7 +4289,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAtomic:                   &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic:                     &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic:                  &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic,
-		fsOpsLatency: fsOpsLatency,
+		fsOpsLatencies: fsOpsLatencies,
 		fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonConcurrencyLimitBreachedAtomic:           &fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonConcurrencyLimitBreachedAtomic,
 		fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonExistingFileAtomic:                       &fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonExistingFileAtomic,
 		fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOtherAtomic:                              &fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOtherAtomic,
