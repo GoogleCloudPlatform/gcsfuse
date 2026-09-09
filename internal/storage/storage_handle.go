@@ -115,6 +115,9 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 			return nil, fmt.Errorf("failed to create S2A gRPC credentials: %w", err)
 		}
 		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(creds)))
+		// When S2A is enabled, authentication is handled via mTLS at the transport level.
+		// Passing WithoutAuthentication() bypasses the default OAuth2 credential flow via Metadata Server.
+		// If not, every request will have an OAuth token attached and it will get used instead of S2A.
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
@@ -277,7 +280,12 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	var clientOpts []option.ClientOption
 	var tokenSrc oauth2.TokenSource = nil
 
-	if clientConfig.S2AAddress != "" || clientConfig.AnonymousAccess {
+	if clientConfig.S2AAddress != "" {
+		// When S2A is enabled, authentication is handled via mTLS at the transport level.
+		// Passing WithoutAuthentication() bypasses the default OAuth2 credential flow via Metadata Server.
+		// If not, every request will have an OAuth token attached and it will get used instead of S2A.
+		clientOpts = append(clientOpts, option.WithoutAuthentication())
+	} else if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else if clientConfig.EnableGoogleLibAuth {
 		var authOpts []option.ClientOption
