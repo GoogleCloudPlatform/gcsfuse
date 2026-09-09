@@ -89,7 +89,7 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 		options = append(options, metric.WithResource(res))
 	}
 
-	options = append(options, metric.WithView(dropDisallowedMetricsView), metric.WithExemplarFilter(exemplar.AlwaysOffFilter))
+	options = append(options, metric.WithView(getMetricViews(c.Metrics.EnableNewMetricsSchema)...), metric.WithExemplarFilter(exemplar.AlwaysOffFilter))
 
 	meterProvider := metric.NewMeterProvider(options...)
 
@@ -100,16 +100,30 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 	return common.JoinShutdownFunc(shutdownFns...)
 }
 
+func getMetricViews(enableNewMetricsSchema bool) []metric.View {
+	views := []metric.View{dropDisallowedMetricsView}
+	if enableNewMetricsSchema {
+		views = append(views, metric.NewView(
+			metric.Instrument{Name: "fs/ops_latency"},
+			metric.Stream{Name: "fs/ops_latencies"},
+		))
+	}
+	return views
+}
+
 // dropUnwantedMetricsView is an OTel View that drops the metrics that don't match the allowed prefixes.
 func dropDisallowedMetricsView(i metric.Instrument) (metric.Stream, bool) {
-	s := metric.Stream{Name: i.Name, Description: i.Description, Unit: i.Unit}
 	for _, prefix := range allowedMetricPrefixes {
 		if strings.HasPrefix(i.Name, prefix) {
-			return s, true
+			return metric.Stream{}, false
 		}
 	}
-	s.Aggregation = metric.AggregationDrop{}
-	return s, true
+	return metric.Stream{
+		Name:        i.Name,
+		Description: i.Description,
+		Unit:        i.Unit,
+		Aggregation: metric.AggregationDrop{},
+	}, true
 }
 
 func setupCloudMonitoring(secs int64) []metric.Option {
