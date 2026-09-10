@@ -28,8 +28,19 @@ import (
 	"google.golang.org/api/option"
 )
 
-// GetClientAuthOptionsAndTokenSource returns client options and a token source using either a token URL or fallback to key file/ADC.
+// GetClientAuthOptionsAndTokenSource returns client options and a token source using either an auth token file, a token URL or fallback to key file/ADC.
 func GetClientAuthOptionsAndTokenSource(ctx context.Context, config *StorageClientConfig) ([]option.ClientOption, oauth2.TokenSource, error) {
+	// If an auth token file is provided, use its token directly as the credential.
+	if config.ExperimentalAuthTokenFile != "" {
+		tokenSrc, err := auth2.NewTokenSourceFromTokenFile(config.ExperimentalAuthTokenFile)
+		if err != nil {
+			return nil, nil, fmt.Errorf("while creating token source from token file: %w", err)
+		}
+
+		clientOpts := []option.ClientOption{option.WithTokenSource(tokenSrc)}
+		return clientOpts, tokenSrc, nil
+	}
+
 	retryConfig := NewRetryConfig(config)
 	// If Token URL is provided, attempt to fetch token source directly.
 	if config.TokenUrl != "" {

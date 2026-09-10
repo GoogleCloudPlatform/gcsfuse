@@ -180,4 +180,5 @@ message Config {
   bool write_finalize_file_for_rapid = 156;
   sint64 write_global_max_blocks = 157;
   sint64 write_max_blocks_per_file = 158;
+  bool is_gcs_auth_experimental_auth_token_file_set = 159;
 }
