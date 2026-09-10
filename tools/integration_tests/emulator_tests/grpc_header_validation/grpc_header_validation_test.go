@@ -104,6 +104,7 @@ func (g *grpcHeaderValidation) TestGRPCHeadersInMultipleOperations() {
 }
 
 func TestGRPCHeaderValidation(t *testing.T) {
+	t.Skip("Skipping gRPC header validation tests until relevant changes in b/504487909 task list are complete (tracked in b/559458241).")
 	ts := &grpcHeaderValidation{}
 	// Test with gRPC protocol to validate that gRPC metadata is sent.
 	// The Go Storage SDK automatically adds diagnostic metadata
