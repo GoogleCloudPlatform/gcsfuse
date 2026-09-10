@@ -16,6 +16,7 @@ package integration_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -625,6 +626,65 @@ func (t *GcsfuseTest) LogFilePath() {
 		util.Unmount(t.dir)
 		ExpectEq(nil, err)
 	}
+}
+
+// logHasConfigRecordWithKey reports whether the JSON-formatted log in contents
+// holds a "GCSFuse Config" record carrying the given key.
+func logHasConfigRecordWithKey(contents []byte, key string) bool {
+	for _, line := range bytes.Split(contents, []byte("\n")) {
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+
+		var record map[string]any
+		if err := json.Unmarshal(line, &record); err != nil {
+			// Skip anything that isn't a structured log record.
+			continue
+		}
+		if record["message"] != "GCSFuse Config" {
+			continue
+		}
+		if _, ok := record[key]; ok {
+			return true
+		}
+	}
+
+	return false
+}
+
+// gcsfuse dumps the configuration it was started with to the log file, which is
+// useful when debugging a mount after the fact. Assert only that the dump
+// happens, not which flags it contains, to avoid a change-detector test.
+func (t *GcsfuseTest) ConfigIsDumpedToLogFile() {
+	// Keep the log outside t.dir, which is the mount point and must be empty for
+	// TearDown to remove it.
+	logFile, err := os.CreateTemp("", "gcsfuse_config_dump_*.log")
+	AssertEq(nil, err)
+	AssertEq(nil, logFile.Close())
+	defer func() { _ = os.Remove(logFile.Name()) }()
+
+	err = t.runGcsfuse([]string{
+		"--log-file", logFile.Name(),
+		canned.FakeBucketName,
+		t.dir,
+	})
+	AssertEq(nil, err)
+	// Best-effort cleanup; a failure here surfaces via TearDown, which cannot
+	// remove the mount point while it is still mounted.
+	defer func() { _ = util.Unmount(t.dir) }()
+
+	contents, err := os.ReadFile(logFile.Name())
+	AssertEq(nil, err)
+	AssertLt(0, len(contents))
+
+	// The flags supplied on the command line and the fully resolved config are
+	// logged as separate records.
+	ExpectTrue(
+		logHasConfigRecordWithKey(contents, "CLI Flags"),
+		"log did not contain a CLI flags dump:\n%s", contents)
+	ExpectTrue(
+		logHasConfigRecordWithKey(contents, "Full Config"),
+		"log did not contain a resolved config dump:\n%s", contents)
 }
 
 func (t *GcsfuseTest) KeyFilePath() {
