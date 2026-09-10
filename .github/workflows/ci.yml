@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - '*'
+  workflow_dispatch:
 permissions:
   contents: read
 
@@ -70,7 +71,10 @@ jobs:
       with:
         go-version-file: '.go-version'
     - name: Build
-      run: CGO_ENABLED=0 go build ./...
+      run: |
+        CGO_ENABLED=0 go build ./...
+        go install ./tools/build_gcsfuse
+        build_gcsfuse . /tmp ${GITHUB_SHA}
 
   linux-tests-matrix:
     name: Linux tests (${{ matrix.suite }})
@@ -109,16 +113,44 @@ jobs:
         flags: unittests
 
   linux-tests:
-    needs: [filter, linux-tests-matrix]
-    if: ${{ needs.filter.outputs.run_tests == 'true' }}
+    name: Linux tests
+    needs: [filter, build, linux-tests-matrix]
+    if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-    - run: echo "All linux tests passed"
+    - name: Verify build and test status
+      run: |
+        # 1. Ensure filter job completed successfully
+        if [ "${{ needs.filter.result }}" != "success" ]; then
+          echo "::error::Upstream 'filter' job did not succeed. Status: ${{ needs.filter.result }}"
+          exit 1
+        fi
+
+        # 2. Allow clean pass on docs-only changes
+        if [ "${{ needs.filter.outputs.run_tests }}" != "true" ]; then
+          echo "Notice: Tests bypassed via path filter (doc/non-code changes)."
+          exit 0
+        fi
+
+        # 3. Enforce build succeeded
+        if [ "${{ needs.build.result }}" != "success" ]; then
+          echo "::error::'build' job did not succeed. Status: ${{ needs.build.result }}"
+          exit 1
+        fi
+
+        # 4. Enforce test matrix succeeded
+        if [ "${{ needs.linux-tests-matrix.result }}" != "success" ]; then
+          echo "::error::'linux-tests-matrix' did not succeed. Status: ${{ needs.linux-tests-matrix.result }}"
+          exit 1
+        fi
+
+        echo "SUCCESS: All required build and test checks passed."
 
   flake-detector:
     name: Flake detector (${{ matrix.suite }})
     needs: filter
-    if: ${{ needs.filter.outputs.run_tests == 'true' }}
+    if: (github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch') && needs.filter.outputs.run_tests == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -126,9 +158,9 @@ jobs:
       matrix:
         include:
           - suite: unit
-            test-cmd: CGO_ENABLED=0 go test -p 1 -count 5 -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./...`
+            test-cmd: CGO_ENABLED=0 go test -p 1 -count 5 -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v 'tools/integration_tests'`
           - suite: race
-            test-cmd: CGO_ENABLED=0 go test -p 1 -count 5 ./internal/cache/... ./internal/gcsx/...
+            test-cmd: go test -p 1 -count 5 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
 
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -145,6 +177,7 @@ jobs:
     name: Lint
     if: github.ref != 'refs/heads/master'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
     - name: checkout code
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
