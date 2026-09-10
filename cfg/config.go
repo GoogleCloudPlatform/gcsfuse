@@ -1093,7 +1093,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("experimental-auth-token-file", "", "", "Experimental: Absolute path to a file containing an OAuth2 token response in JSON format ({\"access_token\": \"...\", \"expires_in\": 3600, \"token_type\": \"Bearer\"}), to be used directly as the GCS credential. Mounting fails if the token is expired. The file is re-read when the token expires, so an external process may refresh the credential by rewriting the file.")
+	flagSet.StringP("experimental-auth-token-file", "", "", "Experimental: Absolute path to a file containing an OAuth2 token response in JSON format ({\"access_token\": \"...\", \"expires_in\": 3600, \"token_type\": \"Bearer\"}), to be used directly as the GCS credential. A relative \"expires_in\" is measured from the file's modification time; an absolute RFC 3339 \"expiry\" field takes precedence if present. Mounting fails if the token is expired. The file is re-read when the token expires, so an external process may refresh the credential by replacing the file; do so atomically (write a temporary file, then rename it over the token file). The file is a credential: restrict its permissions to the owner, as with key-file.")
 
 	flagSet.BoolP("experimental-enable-dentry-cache", "", false, "When enabled, it sets the Dentry cache entry timeout same as metadata-cache-ttl. This enables kernel to use cached entry to map the file paths to inodes, instead of making LookUpInode calls to GCSFuse.")
 
