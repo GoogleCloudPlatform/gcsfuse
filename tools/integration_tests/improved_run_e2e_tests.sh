@@ -359,6 +359,7 @@ TEST_PACKAGES_COMMON=(
   "buffered_read"
   "flag_optimizations"
   "symlink_handling"
+  "shared_chunk_cache"
 )
 
 # filter_array: Filters an array in place keeping only elements matching the regex.
