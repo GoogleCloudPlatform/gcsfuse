@@ -48,7 +48,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false, false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "AppName-Config", metrics.NewNoopMetrics(), false, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -60,7 +60,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false, false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "AppName-Config", metrics.NewNoopMetrics(), false, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -72,7 +72,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPCIsGKE() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), true, false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "AppName-Config", metrics.NewNoopMetrics(), true, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -80,202 +80,64 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPCIsGKE() {
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsSet() {
 	t.T().Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
-	mountConfig := &cfg.Config{}
 
-	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig), "testFS-123")
+	userAgent := getUserAgent("AppName", "testFS-123")
 
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0:0:0) (mount-id:testFS-123)", common.GetVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (mount-id:testFS-123)", common.GetVersion()))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarIsNotSet() {
-	mountConfig := &cfg.Config{}
+	userAgent := getUserAgent("AppName", "testFS-123")
 
-	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig), "testFS-123")
-
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0:0) (mount-id:testFS-123)", common.GetVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (mount-id:testFS-123)", common.GetVersion()))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
-}
-
-func (t *MainTest) TestGetUserAgentConfigWithNoFileCache() {
-	mountConfig := &cfg.Config{}
-
-	userAgent := getUserAgent("AppName", getConfigForUserAgent(mountConfig), "testFS-123")
-
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0:0) (mount-id:testFS-123)", common.GetVersion()))
-	assert.Equal(t.T(), expectedUserAgent, userAgent)
-}
-
-func (t *MainTest) TestGetUserAgentConfig() {
-	testCases := []struct {
-		name              string
-		mountConfig       *cfg.Config
-		expectedUserAgent string
-	}{
-		{
-			name: "Config with file cache disabled when cache dir is given but maxsize is set 0.",
-			mountConfig: &cfg.Config{
-				CacheDir: "//tmp//folder//",
-				FileCache: cfg.FileCacheConfig{
-					MaxSizeMb: 0,
-				},
-			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0:0) (mount-id:testFS-123)", common.GetVersion())),
-		},
-		{
-			name: "Config with file cache disabled where maxsize is set but cache dir is not set.",
-			mountConfig: &cfg.Config{
-				FileCache: cfg.FileCacheConfig{
-					MaxSizeMb: -1,
-				},
-			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0:0) (mount-id:testFS-123)", common.GetVersion())),
-		},
-		{
-			name: "Config with file cache enabled but random read disabled.",
-			mountConfig: &cfg.Config{
-				CacheDir: "//tmp//folder//",
-				FileCache: cfg.FileCacheConfig{
-					MaxSizeMb: -1,
-				},
-			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:0:0:0:0) (mount-id:testFS-123)", common.GetVersion())),
-		},
-		{
-			name: "Config with file cache and random read enabled.",
-			mountConfig: &cfg.Config{
-				CacheDir: "//tmp//folder//",
-				FileCache: cfg.FileCacheConfig{
-					MaxSizeMb:             -1,
-					CacheFileForRangeRead: true,
-				},
-			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1:0:0:0:0) (mount-id:testFS-123)", common.GetVersion())),
-		},
-		{
-			name: "Config with file cache disabled and enable parallel downloads set.",
-			mountConfig: &cfg.Config{
-				CacheDir: "",
-				FileCache: cfg.FileCacheConfig{
-					MaxSizeMb:               -1,
-					EnableParallelDownloads: true,
-				},
-			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0:0) (mount-id:testFS-123)", common.GetVersion())),
-		},
-		{
-			name: "Config with file cache and parallel downloads enabled.",
-			mountConfig: &cfg.Config{
-				CacheDir: "/cache/path",
-				FileCache: cfg.FileCacheConfig{
-					MaxSizeMb:               -1,
-					EnableParallelDownloads: true,
-				},
-			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:1:0:0:0) (mount-id:testFS-123)", common.GetVersion())),
-		},
-		{
-			name: "Config with file cache, random reads and parallel downloads enabled.",
-			mountConfig: &cfg.Config{
-				CacheDir: "/cache/path",
-				FileCache: cfg.FileCacheConfig{
-					MaxSizeMb:               -1,
-					CacheFileForRangeRead:   true,
-					EnableParallelDownloads: true,
-				},
-			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1:1:0:0:0) (mount-id:testFS-123)", common.GetVersion())),
-		},
-		{
-			name: "streaming_writes_enabled",
-			mountConfig: &cfg.Config{
-				CacheDir: "/cache/path",
-				FileCache: cfg.FileCacheConfig{
-					MaxSizeMb:               -1,
-					CacheFileForRangeRead:   false,
-					EnableParallelDownloads: true,
-				},
-				Write: cfg.WriteConfig{EnableStreamingWrites: true},
-			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:1:1:0:0) (mount-id:testFS-123)", common.GetVersion())),
-		},
-		{
-			name: "streaming_writes_disabled",
-			mountConfig: &cfg.Config{
-				CacheDir: "/cache/path",
-				FileCache: cfg.FileCacheConfig{
-					MaxSizeMb:               -1,
-					CacheFileForRangeRead:   true,
-					EnableParallelDownloads: false,
-				},
-				Write: cfg.WriteConfig{EnableStreamingWrites: false},
-			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:1:0:0:0:0) (mount-id:testFS-123)", common.GetVersion())),
-		},
-		{
-			name: "buffered_read_enabled",
-			mountConfig: &cfg.Config{
-				Read: cfg.ReadConfig{EnableBufferedRead: true},
-			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:1:0) (mount-id:testFS-123)", common.GetVersion())),
-		},
-		{
-			name: "buffered_read_disabled",
-			mountConfig: &cfg.Config{
-				Read: cfg.ReadConfig{EnableBufferedRead: false},
-			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0:0) (mount-id:testFS-123)", common.GetVersion())),
-		},
-		{
-			name: "file_cache_enabled_and_buffered_read_enabled",
-			mountConfig: &cfg.Config{
-				CacheDir:  "/cache/path",
-				FileCache: cfg.FileCacheConfig{MaxSizeMb: -1},
-				Read:      cfg.ReadConfig{EnableBufferedRead: true},
-			},
-			// Note: getConfigForUserAgent runs before config rationalization, which
-			// would disable buffered-read when file-cache is enabled.
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:1:0:0:0:1:0) (mount-id:testFS-123)", common.GetVersion())),
-		},
-		{
-			name: "profile_enabled_aiml_training",
-			mountConfig: &cfg.Config{
-				Profile: cfg.ProfileAIMLTraining,
-			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0:1) (mount-id:testFS-123)", common.GetVersion())),
-		},
-		{
-			name: "profile_enabled_aiml_serving",
-			mountConfig: &cfg.Config{
-				Profile: cfg.ProfileAIMLServing,
-			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0:1) (mount-id:testFS-123)", common.GetVersion())),
-		},
-		{
-			name: "profile_enabled_aiml_checkpointing",
-			mountConfig: &cfg.Config{
-				Profile: cfg.ProfileAIMLCheckpointing,
-			},
-			expectedUserAgent: strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (Cfg:0:0:0:0:0:1) (mount-id:testFS-123)", common.GetVersion())),
-		},
-	}
-
-	for _, tc := range testCases {
-		t.T().Run(tc.name, func(t *testing.T) {
-			userAgent := getUserAgent("AppName", getConfigForUserAgent(tc.mountConfig), "testFS-123")
-
-			assert.Equal(t, tc.expectedUserAgent, userAgent)
-		})
-	}
 }
 
 func (t *MainTest) TestGetUserAgentWhenMetadataImageTypeEnvVarSetAndAppNameNotSet() {
 	t.T().Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
-	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (Cfg:0:0:0:0:0:0) (mount-id:testFS-123)", common.GetVersion()))
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-DLVM) (mount-id:testFS-123)", common.GetVersion()))
+
+	userAgent := getUserAgent("", "testFS-123")
+
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
+}
+
+func (t *MainTest) TestGetUserAgentWhenNoAppNameAndNoEnvVar() {
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (mount-id:testFS-123)", common.GetVersion()))
+
+	userAgent := getUserAgent("", "testFS-123")
+
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
+}
+
+func (t *MainTest) TestGetUserAgentWithConfig_SanitizationAndSerialization() {
+	t.T().Setenv("GCSFUSE_METADATA_IMAGE_TYPE", "DLVM")
 	mountConfig := &cfg.Config{}
 
-	userAgent := getUserAgent("", getConfigForUserAgent(mountConfig), "testFS-123")
+	userAgent := getUserAgentWithConfig("AppName", mountConfig, "testFS-123")
 
+	expectedConfigProto, err := cfg.SerializeConfigToProtoBase64(mountConfig)
+	require.NoError(t.T(), err)
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s AppName (GPN:gcsfuse-DLVM) (CfgProto:%s) (mount-id:testFS-123)", common.GetVersion(), expectedConfigProto))
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
+}
+
+func (t *MainTest) TestGetUserAgentWithConfig_WithoutEnvVar() {
+	mountConfig := &cfg.Config{}
+
+	userAgent := getUserAgentWithConfig("AppName", mountConfig, "testFS-123")
+
+	expectedConfigProto, err := cfg.SerializeConfigToProtoBase64(mountConfig)
+	require.NoError(t.T(), err)
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (CfgProto:%s) (mount-id:testFS-123)", common.GetVersion(), expectedConfigProto))
+	assert.Equal(t.T(), expectedUserAgent, userAgent)
+}
+
+func (t *MainTest) TestGetUserAgentWithConfig_NilConfig() {
+	userAgent := getUserAgentWithConfig("AppName", nil, "testFS-123")
+
+	expectedUserAgent := strings.TrimSpace(fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-AppName) (CfgProto:) (mount-id:testFS-123)", common.GetVersion()))
 	assert.Equal(t.T(), expectedUserAgent, userAgent)
 }
 
