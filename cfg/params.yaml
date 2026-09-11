@@ -734,6 +734,15 @@ params:
       To specify a custom storage endpoint, ensure it supports the same resources as the default storage.googleapis.com:443 and includes the port number.
     default: ""
 
+  - config-path: "gcs-connection.enable-grpc-by-default"
+    proto-tag: 159
+    flag-name: "enable-grpc-by-default"
+    type: "bool"
+    usage: >-
+      If true, enables gRPC protocol by default (e.g. for new GKE deployments).
+    default: false
+    hide-flag: true
+
   - config-path: "gcs-connection.enable-http-dns-cache"
     proto-tag: 73
     flag-name: "enable-http-dns-cache"

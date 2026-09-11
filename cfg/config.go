@@ -658,6 +658,8 @@ type GcsConnectionConfig struct {
 
 	CustomEndpoint string `yaml:"custom-endpoint"`
 
+	EnableGrpcByDefault bool `yaml:"enable-grpc-by-default"`
+
 	EnableHttpDnsCache bool `yaml:"enable-http-dns-cache"`
 
 	ExperimentalEnableJsonRead bool `yaml:"experimental-enable-json-read"`
@@ -1022,6 +1024,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-google-lib-auth", "", true, "Enable google library authentication method to fetch the credentials")
 
 	if err := flagSet.MarkHidden("enable-google-lib-auth"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("enable-grpc-by-default", "", false, "If true, enables gRPC protocol by default (e.g. for new GKE deployments).")
+
+	if err := flagSet.MarkHidden("enable-grpc-by-default"); err != nil {
 		return err
 	}
 
@@ -1689,6 +1697,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("enable-google-lib-auth", flagSet.Lookup("enable-google-lib-auth")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-connection.enable-grpc-by-default", flagSet.Lookup("enable-grpc-by-default")); err != nil {
 		return err
 	}
 

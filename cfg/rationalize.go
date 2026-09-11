@@ -188,6 +188,20 @@ func resolveKernelReadAhead(v *viper.Viper, c *Config) {
 	c.FileSystem.MaxReadAheadKb = max(c.FileSystem.MaxReadAheadKb, c.FileSystem.FuseMaxRequestSizeKb)
 }
 
+// resolveClientProtocol dynamically selects gRPC protocol when EnableGrpcByDefault
+// is enabled. If client-protocol was explicitly specified by the user (via CLI
+// flag or config file), it is always honored.
+func resolveClientProtocol(v *viper.Viper, c *GcsConnectionConfig) {
+	// If client-protocol is explicitly set by the user, honor the user's explicit configuration.
+	if v != nil && v.IsSet(ClientProtocolConfigKey) {
+		return
+	}
+
+	if c.EnableGrpcByDefault {
+		c.ClientProtocol = GRPC
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	var err error
@@ -211,6 +225,7 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	resolveGCSRetriesConfig(&c.GcsRetries)
 	resolveOnlyDir(c)
 	resolveKernelReadAhead(v, c)
+	resolveClientProtocol(v, &c.GcsConnection)
 
 	return nil
 }
