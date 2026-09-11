@@ -29,6 +29,7 @@ import (
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"cloud.google.com/go/storage/experimental"
+	"github.com/google/s2a-go"
 	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -101,7 +102,28 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 	}
 
 	// Configure authentication.
-	if clientConfig.AnonymousAccess {
+	if clientConfig.S2AAddress != "" {
+		var localIdentity s2a.Identity
+		if clientConfig.S2ASpiffeID != "" {
+			localIdentity = s2a.NewSpiffeID(clientConfig.S2ASpiffeID)
+		}
+		creds, err := s2a.NewClientCreds(&s2a.ClientOptions{
+			S2AAddress:    clientConfig.S2AAddress,
+			LocalIdentity: localIdentity,
+			// GCS is a Google endpoint serving a WebPKI certificate, so S2A must
+			// validate the peer chain against Google roots rather than treating it
+			// as a SPIFFE SVID. See the equivalent comment in storageutil.
+			VerificationMode: s2a.ConnectToGoogle,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create S2A gRPC credentials: %w", err)
+		}
+		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(creds)))
+		// When S2A is enabled, authentication is handled via mTLS at the transport level.
+		// Passing WithoutAuthentication() bypasses the default OAuth2 credential flow via Metadata Server.
+		// If not, every request will have an OAuth token attached and it will get used instead of S2A.
+		clientOpts = append(clientOpts, option.WithoutAuthentication())
+	} else if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else if clientConfig.EnableGoogleLibAuth {
 		var authOpts []option.ClientOption
@@ -262,7 +284,12 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	var clientOpts []option.ClientOption
 	var tokenSrc oauth2.TokenSource = nil
 
-	if clientConfig.AnonymousAccess {
+	if clientConfig.S2AAddress != "" {
+		// When S2A is enabled, authentication is handled via mTLS at the transport level.
+		// Passing WithoutAuthentication() bypasses the default OAuth2 credential flow via Metadata Server.
+		// If not, every request will have an OAuth token attached and it will get used instead of S2A.
+		clientOpts = append(clientOpts, option.WithoutAuthentication())
+	} else if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else if clientConfig.EnableGoogleLibAuth {
 		var authOpts []option.ClientOption
