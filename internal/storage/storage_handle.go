@@ -110,6 +110,10 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		creds, err := s2a.NewClientCreds(&s2a.ClientOptions{
 			S2AAddress:    clientConfig.S2AAddress,
 			LocalIdentity: localIdentity,
+			// GCS is a Google endpoint serving a WebPKI certificate, so S2A must
+			// validate the peer chain against Google roots rather than treating it
+			// as a SPIFFE SVID. See the equivalent comment in storageutil.
+			VerificationMode: s2a.ConnectToGoogle,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create S2A gRPC credentials: %w", err)

@@ -104,6 +104,42 @@ type StorageClientConfig struct {
 	WriteConfig *cfg.WriteConfig
 }
 
+// http1ALPNProto is the ALPN protocol that must be negotiated when GCSFuse is
+// configured with client-protocol=http1.
+const http1ALPNProto = "http/1.1"
+
+// newS2ADialTLSContextForHTTP1 returns an S2A-backed TLS dialer which pins the
+// negotiated ALPN protocol to HTTP/1.1.
+//
+// s2a.NewS2ADialTLSContextFunc cannot be used for the http1 transport because
+// s2a-go hardcodes the TLS config's NextProtos to {"h2"}. The connection it
+// returns is a *tls.Conn, so http.Transport records a negotiated protocol of
+// "h2". Since the http1 transport intentionally leaves TLSNextProto empty in
+// order to disable HTTP/2, the transport would then speak HTTP/1.1 over an
+// HTTP/2-negotiated connection and every request would fail while parsing the
+// server's first HTTP/2 frame.
+func newS2ADialTLSContextForHTTP1(opts *s2a.ClientOptions) (func(ctx context.Context, network, addr string) (net.Conn, error), error) {
+	factory, err := s2a.NewTLSClientConfigFactory(opts)
+	if err != nil {
+		return nil, fmt.Errorf("while creating S2A TLS client config factory: %w", err)
+	}
+
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		serverName, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			serverName = addr
+		}
+
+		tlsConfig, err := factory.Build(ctx, &s2a.TLSClientConfigOptions{ServerName: serverName})
+		if err != nil {
+			return nil, fmt.Errorf("while building S2A TLS config for %q: %w", addr, err)
+		}
+		tlsConfig.NextProtos = []string{http1ALPNProto}
+
+		return (&tls.Dialer{Config: tlsConfig}).DialContext(ctx, network, addr)
+	}, nil
+}
+
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
 	dialer := net.Dialer{}
 	if storageClientConfig.LocalSocketAddress != "" {
@@ -121,10 +157,24 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 		if storageClientConfig.S2ASpiffeID != "" {
 			localIdentity = s2a.NewSpiffeID(storageClientConfig.S2ASpiffeID)
 		}
-		dialTLSContext = s2a.NewS2ADialTLSContextFunc(&s2a.ClientOptions{
+		s2aClientOptions := &s2a.ClientOptions{
 			S2AAddress:    storageClientConfig.S2AAddress,
 			LocalIdentity: localIdentity,
-		})
+			// GCS is a Google endpoint serving a WebPKI certificate, so S2A must
+			// validate the peer chain against Google roots. Leaving this unset
+			// sends VerificationMode UNSPECIFIED, which some S2A implementations
+			// interpret as SPIFFE peer verification and then reject the GCS
+			// certificate for not being a SPIFFE SVID.
+			VerificationMode: s2a.ConnectToGoogle,
+		}
+		if storageClientConfig.ClientProtocol == cfg.HTTP1 {
+			dialTLSContext, err = newS2ADialTLSContextForHTTP1(s2aClientOptions)
+			if err != nil {
+				return nil, fmt.Errorf("while creating S2A dialer for http1: %w", err)
+			}
+		} else {
+			dialTLSContext = s2a.NewS2ADialTLSContextFunc(s2aClientOptions)
+		}
 	}
 
 	var transport *http.Transport
