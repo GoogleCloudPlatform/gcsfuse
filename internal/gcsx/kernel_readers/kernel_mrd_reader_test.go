@@ -147,7 +147,7 @@ func (t *KernelMRDReaderTest) TestReadAt_ShortRead_NoRetry() {
 	// MRD returns short read.
 	fakeMRD := fake.NewFakeMultiRangeDownloaderWithShortRead(t.object, data)
 	// Expectation:
-	// 1. Read calls ensureMRDPool -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD.
+	// 1. Read calls ensureMRD -> NewMultiRangeDownloader. Returns fakeMRD.
 	// 2. Read returns short read.
 	// 3. isShortRead returns false because err is nil.
 	// 4. ReadAt returns the short read without retrying.
@@ -173,9 +173,9 @@ func (t *KernelMRDReaderTest) TestReadAt_OutOfRange_TriggersRetry() {
 	// Second MRD returns full read.
 	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, data)
 	// Expectation:
-	// 1. Initial Read calls ensureMRDPool -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD1.
+	// 1. Initial Read calls ensureMRD -> NewMultiRangeDownloader. Returns fakeMRD1.
 	// 2. Read returns OutOfRange. isShortRead detects this as recoverable.
-	// 3. ReadAt calls RecreateMRD -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD2.
+	// 3. ReadAt calls RecreateMRD -> NewMultiRangeDownloader. Returns fakeMRD2.
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
 	// Create the ReadRequest.
@@ -305,10 +305,10 @@ func (t *KernelMRDReaderTest) TestReadAt_RecreateMRDFails_RetriesWithOldMRD() {
 	outOfRangeErr := status.Error(codes.OutOfRange, "Out of range")
 	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, []byte{}, 0, outOfRangeErr)
 	// Expectation:
-	// 1. Initial Read calls ensureMRDPool -> NewMRDPool -> NewMultiRangeDownloader. Returns fakeMRD1.
+	// 1. Initial Read calls ensureMRD -> NewMultiRangeDownloader. Returns fakeMRD1.
 	// 2. Read returns OutOfRange.
-	// 3. ReadAt calls RecreateMRD -> NewMRDPool -> NewMultiRangeDownloader. Returns ERROR.
-	// 4. ReadAt logs warning and retries with existing pool (fakeMRD1).
+	// 3. ReadAt calls RecreateMRD -> NewMultiRangeDownloader. Returns ERROR.
+	// 4. ReadAt logs warning and retries with existing MRD (fakeMRD1).
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, errors.New("recreate failed")).Once()
 	buf := make([]byte, 10)
