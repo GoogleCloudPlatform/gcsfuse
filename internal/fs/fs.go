@@ -134,6 +134,10 @@ type ServerConfig struct {
 	// Allow renaming a directory containing fewer descendants than this limit.
 	RenameDirLimit int64
 
+	// If greater than zero, block creating new files in a directory that
+	// already contains at least this many entries, returning ENOSPC.
+	MaxDirEntries int64
+
 	// File chunk size to read from GCS in one call. Specified in MB.
 	SequentialReadSizeMb int32
 
@@ -203,6 +207,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		dirTypeCacheTTL:            serverCfg.DirTypeCacheTTL,
 		kernelListCacheTTL:         cfg.ListCacheTTLSecsToDuration(serverCfg.NewConfig.FileSystem.KernelListCacheTtlSecs),
 		renameDirLimit:             serverCfg.RenameDirLimit,
+		maxDirEntries:              serverCfg.MaxDirEntries,
 		sequentialReadSizeMb:       serverCfg.SequentialReadSizeMb,
 		uid:                        serverCfg.Uid,
 		gid:                        serverCfg.Gid,
@@ -494,6 +499,7 @@ type fileSystem struct {
 	kernelListCacheTTL time.Duration
 
 	renameDirLimit       int64
+	maxDirEntries        int64
 	sequentialReadSizeMb int32
 
 	// The user and group owning everything in the file system.
@@ -2023,6 +2029,10 @@ func (fs *fileSystem) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+
+	if err = fs.checkDirEntryLimit(ctx, op.Parent, op.Name); err != nil {
+		return err
+	}
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2081,6 +2091,10 @@ func (fs *fileSystem) MkNode(
 	ctx = fs.getInterruptlessContext(ctx)
 	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
 		return syscall.ENOTSUP
+	}
+
+	if err = fs.checkDirEntryLimit(ctx, op.Parent, op.Name); err != nil {
+		return err
 	}
 
 	// Create the child.
@@ -2214,11 +2228,53 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	return child, nil
 }
 
+// checkDirEntryLimit enforces file-system.max-dir-entries. When the limit is
+// greater than zero and the parent directory already contains at least that
+// many direct entries, creation of a new entry in it is rejected with ENOSPC
+// and a warning is logged. This gives applications a standard "no space left
+// on device" signal before a directory grows into the size range that degrades
+// listing performance and risks metadata corruption.
+//
+// The count is non-recursive (direct entries only) and bounded: the listing
+// stops once it reaches the limit, and it runs without holding the parent's
+// inode lock, so a directory comfortably below the limit only pays to list its
+// own (few) entries and concurrent operations on the directory are not
+// serialized behind the GCS listing.
+//
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fileSystem) checkDirEntryLimit(ctx context.Context, parentID fuseops.InodeID, name string) error {
+	if fs.maxDirEntries <= 0 {
+		return nil
+	}
+
+	fs.mu.Lock()
+	parent := fs.dirInodeOrDie(parentID)
+	fs.mu.Unlock()
+
+	count, err := parent.CountDirEntriesUpTo(ctx, int(fs.maxDirEntries))
+	if err != nil {
+		return fmt.Errorf("count directory entries for max-dir-entries check: %w", err)
+	}
+
+	if int64(count) >= fs.maxDirEntries {
+		logger.Warnf(
+			"max-dir-entries: rejecting creation of %q with ENOSPC; parent directory already contains at least %d entries",
+			name, fs.maxDirEntries)
+		return syscall.ENOSPC
+	}
+
+	return nil
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+
+	if err = fs.checkDirEntryLimit(ctx, op.Parent, op.Name); err != nil {
+		return err
+	}
 	// Create the child.
 	var child inode.Inode
 	openMode := util.FileOpenMode(op.OpenFlags)
@@ -2276,6 +2332,10 @@ func (fs *fileSystem) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+
+	if err = fs.checkDirEntryLimit(ctx, op.Parent, op.Name); err != nil {
+		return err
+	}
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2457,6 +2517,15 @@ func (fs *fileSystem) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
+
+	// Guard against bypassing max-dir-entries by renaming an entry into an
+	// already-full directory. Only cross-directory moves add an entry to the
+	// destination; in-place renames do not change the destination's count.
+	if op.NewParent != op.OldParent {
+		if err = fs.checkDirEntryLimit(ctx, op.NewParent, op.NewName); err != nil {
+			return err
+		}
+	}
 	// Find the old and new parents.
 	fs.mu.Lock()
 	oldParent := fs.dirInodeOrDie(op.OldParent)
