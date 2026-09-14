@@ -200,11 +200,23 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
 
+	enforceDirectPath := !isBucketRapid && clientConfig.EnableGrpcByDefault
+	if enforceDirectPath {
+		clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
+	}
+
 	sc, err := storage.NewGRPCClient(ctx, clientOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("NewGRPCClient: %w", err)
 	}
 
+	if enforceDirectPath {
+		if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
+			logger.Warnf("DirectPath verification failed with error: %v", verifyErr)
+			return nil, verifyErr
+		}
+		logger.Infof("DirectPath verification succeeded, continuing with DirectPath.")
+	}
 	setRetryConfig(ctx, sc, clientConfig)
 	return sc, nil
 }
@@ -497,20 +509,19 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 
 	var err error
 	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, false, bucketName, billingProject)
-	// No error means we are able to successfully create a grpc client with direct path. Return it.
-	if err == nil {
-		return sh.grpcClient, nil
+	// When EnableGrpcByDefault is false (explicit --client-protocol=grpc), Go SDK handles CloudPath fallback;
+	// never fall back to HTTP.
+	if err == nil || !sh.clientConfig.EnableGrpcByDefault {
+		return sh.grpcClient, err
 	}
 
-	// We will reach here when we failed to create a grpc client with direct path.
-	// Decide whether to create a http client based on grpPathStrategy param.
-	if sh.clientConfig.GrpcPathStrategy == cfg.DirectPathOnly {
-		logger.Infof("Grpc dp is not available and not falling back to Http as gRPC path strategy is set to DirectPathOnly")
-		return nil, err
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 
-	// When grpcPathStrategy=DirectPathWithFallback, create a http client.
+	// When EnableGrpcByDefault is true and DirectPath verification fails, fall back to HTTP.
 	logger.Infof("Grpc dp is not available and falling back to Http.")
+	sh.clientConfig.ClientProtocol = cfg.HTTP1
 	if sh.httpClient == nil {
 		sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
 	}

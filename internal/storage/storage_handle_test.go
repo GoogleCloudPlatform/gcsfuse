@@ -1281,3 +1281,144 @@ func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_AccessCheck_WithPref
 		testSuite.T().Fatal("Timeout waiting for request")
 	}
 }
+
+func (testSuite *StorageHandleTest) TestGetClient_Regional_ExplicitHTTP() {
+	sh := &storageClient{
+		clientConfig: storageutil.StorageClientConfig{
+			ClientProtocol:  cfg.HTTP1,
+			AnonymousAccess: true,
+		},
+	}
+
+	client, err := sh.getClient(testSuite.ctx, false, TestBucketName, "")
+
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), sh.httpClient, client)
+	assert.Nil(testSuite.T(), sh.grpcClient)
+	assert.Nil(testSuite.T(), sh.grpcClientWithBidiConfig)
+	if sh.httpClient != nil {
+		_ = sh.httpClient.Close()
+	}
+}
+
+func (testSuite *StorageHandleTest) TestGetClient_Rapid_ExplicitHTTP_SilentlyOverridesToGRPC() {
+	sh := &storageClient{
+		clientConfig: storageutil.StorageClientConfig{
+			ClientProtocol:  cfg.HTTP1,
+			AnonymousAccess: true,
+		},
+	}
+
+	client, err := sh.getClient(testSuite.ctx, true, TestBucketName, "")
+
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), sh.grpcClientWithBidiConfig, client)
+	assert.Nil(testSuite.T(), sh.httpClient)
+	assert.Nil(testSuite.T(), sh.grpcClient)
+	if sh.grpcClientWithBidiConfig != nil {
+		_ = sh.grpcClientWithBidiConfig.Close()
+	}
+}
+
+func (testSuite *StorageHandleTest) TestGetClient_ExplicitGRPC() {
+	sh := &storageClient{
+		clientConfig: storageutil.StorageClientConfig{
+			ClientProtocol:  cfg.GRPC,
+			AnonymousAccess: true,
+		},
+	}
+
+	client, err := sh.getClient(testSuite.ctx, false, TestBucketName, "")
+
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), sh.grpcClient, client)
+	assert.Nil(testSuite.T(), sh.httpClient)
+	if sh.grpcClient != nil {
+		_ = sh.grpcClient.Close()
+	}
+}
+
+func (testSuite *StorageHandleTest) TestGetClient_Rapid_DefaultGRPC() {
+	sh := &storageClient{
+		clientConfig: storageutil.StorageClientConfig{
+			ClientProtocol:      cfg.GRPC,
+			EnableGrpcByDefault: true,
+			AnonymousAccess:     true,
+		},
+	}
+
+	client, err := sh.getClient(testSuite.ctx, true, TestBucketName, "")
+
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), sh.grpcClientWithBidiConfig, client)
+	assert.Nil(testSuite.T(), sh.httpClient)
+	if sh.grpcClientWithBidiConfig != nil {
+		_ = sh.grpcClientWithBidiConfig.Close()
+	}
+}
+
+func (testSuite *StorageHandleTest) TestGetClient_Regional_EnableGrpcByDefault_DirectPathFails_FallbackToHTTP() {
+	sh := &storageClient{
+		clientConfig: storageutil.StorageClientConfig{
+			ClientProtocol:      cfg.GRPC,
+			EnableGrpcByDefault: true,
+			AnonymousAccess:     true,
+		},
+	}
+
+	// Passing an empty bucket name causes verifyDirectPathConnectivity's Attrs call to fail
+	// immediately with a non-retryable error ("storage: bucket name is empty"), triggering HTTP fallback.
+	client, err := sh.getClient(testSuite.ctx, false, "", "")
+
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), sh.httpClient, client)
+	assert.NotNil(testSuite.T(), sh.httpClient)
+	assert.Nil(testSuite.T(), sh.grpcClient)
+	assert.Equal(testSuite.T(), cfg.Protocol(cfg.HTTP1), sh.clientConfig.ClientProtocol)
+
+	// Subsequent call should reuse the HTTP client without probing DirectPath again.
+	secondClient, err := sh.getClient(testSuite.ctx, false, "another-bucket", "")
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), client, secondClient)
+
+	if sh.httpClient != nil {
+		_ = sh.httpClient.Close()
+	}
+}
+
+func (testSuite *StorageHandleTest) TestGetClient_Regional_EnableGrpcByDefault_CachedDirectPathClient_Reused() {
+	dummyClient := &storage.Client{}
+	sh := &storageClient{
+		clientConfig: storageutil.StorageClientConfig{
+			ClientProtocol:      cfg.GRPC,
+			EnableGrpcByDefault: true,
+			AnonymousAccess:     true,
+		},
+		grpcClient: dummyClient,
+	}
+
+	client, err := sh.getClient(testSuite.ctx, false, TestBucketName, "")
+
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), dummyClient, client)
+	assert.Nil(testSuite.T(), sh.httpClient)
+}
+
+func (testSuite *StorageHandleTest) TestGetClient_Regional_EnableGrpcByDefault_ContextCanceled_DoesNotFallbackToHTTP() {
+	sh := &storageClient{
+		clientConfig: storageutil.StorageClientConfig{
+			ClientProtocol:      cfg.GRPC,
+			EnableGrpcByDefault: true,
+			AnonymousAccess:     true,
+		},
+	}
+	canceledCtx, cancel := context.WithCancel(testSuite.ctx)
+	cancel()
+
+	client, err := sh.getClient(canceledCtx, false, TestBucketName, "")
+
+	require.Error(testSuite.T(), err)
+	assert.Nil(testSuite.T(), client)
+	assert.Nil(testSuite.T(), sh.httpClient)
+	assert.Nil(testSuite.T(), sh.grpcClient)
+}
