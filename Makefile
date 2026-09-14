@@ -97,6 +97,7 @@ help:
 	@echo "                     (e.g. make e2e-test ARGS=\"--help\", make e2e-test ARGS=\"--run-package operations --presubmit\")"
 
 generate:
+	@tools/scripts/install_proto_tools.sh
 	go generate ./...
 
 imports: generate
