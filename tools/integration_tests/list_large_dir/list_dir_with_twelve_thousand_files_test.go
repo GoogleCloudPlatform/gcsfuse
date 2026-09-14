@@ -223,8 +223,8 @@ func testdataCreateExplicitDir(t *testing.T, ctx context.Context, storageClient 
 	}
 }
 
-// prepareTestDirectory sets up a test directory with files and required explicit and implicit directories
-// only if the bucket directory is empty.
+// prepareTestDirectory sets up a test directory with files and required explicit and implicit directories.
+// If the directory is not empty on GCS (e.g. from an interrupted prior run), it cleans up before creating files.
 func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs bool) string {
 	t.Helper()
 
@@ -242,16 +242,21 @@ func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs 
 		t.Fatalf("Failed to check if bucket directory %s is empty: %v", dirPathInBucket, err)
 	}
 
-	if isEmpty {
-		createFilesAndUpload(t, testDirPathOnBucket)
-
-		if withExplicitDirs {
-			testdataCreateExplicitDir(t, testEnv.ctx, testEnv.storageClient, testDirPathOnBucket)
+	if !isEmpty {
+		// Clean up stale objects from prior interrupted runs to recover cleanly.
+		if err := DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, t.Name()+"/"); err != nil {
+			t.Fatalf("Failed to clean up non-empty bucket directory %s: %v", dirPathInBucket, err)
 		}
+	}
 
-		if withImplicitDirs {
-			testdataCreateImplicitDir(t, testEnv.ctx, testEnv.storageClient, testDirPathOnBucket)
-		}
+	createFilesAndUpload(t, testDirPathOnBucket)
+
+	if withExplicitDirs {
+		testdataCreateExplicitDir(t, testEnv.ctx, testEnv.storageClient, testDirPathOnBucket)
+	}
+
+	if withImplicitDirs {
+		testdataCreateImplicitDir(t, testEnv.ctx, testEnv.storageClient, testDirPathOnBucket)
 	}
 
 	return testDirPath
