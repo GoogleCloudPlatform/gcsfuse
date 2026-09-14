@@ -62,7 +62,7 @@ func (t *listLargeDir) SetupTest() {
 
 func (t *listLargeDir) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
-	err := DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, t.T().Name())
+	err := DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, t.T().Name()+"/")
 	assert.NoError(t.T(), err)
 }
 

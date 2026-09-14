@@ -748,15 +748,22 @@ func IsDirEmptyOnGCS(ctx context.Context, client *storage.Client, bucketName, pr
 	if client == nil {
 		return false, fmt.Errorf("storage client is nil")
 	}
+	if prefix != "" && !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
 	bucket := getBucketHandle(client, bucketName)
 	query := &storage.Query{Prefix: prefix}
 	it := bucket.Objects(ctx, query)
-	_, err := it.Next()
-	if err == iterator.Done {
-		return true, nil
+	for {
+		attrs, err := it.Next()
+		if err == iterator.Done {
+			return true, nil
+		}
+		if err != nil {
+			return false, fmt.Errorf("failed to iterate objects with prefix %q in bucket %q: %w", prefix, bucketName, err)
+		}
+		if attrs.Name != prefix {
+			return false, nil
+		}
 	}
-	if err != nil {
-		return false, fmt.Errorf("failed to iterate objects with prefix %q in bucket %q: %w", prefix, bucketName, err)
-	}
-	return false, nil
 }
