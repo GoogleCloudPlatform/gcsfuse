@@ -27,7 +27,7 @@ import (
 
 // ToProto maps a cfg.Config into its flat Protobuf pb.Config representation.
 // High-risk text fields (strings, paths) are booleanized to prevent PII leakage.
-func ToProto(config *Config) *pb.Config {
+func (config *Config) ToProto() *pb.Config {
 	if config == nil {
 		return nil
 	}
@@ -196,12 +196,12 @@ func ToProto(config *Config) *pb.Config {
 
 // SerializeConfigToProtoBase64 maps the given Config to its flat Protobuf representation,
 // marshals it using proto3 binary encoding, and encodes it into URL-safe Base64 without padding.
-func SerializeConfigToProtoBase64(config *Config) (string, error) {
+func (config *Config) SerializeConfigToProtoBase64() (string, error) {
 	if config == nil {
 		return "", nil
 	}
 
-	protoConfig := ToProto(config)
+	protoConfig := config.ToProto()
 	data, err := proto.Marshal(protoConfig)
 	if err != nil {
 		return "", fmt.Errorf("marshaling config proto: %w", err)

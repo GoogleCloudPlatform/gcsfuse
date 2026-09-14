@@ -27,27 +27,37 @@ import (
 )
 
 func TestToProto_Nil(t *testing.T) {
-	assert.Nil(t, ToProto(nil))
+	var config *Config
+
+	protoConfig := config.ToProto()
+
+	assert.Nil(t, protoConfig)
 }
 
 func TestSerializeConfigToProtoBase64_Nil(t *testing.T) {
-	str, err := SerializeConfigToProtoBase64(nil)
+	var config *Config
+
+	str, err := config.SerializeConfigToProtoBase64()
+
 	assert.NoError(t, err)
 	assert.Empty(t, str)
 }
 
 func TestSerializeConfigToProtoBase64_DefaultConfig(t *testing.T) {
 	config := &Config{}
-	str, err := SerializeConfigToProtoBase64(config)
+
+	str, err := config.SerializeConfigToProtoBase64()
+
 	assert.NoError(t, err)
 	assert.Empty(t, str)
 }
 
 func TestToProto_DefaultConfig(t *testing.T) {
 	config := &Config{}
-	protoConfig := ToProto(config)
-	require.NotNil(t, protoConfig)
 
+	protoConfig := config.ToProto()
+
+	require.NotNil(t, protoConfig)
 	assert.False(t, protoConfig.IsAppNameSet)
 	assert.False(t, protoConfig.IsCacheDirSet)
 	assert.False(t, protoConfig.CloudProfilerAllocatedHeap)
@@ -88,7 +98,7 @@ func TestToProto_PopulatedFields(t *testing.T) {
 		},
 	}
 
-	protoConfig := ToProto(config)
+	protoConfig := config.ToProto()
 	require.NotNil(t, protoConfig)
 
 	// Boolean presence flags for high-risk text/paths
@@ -132,7 +142,7 @@ func TestSerializeConfigToProtoBase64_RoundTrip(t *testing.T) {
 		},
 	}
 
-	encoded, err := SerializeConfigToProtoBase64(config)
+	encoded, err := config.SerializeConfigToProtoBase64()
 	require.NoError(t, err)
 	assert.NotEmpty(t, encoded)
 
@@ -143,7 +153,7 @@ func TestSerializeConfigToProtoBase64_RoundTrip(t *testing.T) {
 	err = proto.Unmarshal(decodedBytes, &decodedProto)
 	require.NoError(t, err)
 
-	expectedProto := ToProto(config)
+	expectedProto := config.ToProto()
 	assert.True(t, proto.Equal(expectedProto, &decodedProto))
 }
 
@@ -168,11 +178,11 @@ func populateNonZero(v reflect.Value) {
 		populateNonZero(slice.Index(0))
 		v.Set(slice)
 	case reflect.Array:
-		for i := 0; i < v.Len(); i++ {
+		for i := range v.Len() {
 			populateNonZero(v.Index(i))
 		}
 	case reflect.Struct:
-		for i := 0; i < v.NumField(); i++ {
+		for i := range v.NumField() {
 			populateNonZero(v.Field(i))
 		}
 	case reflect.Pointer:
@@ -190,7 +200,7 @@ func TestToProto_AutomatedReflection(t *testing.T) {
 	var config Config
 	populateNonZero(reflect.ValueOf(&config).Elem())
 
-	protoConfig := ToProto(&config)
+	protoConfig := config.ToProto()
 	require.NotNil(t, protoConfig)
 
 	m := protoConfig.ProtoReflect()
@@ -198,7 +208,7 @@ func TestToProto_AutomatedReflection(t *testing.T) {
 	require.Greater(t, fields.Len(), 0, "expected proto fields in descriptor")
 
 	var unsetFields []string
-	for i := 0; i < fields.Len(); i++ {
+	for i := range fields.Len() {
 		fd := fields.Get(i)
 		if !m.Has(fd) {
 			unsetFields = append(unsetFields, string(fd.Name()))
