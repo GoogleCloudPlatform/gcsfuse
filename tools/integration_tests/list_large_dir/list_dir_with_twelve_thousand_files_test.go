@@ -54,8 +54,6 @@ func (t *listLargeDir) TearDownSuite() {
 }
 
 func (t *listLargeDir) SetupSuite() {
-	err := DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, t.T().Name())
-	assert.NoError(t.T(), err)
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, t.flags, mountFunc)
 }
 
@@ -64,6 +62,8 @@ func (t *listLargeDir) SetupTest() {
 
 func (t *listLargeDir) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
+	err := DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, t.T().Name()+"/")
+	assert.NoError(t.T(), err)
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -224,6 +224,7 @@ func testdataCreateExplicitDir(t *testing.T, ctx context.Context, storageClient 
 }
 
 // prepareTestDirectory sets up a test directory with files and required explicit and implicit directories.
+// If the directory is not empty on GCS (e.g. from an interrupted prior run), it cleans up before creating files.
 func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs bool) string {
 	t.Helper()
 
@@ -233,6 +234,19 @@ func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs 
 	err := os.MkdirAll(testDirPath, 0755)
 	if err != nil {
 		t.Fatalf("Failed to create directory: %v", err)
+	}
+
+	bucketName, dirPathInBucket := operations.SplitBucketNameAndDirPath(t, testDirPathOnBucket)
+	isEmpty, err := IsDirEmptyOnGCS(testEnv.ctx, testEnv.storageClient, bucketName, dirPathInBucket)
+	if err != nil {
+		t.Fatalf("Failed to check if bucket directory %s is empty: %v", dirPathInBucket, err)
+	}
+
+	if !isEmpty {
+		// Clean up stale objects from prior interrupted runs to recover cleanly.
+		if err := DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, t.Name()+"/"); err != nil {
+			t.Fatalf("Failed to clean up non-empty bucket directory %s: %v", dirPathInBucket, err)
+		}
 	}
 
 	createFilesAndUpload(t, testDirPathOnBucket)
