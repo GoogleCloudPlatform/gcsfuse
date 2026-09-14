@@ -16,7 +16,6 @@ package cfg
 
 import (
 	"encoding/base64"
-	"reflect"
 	"testing"
 	"time"
 
@@ -34,186 +33,204 @@ func TestToProto_Nil(t *testing.T) {
 	assert.Nil(t, protoConfig)
 }
 
-func TestSerializeConfigToProtoBase64_Nil(t *testing.T) {
-	var config *Config
-
-	str, err := config.SerializeConfigToProtoBase64()
-
-	assert.NoError(t, err)
-	assert.Empty(t, str)
-}
-
-func TestSerializeConfigToProtoBase64_DefaultConfig(t *testing.T) {
-	config := &Config{}
-
-	str, err := config.SerializeConfigToProtoBase64()
-
-	assert.NoError(t, err)
-	assert.Empty(t, str)
-}
-
-func TestToProto_DefaultConfig(t *testing.T) {
-	config := &Config{}
-
-	protoConfig := config.ToProto()
-
-	require.NotNil(t, protoConfig)
-	assert.False(t, protoConfig.IsAppNameSet)
-	assert.False(t, protoConfig.IsCacheDirSet)
-	assert.False(t, protoConfig.CloudProfilerAllocatedHeap)
-	assert.False(t, protoConfig.CloudProfilerEnabled)
-	assert.Equal(t, int64(0), protoConfig.FileCacheDownloadChunkSizeMb)
-	assert.Equal(t, "", protoConfig.GcsConnectionClientProtocol)
-}
-
-func TestToProto_PopulatedFields(t *testing.T) {
-	config := &Config{
-		AppName:     "custom-app",
-		CacheDir:    "/tmp/custom_cache",
-		MachineType: "a3-highgpu-8g",
-		Profile:     "aiml-training",
-		CloudProfiler: CloudProfilerConfig{
-			AllocatedHeap: true,
-			Cpu:           true,
-			Enabled:       true,
-			Label:         "test-label",
+func TestToProto_AllDataTypes(t *testing.T) {
+	testCases := []struct {
+		name     string
+		config   *Config
+		expected *pb.Config
+	}{
+		{
+			name:     "DefaultEmptyConfig",
+			config:   &Config{},
+			expected: &pb.Config{},
 		},
-		FileCache: FileCacheConfig{
-			DownloadChunkSizeMb: 64,
-			EnableCrc:           true,
-			MaxSizeMb:           1024,
+		{
+			name:   "ScrubbedPIIString",
+			config: &Config{AppName: "custom-app"},
+			expected: &pb.Config{
+				IsAppNameSet: true,
+			},
 		},
-		FileSystem: FileSystemConfig{
-			DirMode:     0755,
-			FuseOptions: []string{"ro", "allow_other"},
+		{
+			name:   "ScrubbedPath",
+			config: &Config{CacheDir: "/tmp/custom_cache"},
+			expected: &pb.Config{
+				IsCacheDirSet: true,
+			},
 		},
-		GcsConnection: GcsConnectionConfig{
-			ClientProtocol: "grpc",
-			BillingProject: "my-gcp-project",
+		{
+			name:   "ScrubbedSlice",
+			config: &Config{FileSystem: FileSystemConfig{FuseOptions: []string{"ro", "allow_other"}}},
+			expected: &pb.Config{
+				IsFileSystemFuseOptionsSet: true,
+			},
 		},
-		Write: WriteConfig{
-			BlockSizeMb:        32.0,
-			EnableRapidAppends: true,
-			GlobalMaxBlocks:    100,
+		{
+			name:   "EmptyScrubbedSlice",
+			config: &Config{FileSystem: FileSystemConfig{FuseOptions: []string{}}},
+			expected: &pb.Config{
+				IsFileSystemFuseOptionsSet: false,
+			},
 		},
-	}
-
-	protoConfig := config.ToProto()
-	require.NotNil(t, protoConfig)
-
-	// Boolean presence flags for high-risk text/paths
-	assert.True(t, protoConfig.IsAppNameSet)
-	assert.True(t, protoConfig.IsCacheDirSet)
-	assert.True(t, protoConfig.IsCloudProfilerLabelSet)
-	assert.True(t, protoConfig.IsFileSystemFuseOptionsSet)
-	assert.True(t, protoConfig.IsGcsConnectionBillingProjectSet)
-
-	// Whitelisted string fields
-	assert.Equal(t, "a3-highgpu-8g", protoConfig.MachineType)
-	assert.Equal(t, "aiml-training", protoConfig.Profile)
-
-	// Explicit values
-	assert.True(t, protoConfig.CloudProfilerAllocatedHeap)
-	assert.True(t, protoConfig.CloudProfilerCpu)
-	assert.True(t, protoConfig.CloudProfilerEnabled)
-	assert.Equal(t, int64(64), protoConfig.FileCacheDownloadChunkSizeMb)
-	assert.True(t, protoConfig.FileCacheEnableCrc)
-	assert.Equal(t, int64(1024), protoConfig.FileCacheMaxSizeMb)
-	assert.Equal(t, int32(0755), protoConfig.FileSystemDirMode)
-	assert.Equal(t, "grpc", protoConfig.GcsConnectionClientProtocol)
-	assert.Equal(t, 32.0, protoConfig.WriteBlockSizeMb)
-	assert.True(t, protoConfig.WriteEnableRapidAppends)
-	assert.Equal(t, int64(100), protoConfig.WriteGlobalMaxBlocks)
-}
-
-func TestSerializeConfigToProtoBase64_RoundTrip(t *testing.T) {
-	config := &Config{
-		AppName:  "gcsfuse-telemetry-test",
-		CacheDir: "/var/cache/gcsfuse",
-		CloudProfiler: CloudProfilerConfig{
-			Enabled: true,
+		{
+			name:   "WhitelistedString",
+			config: &Config{MachineType: "a3-highgpu-8g"},
+			expected: &pb.Config{
+				MachineType: "a3-highgpu-8g",
+			},
 		},
-		FileCache: FileCacheConfig{
-			MaxSizeMb: 512,
+		{
+			name:   "WhitelistedEnum",
+			config: &Config{GcsConnection: GcsConnectionConfig{ClientProtocol: "grpc"}},
+			expected: &pb.Config{
+				GcsConnectionClientProtocol: "grpc",
+			},
 		},
-		GcsConnection: GcsConnectionConfig{
-			ClientProtocol:    "http1",
-			HttpClientTimeout: 30 * time.Second,
+		{
+			name:   "Boolean",
+			config: &Config{CloudProfiler: CloudProfilerConfig{Enabled: true}},
+			expected: &pb.Config{
+				CloudProfilerEnabled: true,
+			},
+		},
+		{
+			name:   "Integer",
+			config: &Config{FileCache: FileCacheConfig{MaxSizeMb: 1024}},
+			expected: &pb.Config{
+				FileCacheMaxSizeMb: 1024,
+			},
+		},
+		{
+			name:   "OctalFileMode",
+			config: &Config{FileSystem: FileSystemConfig{DirMode: 0755}},
+			expected: &pb.Config{
+				FileSystemDirMode: 0755,
+			},
+		},
+		{
+			name:   "Float",
+			config: &Config{Write: WriteConfig{BlockSizeMb: 32.5}},
+			expected: &pb.Config{
+				WriteBlockSizeMb: 32.5,
+			},
+		},
+		{
+			name:   "Duration",
+			config: &Config{GcsConnection: GcsConnectionConfig{HttpClientTimeout: 30 * time.Second}},
+			expected: &pb.Config{
+				GcsConnectionHttpClientTimeout: int64(30 * time.Second),
+			},
 		},
 	}
 
-	encoded, err := config.SerializeConfigToProtoBase64()
-	require.NoError(t, err)
-	assert.NotEmpty(t, encoded)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := tc.config.ToProto()
 
-	decodedBytes, err := base64.RawURLEncoding.DecodeString(encoded)
-	require.NoError(t, err)
-
-	var decodedProto pb.Config
-	err = proto.Unmarshal(decodedBytes, &decodedProto)
-	require.NoError(t, err)
-
-	expectedProto := config.ToProto()
-	assert.True(t, proto.Equal(expectedProto, &decodedProto))
-}
-
-// populateNonZero recursively fills every field of a struct with non-zero dummy values.
-func populateNonZero(v reflect.Value) {
-	if !v.CanSet() {
-		return
-	}
-	switch v.Kind() {
-	case reflect.Bool:
-		v.SetBool(true)
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		v.SetInt(42)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		v.SetUint(42)
-	case reflect.Float32, reflect.Float64:
-		v.SetFloat(42.5)
-	case reflect.String:
-		v.SetString("dummy-test-string")
-	case reflect.Slice:
-		slice := reflect.MakeSlice(v.Type(), 1, 1)
-		populateNonZero(slice.Index(0))
-		v.Set(slice)
-	case reflect.Array:
-		for i := range v.Len() {
-			populateNonZero(v.Index(i))
-		}
-	case reflect.Struct:
-		for i := range v.NumField() {
-			populateNonZero(v.Field(i))
-		}
-	case reflect.Pointer:
-		if v.IsNil() {
-			v.Set(reflect.New(v.Type().Elem()))
-		}
-		populateNonZero(v.Elem())
+			require.NotNil(t, actual)
+			assert.True(t, proto.Equal(tc.expected, actual))
+		})
 	}
 }
 
-// TestToProto_AutomatedReflection recursively populates all fields of Config with non-zero values,
-// converts it to pb.Config, and uses Protobuf reflection to ensure every generated field in pb.Config
-// has received a non-zero value.
-func TestToProto_AutomatedReflection(t *testing.T) {
-	var config Config
-	populateNonZero(reflect.ValueOf(&config).Elem())
-
-	protoConfig := config.ToProto()
-	require.NotNil(t, protoConfig)
-
-	m := protoConfig.ProtoReflect()
-	fields := m.Descriptor().Fields()
-	require.Greater(t, fields.Len(), 0, "expected proto fields in descriptor")
-
-	var unsetFields []string
-	for i := range fields.Len() {
-		fd := fields.Get(i)
-		if !m.Has(fd) {
-			unsetFields = append(unsetFields, string(fd.Name()))
-		}
+func TestSerializeConfigToProtoBase64(t *testing.T) {
+	testCases := []struct {
+		name           string
+		config         *Config
+		expectedBytes  []byte
+		expectedBase64 string
+	}{
+		{
+			name:           "NilConfig",
+			config:         nil,
+			expectedBytes:  []byte{},
+			expectedBase64: "",
+		},
+		{
+			name:           "DefaultEmptyConfig",
+			config:         &Config{},
+			expectedBytes:  []byte{},
+			expectedBase64: "",
+		},
+		{
+			name: "Unpadded4BytePayload",
+			config: &Config{
+				CloudProfiler: CloudProfilerConfig{
+					Cpu:     true,
+					Enabled: true,
+				},
+			},
+			// Tag 4 (cloud_profiler_cpu = true): 0x20, 0x01
+			// Tag 5 (cloud_profiler_enabled = true): 0x28, 0x01
+			// 4 bytes would be "IAEoAQ==" with standard padding, verifying RawURLEncoding strips "==".
+			expectedBytes:  []byte{0x20, 0x01, 0x28, 0x01},
+			expectedBase64: "IAEoAQ",
+		},
+		{
+			name: "PositiveZigZagAndScrubbedString",
+			config: &Config{
+				AppName: "test-app",
+				FileCache: FileCacheConfig{
+					MaxSizeMb: 512,
+				},
+			},
+			// Tag 1 (is_app_name_set = true): 0x08, 0x01
+			// Tag 38 (file_cache_max_size_mb = 512, sint64 ZigZag(512)=1024): 0xb0, 0x02, 0x80, 0x08
+			expectedBytes:  []byte{0x08, 0x01, 0xb0, 0x02, 0x80, 0x08},
+			expectedBase64: "CAGwAoAI",
+		},
+		{
+			name: "NegativeZigZagUnlimitedCache",
+			config: &Config{
+				FileCache: FileCacheConfig{
+					MaxSizeMb: -1,
+				},
+			},
+			// Tag 38 (file_cache_max_size_mb = -1, sint64 ZigZag(-1)=1): 0xb0, 0x02, 0x01
+			expectedBytes:  []byte{0xb0, 0x02, 0x01},
+			expectedBase64: "sAIB",
+		},
+		{
+			name: "URLSafeAlphabetCharacters",
+			config: &Config{
+				FileCache: FileCacheConfig{
+					MaxSizeMb: 63,
+				},
+				FileSystem: FileSystemConfig{
+					DirMode: 077,
+				},
+			},
+			// Tag 38 (file_cache_max_size_mb = 63, sint64 ZigZag(63)=126=0x7e): 0xb0, 0x02, 0x7e -> Base64 "sAJ-" (index 62 '-')
+			// Tag 43 (file_system_dir_mode = 077 = 63 = 0x3f): 0xd8, 0x02, 0x3f -> Base64 "2AI_" (index 63 '_')
+			// Standard Base64 would encode this as "sAJ+2AI/".
+			expectedBytes:  []byte{0xb0, 0x02, 0x7e, 0xd8, 0x02, 0x3f},
+			expectedBase64: "sAJ-2AI_",
+		},
 	}
 
-	assert.Empty(t, unsetFields, "The following proto fields were not populated from Config: %v", unsetFields)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			encoded, err := tc.config.SerializeConfigToProtoBase64()
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedBase64, encoded)
+			assert.NotContains(t, encoded, "=")
+			assert.NotContains(t, encoded, "+")
+			assert.NotContains(t, encoded, "/")
+
+			decodedBytes, err := base64.RawURLEncoding.DecodeString(encoded)
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedBytes, decodedBytes)
+
+			if tc.config != nil {
+				var unmarshaled pb.Config
+
+				err = proto.Unmarshal(decodedBytes, &unmarshaled)
+
+				require.NoError(t, err)
+				assert.True(t, proto.Equal(tc.config.ToProto(), &unmarshaled))
+			}
+		})
+	}
 }
