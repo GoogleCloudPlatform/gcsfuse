@@ -41,7 +41,6 @@ func logPanic() {
 //
 //go:generate go run -C tools/config-gen . --paramsFile=../../cfg/params.yaml --outDir=../../cfg --templateDir=templates
 //go:generate protoc --go_out=. --go_opt=module=github.com/googlecloudplatform/gcsfuse/v3 cfg/config.proto
-//go:generate go fmt ./cfg/...
 //go:generate go run -C tools/metrics-gen . --input=../../metrics/metrics.yaml --outDir=../../metrics
 func main() {
 	// Common configuration for all commands
