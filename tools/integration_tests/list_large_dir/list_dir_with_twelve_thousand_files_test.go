@@ -54,8 +54,6 @@ func (t *listLargeDir) TearDownSuite() {
 }
 
 func (t *listLargeDir) SetupSuite() {
-	err := DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, t.T().Name())
-	assert.NoError(t.T(), err)
 	setup.MountGCSFuseWithGivenMountWithConfigFunc(testEnv.cfg, t.flags, mountFunc)
 }
 
@@ -64,6 +62,8 @@ func (t *listLargeDir) SetupTest() {
 
 func (t *listLargeDir) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
+	err := DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, t.T().Name())
+	assert.NoError(t.T(), err)
 }
 
 // //////////////////////////////////////////////////////////////////////
@@ -223,7 +223,8 @@ func testdataCreateExplicitDir(t *testing.T, ctx context.Context, storageClient 
 	}
 }
 
-// prepareTestDirectory sets up a test directory with files and required explicit and implicit directories.
+// prepareTestDirectory sets up a test directory with files and required explicit and implicit directories
+// only if the bucket directory is empty.
 func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs bool) string {
 	t.Helper()
 
@@ -235,14 +236,22 @@ func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs 
 		t.Fatalf("Failed to create directory: %v", err)
 	}
 
-	createFilesAndUpload(t, testDirPathOnBucket)
-
-	if withExplicitDirs {
-		testdataCreateExplicitDir(t, testEnv.ctx, testEnv.storageClient, testDirPathOnBucket)
+	bucketName, dirPathInBucket := operations.SplitBucketNameAndDirPath(t, testDirPathOnBucket)
+	isEmpty, err := IsDirEmptyOnGCS(testEnv.ctx, testEnv.storageClient, bucketName, dirPathInBucket)
+	if err != nil {
+		t.Fatalf("Failed to check if bucket directory %s is empty: %v", dirPathInBucket, err)
 	}
 
-	if withImplicitDirs {
-		testdataCreateImplicitDir(t, testEnv.ctx, testEnv.storageClient, testDirPathOnBucket)
+	if isEmpty {
+		createFilesAndUpload(t, testDirPathOnBucket)
+
+		if withExplicitDirs {
+			testdataCreateExplicitDir(t, testEnv.ctx, testEnv.storageClient, testDirPathOnBucket)
+		}
+
+		if withImplicitDirs {
+			testdataCreateImplicitDir(t, testEnv.ctx, testEnv.storageClient, testDirPathOnBucket)
+		}
 	}
 
 	return testDirPath
