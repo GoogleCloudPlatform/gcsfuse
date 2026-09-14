@@ -1270,34 +1270,70 @@ func TestRationalizeWithBucketOptimization(t *testing.T) {
 
 func TestResolveClientProtocol(t *testing.T) {
 	testCases := []struct {
-		name             string
-		config           *Config
-		userSetFlags     map[string]any
-		expectedProtocol Protocol
+		name                        string
+		mountPoint                  string
+		config                      *Config
+		userSetFlags                map[string]any
+		expectedProtocol            Protocol
+		expectedEnableGrpcByDefault bool
 	}{
 		{
-			name: "enable-grpc-by-default is false and client does not pass protocol",
+			name:       "standard machine on GKE without flags keeps HTTP1",
+			mountPoint: "/dev/fd/3",
 			config: &Config{
+				MachineType: "e2-standard-4",
 				GcsConnection: GcsConnectionConfig{
 					ClientProtocol:      HTTP1,
 					EnableGrpcByDefault: false,
 				},
 			},
-			expectedProtocol: HTTP1,
+			expectedProtocol:            HTTP1,
+			expectedEnableGrpcByDefault: false,
 		},
 		{
-			name: "enable-grpc-by-default is true and client does not pass protocol",
+			name:       "high-performance machine on GCE without flags keeps HTTP1",
+			mountPoint: "/mnt/bucket",
 			config: &Config{
+				MachineType: "a3-highgpu-8g",
+				GcsConnection: GcsConnectionConfig{
+					ClientProtocol:      HTTP1,
+					EnableGrpcByDefault: false,
+				},
+			},
+			expectedProtocol:            HTTP1,
+			expectedEnableGrpcByDefault: false,
+		},
+		{
+			name:       "high-performance machine on GKE without flags enables gRPC by default",
+			mountPoint: "/dev/fd/3",
+			config: &Config{
+				MachineType: "a3-highgpu-8g",
+				GcsConnection: GcsConnectionConfig{
+					ClientProtocol:      HTTP1,
+					EnableGrpcByDefault: false,
+				},
+			},
+			expectedProtocol:            GRPC,
+			expectedEnableGrpcByDefault: true,
+		},
+		{
+			name:       "enable-grpc-by-default is true and client does not pass protocol",
+			mountPoint: "/mnt/bucket",
+			config: &Config{
+				MachineType: "e2-standard-4",
 				GcsConnection: GcsConnectionConfig{
 					ClientProtocol:      HTTP1,
 					EnableGrpcByDefault: true,
 				},
 			},
-			expectedProtocol: GRPC,
+			expectedProtocol:            GRPC,
+			expectedEnableGrpcByDefault: true,
 		},
 		{
-			name: "enable-grpc-by-default is true and client passes http1",
+			name:       "explicit client-protocol=http1 overrides enable-grpc-by-default and GKE high-perf",
+			mountPoint: "/dev/fd/3",
 			config: &Config{
+				MachineType: "a3-highgpu-8g",
 				GcsConnection: GcsConnectionConfig{
 					ClientProtocol:      HTTP1,
 					EnableGrpcByDefault: true,
@@ -1306,25 +1342,35 @@ func TestResolveClientProtocol(t *testing.T) {
 			userSetFlags: map[string]any{
 				ClientProtocolConfigKey: "http1",
 			},
-			expectedProtocol: HTTP1,
+			expectedProtocol:            HTTP1,
+			expectedEnableGrpcByDefault: false,
 		},
 		{
-			name: "enable-grpc-by-default is false and client passes grpc",
+			name:       "explicit client-protocol=grpc resets EnableGrpcByDefault to false",
+			mountPoint: "/dev/fd/3",
 			config: &Config{
+				MachineType: "a3-highgpu-8g",
 				GcsConnection: GcsConnectionConfig{
 					ClientProtocol:      GRPC,
-					EnableGrpcByDefault: false,
+					EnableGrpcByDefault: true,
 				},
 			},
 			userSetFlags: map[string]any{
 				ClientProtocolConfigKey: "grpc",
 			},
-			expectedProtocol: GRPC,
+			expectedProtocol:            GRPC,
+			expectedEnableGrpcByDefault: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			origArgs := os.Args
+			t.Cleanup(func() {
+				os.Args = origArgs
+			})
+			os.Args = []string{"gcsfuse", "my-bucket", tc.mountPoint}
+
 			v := viper.New()
 			for k, val := range tc.userSetFlags {
 				v.Set(k, val)
@@ -1334,6 +1380,7 @@ func TestResolveClientProtocol(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedProtocol, tc.config.GcsConnection.ClientProtocol)
+			assert.Equal(t, tc.expectedEnableGrpcByDefault, tc.config.GcsConnection.EnableGrpcByDefault)
 		})
 	}
 }
