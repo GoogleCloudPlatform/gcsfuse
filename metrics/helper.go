@@ -31,4 +31,3 @@ func IsMonitoringEnabled(mh MetricHandle) bool {
 	}
 	return true
 }
-

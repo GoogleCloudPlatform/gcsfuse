@@ -277,9 +277,6 @@ func (f *FileInode) checkInvariants() {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, includeExtendedObjectAttributes bool) (o *gcs.Object, isClobbered bool, isNotFound bool, err error) {
-	if f.IsLocal() {
-		return nil, false, false, nil
-	}
 	// Stat the object in GCS. ForceFetchFromGcs ensures object is fetched from
 	// gcs and not cache.
 	req := &gcs.StatObjectRequest{
