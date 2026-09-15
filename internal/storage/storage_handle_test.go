@@ -103,8 +103,12 @@ func (testSuite *StorageHandleTest) mockStorageLayout(bucketType gcs.BucketType)
 		storageLayout.LocationType = "multiregion"
 	}
 
-	// TODO (b/483608308): Once GetStorageLayout starts returning Pirlo bucket type,
-	// update this mock to correctly populate the response for Pirlo buckets.
+	if bucketType.Pirlo != gcs.PirloStateNone {
+		storageLayout.RapidCacheInfo = &controlpb.StorageLayout_RapidCacheInfo{
+			CacheType: "rapid-cache-ultra",
+		}
+	}
+
 	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(storageLayout, nil)
 }
 
@@ -289,20 +293,36 @@ func (testSuite *StorageHandleTest) TestBucketHandle_ControlClientIsWrappedWithB
 	assert.Equal(testSuite.T(), projectID, billingProjectWrapper.billingProject)
 }
 
-func (testSuite *StorageHandleTest) TestLookupBucketType_PirloEnabled() {
+func (testSuite *StorageHandleTest) TestLookupBucketType_PirloRapidWritesEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.ExperimentalEnablePirlo = true
 	sc.WriteConfig = &cfg.WriteConfig{EnableRapidWrites: true}
 	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
 	require.NoError(testSuite.T(), err)
 	client := sh.(*storageClient)
 	client.storageControlClient = testSuite.mockClient
-	testSuite.mockStorageLayout(gcs.BucketType{Zonal: true})
+	testSuite.mockStorageLayout(gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled})
 
 	bt, err := client.lookupBucketType(TestBucketName)
 
 	assert.NoError(testSuite.T(), err)
 	assert.Equal(testSuite.T(), gcs.PirloStateRapidWritesEnabled, bt.Pirlo)
+	assert.True(testSuite.T(), bt.IsRapid())
+}
+
+func (testSuite *StorageHandleTest) TestLookupBucketType_PirloRapidWritesDisabled() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.WriteConfig = &cfg.WriteConfig{EnableRapidWrites: false}
+	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
+	require.NoError(testSuite.T(), err)
+	client := sh.(*storageClient)
+	client.storageControlClient = testSuite.mockClient
+	testSuite.mockStorageLayout(gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled})
+
+	bt, err := client.lookupBucketType(TestBucketName)
+
+	assert.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), gcs.PirloStateRapidWritesDisabled, bt.Pirlo)
+	assert.True(testSuite.T(), bt.IsRapid())
 }
 
 func (testSuite *StorageHandleTest) runLookupBucketTypeTest(onlyDirInput, expectedPrefixInRequest string) {
