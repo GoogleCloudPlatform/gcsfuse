@@ -1589,3 +1589,42 @@ func Test_isValidFuseMaxWriteSizeKb_ErrorScenarios(t *testing.T) {
 		})
 	}
 }
+
+func TestIsValidMaxReadAheadKbValid(t *testing.T) {
+	testCases := []struct {
+		name        string
+		readAheadKb int64
+	}{
+		{"valid_zero", 0},
+		{"valid_1_kb", 1},
+		{"valid_1024_kb", 1024},
+		{"valid_261120_kb", 261120},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidMaxReadAheadKb(tc.readAheadKb)
+
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestIsValidMaxReadAheadKbError(t *testing.T) {
+	testCases := []struct {
+		name        string
+		readAheadKb int64
+	}{
+		{"invalid_negative_one", -1},
+		{"invalid_negative_ten", -10},
+		{"invalid_negative_large", -1024},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidMaxReadAheadKb(tc.readAheadKb)
+
+			assert.Error(t, err)
+		})
+	}
+}

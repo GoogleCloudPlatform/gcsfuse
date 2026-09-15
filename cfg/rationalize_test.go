@@ -929,3 +929,341 @@ func TestResolveOnlyDir(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveKernelReadAhead(t *testing.T) {
+	testCases := []struct {
+		name                string
+		userSetFlags        map[string]any
+		nilViper            bool
+		enableKernelReader  bool
+		initialReadAheadKb  int64
+		requestSizeKb       int64
+		expectedReadAheadKb int64
+	}{
+		{
+			name:                "kr_enabled_unset_large_request_size",
+			enableKernelReader:  true,
+			initialReadAheadKb:  131072, // 128 MiB (regional default)
+			requestSizeKb:       261120, // 255 MiB
+			expectedReadAheadKb: 261120,
+		},
+		{
+			name:                "kr_enabled_startup_zero_adjusted",
+			enableKernelReader:  true,
+			initialReadAheadKb:  0,
+			requestSizeKb:       261120,
+			expectedReadAheadKb: 261120,
+		},
+		{
+			name:                "kr_enabled_startup_default_request_size",
+			enableKernelReader:  true,
+			initialReadAheadKb:  0,
+			requestSizeKb:       1024,
+			expectedReadAheadKb: 1024,
+		},
+		{
+			name:                "kr_enabled_explicit_read_ahead_lower",
+			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 1024},
+			enableKernelReader:  true,
+			initialReadAheadKb:  1024,
+			requestSizeKb:       261120,
+			expectedReadAheadKb: 1024,
+		},
+		{
+			name:                "kr_enabled_explicit_zero_preserved",
+			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 0},
+			enableKernelReader:  true,
+			initialReadAheadKb:  0,
+			requestSizeKb:       261120,
+			expectedReadAheadKb: 0,
+		},
+		{
+			name:                "kr_enabled_explicit_read_ahead_higher",
+			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 524288},
+			enableKernelReader:  true,
+			initialReadAheadKb:  524288,
+			requestSizeKb:       16384,
+			expectedReadAheadKb: 524288,
+		},
+		{
+			name:                "kr_enabled_request_size_equal_read_ahead",
+			enableKernelReader:  true,
+			initialReadAheadKb:  131072,
+			requestSizeKb:       131072,
+			expectedReadAheadKb: 131072,
+		},
+		{
+			name:                "kr_enabled_request_size_smaller_read_ahead",
+			enableKernelReader:  true,
+			initialReadAheadKb:  131072, // 128 MiB
+			requestSizeKb:       16384,  // 16 MiB
+			expectedReadAheadKb: 131072,
+		},
+		{
+			name:                "kr_enabled_explicit_small_request_size",
+			enableKernelReader:  true,
+			initialReadAheadKb:  131072,
+			requestSizeKb:       8192,
+			expectedReadAheadKb: 131072,
+		},
+		{
+			name:                "kr_enabled_request_size_zero",
+			enableKernelReader:  true,
+			initialReadAheadKb:  131072,
+			requestSizeKb:       0,
+			expectedReadAheadKb: 131072,
+		},
+		{
+			name:                "kr_disabled_large_request_size",
+			enableKernelReader:  false,
+			initialReadAheadKb:  131072,
+			requestSizeKb:       261120,
+			expectedReadAheadKb: 131072,
+		},
+		{
+			name:                "kr_disabled_startup_zero",
+			enableKernelReader:  false,
+			initialReadAheadKb:  0,
+			requestSizeKb:       261120,
+			expectedReadAheadKb: 0,
+		},
+		{
+			name:                "rapid_defaults_preserved",
+			enableKernelReader:  true,
+			initialReadAheadKb:  16384, // 16 MiB rapid default
+			requestSizeKb:       1024,  // 1 MiB rapid default
+			expectedReadAheadKb: 16384,
+		},
+		{
+			name:                "rapid_explicit_read_ahead_preserved",
+			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 4096},
+			enableKernelReader:  true,
+			initialReadAheadKb:  4096,
+			requestSizeKb:       1024,
+			expectedReadAheadKb: 4096,
+		},
+		{
+			name:                "rapid_explicit_lower_preserved",
+			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 512},
+			enableKernelReader:  true,
+			initialReadAheadKb:  512,
+			requestSizeKb:       1024,
+			expectedReadAheadKb: 512,
+		},
+		{
+			name:                "rapid_explicit_higher_preserved",
+			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 32768},
+			enableKernelReader:  true,
+			initialReadAheadKb:  32768,
+			requestSizeKb:       1024,
+			expectedReadAheadKb: 32768,
+		},
+		{
+			name:                "nil_viper_auto_adjustment",
+			nilViper:            true,
+			enableKernelReader:  true,
+			initialReadAheadKb:  131072,
+			requestSizeKb:       261120,
+			expectedReadAheadKb: 261120,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var v *viper.Viper
+			if !tc.nilViper {
+				v = viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+			}
+			c := &Config{
+				FileSystem: FileSystemConfig{
+					EnableKernelReader:   tc.enableKernelReader,
+					MaxReadAheadKb:       tc.initialReadAheadKb,
+					FuseMaxRequestSizeKb: tc.requestSizeKb,
+				},
+			}
+			resolveKernelReadAhead(v, c)
+
+			assert.Equal(t, tc.expectedReadAheadKb, c.FileSystem.MaxReadAheadKb)
+		})
+	}
+}
+
+func TestRationalizeKernelReadAhead(t *testing.T) {
+	testCases := []struct {
+		name                string
+		userSetFlags        map[string]any
+		enableKernelReader  bool
+		initialReadAheadKb  int64
+		requestSizeKb       int64
+		expectedReadAheadKb int64
+	}{
+		{
+			name:                "adjusts_large_request_size",
+			enableKernelReader:  true,
+			initialReadAheadKb:  131072,
+			requestSizeKb:       261120,
+			expectedReadAheadKb: 261120,
+		},
+		{
+			name:                "preserves_explicit_read_ahead",
+			userSetFlags:        map[string]any{"file-system.max-read-ahead-kb": 2048},
+			enableKernelReader:  true,
+			initialReadAheadKb:  2048,
+			requestSizeKb:       261120,
+			expectedReadAheadKb: 2048,
+		},
+		{
+			name:                "preserves_default_read_ahead",
+			enableKernelReader:  true,
+			initialReadAheadKb:  131072,
+			requestSizeKb:       16384,
+			expectedReadAheadKb: 131072,
+		},
+		{
+			name:                "disabled_reader_preserves_read_ahead",
+			enableKernelReader:  false,
+			initialReadAheadKb:  131072,
+			requestSizeKb:       261120,
+			expectedReadAheadKb: 131072,
+		},
+		{
+			name:                "preserves_rapid_defaults",
+			enableKernelReader:  true,
+			initialReadAheadKb:  16384,
+			requestSizeKb:       1024,
+			expectedReadAheadKb: 16384,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := viper.New()
+			for key, val := range tc.userSetFlags {
+				v.Set(key, val)
+			}
+			c := &Config{
+				FileSystem: FileSystemConfig{
+					EnableKernelReader:   tc.enableKernelReader,
+					MaxReadAheadKb:       tc.initialReadAheadKb,
+					FuseMaxRequestSizeKb: tc.requestSizeKb,
+				},
+			}
+			err := Rationalize(v, c, []string{})
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedReadAheadKb, c.FileSystem.MaxReadAheadKb)
+		})
+	}
+}
+
+func TestRationalizeWithBucketOptimization(t *testing.T) {
+	testCases := []struct {
+		name                string
+		bucketType          BucketType
+		userSetFlags        map[string]any
+		setupConfig         func(c *Config)
+		expectedReadAheadKb int64
+		expectedRequestKb   int64
+		expectedKernelRd    bool
+	}{
+		{
+			name:       "flat_bucket_large_request_size",
+			bucketType: BucketTypeFlat,
+			userSetFlags: map[string]any{
+				"file-system.enable-kernel-reader":     true,
+				"file-system.fuse-max-request-size-kb": 261120,
+			},
+			setupConfig: func(c *Config) {
+				c.FileSystem.EnableKernelReader = true
+				c.FileSystem.FuseMaxRequestSizeKb = 261120
+			},
+			expectedReadAheadKb: 261120,
+			expectedRequestKb:   261120,
+			expectedKernelRd:    true,
+		},
+		{
+			name:       "flat_bucket_default_request_size",
+			bucketType: BucketTypeFlat,
+			userSetFlags: map[string]any{
+				"file-system.enable-kernel-reader": true,
+			},
+			setupConfig: func(c *Config) {
+				c.FileSystem.EnableKernelReader = true
+			},
+			expectedReadAheadKb: 131072, // 128 MiB
+			expectedRequestKb:   16384,  // 16 MiB
+			expectedKernelRd:    true,
+		},
+		{
+			name:       "flat_bucket_explicit_read_ahead",
+			bucketType: BucketTypeFlat,
+			userSetFlags: map[string]any{
+				"file-system.enable-kernel-reader":     true,
+				"file-system.fuse-max-request-size-kb": 261120,
+				"file-system.max-read-ahead-kb":        4096,
+			},
+			setupConfig: func(c *Config) {
+				c.FileSystem.EnableKernelReader = true
+				c.FileSystem.FuseMaxRequestSizeKb = 261120
+				c.FileSystem.MaxReadAheadKb = 4096
+			},
+			expectedReadAheadKb: 4096,
+			expectedRequestKb:   261120,
+			expectedKernelRd:    true,
+		},
+		{
+			name:         "rapid_bucket_default_optimization",
+			bucketType:   BucketTypeZonal,
+			userSetFlags: map[string]any{},
+			setupConfig: func(c *Config) {
+				c.FileSystem.FuseMaxRequestSizeKb = int64(StorageClassRapid.DefaultFuseMaxRequestSizeKb())
+			},
+			expectedReadAheadKb: 16384, // 16 MiB
+			expectedRequestKb:   1024,  // 1 MiB
+			expectedKernelRd:    true,
+		},
+		{
+			name:       "rapid_bucket_explicit_read_ahead",
+			bucketType: BucketTypeZonal,
+			userSetFlags: map[string]any{
+				"file-system.max-read-ahead-kb": 8192,
+			},
+			setupConfig: func(c *Config) {
+				c.FileSystem.MaxReadAheadKb = 8192
+				c.FileSystem.FuseMaxRequestSizeKb = int64(StorageClassRapid.DefaultFuseMaxRequestSizeKb())
+			},
+			expectedReadAheadKb: 8192,
+			expectedRequestKb:   1024,
+			expectedKernelRd:    true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := viper.New()
+			for key, val := range tc.userSetFlags {
+				v.Set(key, val)
+			}
+			c := &Config{}
+			tc.setupConfig(c)
+
+			// Step 1: Apply bucket-type optimizations
+			optimizedFlags := c.ApplyOptimizations(v, &OptimizationInput{BucketType: tc.bucketType})
+
+			// Step 2: Rationalize
+			var optFlagNames []string
+			for k := range optimizedFlags {
+				optFlagNames = append(optFlagNames, k)
+			}
+			err := Rationalize(v, c, optFlagNames)
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedKernelRd, c.FileSystem.EnableKernelReader)
+			assert.Equal(t, tc.expectedRequestKb, c.FileSystem.FuseMaxRequestSizeKb)
+			assert.Equal(t, tc.expectedReadAheadKb, c.FileSystem.MaxReadAheadKb)
+		})
+	}
+}

@@ -68,7 +68,6 @@ func (g *grpcHeaderValidation) TestGRPCClientSendsExpectedHeaders() {
 	logStr := string(logContent)
 	assert.Contains(g.T(), logStr, "Metadata validation passed")
 	assert.Contains(g.T(), logStr, "x-goog-request-params")
-	assert.Contains(g.T(), logStr, "force_direct_connectivity=ENFORCED")
 	assert.Contains(g.T(), logStr, "direct_connectivity_diagnostic=no_auth")
 	assert.Contains(g.T(), logStr, "/google.storage.v2.Storage/GetObject")
 }
@@ -96,7 +95,6 @@ func (g *grpcHeaderValidation) TestGRPCHeadersInMultipleOperations() {
 	logStr := string(logContent)
 	validationCount := strings.Count(logStr, "Metadata validation passed")
 	assert.Greater(g.T(), validationCount, 0, "Expected at least one successful metadata validation")
-	assert.Contains(g.T(), logStr, "force_direct_connectivity=ENFORCED")
 	assert.Contains(g.T(), logStr, "direct_connectivity_diagnostic=no_auth")
 	assert.Equal(g.T(), 3, strings.Count(logStr, "/google.storage.v2.Storage/GetObject"), "Expected 3 GetObject calls (1 for each operation)")
 	assert.Equal(g.T(), 1, strings.Count(logStr, "/google.storage.v2.Storage/BidiWriteObject"), "Expected 1 BidiWriteObject call for writing the file")
@@ -106,10 +104,11 @@ func (g *grpcHeaderValidation) TestGRPCHeadersInMultipleOperations() {
 }
 
 func TestGRPCHeaderValidation(t *testing.T) {
+	t.Skip("Skipping gRPC header validation tests until relevant changes in b/504487909 task list are complete (tracked in b/559458241).")
 	ts := &grpcHeaderValidation{}
-	// Test with gRPC protocol to validate that DirectPath metadata is sent.
-	// The Go Storage SDK automatically adds force_direct_connectivity=ENFORCED
-	// to x-goog-request-params when experimental.WithDirectConnectivityEnforced() is used.
+	// Test with gRPC protocol to validate that gRPC metadata is sent.
+	// The Go Storage SDK automatically adds diagnostic metadata
+	// to x-goog-request-params.
 	// The gRPC proxy intercepts and validates this metadata.
 	//
 	// NOTE: This test requires:

@@ -587,6 +587,8 @@ var (
 	metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailFoundAttrSet                         = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "found")))
 	metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailNotFoundAttrSet                      = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "not_found")))
 	metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailTtlExpiredAttrSet                    = metric.WithAttributeSet(attribute.NewSet(attribute.Bool("cache_hit", false), attribute.String("entry_status", "positive"), attribute.String("lookup_detail", "ttl_expired")))
+	metadataCacheSizeEntryStatusNegativeAttrSet                                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("entry_status", "negative")))
+	metadataCacheSizeEntryStatusPositiveAttrSet                                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("entry_status", "positive")))
 	testUpdownCounterWithAttrsRequestTypeAttr1AttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr1")))
 	testUpdownCounterWithAttrsRequestTypeAttr2AttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("request_type", "attr2")))
 )
@@ -1110,6 +1112,8 @@ type otelMetrics struct {
 	metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailFoundAtomic                         *atomic.Int64
 	metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailNotFoundAtomic                      *atomic.Int64
 	metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailTtlExpiredAtomic                    *atomic.Int64
+	metadataCacheSizeEntryStatusNegativeAtomic                                                            *atomic.Int64
+	metadataCacheSizeEntryStatusPositiveAtomic                                                            *atomic.Int64
 	testUpdownCounterAtomic                                                                               *atomic.Int64
 	testUpdownCounterWithAttrsRequestTypeAttr1Atomic                                                      *atomic.Int64
 	testUpdownCounterWithAttrsRequestTypeAttr2Atomic                                                      *atomic.Int64
@@ -2625,6 +2629,19 @@ func (o *otelMetrics) MetadataCacheReadCount(
 	}
 }
 
+func (o *otelMetrics) MetadataCacheSize(
+	inc int64, entryStatus EntryStatus) {
+	switch entryStatus {
+	case EntryStatusNegativeAttr:
+		o.metadataCacheSizeEntryStatusNegativeAtomic.Add(inc)
+	case EntryStatusPositiveAttr:
+		o.metadataCacheSizeEntryStatusPositiveAtomic.Add(inc)
+	default:
+		updateUnrecognizedAttribute(string(entryStatus))
+		return
+	}
+}
+
 func (o *otelMetrics) ReadBlockSizes(
 	ctx context.Context, value int64) {
 	record := histogramRecord{ctx: ctx, instrument: o.readBlockSizes, value: value}
@@ -3192,6 +3209,9 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailFoundAtomic,
 		metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailNotFoundAtomic,
 		metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailTtlExpiredAtomic atomic.Int64
+
+	var metadataCacheSizeEntryStatusNegativeAtomic,
+		metadataCacheSizeEntryStatusPositiveAtomic atomic.Int64
 
 	var testUpdownCounterAtomic atomic.Int64
 
@@ -3818,12 +3838,21 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	readBlockSizes, err17 := meter.Int64Histogram("read/block_sizes",
+	_, err17 := meter.Int64ObservableUpDownCounter("metadata_cache/size",
+		metric.WithDescription("The total memory size (in bytes) of the entries in the metadata cache"),
+		metric.WithUnit("By"),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			observeUpDownCounter(obsrv, &metadataCacheSizeEntryStatusNegativeAtomic, metadataCacheSizeEntryStatusNegativeAttrSet)
+			observeUpDownCounter(obsrv, &metadataCacheSizeEntryStatusPositiveAtomic, metadataCacheSizeEntryStatusPositiveAttrSet)
+			return nil
+		}))
+
+	readBlockSizes, err18 := meter.Int64Histogram("read/block_sizes",
 		metric.WithDescription("The cumulative distribution of read block sizes across different bucket boundaries"),
 		metric.WithUnit("By"),
 		metric.WithExplicitBucketBoundaries(0, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, 67108864, 134217728))
 
-	_, err18 := meter.Int64ObservableUpDownCounter("test/updown_counter",
+	_, err19 := meter.Int64ObservableUpDownCounter("test/updown_counter",
 		metric.WithDescription("Test metric for updown counters."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3831,7 +3860,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err19 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
+	_, err20 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
 		metric.WithDescription("Test metric for updown counters with attributes."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3840,7 +3869,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16, err17, err18, err19}
+	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16, err17, err18, err19, err20}
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
@@ -4361,6 +4390,8 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailFoundAtomic:      &metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailFoundAtomic,
 		metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailNotFoundAtomic:   &metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailNotFoundAtomic,
 		metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailTtlExpiredAtomic: &metadataCacheReadCountCacheHitFalseEntryStatusPositiveLookupDetailTtlExpiredAtomic,
+		metadataCacheSizeEntryStatusNegativeAtomic:                                         &metadataCacheSizeEntryStatusNegativeAtomic,
+		metadataCacheSizeEntryStatusPositiveAtomic:                                         &metadataCacheSizeEntryStatusPositiveAtomic,
 		readBlockSizes:          readBlockSizes,
 		testUpdownCounterAtomic: &testUpdownCounterAtomic,
 		testUpdownCounterWithAttrsRequestTypeAttr1Atomic: &testUpdownCounterWithAttrsRequestTypeAttr1Atomic,

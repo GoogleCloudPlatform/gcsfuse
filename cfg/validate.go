@@ -136,6 +136,13 @@ func isValidFuseMaxWriteSizeKb(writeSizeKb int64) error {
 	return nil
 }
 
+func isValidMaxReadAheadKb(readAheadKb int64) error {
+	if readAheadKb < 0 {
+		return fmt.Errorf("invalid value for max-read-ahead-kb: %d; must be >= 0 (0 for system default)", readAheadKb)
+	}
+	return nil
+}
+
 // isTTLInSecsValid return nil error if ttlInSecs is valid.
 func isTTLInSecsValid(secs int64) error {
 	if secs < -1 {
@@ -385,6 +392,12 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 	if v.IsSet("file-system.fuse-max-write-size-kb") {
 		if err = isValidFuseMaxWriteSizeKb(config.FileSystem.FuseMaxWriteSizeKb); err != nil {
 			return fmt.Errorf("error parsing fuse-max-write-size-kb config: %w", err)
+		}
+	}
+
+	if v.IsSet("file-system.max-read-ahead-kb") {
+		if err = isValidMaxReadAheadKb(config.FileSystem.MaxReadAheadKb); err != nil {
+			return fmt.Errorf("error parsing max-read-ahead-kb config: %w", err)
 		}
 	}
 

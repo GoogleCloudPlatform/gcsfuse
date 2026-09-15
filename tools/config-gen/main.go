@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,6 +43,8 @@ type OptimizationRulesMap = map[string]shared.OptimizationRules
 type templateData struct {
 	TypeTemplateData      []typeTemplateData
 	FlagTemplateData      []flagTemplateData
+	ProtoFields           []protoFieldTemplateData
+	ReservedTags          string
 	MachineTypeToGroupMap map[string]string
 	MachineTypeGroups     map[string][]string
 	// Back-ticks are not supported in templates. So, passing as a parameter.
@@ -126,6 +128,8 @@ func main() {
 		panic(err)
 	}
 
+	protoFields := computeProtoFields(paramsYAML.Params)
+
 	// Sort to have reliable ordering.
 	slices.SortFunc(td, func(i, j typeTemplateData) int {
 		return cmp.Compare(i.TypeName, j.TypeName)
@@ -137,12 +141,20 @@ func main() {
 	// Create a map from given machine type to all the machine type groups that it belongs to.
 	machineTypeToGroupMap := invertMachineTypeGroups(paramsYAML.MachineTypeGroups)
 
-	for _, rootFileName := range []string{"config", "config_test"} {
-		generatedFilePath := path.Join(*outDir, rootFileName+".go")
-		templateFilePath := path.Join(*templateDir, rootFileName+".tpl")
+	outputFiles := []struct{ template, output string }{
+		{"config", "config.go"},
+		{"config_test", "config_test.go"},
+		{"config_proto", "config.proto"},
+	}
+
+	for _, file := range outputFiles {
+		generatedFilePath := path.Join(*outDir, file.output)
+		templateFilePath := path.Join(*templateDir, file.template+".tpl")
 		err = write(templateData{
 			FlagTemplateData:      fd,
 			TypeTemplateData:      td,
+			ProtoFields:           protoFields,
+			ReservedTags:          formatReservedTags(paramsYAML.RetiredParams),
 			MachineTypeToGroupMap: machineTypeToGroupMap,
 			MachineTypeGroups:     paramsYAML.MachineTypeGroups,
 			Backticks:             "`",
@@ -164,7 +176,7 @@ func formatValue(v any) string {
 		s := v.(string)
 		// Check if it looks like a function call - if so, output as-is without quotes
 		// To make it more robust, check that it starts with an uppercase letter as well.
-		// As the function shoud be exported only.
+		// As the function should be exported only.
 		if len(s) > 2 && s[len(s)-2:] == "()" && unicode.IsUpper(rune(s[0])) {
 			return s
 		}

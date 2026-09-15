@@ -51,6 +51,9 @@ type InactiveTimeoutReader struct {
 	object *gcs.MinObject
 	bucket gcs.Bucket
 
+	timeout time.Duration
+	clock   clock.Clock
+
 	// The underlying GCS storage reader; nil if closed due to inactivity.
 	gcsReader gcs.StorageReader
 
@@ -99,6 +102,8 @@ func NewInactiveTimeoutReaderWithClock(ctx context.Context, bucket gcs.Bucket, o
 		bucket:     bucket,
 		reqRange:   byteRange,
 		readHandle: readHandle,
+		timeout:    timeout,
+		clock:      clock,
 		mu:         locker.New("InactiveTimeoutReader: "+object.Name, func() {}),
 		isActive:   false,
 	}
@@ -110,7 +115,8 @@ func NewInactiveTimeoutReaderWithClock(ctx context.Context, bucket gcs.Bucket, o
 	}
 
 	// Start the background periodic routine.
-	go itr.monitor(clock, timeout)
+	initialTimer := clock.After(timeout)
+	go itr.monitor(initialTimer)
 
 	return itr, nil
 }
@@ -200,13 +206,11 @@ func (itr *InactiveTimeoutReader) ReadHandle() (rh storagev2.ReadHandle) {
 }
 
 // monitor runs in a background goroutine, and checks for inactivity.
-func (itr *InactiveTimeoutReader) monitor(clock clock.Clock, timeout time.Duration) {
-	timer := clock.After(timeout)
+func (itr *InactiveTimeoutReader) monitor(timer <-chan time.Time) {
 	for {
 		select {
 		case <-timer:
-			itr.handleTimeout()
-			timer = clock.After(timeout)
+			timer = itr.handleTimeout()
 		case <-itr.ctx.Done():
 			return
 		}
@@ -218,7 +222,7 @@ func (itr *InactiveTimeoutReader) monitor(clock clock.Clock, timeout time.Durati
 // If the reader was marked as active since the last check, it resets the
 // activity flag. If the reader was inactive, it closes the underlying GCS reader.
 // It always returns a new timer channel for the next fire.
-func (itr *InactiveTimeoutReader) handleTimeout() {
+func (itr *InactiveTimeoutReader) handleTimeout() <-chan time.Time {
 	itr.mu.Lock()
 	defer itr.mu.Unlock()
 
@@ -227,6 +231,7 @@ func (itr *InactiveTimeoutReader) handleTimeout() {
 	} else {
 		itr.closeGCSReader()
 	}
+	return itr.clock.After(itr.timeout)
 }
 
 // closeGCSReader closes the wrapped gcsReader, itr.mu.Lock() should be taken

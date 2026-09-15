@@ -199,24 +199,11 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
 
-	// For non-rapid buckets, add DirectPath enforcement - operations performed via the client will fail if DirectPath is not available.
-	if !isBucketRapid {
-		clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
-	}
-
 	sc, err := storage.NewGRPCClient(ctx, clientOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("NewGRPCClient: %w", err)
 	}
 
-	// For regional buckets, perform the direct path verification.
-	if !isBucketRapid {
-		if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
-			logger.Warnf("DirectPath verification failed with error: %v", verifyErr)
-			return nil, verifyErr
-		}
-		logger.Infof("DirectPath verification succeeded, continuing with DirectPath.")
-	}
 	setRetryConfig(ctx, sc, clientConfig)
 	return sc, nil
 }
