@@ -44,6 +44,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/mountstatus"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/profiler"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
@@ -52,6 +53,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
 	"github.com/spf13/viper"
+	"google.golang.org/grpc/codes"
 )
 
 const (
@@ -386,6 +388,8 @@ func logGCSFuseMountInformation(mountInfo *mountInfo) {
 func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 	newConfig := mountInfo.config
 
+	mountstatus.InitStatusReporter(newConfig.Foreground)
+
 	var logExporterShutdownFn common.ShutdownFn
 	if newConfig.Foreground {
 		err = logger.InitLogFile(newConfig.Logging, fsName(bucketName), newConfig.MountId)
@@ -516,6 +520,7 @@ func Mount(mountInfo *mountInfo, bucketName, mountPoint string) (err error) {
 			}
 			// Print the success message in the log-file/stdout depending on what the logger is set to.
 			logger.Info(SuccessfulMountMessage)
+			mountstatus.ReportStatus(codes.OK, SuccessfulMountMessage)
 			callDaemonizeSignalOutcome(nil)
 		}
 

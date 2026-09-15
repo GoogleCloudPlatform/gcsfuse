@@ -17,6 +17,7 @@ package monitor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -44,10 +45,12 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	globalLog "go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/sdk/log"
 )
@@ -66,10 +69,20 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 	options = append(options, opts...)
 	shutdownFns = append(shutdownFns, promShutdownFn)
 
-	opts = setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
-	options = append(options, opts...)
-
-	res, err := getResource(ctx, mountID)
+	projectID := ""
+	if c.Metrics.ExperimentalEnableOtelMetrics {
+		otelOpts, err := setupOtelMetricsEndpoint(ctx, c.Metrics.ExperimentalOtelMetricsEndpoint, c.GcsAuth, c.Metrics.CloudMetricsExportIntervalSecs)
+		if err != nil {
+			logger.Errorf("Error while creating OTLP metric exporter: %v", err)
+		} else {
+			options = append(options, otelOpts...)
+		}
+		projectID = getProjectID(ctx, c.GcsAuth, c.Metrics.ExperimentalOtelMetricsProjectId)
+	} else {
+		opts := setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
+		options = append(options, opts...)
+	}
+	res, err := getOtelResource(ctx, mountID, projectID)
 	if err != nil {
 		logger.Errorf("Error while fetching resource: %v", err)
 	} else {
@@ -137,10 +150,10 @@ func (e *permissionAwareExporter) Export(ctx context.Context, rm *metricdata.Res
 	}
 
 	err := e.Exporter.Export(ctx, rm)
-	// If we get a PermissionDenied error, disable the exporter to prevent future attempts.
-	if err != nil && status.Code(err) == codes.PermissionDenied {
+	// If we get a PermissionDenied error (gRPC) or 403 Forbidden (HTTP), disable the exporter to prevent future attempts.
+	if err != nil && isPermissionDenied(err) {
 		if e.disabled.CompareAndSwap(false, true) {
-			logger.Errorf("Disabling Cloud Monitoring exporter due to permission denied error: %v", err)
+			logger.Errorf("Disabling metrics exporter due to permission denied error: %v", err)
 		}
 	}
 	return err
@@ -178,7 +191,7 @@ func (e *permissionAwareLogExporter) Export(ctx context.Context, records []log.R
 
 	err := e.Exporter.Export(ctx, records)
 	// If we get a PermissionDenied error (gRPC) or 403 Forbidden (HTTP), disable the exporter to prevent future attempts.
-	if err != nil && (status.Code(err) == codes.PermissionDenied || strings.Contains(err.Error(), "403")) {
+	if err != nil && isPermissionDenied(err) {
 		if e.disabled.CompareAndSwap(false, true) {
 			logger.Errorf("Disabling Cloud Logging exporter due to permission denied error: %v", err)
 		}
@@ -193,9 +206,74 @@ func (e *permissionAwareLogExporter) ForceFlush(ctx context.Context) error {
 	return e.Exporter.ForceFlush(ctx)
 }
 
+// isPermissionDenied checks whether the error represents a permission denied or HTTP 403 Forbidden error.
+// It avoids matching generic strings containing "403" (e.g., port numbers or IP addresses).
+func isPermissionDenied(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// 1. Check gRPC status code
+	if status.Code(err) == codes.PermissionDenied {
+		return true
+	}
+
+	// 2. Check typed Google API error
+	var gErr *googleapi.Error
+	if errors.As(err, &gErr) && gErr.Code == http.StatusForbidden {
+		return true
+	}
+
+	// 3. Check specific HTTP 403 string patterns (e.g., OTLP HTTP exporter errors)
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "403 forbidden") ||
+		strings.Contains(msg, "status code: 403") ||
+		strings.Contains(msg, "status code 403") ||
+		strings.Contains(msg, "googleapi: error 403") ||
+		strings.Contains(msg, "\"code\": 403") ||
+		strings.Contains(msg, "\"code\":403")
+}
+
 func metricFormatter(m metricdata.Metrics) string {
 	return cloudMonitoringMetricPrefix + strings.ReplaceAll(m.Name, ".", "/")
 }
+
+func setupOtelMetricsEndpoint(ctx context.Context, endpoint string, authConfig cfg.GcsAuthConfig, intervalSecs int64) ([]metric.Option, error) {
+	if intervalSecs <= 0 {
+		return nil, nil
+	}
+	opts := []otlpmetrichttp.Option{
+		otlpmetrichttp.WithEndpoint(endpoint),
+		otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
+	}
+
+	if isOtelEndpointInsecure(endpoint) {
+		opts = append(opts, otlpmetrichttp.WithInsecure())
+	}
+
+	if strings.Contains(endpoint, "googleapis.com") {
+		client, err := getGcpOtelHttpClient(ctx, authConfig, "https://www.googleapis.com/auth/monitoring.write")
+		if err != nil {
+			logger.Errorf("Error getting GCP authenticated token source for metrics: %v", err)
+			return nil, err
+		}
+		opts = append(opts, otlpmetrichttp.WithHTTPClient(client))
+	}
+
+	exporter, err := otlpmetrichttp.New(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Wrap the exporter to handle permission denied errors
+	wrappedExporter := &permissionAwareExporter{
+		Exporter: exporter,
+	}
+
+	reader := metric.NewPeriodicReader(wrappedExporter, metric.WithInterval(time.Duration(intervalSecs)*time.Second))
+	return []metric.Option{metric.WithReader(reader)}, nil
+}
+
 func setupPrometheus(port int64) ([]metric.Option, common.ShutdownFn) {
 	if port <= 0 {
 		return nil, nil
@@ -300,43 +378,27 @@ func getProjectID(ctx context.Context, authConfig cfg.GcsAuthConfig, configuredP
 // SetupOTelLogExporter initializes the OpenTelemetry Log provider.
 func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string, authConfig cfg.GcsAuthConfig, configuredProjectID string) (common.ShutdownFn, error) {
 	projectID := getProjectID(ctx, authConfig, configuredProjectID)
-	res, err := getResource(ctx, mountID)
+	res, err := getOtelResource(ctx, mountID, projectID)
 	if err != nil {
 		logger.Errorf("Error while fetching resource for logs: %v", err)
 		return nil, err
-	}
-
-	if projectID != "" {
-		projRes, _ := resource.New(ctx,
-			resource.WithSchemaURL(res.SchemaURL()),
-			resource.WithAttributes(
-				attribute.String("gcp.project_id", projectID),
-			),
-		)
-		res, err = resource.Merge(res, projRes)
-		if err != nil {
-			logger.Errorf("Error merging project ID into resource: %v", err)
-		}
 	}
 
 	opts := []otlploghttp.Option{
 		otlploghttp.WithEndpoint(endpoint),
 		otlploghttp.WithCompression(otlploghttp.GzipCompression),
 	}
-	// For local testing and e2e test.
-	if strings.Contains(endpoint, "localhost") || strings.Contains(endpoint, "127.0.0.1") || strings.Contains(endpoint, "0.0.0.0") || strings.Contains(endpoint, "[::1]") {
+
+	if isOtelEndpointInsecure(endpoint) {
 		opts = append(opts, otlploghttp.WithInsecure())
 	}
 
-	// Use authenticated client for GCP endpoints.
 	if strings.Contains(endpoint, "googleapis.com") {
-		ts, err := auth.GetTokenSourceWithScope(ctx, string(authConfig.KeyFile), authConfig.TokenUrl, authConfig.ReuseTokenFromUrl, "https://www.googleapis.com/auth/logging.write")
+		client, err := getGcpOtelHttpClient(ctx, authConfig, "https://www.googleapis.com/auth/logging.write")
 		if err != nil {
 			logger.Errorf("Error getting GCP authenticated token source for logs: %v", err)
 			return nil, err
 		}
-		client := oauth2.NewClient(ctx, ts)
-		client.Timeout = 30 * time.Second
 		opts = append(opts, otlploghttp.WithHTTPClient(client))
 	}
 
@@ -368,4 +430,45 @@ func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string, 
 	return func(ctx context.Context) error {
 		return provider.Shutdown(ctx)
 	}, nil
+}
+
+// getOtelResource creates a base OTel resource and merges the GCP project ID if provided.
+func getOtelResource(ctx context.Context, mountID string, projectID string) (*resource.Resource, error) {
+	res, err := getResource(ctx, mountID)
+	if err != nil {
+		logger.Errorf("Error while fetching resource: %v", err)
+		if res == nil {
+			return nil, err
+		}
+	}
+	if projectID != "" {
+		projRes, _ := resource.New(ctx,
+			resource.WithSchemaURL(res.SchemaURL()),
+			resource.WithAttributes(
+				attribute.String("gcp.project_id", projectID),
+			),
+		)
+		if mergedRes, err := resource.Merge(res, projRes); err != nil {
+			logger.Errorf("Error merging project ID into resource: %v", err)
+		} else {
+			res = mergedRes
+		}
+	}
+	return res, nil
+}
+
+// isOtelEndpointInsecure returns true if the endpoint is determined to be a local testing endpoint.
+func isOtelEndpointInsecure(endpoint string) bool {
+	return strings.Contains(endpoint, "localhost") || strings.Contains(endpoint, "127.0.0.1") || strings.Contains(endpoint, "0.0.0.0") || strings.Contains(endpoint, "[::1]")
+}
+
+// getGcpOtelHttpClient creates an authenticated HTTP client for a specific GCP scope.
+func getGcpOtelHttpClient(ctx context.Context, authConfig cfg.GcsAuthConfig, scope string) (*http.Client, error) {
+	ts, err := auth.GetTokenSourceWithScope(ctx, string(authConfig.KeyFile), authConfig.TokenUrl, authConfig.ReuseTokenFromUrl, scope)
+	if err != nil {
+		return nil, err
+	}
+	client := oauth2.NewClient(ctx, ts)
+	client.Timeout = 30 * time.Second
+	return client, nil
 }

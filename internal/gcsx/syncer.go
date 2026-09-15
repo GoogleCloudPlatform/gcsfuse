@@ -46,9 +46,8 @@ type Syncer interface {
 // object's size is at least composeThreshold, we will "append" to it by writing
 // out a temporary blob and composing it with the source object.
 //
-// Temporary blobs have names beginning with tmpObjectPrefix. We make an effort
-// to delete them, but if we are interrupted for some reason we may not be able
-// to do so. Therefore the user should arrange for garbage collection.
+// Temporary blobs have names beginning with tmpObjectPrefix. The syncer uses
+// DeleteSourceObjects in ComposeObjects to delete them atomically upon composition.
 func NewSyncer(
 	composeThreshold int64,
 	chunkRetryDeadlineSecs int64,

@@ -136,6 +136,13 @@ func isValidFuseMaxWriteSizeKb(writeSizeKb int64) error {
 	return nil
 }
 
+func isValidMaxReadAheadKb(readAheadKb int64) error {
+	if readAheadKb < 0 {
+		return fmt.Errorf("invalid value for max-read-ahead-kb: %d; must be >= 0 (0 for system default)", readAheadKb)
+	}
+	return nil
+}
+
 // isTTLInSecsValid return nil error if ttlInSecs is valid.
 func isTTLInSecsValid(secs int64) error {
 	if secs < -1 {
@@ -250,6 +257,7 @@ func isValidMetricsConfig(m *MetricsConfig) error {
 	if m.StackdriverExportInterval != 0 && m.CloudMetricsExportIntervalSecs != 0 {
 		return fmt.Errorf("exactly one of stackdriver-export-interval and cloud-metrics-export-interval-secs must be specified")
 	}
+
 	const maxPortNumber = math.MaxUint16
 	if m.PrometheusPort > maxPortNumber {
 		return fmt.Errorf("prometheus-port must not be higher than the maximum allowed port number: %d but received: %d instead", maxPortNumber, m.PrometheusPort)
@@ -384,6 +392,12 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 	if v.IsSet("file-system.fuse-max-write-size-kb") {
 		if err = isValidFuseMaxWriteSizeKb(config.FileSystem.FuseMaxWriteSizeKb); err != nil {
 			return fmt.Errorf("error parsing fuse-max-write-size-kb config: %w", err)
+		}
+	}
+
+	if v.IsSet("file-system.max-read-ahead-kb") {
+		if err = isValidMaxReadAheadKb(config.FileSystem.MaxReadAheadKb); err != nil {
+			return fmt.Errorf("error parsing max-read-ahead-kb config: %w", err)
 		}
 	}
 

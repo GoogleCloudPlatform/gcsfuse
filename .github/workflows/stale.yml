@@ -10,7 +10,7 @@ jobs:
     permissions:
       issues: write
     steps:
-    - uses: actions/stale@v5
+    - uses: actions/stale@99b6c709598e2b0d0841cd037aaf1ba07a4410bd # v5.2.0
       with:
         only-labels: "pending customer action"
         days-before-issue-stale: -1

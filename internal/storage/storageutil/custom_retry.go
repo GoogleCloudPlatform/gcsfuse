@@ -23,6 +23,7 @@ import (
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/mountstatus"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/googleapi"
@@ -175,5 +176,14 @@ func ShouldRetryWithMonitoringAndRetryContext(
 // ShouldRetryOnMount checks if the error is retryable during mount initialization.
 // In addition to standard transient errors, it retries HTTP 403/404 and gRPC PermissionDenied/NotFound errors.
 func ShouldRetryOnMount(err error) bool {
-	return determineRetryAction(err) != noRetry
+	action := determineRetryAction(err)
+
+	switch action {
+	case retry403, retryPermissionDenied:
+		mountstatus.ReportStatus(codes.PermissionDenied, err.Error())
+	case retry404BucketDoesNotExist, retryNotFoundBucketDoesNotExist:
+		mountstatus.ReportStatus(codes.NotFound, err.Error())
+	}
+
+	return action != noRetry
 }

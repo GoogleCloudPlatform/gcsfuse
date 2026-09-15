@@ -163,16 +163,17 @@ type ComposeObjectsRequest struct {
 	//
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects#resource
 	//
-	ContentType        string
-	Metadata           map[string]string
-	ContentLanguage    string
-	ContentEncoding    string
-	CacheControl       string
-	ContentDisposition string
-	CustomTime         string
-	EventBasedHold     bool
-	StorageClass       string
-	Acl                []*storagev1.ObjectAccessControl
+	ContentType         string
+	Metadata            map[string]string
+	ContentLanguage     string
+	ContentEncoding     string
+	CacheControl        string
+	ContentDisposition  string
+	CustomTime          string
+	EventBasedHold      bool
+	StorageClass        string
+	Acl                 []*storagev1.ObjectAccessControl
+	DeleteSourceObjects bool
 }
 
 type ComposeSource struct {

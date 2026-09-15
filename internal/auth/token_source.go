@@ -22,6 +22,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"time"
 
 	"golang.org/x/oauth2"
 )
@@ -116,6 +117,10 @@ func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 	if err != nil {
 		err = fmt.Errorf("proxyTokenSource cannot decode body: %w", err)
 		return nil, err
+	}
+
+	if token.ExpiresIn != 0 && token.Expiry.IsZero() {
+		token.Expiry = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
 	}
 
 	return token, nil

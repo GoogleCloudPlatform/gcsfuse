@@ -17,7 +17,6 @@ package implicit_dir_test
 import (
 	"os"
 	"path"
-	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -25,32 +24,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRenameSymlinkToImplicitDir(t *testing.T) {
+func (s *implicitDirTestSuite) TestRenameSymlinkToImplicitDir() {
 	testDir := setup.SetupTestDirectory(DirForImplicitDirTests)
 	implicitDirName := "implicit_dir"
 	// Create an object that defines an implicit directory. This creates `implicit_dir/`.
 	objectNameInGCS := path.Join(DirForImplicitDirTests, implicitDirName, "placeholder")
 	err := client.CreateObjectOnGCS(testEnv.ctx, testEnv.storageClient, objectNameInGCS, "")
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	implicitDirPath := path.Join(testDir, implicitDirName)
 	oldSymlinkPath := path.Join(testDir, "symlink_old")
 	err = os.Symlink(implicitDirPath, oldSymlinkPath)
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	newSymlinkPath := path.Join(testDir, "symlink_new")
 
 	err = os.Rename(oldSymlinkPath, newSymlinkPath)
 
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	_, err = os.Lstat(oldSymlinkPath)
-	require.Error(t, err)
-	assert.True(t, os.IsNotExist(err))
+	require.Error(s.T(), err)
+	assert.True(s.T(), os.IsNotExist(err))
 	fi, err := os.Lstat(newSymlinkPath)
-	require.NoError(t, err)
-	assert.Equal(t, os.ModeSymlink, fi.Mode()&os.ModeType)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), os.ModeSymlink, fi.Mode()&os.ModeType)
 	targetRead, err := os.Readlink(newSymlinkPath)
-	require.NoError(t, err)
-	assert.Equal(t, implicitDirPath, targetRead)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), implicitDirPath, targetRead)
 	targetFi, err := os.Stat(newSymlinkPath)
-	require.NoError(t, err)
-	assert.True(t, targetFi.IsDir())
+	require.NoError(s.T(), err)
+	assert.True(s.T(), targetFi.IsDir())
 }

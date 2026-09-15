@@ -193,17 +193,29 @@ func (bh *bucketHandle) getObjectHandleWithPreconditionsSet(req *gcs.CreateObjec
 	return obj
 }
 
+func (bh *bucketHandle) getStorageClassForCreateObject(defaultStorageClass string) string {
+	// When rapid writes are enabled on an RCU bucket, objects should be explicitly
+	// created with the RAPID storage class in the zonal cache rather than
+	// defaulting to the bucket's default storage class.
+	// If rapid writes are disabled, we explicitly clear the storage class to prevent
+	// inheriting the RAPID storage class from an overwritten object and write it to
+	// the bucket's default storage class.
+	switch bh.BucketType().Pirlo {
+	case gcs.PirloStateRapidWritesEnabled:
+		return storageClassRapid
+	case gcs.PirloStateRapidWritesDisabled:
+		return ""
+	default:
+		return defaultStorageClass
+	}
+}
+
 func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
 	defer func() {
 		err = gcs.GetGCSError(err)
 	}()
 
-	// When rapid writes are enabled on an RCU bucket, objects should be explicitly
-	// created with the RAPID storage class in the zonal cache rather than
-	// defaulting to the bucket's default storage class
-	if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesEnabled {
-		req.StorageClass = storageClassRapid
-	}
+	req.StorageClass = bh.getStorageClassForCreateObject(req.StorageClass)
 
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
@@ -247,12 +259,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 }
 
 func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
-	// When rapid writes are enabled on an RCU bucket, objects should be explicitly
-	// created with the RAPID storage class in the zonal cache rather than
-	// defaulting to the bucket's default storage class.
-	if bh.BucketType().Pirlo == gcs.PirloStateRapidWritesEnabled {
-		req.StorageClass = storageClassRapid
-	}
+	req.StorageClass = bh.getStorageClassForCreateObject(req.StorageClass)
 
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
@@ -556,7 +563,9 @@ func (bh *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObje
 	}
 
 	// Composing Source Objects to Destination Object using Composer created through Go Storage Client.
-	attrs, err := dstObj.ComposerFrom(srcObjList...).Run(ctx)
+	composer := dstObj.ComposerFrom(srcObjList...)
+	composer.DeleteSourceObjects = req.DeleteSourceObjects
+	attrs, err := composer.Run(ctx)
 	if err != nil {
 		err = fmt.Errorf("error in composing object: %w", err)
 		return

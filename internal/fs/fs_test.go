@@ -49,10 +49,13 @@ import (
 )
 
 const (
-	filePerms            os.FileMode = 0740
-	dirPerms                         = 0754
-	RenameDirLimit                   = 5
-	SequentialReadSizeMb             = 200
+	filePerms os.FileMode = 0740
+	dirPerms  os.FileMode = 0754
+)
+
+const (
+	RenameDirLimit       = 5
+	SequentialReadSizeMb = 200
 )
 
 func TestFS(t *testing.T) { RunTests(t) }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -176,6 +176,7 @@ func TestValidateForDuplicatesInSortedSlice(t *testing.T) {
 func TestParseParamsYAMLStr_Success(t *testing.T) {
 	// ARRANGE
 	yamlContent := `
+retired-params: [6, 7]
 machine-type-groups:
   high-performance:
     - "a2-megagpu-16g"
@@ -184,11 +185,13 @@ machine-type-groups:
     - "c2-standard-4"
 params:
   - config-path: "app-name"
+    proto-tag: 1
     flag-name: "app-name"
     type: "string"
     default: "gcsfuse"
     "usage": "Application name"
   - config-path: "file-system.enable-kernel-reader"
+    proto-tag: 2
     flag-name: "enable-kernel-reader"
     type: "bool"
     default: false
@@ -200,6 +203,7 @@ params:
         - bucket-type: "hierarchical"
           value: false
   - config-path: "file-system.max-read-ahead-kb"
+    proto-tag: 3
     flag-name: "max-read-ahead-kb"
     type: "int"
     default: "128"
@@ -217,6 +221,7 @@ params:
         - name: aiml-training
           value: 4096
   - config-path: "implicit-dirs"
+    proto-tag: 4
     flag-name: "implicit-dirs"
     type: "bool"
     default: false
@@ -226,6 +231,7 @@ params:
         - group: high-performance
           value: true
   - config-path: "metadata-cache.ttl-secs"
+    proto-tag: 5
     flag-name: "metadata-cache-ttl-secs"
     type: "int"
     default: "60"
@@ -320,11 +326,169 @@ params:
 		assert.Equal(t, expected, param.Optimizations)
 	})
 
-	t.Run("TestParamWithNoOptimizations", func(t *testing.T) {
+	t.Run("TestParamWithNoOptimizationsAndProtoMetadata", func(t *testing.T) {
 		param := parsedYAML.Params[0]
 		assert.Equal(t, "app-name", param.ConfigPath)
 		assert.Nil(t, param.Optimizations)
+		// Check proto metadata for a string field (privacy booleanization)
+		assert.Equal(t, "bool", param.ProtoType)
+		assert.Equal(t, "is_app_name_set", param.ProtoFieldName)
+		assert.Equal(t, 1, param.ProtoTag)
 	})
+
+	t.Run("testParamProtoTag", func(t *testing.T) {
+		assert.Equal(t, 1, parsedYAML.Params[0].ProtoTag)
+		assert.Equal(t, 2, parsedYAML.Params[1].ProtoTag)
+		assert.Equal(t, 3, parsedYAML.Params[2].ProtoTag)
+		assert.Equal(t, 4, parsedYAML.Params[3].ProtoTag)
+		assert.Equal(t, 5, parsedYAML.Params[4].ProtoTag)
+		assert.Equal(t, []int{6, 7}, parsedYAML.RetiredParams)
+	})
+}
+
+func TestValidateProtoTags(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		params                 []Param
+		retiredTags            []int
+		expectErr              bool
+		expectedErrorSubstring string
+	}{
+		{
+			name: "valid_sequential_tags_without_retired",
+			params: []Param{
+				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
+				{FlagName: "p2", ConfigPath: "p2", ProtoTag: 2},
+				{FlagName: "p3", ConfigPath: "p3", ProtoTag: 3},
+			},
+			retiredTags: nil,
+			expectErr:   false,
+		},
+		{
+			name: "valid_with_retired_params_filling_gaps",
+			params: []Param{
+				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
+				{FlagName: "p3", ConfigPath: "p3", ProtoTag: 3},
+			},
+			retiredTags: []int{2},
+			expectErr:   false,
+		},
+		{
+			name: "valid_with_last_tag_retired",
+			params: []Param{
+				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
+				{FlagName: "p2", ConfigPath: "p2", ProtoTag: 2},
+			},
+			retiredTags: []int{3},
+			expectErr:   false,
+		},
+		{
+			name: "invalid_gap_in_retired_params",
+			params: []Param{
+				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
+				{FlagName: "p2", ConfigPath: "p2", ProtoTag: 2},
+			},
+			retiredTags:            []int{4},
+			expectErr:              true,
+			expectedErrorSubstring: "missing proto-tag 3 in sequence 1..4",
+		},
+		{
+			name: "deprecated_without_config_path_skips_tag_validation",
+			params: []Param{
+				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
+				{FlagName: "deprecated-cli", ConfigPath: "", ProtoTag: 0},
+			},
+			retiredTags: nil,
+			expectErr:   false,
+		},
+		{
+			name: "invalid_zero_tag",
+			params: []Param{
+				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 0},
+			},
+			retiredTags:            nil,
+			expectErr:              true,
+			expectedErrorSubstring: "has invalid proto-tag 0 (must be > 0)",
+		},
+		{
+			name: "invalid_negative_tag",
+			params: []Param{
+				{FlagName: "p1", ConfigPath: "p1", ProtoTag: -1},
+			},
+			retiredTags:            nil,
+			expectErr:              true,
+			expectedErrorSubstring: "has invalid proto-tag -1 (must be > 0)",
+		},
+		{
+			name: "duplicate_active_tag",
+			params: []Param{
+				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
+				{FlagName: "p2", ConfigPath: "p2", ProtoTag: 1},
+			},
+			retiredTags:            nil,
+			expectErr:              true,
+			expectedErrorSubstring: "duplicate proto-tag 1 found for parameter",
+		},
+		{
+			name: "active_tag_collides_with_retired_tag",
+			params: []Param{
+				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 2},
+			},
+			retiredTags:            []int{2},
+			expectErr:              true,
+			expectedErrorSubstring: "duplicate proto-tag 2 found for parameter \"p1\" and \"retired-tag 2\"",
+		},
+		{
+			name: "duplicate_retired_tag",
+			params: []Param{
+				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
+			},
+			retiredTags:            []int{2, 2},
+			expectErr:              true,
+			expectedErrorSubstring: "duplicate proto-tag 2 found for retired-tag",
+		},
+		{
+			name: "retired_tag_non_positive",
+			params: []Param{
+				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
+			},
+			retiredTags:            []int{0},
+			expectErr:              true,
+			expectedErrorSubstring: "retired proto-tag 0 is invalid (must be > 0)",
+		},
+		{
+			name: "missing_tag_unrecorded_gap",
+			params: []Param{
+				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
+				{FlagName: "p3", ConfigPath: "p3", ProtoTag: 3},
+			},
+			retiredTags:            nil,
+			expectErr:              true,
+			expectedErrorSubstring: "missing proto-tag 2 in sequence 1..3",
+		},
+		{
+			name: "deprecated_without_config_path_has_non_zero_tag",
+			params: []Param{
+				{FlagName: "p1", ConfigPath: "p1", ProtoTag: 1},
+				{FlagName: "deprecated-cli", ConfigPath: "", ProtoTag: 2},
+			},
+			retiredTags:            nil,
+			expectErr:              true,
+			expectedErrorSubstring: "parameter \"deprecated-cli\" without config-path must not have proto-tag set",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateProtoTags(tc.params, tc.retiredTags)
+			if tc.expectErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expectedErrorSubstring)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestParseParamsYAMLStr_Negative(t *testing.T) {
@@ -348,8 +512,10 @@ params:
 params:
   - flag-name: "my-flag"
     config-path: "a"
+    proto-tag: 1
   - flag-name: "my-flag"
     config-path: "b"
+    proto-tag: 2
 `,
 			expectedErrorSubstring: "duplicate",
 		},
@@ -395,6 +561,7 @@ machine-type-groups:
 			yamlContent: `
 params:
   - config-path: "test-param"
+    proto-tag: 1
     flag-name: "test-flag"
     type: "bool"
     default: false
@@ -411,6 +578,7 @@ params:
 			yamlContent: `
 params:
   - config-path: "test-param"
+    proto-tag: 1
     flag-name: "test-flag"
     type: "bool"
     default: false
@@ -427,6 +595,7 @@ params:
 			yamlContent: `
 params:
   - config-path: "test-param"
+    proto-tag: 1
     flag-name: "test-flag"
     type: "bool"
     default: false
@@ -438,18 +607,156 @@ params:
 `,
 			expectedErrorSubstring: "bucket-type list is empty",
 		},
+		{
+			name: "UnknownConfigurationType",
+			yamlContent: `
+params:
+  - config-path: "test-param"
+    proto-tag: 1
+    flag-name: "test-flag"
+    type: "unknownTypeForGoAndProto"
+    default: 500
+    usage: "Test flag for unknown type validation"
+`,
+			expectedErrorSubstring: "unsupported datatype: unknownTypeForGoAndProto",
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// ARRANGE
-
-			// ACT
 			_, err := parseParamsYAMLStr(tc.yamlContent)
-
-			// ASSERT
 			require.Error(t, err)
 			require.True(t, strings.Contains(err.Error(), tc.expectedErrorSubstring), "Expected error to contain %q, but got: %q", tc.expectedErrorSubstring, err.Error())
 		})
 	}
+}
+
+func TestPopulateProtoMetadataExhaustive(t *testing.T) {
+	yamlContent := `
+retired-params: [13, 14]
+params:
+  - config-path: "type-bool"
+    proto-tag: 1
+    flag-name: "type-bool"
+    type: "bool"
+    usage: "test"
+  - config-path: "type-direct-path-strategy"
+    proto-tag: 2
+    flag-name: "type-direct-path-strategy"
+    type: "directPathStrategy"
+    usage: "test"
+  - config-path: "type-duration"
+    proto-tag: 3
+    flag-name: "type-duration"
+    type: "duration"
+    usage: "test"
+  - config-path: "type-float"
+    proto-tag: 4
+    flag-name: "type-float"
+    type: "float64"
+    usage: "test"
+  - config-path: "type-int"
+    proto-tag: 5
+    flag-name: "type-int"
+    type: "int"
+    usage: "test"
+  - config-path: "type-log-severity"
+    proto-tag: 6
+    flag-name: "type-log-severity"
+    type: "logSeverity"
+    usage: "test"
+  - config-path: "type-octal"
+    proto-tag: 7
+    flag-name: "type-octal"
+    type: "octal"
+    usage: "test"
+  - config-path: "type-protocol"
+    proto-tag: 8
+    flag-name: "type-protocol"
+    type: "protocol"
+    usage: "test"
+  - config-path: "type-resolved-path"
+    proto-tag: 9
+    flag-name: "type-resolved-path"
+    type: "resolvedPath"
+    usage: "test"
+  - config-path: "type-slice-int"
+    proto-tag: 10
+    flag-name: "type-slice-int"
+    type: "[]int"
+    usage: "test"
+  - config-path: "type-slice-string"
+    proto-tag: 11
+    flag-name: "type-slice-string"
+    type: "[]string"
+    usage: "test"
+  - config-path: "type-string"
+    proto-tag: 12
+    flag-name: "type-string"
+    type: "string"
+    usage: "test"
+`
+	parsedYAML, err := parseParamsYAMLStr(yamlContent)
+	require.NoError(t, err)
+
+	expected := []struct {
+		protoType      string
+		protoFieldName string
+	}{
+		{"bool", "type_bool"},
+		{"string", "type_direct_path_strategy"},
+		{"int64", "type_duration"},
+		{"double", "type_float"},
+		{"sint64", "type_int"},
+		{"string", "type_log_severity"},
+		{"int32", "type_octal"},
+		{"string", "type_protocol"},
+		{"bool", "is_type_resolved_path_set"},
+		{"repeated sint64", "type_slice_int"},
+		{"bool", "is_type_slice_string_set"},
+		{"bool", "is_type_string_set"},
+	}
+
+	require.Len(t, parsedYAML.Params, len(expected))
+	for i, param := range parsedYAML.Params {
+		assert.Equal(t, expected[i].protoType, param.ProtoType, "Failed protoType for %s", param.FlagName)
+		assert.Equal(t, expected[i].protoFieldName, param.ProtoFieldName, "Failed protoFieldName for %s", param.FlagName)
+	}
+
+	assert.Equal(t, []int{13, 14}, parsedYAML.RetiredParams)
+}
+
+func TestPopulateProtoMetadataWhitelistedText(t *testing.T) {
+	yamlContent := `
+params:
+  - config-path: "app-name"
+    proto-tag: 1
+    flag-name: "app-name"
+    type: "string"
+    usage: "test"
+  - config-path: "machine-type"
+    proto-tag: 2
+    flag-name: "machine-type"
+    type: "string"
+    usage: "test"
+  - config-path: "profile"
+    proto-tag: 3
+    flag-name: "profile"
+    type: "string"
+    usage: "test"
+`
+	parsedYAML, err := parseParamsYAMLStr(yamlContent)
+	require.NoError(t, err)
+
+	require.Len(t, parsedYAML.Params, 3)
+	// Non-whitelisted string field is scrubbed to bool is_<name>_set.
+	assert.Equal(t, "bool", parsedYAML.Params[0].ProtoType)
+	assert.Equal(t, "is_app_name_set", parsedYAML.Params[0].ProtoFieldName)
+
+	// Whitelisted fields retain their string type and exact field name.
+	assert.Equal(t, "string", parsedYAML.Params[1].ProtoType)
+	assert.Equal(t, "machine_type", parsedYAML.Params[1].ProtoFieldName)
+
+	assert.Equal(t, "string", parsedYAML.Params[2].ProtoType)
+	assert.Equal(t, "profile", parsedYAML.Params[2].ProtoFieldName)
 }

@@ -221,6 +221,21 @@ func TestValidateCliFlag(t *testing.T) {
 			args:    []string{"--fuse-max-write-size-kb=2048"},
 			wantErr: true,
 		},
+		{
+			name:    "valid_max_read_ahead_kb",
+			args:    []string{"--max-read-ahead-kb=1024"},
+			wantErr: false,
+		},
+		{
+			name:    "valid_zero_max_read_ahead_kb",
+			args:    []string{"--max-read-ahead-kb=0"},
+			wantErr: false,
+		},
+		{
+			name:    "invalid_negative_max_read_ahead_kb",
+			args:    []string{"--max-read-ahead-kb=-10"},
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range testCases {

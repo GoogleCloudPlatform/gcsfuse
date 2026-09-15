@@ -89,6 +89,18 @@ func NewCache(maxSize uint64) *Cache {
 	return c
 }
 
+// NewCacheWithOptions returns a Cache instance initialized with the
+// supplied maxSize and lock options.
+func NewCacheWithOptions(maxSize uint64, opts locker.Options) *Cache {
+	c := &Cache{
+		maxSize: maxSize,
+		index:   make(map[string]*list.Element),
+	}
+
+	c.mu = locker.NewRWWithOptions("LRUCache", c.checkInvariants, opts)
+	return c
+}
+
 // checkInvariants panic if any internal invariants have been violated.
 func (c *Cache) checkInvariants() {
 	// INVARIANT: maxSize > 0

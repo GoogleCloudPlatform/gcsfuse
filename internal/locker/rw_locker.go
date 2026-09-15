@@ -29,21 +29,18 @@ type RWLocker interface {
 	RUnlock()
 }
 
-// NewRW returns a RW locker with potential capability for debugging.
-//
-// Note: The deadlock detection is done only for writer lock and not for reader
-// lock.
-func NewRW(name string, check func()) RWLocker {
+// NewRWWithOptions returns an RW locker with potential capability for debugging based on options.
+func NewRWWithOptions(name string, check func(), opts Options) RWLocker {
 	var l RWLocker = &sync.RWMutex{}
 
-	if gEnableInvariantsCheck {
+	if opts.EnableInvariantsCheck {
 		l = &rwChecker{
 			locker: l,
 			check:  check,
 		}
 	}
 
-	if gEnableDebugMessages {
+	if opts.EnableDebugMessages {
 		l = &rwDebugger{
 			locker: l,
 			name:   name,
@@ -51,6 +48,18 @@ func NewRW(name string, check func()) RWLocker {
 	}
 
 	return l
+}
+
+// NewRW returns a RW locker with potential capability for debugging.
+//
+// Note: The deadlock detection is done only for writer lock and not for reader
+// lock.
+// TODO: Deprecate and delete this function once all components migrate to using locker.Options.
+func NewRW(name string, check func()) RWLocker {
+	return NewRWWithOptions(name, check, Options{
+		EnableInvariantsCheck: gEnableInvariantsCheck,
+		EnableDebugMessages:   gEnableDebugMessages,
+	})
 }
 
 type rwChecker struct {
@@ -84,7 +93,6 @@ func (c *rwChecker) RUnlock() {
 type rwDebugger struct {
 	locker RWLocker
 	name   string
-	holder string
 	timer  *time.Timer
 }
 
@@ -92,18 +100,20 @@ func (d *rwDebugger) Lock() {
 	d.locker.Lock()
 
 	buf := make([]byte, 2048)
-	runtime.Stack(buf, false /* all */)
-	d.holder = string(buf)
+	n := runtime.Stack(buf, false /* all */)
+	// Use only the bytes written to the buffer to avoid uninitialized values in the string.
+	holder := string(buf[:n])
 
 	d.timer = time.AfterFunc(5*time.Second, func() {
-		logger.Tracef("debug_mutex: Potential dead lock detected for a lock %q held by: %v\n", d.name, d.holder)
+		logger.Tracef("debug_mutex: Potential dead lock detected for a lock %q held by: %v\n", d.name, holder)
 	})
 }
 
 func (d *rwDebugger) Unlock() {
-	d.holder = ""
-	d.timer.Stop()
-	d.timer = nil
+	if d.timer != nil {
+		d.timer.Stop()
+		d.timer = nil
+	}
 
 	d.locker.Unlock()
 }

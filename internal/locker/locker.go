@@ -23,35 +23,45 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 )
 
+// TODO: Migrate all usages of these global variables to explicitly instantiate and pass locker.Options.
 var gEnableInvariantsCheck bool
 var gEnableDebugMessages bool
 
-// Enable the check for invariants in the locks. Must be set before creating
+// EnableInvariantsCheck enables the check for invariants in the locks. Must be set before creating
 // any lockers.
+// TODO: Deprecate and delete this function once all components migrate to using locker.Options.
 func EnableInvariantsCheck() {
 	gEnableInvariantsCheck = true
 }
 
-// Enable the debug messages to diagnose dead locks. Must be set before creating
+// EnableDebugMessages enables the debug messages to diagnose dead locks. Must be set before creating
 // any lockers.
+// TODO: Deprecate and delete this function once all components migrate to using locker.Options.
 func EnableDebugMessages() {
 	gEnableDebugMessages = true
 }
 
 type Locker sync.Locker
 
-// Returns a locker with potential capability for debugging.
-func New(name string, check func()) Locker {
+// Options contains configuration for creating lockers.
+// By using options, callers can avoid relying on the package-level global variables.
+type Options struct {
+	EnableInvariantsCheck bool
+	EnableDebugMessages   bool
+}
+
+// NewWithOptions returns a locker with potential capability for debugging based on options.
+func NewWithOptions(name string, check func(), opts Options) Locker {
 	var l Locker = &sync.Mutex{}
 
-	if gEnableInvariantsCheck {
+	if opts.EnableInvariantsCheck {
 		l = &checker{
 			locker: l,
 			check:  check,
 		}
 	}
 
-	if gEnableDebugMessages {
+	if opts.EnableDebugMessages {
 		l = &debugger{
 			locker: l,
 			name:   name,
@@ -59,6 +69,15 @@ func New(name string, check func()) Locker {
 	}
 
 	return l
+}
+
+// New returns a locker with potential capability for debugging.
+// TODO: Deprecate and delete this function once all components migrate to using locker.Options.
+func New(name string, check func()) Locker {
+	return NewWithOptions(name, check, Options{
+		EnableInvariantsCheck: gEnableInvariantsCheck,
+		EnableDebugMessages:   gEnableDebugMessages,
+	})
 }
 
 type checker struct {
@@ -79,7 +98,6 @@ func (c *checker) Unlock() {
 type debugger struct {
 	locker Locker
 	name   string
-	holder string
 	timer  *time.Timer
 }
 
@@ -87,18 +105,20 @@ func (d *debugger) Lock() {
 	d.locker.Lock()
 
 	buf := make([]byte, 2048)
-	runtime.Stack(buf, false /* all */)
-	d.holder = string(buf)
+	n := runtime.Stack(buf, false /* all */)
+	// Use only the bytes written to the buffer to avoid uninitialized values in the string.
+	holder := string(buf[:n])
 
 	d.timer = time.AfterFunc(5*time.Second, func() {
-		logger.Tracef("debug_mutex: Potential dead lock detected for a lock %q held by: %v\n", d.name, d.holder)
+		logger.Tracef("debug_mutex: Potential dead lock detected for a lock %q held by: %v\n", d.name, holder)
 	})
 }
 
 func (d *debugger) Unlock() {
-	d.holder = ""
-	d.timer.Stop()
-	d.timer = nil
+	if d.timer != nil {
+		d.timer.Stop()
+		d.timer = nil
+	}
 
 	d.locker.Unlock()
 }

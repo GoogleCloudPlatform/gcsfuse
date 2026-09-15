@@ -1055,7 +1055,6 @@ func TestValidateMetrics(t *testing.T) {
 		metricsConfig MetricsConfig
 		wantErr       bool
 	}{
-
 		{
 			name: "both_cloud_metrics_export_interval_secs_and_stackdriver_specified",
 			metricsConfig: MetricsConfig{
@@ -1063,6 +1062,26 @@ func TestValidateMetrics(t *testing.T) {
 				StackdriverExportInterval:      time.Duration(30) * time.Hour,
 			},
 			wantErr: true,
+		},
+		{
+			name: "both_cloud_metrics_export_interval_secs_and_otel_metrics_specified",
+			metricsConfig: MetricsConfig{
+				CloudMetricsExportIntervalSecs: 20,
+				ExperimentalEnableOtelMetrics:  true,
+				Workers:                        10,
+				BufferSize:                     100,
+			},
+			wantErr: false,
+		},
+		{
+			name: "both_stackdriver_and_otel_metrics_specified",
+			metricsConfig: MetricsConfig{
+				StackdriverExportInterval:     time.Duration(30) * time.Hour,
+				ExperimentalEnableOtelMetrics: true,
+				Workers:                       10,
+				BufferSize:                    100,
+			},
+			wantErr: false,
 		},
 		{
 			name: "neg_cloud_metrics_export_interval",
@@ -1565,6 +1584,45 @@ func Test_isValidFuseMaxWriteSizeKb_ErrorScenarios(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := isValidFuseMaxWriteSizeKb(tc.writeSizeKb)
+
+			assert.Error(t, err)
+		})
+	}
+}
+
+func TestIsValidMaxReadAheadKbValid(t *testing.T) {
+	testCases := []struct {
+		name        string
+		readAheadKb int64
+	}{
+		{"valid_zero", 0},
+		{"valid_1_kb", 1},
+		{"valid_1024_kb", 1024},
+		{"valid_261120_kb", 261120},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidMaxReadAheadKb(tc.readAheadKb)
+
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestIsValidMaxReadAheadKbError(t *testing.T) {
+	testCases := []struct {
+		name        string
+		readAheadKb int64
+	}{
+		{"invalid_negative_one", -1},
+		{"invalid_negative_ten", -10},
+		{"invalid_negative_large", -1024},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := isValidMaxReadAheadKb(tc.readAheadKb)
 
 			assert.Error(t, err)
 		})

@@ -53,9 +53,9 @@ const (
 	TimeSlop = 25 * time.Millisecond
 	// TmpDirectory specifies the directory where temporary files will be created.
 	// In this case, we are using the system's default temporary directory.
-	TmpDirectory             = "/tmp"
-	WaitDurationAfterFlushZB = time.Minute
-	WaitDurationAfterCloseZB = time.Second
+	TmpDirectory                = "/tmp"
+	WaitDurationAfterFlushRapid = time.Minute
+	WaitDurationAfterCloseRapid = time.Second
 )
 
 func copyFile(srcFileName, dstFileName string, allowOverwrite bool) (err error) {
@@ -174,6 +174,9 @@ func CloseFiles(t *testing.T, files []*os.File) {
 		err := file.Close()
 		assert.NoError(t, err)
 	}
+	// Pirlo creates finalized objects on close by default, so we don't wait for it here.
+	// Update this condition if this method is used to create unfinalized Pirlo objects in the future.
+	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterCloseRapid)
 }
 
 // Deprecated: please use CloseFileShouldNotThrowError instead.
@@ -181,7 +184,9 @@ func CloseFile(file *os.File) {
 	if err := file.Close(); err != nil {
 		log.Fatalf("error in closing: %v", err)
 	}
-	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterCloseZB)
+	// Pirlo creates finalized objects on close by default, so we don't wait for it here.
+	// Update this condition if this method is used to create unfinalized Pirlo objects in the future.
+	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterCloseRapid)
 }
 
 func RemoveFile(filePath string) {
@@ -232,6 +237,8 @@ func ReadFileSequentially(file *os.File, chunkSize int64) (content []byte, err e
 	return
 }
 
+// WriteChunkOfRandomBytesToFiles writes a chunk of random bytes to multiple files at a given offset.
+// This function does not sync or close the files, the responsibility falls on the caller instead.
 func WriteChunkOfRandomBytesToFiles(files []*os.File, chunkSize int, offset int64) error {
 	// Generate random data of chunk size.
 	chunk, err := GenerateRandomData(int64(chunkSize))
@@ -248,14 +255,6 @@ func WriteChunkOfRandomBytesToFiles(files []*os.File, chunkSize int, offset int6
 
 		if n != chunkSize {
 			return fmt.Errorf("incorrect number of bytes written in the file %s actual %d, expected %d", file.Name(), n, chunkSize)
-		}
-
-		if !setup.IsZonalBucketRun() {
-			err = file.Sync()
-			if err != nil {
-				return fmt.Errorf("error in syncing file: %v", err)
-			}
-			WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterFlushZB)
 		}
 	}
 
@@ -586,7 +585,9 @@ func WriteAt(content string, offset int64, fh *os.File, t testing.TB) {
 func CloseFileShouldNotThrowError(t testing.TB, file *os.File) {
 	err := file.Close()
 	assert.NoError(t, err)
-	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterCloseZB)
+	// Pirlo creates finalized objects on close by default, so we don't wait for it here.
+	// Update this condition if this method is used to create unfinalized Pirlo objects in the future.
+	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterCloseRapid)
 }
 
 func CloseFileShouldThrowError(t *testing.T, file *os.File) {
@@ -603,7 +604,7 @@ func SyncFile(fh *os.File, t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s.Sync(): %v", fh.Name(), err)
 	}
-	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterFlushZB)
+	WaitForSizeUpdate(setup.IsZonalBucketRun() || setup.IsPirloBucketRun(), WaitDurationAfterFlushRapid)
 }
 
 func SyncFiles(files []*os.File, t *testing.T) {

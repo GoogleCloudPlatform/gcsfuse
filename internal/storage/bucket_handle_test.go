@@ -688,6 +688,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 	bucketScenarios := []struct {
 		name                        string
 		bucketType                  gcs.BucketType
+		initialStorageClass         string
 		expectedWriterStorageClass  string
 		expectedCreatedStorageClass string
 		canTestCreateObject         bool
@@ -695,25 +696,37 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 		{
 			name:                        "StandardBucket",
 			bucketType:                  gcs.BucketType{Pirlo: gcs.PirloStateNone},
+			initialStorageClass:         "",
 			expectedWriterStorageClass:  "",
 			expectedCreatedStorageClass: "STANDARD",
 			canTestCreateObject:         true,
 		},
 		{
+			name:                        "StandardBucket_InheritsStorageClass",
+			bucketType:                  gcs.BucketType{Pirlo: gcs.PirloStateNone},
+			initialStorageClass:         "COLDLINE",
+			expectedWriterStorageClass:  "COLDLINE",
+			expectedCreatedStorageClass: "COLDLINE",
+			canTestCreateObject:         true,
+		},
+		{
 			name:                       "ZonalBucket",
 			bucketType:                 gcs.BucketType{Zonal: true},
+			initialStorageClass:        "",
 			expectedWriterStorageClass: "",    // Zonal buckets do not use the RAPID storage class.
 			canTestCreateObject:        false, // Fails on HTTP append.
 		},
 		{
 			name:                       "PirloBucket_RapidEnabled",
 			bucketType:                 gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			initialStorageClass:        "STANDARD", // Simulate inheriting from standard source
 			expectedWriterStorageClass: storageClassRapid,
 			canTestCreateObject:        false, // Fails on HTTP append.
 		},
 		{
 			name:                        "PirloBucket_RapidDisabled",
 			bucketType:                  gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
+			initialStorageClass:         storageClassRapid, // Simulate inheriting from rapid source
 			expectedWriterStorageClass:  "",
 			expectedCreatedStorageClass: "STANDARD",
 			canTestCreateObject:         true,
@@ -725,7 +738,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 			createBucketHandle(testSuite, &controlpb.StorageLayout{})
 			testSuite.bucketHandle.bucketType = &scenario.bucketType
 			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{}
-			req := &gcs.CreateObjectRequest{Name: "test_object_2"}
+			req := &gcs.CreateObjectRequest{Name: "test_object_2", StorageClass: scenario.initialStorageClass}
 
 			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), req, 1024, nil)
 
@@ -740,7 +753,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 				createBucketHandle(testSuite, &controlpb.StorageLayout{})
 				testSuite.bucketHandle.bucketType = &scenario.bucketType
 				testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{}
-				req := &gcs.CreateObjectRequest{Name: "test_object_1", Contents: strings.NewReader("data")}
+				req := &gcs.CreateObjectRequest{Name: "test_object_1", Contents: strings.NewReader("data"), StorageClass: scenario.initialStorageClass}
 
 				o, err := testSuite.bucketHandle.CreateObject(context.Background(), req)
 
@@ -1336,6 +1349,73 @@ func (testSuite *BucketHandleTest) TestComposeObjectMethodWithTwoSrcObjects() {
 	assert.Equal(testSuite.T(), srcBuffer1+srcBuffer2, dstBuffer)
 	assert.NotNil(testSuite.T(), composedObj)
 	assert.Equal(testSuite.T(), srcMinObj1.Size+srcMinObj2.Size, composedObj.Size)
+}
+
+// FakeGCSServer does not delete source objects on compose with DeleteSourceObjects: true.
+// Deletion verification is tested in internal/storage/fake/testing/bucket_tests.go.
+func (testSuite *BucketHandleTest) TestComposeObjectMethodWithDeleteSourceObjects() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{})
+	var notfound *gcs.NotFoundError
+	_, _, err := testSuite.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: dstObjectName,
+		})
+	assert.True(testSuite.T(), errors.As(err, &notfound))
+	srcMinObj1, _, err := testSuite.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestObjectName,
+		})
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), srcMinObj1)
+	srcMinObj2, _, err := testSuite.bucketHandle.StatObject(context.Background(),
+		&gcs.StatObjectRequest{
+			Name: TestSubObjectName,
+		})
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), srcMinObj2)
+
+	composedObj, err := testSuite.bucketHandle.ComposeObjects(context.Background(),
+		&gcs.ComposeObjectsRequest{
+			DstName:                       dstObjectName,
+			DstGenerationPrecondition:     nil,
+			DstMetaGenerationPrecondition: nil,
+			DeleteSourceObjects:           true,
+			Sources: []gcs.ComposeSource{
+				{
+					Name: TestObjectName,
+				},
+				{
+					Name: TestSubObjectName,
+				},
+			},
+			ContentType: ContentType,
+			Metadata: map[string]string{
+				MetaDataKey: MetaDataValue,
+			},
+			ContentLanguage:    ContentLanguage,
+			ContentEncoding:    ContentEncoding,
+			CacheControl:       CacheControl,
+			ContentDisposition: ContentDisposition,
+			CustomTime:         CustomTime,
+			EventBasedHold:     true,
+			StorageClass:       StorageClass,
+			Acl:                nil,
+		})
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), composedObj)
+	assert.Equal(testSuite.T(), srcMinObj1.Size+srcMinObj2.Size, composedObj.Size)
+
+	// Reading content of dstObject
+	dstBuffer := testSuite.readObjectContent(context.Background(),
+		&gcs.ReadObjectRequest{
+			Name: dstObjectName,
+			Range: &gcs.ByteRange{
+				Start: uint64(0),
+				Limit: uint64(composedObj.Size),
+			},
+		})
+	assert.Equal(testSuite.T(), ContentInTestObject+ContentInTestSubObject, dstBuffer)
 }
 
 func (testSuite *BucketHandleTest) TestComposeObjectMethodWhenSrcObjectDoesNotExist() {

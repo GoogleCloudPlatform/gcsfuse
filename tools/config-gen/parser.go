@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,10 +47,14 @@ type Param struct {
 	HideFlag           bool                      `yaml:"hide-flag"`
 	HideShorthand      bool                      `yaml:"hide-shorthand"`
 	Optimizations      *shared.OptimizationRules `yaml:"optimizations,omitempty"`
+	ProtoTag           int                       `yaml:"proto-tag"`
+	ProtoType          string                    `yaml:"-"`
+	ProtoFieldName     string                    `yaml:"-"`
 }
 
 // ParamsYAML mirrors the params.yaml file itself.
 type ParamsYAML struct {
+	RetiredParams     []int               `yaml:"retired-params"`
 	Params            []Param             `yaml:"params"`
 	MachineTypeGroups map[string][]string `yaml:"machine-type-groups"`
 }
@@ -67,7 +71,129 @@ func parseParamsYAMLStr(paramsYAMLStr string) (paramsYAML ParamsYAML, err error)
 	if err = validateMachineTypeGroups(paramsYAML.MachineTypeGroups); err != nil {
 		return ParamsYAML{}, err
 	}
+	if err = validateProtoTags(paramsYAML.Params, paramsYAML.RetiredParams); err != nil {
+		return ParamsYAML{}, err
+	}
+	if err = populateProtoMetadata(paramsYAML.Params); err != nil {
+		return ParamsYAML{}, err
+	}
 	return paramsYAML, nil
+}
+
+var supportedDataTypes = []string{
+	"int", "float64", "bool", "string", "duration", "octal", "[]int",
+	"[]string", "logSeverity", "protocol", "resolvedPath", "directPathStrategy",
+}
+
+func isValidDataType(dt string) bool {
+	return slices.Contains(supportedDataTypes, dt)
+}
+
+var highRiskTextTypes = map[string]bool{
+	"string":       true,
+	"resolvedPath": true,
+	"[]string":     true,
+}
+
+var whitelistedTextConfigPaths = map[string]bool{
+	"profile":      true,
+	"machine-type": true,
+}
+
+func computeProtoMetadata(configPath string, paramType string) (protoType, protoFieldName string, err error) {
+	name := strings.ReplaceAll(strings.ReplaceAll(configPath, ".", "_"), "-", "_")
+	if highRiskTextTypes[paramType] && !whitelistedTextConfigPaths[configPath] {
+		return "bool", fmt.Sprintf("is_%s_set", name), nil
+	}
+	switch paramType {
+	case "bool":
+		return "bool", name, nil
+	case "int":
+		return "sint64", name, nil
+	case "octal":
+		return "int32", name, nil
+	case "duration":
+		return "int64", name, nil // Mapped as nanoseconds
+	case "float64":
+		return "double", name, nil
+	case "string", "protocol", "directPathStrategy", "logSeverity":
+		return "string", name, nil
+	case "[]int":
+		return "repeated sint64", name, nil
+	default:
+		return "", "", fmt.Errorf("unknown configuration type [%s] declared for config-path [%s]", paramType, configPath)
+	}
+}
+
+// populateProtoMetadata maps YAML types to Flat Protobuf types, converting high-risk text strings to booleans for telemetry privacy.
+func populateProtoMetadata(params []Param) error {
+	for i := range params {
+		param := &params[i]
+		if param.ConfigPath == "" {
+			continue
+		}
+		protoType, protoFieldName, err := computeProtoMetadata(param.ConfigPath, param.Type)
+		if err != nil {
+			return err
+		}
+		param.ProtoType = protoType
+		param.ProtoFieldName = protoFieldName
+	}
+	return nil
+}
+
+func validateProtoTags(params []Param, retiredTags []int) error {
+	assignedTagsMap := make(map[int]string, len(params)+len(retiredTags))
+	maxTag := 0
+
+	// 1. Validate retired tags.
+	for _, tag := range retiredTags {
+		if tag <= 0 {
+			return fmt.Errorf("retired proto-tag %d is invalid (must be > 0)", tag)
+		}
+		if conflictingParam, exists := assignedTagsMap[tag]; exists {
+			return fmt.Errorf("duplicate proto-tag %d found for retired-tag and %q", tag, conflictingParam)
+		}
+		assignedTagsMap[tag] = fmt.Sprintf("retired-tag %d", tag)
+		if tag > maxTag {
+			maxTag = tag
+		}
+	}
+
+	// 2. Validate active params.
+	for _, param := range params {
+		if param.ConfigPath == "" {
+			if param.ProtoTag != 0 {
+				return fmt.Errorf("parameter %q without config-path must not have proto-tag set", param.FlagName)
+			}
+			continue
+		}
+
+		tag := param.ProtoTag
+		if tag <= 0 {
+			return fmt.Errorf("parameter %q with config-path %q has invalid proto-tag %d (must be > 0)", param.FlagName, param.ConfigPath, tag)
+		}
+
+		if conflictingParam, exists := assignedTagsMap[tag]; exists {
+			return fmt.Errorf("duplicate proto-tag %d found for parameter %q and %q", tag, param.FlagName, conflictingParam)
+		}
+		assignedTagsMap[tag] = param.FlagName
+		if tag > maxTag {
+			maxTag = tag
+		}
+	}
+
+	// 3. Contiguity check: ensure all tags from 1 to maxTag are accounted for.
+	if len(assignedTagsMap) == maxTag {
+		return nil
+	}
+	for tag := 1; tag <= len(assignedTagsMap)+1; tag++ {
+		if _, isAssigned := assignedTagsMap[tag]; !isAssigned {
+			return fmt.Errorf("missing proto-tag %d in sequence 1..%d", tag, maxTag)
+		}
+	}
+
+	return nil
 }
 
 func parseParamsYAML() (ParamsYAML, error) {
@@ -114,14 +240,7 @@ func validateParam(param Param) error {
 	}
 
 	// Validate the data type.
-	idx := slices.IndexFunc(
-		[]string{"int", "float64", "bool", "string", "duration", "octal", "[]int",
-			"[]string", "logSeverity", "protocol", "resolvedPath", "directPathStrategy"},
-		func(dt string) bool {
-			return dt == param.Type
-		},
-	)
-	if idx == -1 {
+	if !isValidDataType(param.Type) {
 		return fmt.Errorf("unsupported datatype: %s", param.Type)
 	}
 

@@ -622,8 +622,49 @@ func (testSuite *BufferedWriteTest) TestDestroyShouldClearFreeBlockChannel() {
 
 	require.Nil(testSuite.T(), err)
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	assert.Nil(testSuite.T(), bwhImpl.current)
 	assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
+	// Check if all semaphore permits are released correctly.
+	assert.True(testSuite.T(), testSuite.globalSemaphore.TryAcquire(10))
+}
+
+func (testSuite *BufferedWriteTest) TestDestroyWithPartialBlockInCurrent() {
+	// Write a partial block (less than blockSize) so it stays in wh.current and is not uploaded.
+	partialData := strings.Repeat("B", blockSize/2)
+	err := testSuite.bwh.Write(context.Background(), []byte(partialData), 0)
+	require.Nil(testSuite.T(), err)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	require.NotNil(testSuite.T(), bwhImpl.current)
+	assert.Equal(testSuite.T(), int64(blockSize/2), bwhImpl.current.Size())
+
+	err = testSuite.bwh.Destroy()
+
+	require.Nil(testSuite.T(), err)
+	assert.Nil(testSuite.T(), bwhImpl.current)
+	assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
+	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
+	// Verify that all 10 permits (including the one used by wh.current) are released.
+	assert.True(testSuite.T(), testSuite.globalSemaphore.TryAcquire(10))
+}
+
+func (testSuite *BufferedWriteTest) TestDestroyWithMultiBlocksAndPartialBlockInCurrent() {
+	// Write 2.5 blocks of data: 2 full blocks sent to uploadCh, 0.5 block stays in wh.current.
+	data := strings.Repeat("C", int(blockSize*2.5))
+	err := testSuite.bwh.Write(context.Background(), []byte(data), 0)
+	require.Nil(testSuite.T(), err)
+	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
+	require.NotNil(testSuite.T(), bwhImpl.current)
+	assert.Equal(testSuite.T(), int64(blockSize/2), bwhImpl.current.Size())
+
+	err = testSuite.bwh.Destroy()
+
+	require.Nil(testSuite.T(), err)
+	assert.Nil(testSuite.T(), bwhImpl.current)
+	assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
+	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
+	// Verify that all 10 permits are released back to global semaphore.
+	assert.True(testSuite.T(), testSuite.globalSemaphore.TryAcquire(10))
 }
 
 func (testSuite *BufferedWriteTest) TestUnlinkBeforeWrite() {
