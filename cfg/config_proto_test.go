@@ -210,26 +210,37 @@ func TestSerializeConfigToProtoBase64(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			encoded, err := tc.config.SerializeConfigToProtoBase64()
-
-			require.NoError(t, err)
-			assert.Equal(t, tc.expectedBase64, encoded)
-			assert.NotContains(t, encoded, "=")
-			assert.NotContains(t, encoded, "+")
-			assert.NotContains(t, encoded, "/")
-
-			decodedBytes, err := base64.RawURLEncoding.DecodeString(encoded)
-
-			require.NoError(t, err)
-			assert.Equal(t, tc.expectedBytes, decodedBytes)
-
-			if tc.config != nil {
-				var unmarshaled pb.Config
-
-				err = proto.Unmarshal(decodedBytes, &unmarshaled)
+			t.Run("ExpectedBase64", func(t *testing.T) {
+				encoded, err := tc.config.SerializeConfigToProtoBase64()
 
 				require.NoError(t, err)
-				assert.True(t, proto.Equal(tc.config.ToProto(), &unmarshaled))
+				assert.Regexp(t, `^[A-Za-z0-9_-]*$`, tc.expectedBase64)
+				assert.Equal(t, tc.expectedBase64, encoded)
+			})
+
+			t.Run("DecodedBytes", func(t *testing.T) {
+				encoded, err := tc.config.SerializeConfigToProtoBase64()
+				require.NoError(t, err)
+
+				decodedBytes, err := base64.RawURLEncoding.DecodeString(encoded)
+
+				require.NoError(t, err)
+				assert.Equal(t, tc.expectedBytes, decodedBytes)
+			})
+
+			if tc.config != nil {
+				t.Run("ProtoEqual", func(t *testing.T) {
+					encoded, err := tc.config.SerializeConfigToProtoBase64()
+					require.NoError(t, err)
+					decodedBytes, err := base64.RawURLEncoding.DecodeString(encoded)
+					require.NoError(t, err)
+					var unmarshaled pb.Config
+
+					err = proto.Unmarshal(decodedBytes, &unmarshaled)
+
+					require.NoError(t, err)
+					assert.True(t, proto.Equal(tc.config.ToProto(), &unmarshaled))
+				})
 			}
 		})
 	}
