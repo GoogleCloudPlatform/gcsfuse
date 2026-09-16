@@ -765,3 +765,135 @@ func TestLogMountEnvironmentDoesNotPanic(t *testing.T) {
 	assert.NotPanics(t, func() { logMountEnvironment(res) })
 	assert.NotPanics(t, func() { logMountEnvironment(nil) })
 }
+
+// clearK8sEnv unsets every variable k8sResourceAttributes consults, so each
+// test starts from a known state regardless of where it runs.
+func clearK8sEnv(t *testing.T) {
+	t.Helper()
+	for _, k := range []string{
+		"KUBERNETES_SERVICE_HOST", "POD_NAME", "HOSTNAME", "NAMESPACE_NAME",
+		"POD_NAMESPACE", "NAMESPACE", "POD_UID", "CONTAINER_NAME", "NODE_NAME",
+	} {
+		t.Setenv(k, "")
+	}
+	// Point the service-account file at a path that cannot exist, so the
+	// namespace fallback stays inert unless a test opts into it.
+	old := k8sSANamespaceFile
+	k8sSANamespaceFile = filepath.Join(t.TempDir(), "absent")
+	t.Cleanup(func() { k8sSANamespaceFile = old })
+}
+
+func attrValue(attrs []attribute.KeyValue, key attribute.Key) (string, bool) {
+	for _, a := range attrs {
+		if a.Key == key {
+			return a.Value.Emit(), true
+		}
+	}
+	return "", false
+}
+
+func TestK8sResourceAttributes(t *testing.T) {
+	t.Run("EmptyOutsideKubernetes", func(t *testing.T) {
+		clearK8sEnv(t)
+		// HOSTNAME is set on every machine and must not leak into labels.
+		t.Setenv("HOSTNAME", "some-gce-vm")
+
+		assert.Empty(t, k8sResourceAttributes())
+	})
+
+	t.Run("PodNameFromHostnameFallback", func(t *testing.T) {
+		clearK8sEnv(t)
+		t.Setenv("KUBERNETES_SERVICE_HOST", "10.0.0.1")
+		t.Setenv("HOSTNAME", "gcsfuse-envlog")
+
+		got, ok := attrValue(k8sResourceAttributes(), semconv.K8SPodNameKey)
+
+		assert.True(t, ok)
+		assert.Equal(t, "gcsfuse-envlog", got)
+	})
+
+	t.Run("PodNameEnvWinsOverHostname", func(t *testing.T) {
+		clearK8sEnv(t)
+		t.Setenv("KUBERNETES_SERVICE_HOST", "10.0.0.1")
+		t.Setenv("HOSTNAME", "gcsfuse-envlog")
+		t.Setenv("POD_NAME", "explicit-pod")
+
+		got, _ := attrValue(k8sResourceAttributes(), semconv.K8SPodNameKey)
+
+		assert.Equal(t, "explicit-pod", got)
+	})
+
+	t.Run("NamespaceFromEnv", func(t *testing.T) {
+		clearK8sEnv(t)
+		t.Setenv("KUBERNETES_SERVICE_HOST", "10.0.0.1")
+		t.Setenv("NAMESPACE_NAME", "team-ns")
+
+		got, ok := attrValue(k8sResourceAttributes(), semconv.K8SNamespaceNameKey)
+
+		assert.True(t, ok)
+		assert.Equal(t, "team-ns", got)
+	})
+
+	t.Run("NamespaceFromServiceAccountFileFallback", func(t *testing.T) {
+		clearK8sEnv(t)
+		t.Setenv("KUBERNETES_SERVICE_HOST", "10.0.0.1")
+		nsFile := filepath.Join(t.TempDir(), "namespace")
+		require.NoError(t, os.WriteFile(nsFile, []byte("sidecar-ns\n"), 0o600))
+		k8sSANamespaceFile = nsFile
+
+		got, ok := attrValue(k8sResourceAttributes(), semconv.K8SNamespaceNameKey)
+
+		assert.True(t, ok)
+		assert.Equal(t, "sidecar-ns", got)
+	})
+
+	t.Run("OptionalAttributesOnlyWhenSet", func(t *testing.T) {
+		clearK8sEnv(t)
+		t.Setenv("KUBERNETES_SERVICE_HOST", "10.0.0.1")
+		t.Setenv("HOSTNAME", "pod-1")
+
+		attrs := k8sResourceAttributes()
+
+		_, hasUID := attrValue(attrs, semconv.K8SPodUIDKey)
+		_, hasContainer := attrValue(attrs, semconv.K8SContainerNameKey)
+		_, hasNode := attrValue(attrs, semconv.K8SNodeNameKey)
+		assert.False(t, hasUID)
+		assert.False(t, hasContainer)
+		assert.False(t, hasNode)
+
+		t.Setenv("POD_UID", "uid-123")
+		t.Setenv("CONTAINER_NAME", "gcsfuse")
+		t.Setenv("NODE_NAME", "gke-node-1")
+		attrs = k8sResourceAttributes()
+
+		uid, _ := attrValue(attrs, semconv.K8SPodUIDKey)
+		container, _ := attrValue(attrs, semconv.K8SContainerNameKey)
+		node, _ := attrValue(attrs, semconv.K8SNodeNameKey)
+		assert.Equal(t, "uid-123", uid)
+		assert.Equal(t, "gcsfuse", container)
+		assert.Equal(t, "gke-node-1", node)
+	})
+}
+
+func TestFirstNonEmptyEnv(t *testing.T) {
+	t.Setenv("GCSFUSE_TEST_EMPTY", "")
+	t.Setenv("GCSFUSE_TEST_SECOND", "second")
+	t.Setenv("GCSFUSE_TEST_THIRD", "third")
+
+	assert.Equal(t, "second", firstNonEmptyEnv("GCSFUSE_TEST_EMPTY", "GCSFUSE_TEST_SECOND", "GCSFUSE_TEST_THIRD"))
+	assert.Equal(t, "", firstNonEmptyEnv("GCSFUSE_TEST_EMPTY", "GCSFUSE_TEST_ABSENT"))
+	assert.Equal(t, "", firstNonEmptyEnv())
+}
+
+func TestGetResourceHonoursOtelResourceAttributes(t *testing.T) {
+	clearK8sEnv(t)
+	t.Setenv("OTEL_RESOURCE_ATTRIBUTES", "gcsfuse.bucket_name=my-bucket")
+
+	res, err := getResource(t.Context(), "mount-1")
+
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	got, ok := attrValue(res.Attributes(), attribute.Key("gcsfuse.bucket_name"))
+	assert.True(t, ok, "OTEL_RESOURCE_ATTRIBUTES should reach the resource")
+	assert.Equal(t, "my-bucket", got)
+}
