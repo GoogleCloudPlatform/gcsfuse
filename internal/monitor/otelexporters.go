@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -88,6 +90,9 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 	} else {
 		options = append(options, metric.WithResource(res))
 	}
+	// Record the environment this mount came up in, together with the resource
+	// labels that will be attached to everything exported from here on.
+	logMountEnvironment(res)
 
 	options = append(options, metric.WithView(dropDisallowedMetricsView), metric.WithExemplarFilter(exemplar.AlwaysOffFilter))
 
@@ -455,6 +460,170 @@ func getOtelResource(ctx context.Context, mountID string, projectID string) (*re
 		}
 	}
 	return res, nil
+}
+
+// kubernetesServiceHostEnvVar is injected into every pod by the kubelet, so
+// its presence reliably indicates that gcsfuse is running inside a Kubernetes
+// (GKE) pod, e.g. via the GCS FUSE CSI driver sidecar.
+const kubernetesServiceHostEnvVar = "KUBERNETES_SERVICE_HOST"
+
+// maxLoggedEnvValueLen caps how much of a single environment variable value is
+// logged, so one oversized value (e.g. an inlined config) can't flood the logs.
+const maxLoggedEnvValueLen = 1024
+
+// sensitiveEnvKeySubstrings lists the upper-cased substrings that mark an
+// environment variable as likely holding a credential. Values of matching
+// variables are redacted before being logged.
+var sensitiveEnvKeySubstrings = []string{
+	"AUTH",
+	"CREDENTIAL",
+	"KEY",
+	"PASSWD",
+	"PASSWORD",
+	"PRIVATE",
+	"SECRET",
+	"SIGNATURE",
+	"TOKEN",
+}
+
+// nonSensitiveEnvKeys lists variables that match sensitiveEnvKeySubstrings but
+// only ever hold a file path or socket name, and are useful while debugging a
+// mount. Their values are logged verbatim.
+var nonSensitiveEnvKeys = map[string]bool{
+	"GOOGLE_APPLICATION_CREDENTIALS": true,
+	"SSH_AUTH_SOCK":                  true,
+}
+
+// isRunningOnGKE reports whether this mount is running inside a Kubernetes pod
+// on GKE. It first checks the kubelet-injected environment variable and then
+// falls back to the labels reported by the GCP resource detector, which also
+// works when the environment variable has been stripped.
+func isRunningOnGKE(res *resource.Resource) bool {
+	if os.Getenv(kubernetesServiceHostEnvVar) != "" {
+		return true
+	}
+	if res == nil {
+		return false
+	}
+	for _, attr := range res.Attributes() {
+		if attr.Key == semconv.CloudPlatformKey && attr.Value.Emit() == semconv.CloudPlatformGCPKubernetesEngine.Value.Emit() {
+			return true
+		}
+		if strings.HasPrefix(string(attr.Key), "k8s.") {
+			return true
+		}
+	}
+	return false
+}
+
+// isSensitiveEnvKey reports whether the value of the given environment
+// variable should be redacted before logging.
+func isSensitiveEnvKey(key string) bool {
+	upperKey := strings.ToUpper(key)
+	if nonSensitiveEnvKeys[upperKey] {
+		return false
+	}
+	for _, s := range sensitiveEnvKeySubstrings {
+		if strings.Contains(upperKey, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// cannotBeSecret reports whether a value is structurally incapable of holding
+// a credential: empty, a boolean or a plain number. Such values are logged
+// verbatim even under a sensitive-looking key, which keeps feature flags like
+// `..._USE_APPLICATION_DEFAULT_CREDENTIALS=true` readable.
+func cannotBeSecret(value string) bool {
+	if value == "" {
+		return true
+	}
+	if _, err := strconv.ParseBool(value); err == nil {
+		return true
+	}
+	if _, err := strconv.ParseFloat(value, 64); err == nil {
+		return true
+	}
+	return false
+}
+
+// redactEnvValue returns the value to log for the given environment variable:
+// the value itself (truncated if very long), or a placeholder revealing only
+// its length if the variable looks like it holds a credential.
+func redactEnvValue(key, value string) string {
+	if isSensitiveEnvKey(key) && !cannotBeSecret(value) {
+		return fmt.Sprintf("<redacted: %d chars>", len(value))
+	}
+	if len(value) > maxLoggedEnvValueLen {
+		return fmt.Sprintf("%s...<truncated: %d chars total>", value[:maxLoggedEnvValueLen], len(value))
+	}
+	return value
+}
+
+// environmentVariableLines returns one sorted "key = value" line per
+// environment variable visible to this process, with sensitive values
+// redacted.
+func environmentVariableLines() []string {
+	environ := os.Environ()
+	lines := make([]string, 0, len(environ))
+	for _, entry := range environ {
+		key, value, found := strings.Cut(entry, "=")
+		if !found {
+			// Should not happen, but don't silently drop the entry.
+			key, value = entry, ""
+		}
+		lines = append(lines, fmt.Sprintf("  %s = %s", key, redactEnvValue(key, value)))
+	}
+	sort.Strings(lines)
+	return lines
+}
+
+// resourceAttributeLines returns one sorted "key = value" line per attribute
+// (resource label) of the detected OTel resource.
+func resourceAttributeLines(res *resource.Resource) []string {
+	if res == nil {
+		return nil
+	}
+	attrs := res.Attributes()
+	lines := make([]string, 0, len(attrs))
+	for _, attr := range attrs {
+		lines = append(lines, fmt.Sprintf("  %s = %s", string(attr.Key), attr.Value.Emit()))
+	}
+	sort.Strings(lines)
+	return lines
+}
+
+// logMountEnvironment logs what gcsfuse can discover about the environment it
+// was mounted in: the OTel resource labels attached to everything it exports,
+// and the full set of environment variables available to the process.
+//
+// On GKE the environment dump is logged at INFO, since the pod environment is
+// the main thing needed to explain which labels a mount ends up with; off GKE
+// it is logged at DEBUG to keep ordinary mounts quiet. Because these go
+// through the standard logger, they are shipped by the OTel log exporter
+// configured in SetupOTelLogExporter whenever OTel logging is enabled.
+//
+// Values of credential-like variables are redacted.
+func logMountEnvironment(res *resource.Resource) {
+	attrLines := resourceAttributeLines(res)
+	if len(attrLines) == 0 {
+		logger.Infof("Mount resource labels: none detected.")
+	} else {
+		logger.Infof("Mount resource labels (%d detected):\n%s", len(attrLines), strings.Join(attrLines, "\n"))
+	}
+	if res != nil {
+		logger.Debugf("Mount resource schema URL: %q", res.SchemaURL())
+	}
+
+	envLines := environmentVariableLines()
+	if isRunningOnGKE(res) {
+		logger.Infof("Running on GKE. Environment variables available to this mount (%d; credential-like values redacted):\n%s",
+			len(envLines), strings.Join(envLines, "\n"))
+		return
+	}
+	logger.Debugf("Not running on GKE. Environment variables available to this mount (%d; credential-like values redacted):\n%s",
+		len(envLines), strings.Join(envLines, "\n"))
 }
 
 // isOtelEndpointInsecure returns true if the endpoint is determined to be a local testing endpoint.

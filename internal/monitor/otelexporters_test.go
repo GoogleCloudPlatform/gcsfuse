@@ -19,14 +19,19 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -622,4 +627,141 @@ func TestGetOtelResource(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIsRunningOnGKE(t *testing.T) {
+	t.Run("KubernetesServiceHostEnvVarSet", func(t *testing.T) {
+		t.Setenv(kubernetesServiceHostEnvVar, "10.0.0.1")
+
+		assert.True(t, isRunningOnGKE(nil))
+	})
+
+	t.Run("NoEnvVarAndNilResource", func(t *testing.T) {
+		t.Setenv(kubernetesServiceHostEnvVar, "")
+
+		assert.False(t, isRunningOnGKE(nil))
+	})
+
+	t.Run("DetectedViaK8sResourceLabel", func(t *testing.T) {
+		t.Setenv(kubernetesServiceHostEnvVar, "")
+		res, err := resource.New(t.Context(), resource.WithAttributes(attribute.String("k8s.cluster.name", "my-cluster")))
+		require.NoError(t, err)
+
+		assert.True(t, isRunningOnGKE(res))
+	})
+
+	t.Run("DetectedViaCloudPlatformResourceLabel", func(t *testing.T) {
+		t.Setenv(kubernetesServiceHostEnvVar, "")
+		res, err := resource.New(t.Context(), resource.WithAttributes(semconv.CloudPlatformGCPKubernetesEngine))
+		require.NoError(t, err)
+
+		assert.True(t, isRunningOnGKE(res))
+	})
+
+	t.Run("GceResourceIsNotGKE", func(t *testing.T) {
+		t.Setenv(kubernetesServiceHostEnvVar, "")
+		res, err := resource.New(t.Context(), resource.WithAttributes(semconv.CloudPlatformGCPComputeEngine))
+		require.NoError(t, err)
+
+		assert.False(t, isRunningOnGKE(res))
+	})
+}
+
+func TestIsSensitiveEnvKey(t *testing.T) {
+	testCases := []struct {
+		key      string
+		expected bool
+	}{
+		{"HOSTNAME", false},
+		{"KUBERNETES_SERVICE_HOST", false},
+		{"GOOGLE_CLOUD_PROJECT", false},
+		{"GOOGLE_APPLICATION_CREDENTIALS", false},
+		{"SSH_AUTH_SOCK", false},
+		{"XDG_SESSION_TYPE", false},
+		{"AWS_SECRET_ACCESS_KEY", true},
+		{"aws_session_token", true},
+		{"MY_API_KEY", true},
+		{"DB_PASSWORD", true},
+		{"SOME_PRIVATE_DATA", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.key, func(t *testing.T) {
+			assert.Equal(t, tc.expected, isSensitiveEnvKey(tc.key))
+		})
+	}
+}
+
+func TestRedactEnvValue(t *testing.T) {
+	t.Run("PlainValueIsReturnedAsIs", func(t *testing.T) {
+		assert.Equal(t, "my-project", redactEnvValue("GOOGLE_CLOUD_PROJECT", "my-project"))
+	})
+
+	t.Run("SensitiveValueIsRedacted", func(t *testing.T) {
+		got := redactEnvValue("AWS_SECRET_ACCESS_KEY", "super-secret")
+
+		assert.NotContains(t, got, "super-secret")
+		assert.Equal(t, "<redacted: 12 chars>", got)
+	})
+
+	t.Run("BooleanAndNumericValuesAreNotRedacted", func(t *testing.T) {
+		assert.Equal(t, "true", redactEnvValue("CLOUDSDK_USE_APPLICATION_DEFAULT_CREDENTIALS", "true"))
+		assert.Equal(t, "0", redactEnvValue("SOME_KEY_COUNT", "0"))
+		assert.Equal(t, "", redactEnvValue("EMPTY_TOKEN", ""))
+	})
+
+	t.Run("LongValueIsTruncated", func(t *testing.T) {
+		value := strings.Repeat("a", maxLoggedEnvValueLen+10)
+
+		got := redactEnvValue("SOME_LONG_VAR", value)
+
+		assert.True(t, strings.HasPrefix(got, strings.Repeat("a", maxLoggedEnvValueLen)))
+		assert.True(t, strings.HasSuffix(got, "...<truncated: 1034 chars total>"))
+	})
+}
+
+func TestEnvironmentVariableLines(t *testing.T) {
+	t.Setenv("GCSFUSE_TEST_PLAIN_VAR", "plain-value")
+	t.Setenv("GCSFUSE_TEST_SECRET_TOKEN", "do-not-log-me")
+
+	lines := environmentVariableLines()
+
+	joined := strings.Join(lines, "\n")
+	assert.Contains(t, joined, "  GCSFUSE_TEST_PLAIN_VAR = plain-value")
+	assert.Contains(t, joined, "  GCSFUSE_TEST_SECRET_TOKEN = <redacted: 13 chars>")
+	assert.NotContains(t, joined, "do-not-log-me")
+	assert.True(t, sort.StringsAreSorted(lines))
+}
+
+func TestResourceAttributeLines(t *testing.T) {
+	t.Run("NilResource", func(t *testing.T) {
+		assert.Empty(t, resourceAttributeLines(nil))
+	})
+
+	t.Run("AttributesAreSorted", func(t *testing.T) {
+		res, err := resource.New(t.Context(),
+			resource.WithAttributes(
+				attribute.String("service.name", "gcsfuse"),
+				attribute.String("cloud.region", "us-central1"),
+				attribute.Int64("host.id", 42),
+			),
+		)
+		require.NoError(t, err)
+
+		lines := resourceAttributeLines(res)
+
+		assert.Equal(t, []string{
+			"  cloud.region = us-central1",
+			"  host.id = 42",
+			"  service.name = gcsfuse",
+		}, lines)
+	})
+}
+
+func TestLogMountEnvironmentDoesNotPanic(t *testing.T) {
+	res, err := resource.New(t.Context(), resource.WithAttributes(attribute.String("service.name", "gcsfuse")))
+	require.NoError(t, err)
+
+	assert.NotPanics(t, func() { logMountEnvironment(res) })
+	assert.NotPanics(t, func() { logMountEnvironment(nil) })
 }
