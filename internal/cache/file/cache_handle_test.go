@@ -693,14 +693,49 @@ func (cht *cacheHandleTest) Test_Read_ChangeCacheOrder() {
 	assert.Equal(cht.T(), newObjectName, evictedEntries[0].(data.FileInfo).Key.ObjectName)
 }
 
+type blockingBucket struct {
+	gcs.Bucket
+	blockChan chan struct{}
+}
+
+func (b *blockingBucket) NewReaderWithReadHandle(ctx context.Context, req *gcs.ReadObjectRequest) (gcs.StorageReader, error) {
+	if req.Range != nil && req.Range.Start > 0 {
+		select {
+		case <-b.blockChan:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	return b.Bucket.NewReaderWithReadHandle(ctx, req)
+}
+
 func (cht *cacheHandleTest) Test_SequentialReadToRandom() {
+	blockChan := make(chan struct{})
+	defer close(blockChan)
+
+	fileCacheConfig := &cfg.FileCacheConfig{EnableCrc: true, EnableParallelDownloads: false}
+	cht.cacheHandle.fileDownloadJob = downloader.NewJob(
+		cht.object,
+		&blockingBucket{Bucket: cht.bucket, blockChan: blockChan},
+		cht.cache,
+		DefaultSequentialReadSizeMb,
+		cht.fileSpec,
+		func() {},
+		fileCacheConfig,
+		semaphore.NewWeighted(math.MaxInt64),
+		metrics.NewNoopMetrics(),
+		tracing.NewNoopTracer(),
+		1,
+	)
+	cht.cacheHandle.fileDownloadJob.ReadChunkSize = int64(util.MiB)
+
 	dst := make([]byte, ReadContentSize)
 	firstReqOffset := int64(0)
 	cht.cacheHandle.isSequential.Store(true)
 	cht.cacheHandle.cacheFileForRangeRead = true
 	// Since, it's a sequential read, hence will wait to download till requested offset.
 	_, cacheHit, err := cht.cacheHandle.Read(context.Background(), cht.bucket, cht.object, firstReqOffset, dst)
-	assert.Nil(cht.T(), nil, err)
+	assert.Nil(cht.T(), err)
 	jobStatus := cht.cacheHandle.fileDownloadJob.GetStatus()
 	assert.GreaterOrEqual(cht.T(), jobStatus.Offset, firstReqOffset)
 	assert.False(cht.T(), cacheHit)
