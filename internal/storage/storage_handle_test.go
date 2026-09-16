@@ -105,7 +105,7 @@ func (testSuite *StorageHandleTest) mockStorageLayout(bucketType gcs.BucketType)
 
 	if bucketType.Pirlo != gcs.PirloStateNone {
 		storageLayout.RapidCacheInfo = &controlpb.StorageLayout_RapidCacheInfo{
-			CacheType: "rapid-cache-ultra",
+			CacheType: rapidCacheUltraType,
 		}
 	}
 
@@ -293,36 +293,84 @@ func (testSuite *StorageHandleTest) TestBucketHandle_ControlClientIsWrappedWithB
 	assert.Equal(testSuite.T(), projectID, billingProjectWrapper.billingProject)
 }
 
-func (testSuite *StorageHandleTest) TestLookupBucketType_PirloRapidWritesEnabled() {
-	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.WriteConfig = &cfg.WriteConfig{EnableRapidWrites: true}
-	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
-	require.NoError(testSuite.T(), err)
-	client := sh.(*storageClient)
-	client.storageControlClient = testSuite.mockClient
-	testSuite.mockStorageLayout(gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled})
+func (testSuite *StorageHandleTest) TestLookupBucketType_RapidCacheInfo() {
+	testCases := []struct {
+		name            string
+		writeConfig     *cfg.WriteConfig
+		rapidCacheInfo  *controlpb.StorageLayout_RapidCacheInfo
+		expectedPirlo   gcs.PirloState
+		expectedIsRapid bool
+	}{
+		{
+			name:            "rapid-cache-ultra with EnableRapidWrites true",
+			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
+			expectedPirlo:   gcs.PirloStateRapidWritesEnabled,
+			expectedIsRapid: true,
+		},
+		{
+			name:            "rapid-cache-ultra with EnableRapidWrites false",
+			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: false},
+			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
+			expectedPirlo:   gcs.PirloStateRapidWritesDisabled,
+			expectedIsRapid: true,
+		},
+		{
+			name:            "rapid-cache-ultra with nil WriteConfig defaults to disabled",
+			writeConfig:     nil,
+			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
+			expectedPirlo:   gcs.PirloStateRapidWritesDisabled,
+			expectedIsRapid: true,
+		},
+		{
+			name:            "non-ultra rapid-cache is not pirlo",
+			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: "rapid-cache"},
+			expectedPirlo:   gcs.PirloStateNone,
+			expectedIsRapid: false,
+		},
+		{
+			name:            "empty CacheType is not pirlo",
+			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: ""},
+			expectedPirlo:   gcs.PirloStateNone,
+			expectedIsRapid: false,
+		},
+		{
+			name:            "nil RapidCacheInfo is not pirlo",
+			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			rapidCacheInfo:  nil,
+			expectedPirlo:   gcs.PirloStateNone,
+			expectedIsRapid: false,
+		},
+	}
 
-	bt, err := client.lookupBucketType(TestBucketName)
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+			sc.WriteConfig = tc.writeConfig
+			sh, err := NewStorageHandle(testSuite.ctx, sc, "")
+			require.NoError(testSuite.T(), err)
+			client := sh.(*storageClient)
+			mockControlClient := new(MockStorageControlClient)
+			client.storageControlClient = mockControlClient
 
-	assert.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), gcs.PirloStateRapidWritesEnabled, bt.Pirlo)
-	assert.True(testSuite.T(), bt.IsRapid())
-}
+			storageLayout := &controlpb.StorageLayout{
+				LocationType: "region",
+				HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{
+					Enabled: false,
+				},
+				RapidCacheInfo: tc.rapidCacheInfo,
+			}
+			mockControlClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(storageLayout, nil).Once()
 
-func (testSuite *StorageHandleTest) TestLookupBucketType_PirloRapidWritesDisabled() {
-	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-	sc.WriteConfig = &cfg.WriteConfig{EnableRapidWrites: false}
-	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
-	require.NoError(testSuite.T(), err)
-	client := sh.(*storageClient)
-	client.storageControlClient = testSuite.mockClient
-	testSuite.mockStorageLayout(gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled})
+			bt, err := client.lookupBucketType(TestBucketName)
 
-	bt, err := client.lookupBucketType(TestBucketName)
-
-	assert.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), gcs.PirloStateRapidWritesDisabled, bt.Pirlo)
-	assert.True(testSuite.T(), bt.IsRapid())
+			assert.NoError(testSuite.T(), err)
+			assert.Equal(testSuite.T(), tc.expectedPirlo, bt.Pirlo)
+			assert.Equal(testSuite.T(), tc.expectedIsRapid, bt.IsRapid())
+		})
+	}
 }
 
 func (testSuite *StorageHandleTest) runLookupBucketTypeTest(onlyDirInput, expectedPrefixInRequest string) {
