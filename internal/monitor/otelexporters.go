@@ -88,6 +88,10 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 	} else {
 		options = append(options, metric.WithResource(res))
 	}
+	// Dump the resource labels attached to the exported metrics along with the
+	// environment they were derived from. Useful while debugging why a given
+	// label is (or isn't) present on a mount.
+	logTelemetryEnvironment(res)
 
 	options = append(options, metric.WithView(dropDisallowedMetricsView), metric.WithExemplarFilter(exemplar.AlwaysOffFilter))
 
