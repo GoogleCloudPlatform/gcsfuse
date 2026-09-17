@@ -31,7 +31,7 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 		{
 			BucketTypes: shared.BucketTypeList{
 				"zonal",
-				"pirlo",
+				"rcu",
 			},
 			Value: int64(StorageClassRapid.DefaultCongestionThreshold()),
 		},
@@ -48,7 +48,7 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 		{
 			BucketTypes: shared.BucketTypeList{
 				"zonal",
-				"pirlo",
+				"rcu",
 			},
 			Value: bool(true),
 		},
@@ -74,7 +74,7 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 		},
 		{
 			BucketTypes: shared.BucketTypeList{
-				"pirlo",
+				"rcu",
 			},
 			Value: bool(true),
 		},
@@ -122,7 +122,7 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 		{
 			BucketTypes: shared.BucketTypeList{
 				"zonal",
-				"pirlo",
+				"rcu",
 			},
 			Value: int64(StorageClassRapid.DefaultMaxBackground()),
 		},
@@ -139,7 +139,7 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 		{
 			BucketTypes: shared.BucketTypeList{
 				"zonal",
-				"pirlo",
+				"rcu",
 			},
 			Value: int64(StorageClassRapid.DefaultMaxReadAheadKb()),
 		},
@@ -1061,7 +1061,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-rapid-appends", "", true, "Enables support for appends to unfinalized object using streaming writes")
 
-	flagSet.BoolP("enable-rapid-writes", "", false, "For pirlo, toggles between using STANDARD class and RAPID class for writes.")
+	flagSet.BoolP("enable-rapid-writes", "", false, "For rcu, toggles between using STANDARD class and RAPID class for writes.")
 
 	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 

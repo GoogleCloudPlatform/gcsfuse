@@ -41,8 +41,8 @@ func (i *implicitDirLocalFileTest) TearDownTest() {
 }
 
 func TestImplicitDirRapidWritesEnabled(t *testing.T) {
-	if !setup.IsPirloBucketRun() {
-		t.Skip("Rapid writes tests are only applicable to Pirlo buckets")
+	if !setup.IsRcuBucketRun() {
+		t.Skip("Rapid writes tests are only applicable to RCU buckets")
 	}
 	runImplicitDirSuite(t, func() {
 		suite.Run(t, &implicitDirLocalFileTest{isRapidWritesEnabled: true})
@@ -61,7 +61,7 @@ func (i *implicitDirLocalFileTest) TestNewFileUnderImplicitDirectoryShouldNotGet
 
 	_, fh := CreateLocalFileInTestDir(testEnv.ctx, testEnv.storageClient, testEnv.testDirPath, fileName, i.T())
 	operations.WriteWithoutClose(fh, FileContents, i.T())
-	if setup.IsZonalBucketRun() || (setup.IsPirloBucketRun() && i.isRapidWritesEnabled) {
+	if setup.IsZonalBucketRun() || (setup.IsRcuBucketRun() && i.isRapidWritesEnabled) {
 		// For appendable objects, the object is unfinalized, but visible.
 		// An object written without sync would be recognized as having zero-size.
 		ValidateObjectContentsFromGCS(testEnv.ctx, testEnv.storageClient, testBaseDirName, fileName, "", i.T())

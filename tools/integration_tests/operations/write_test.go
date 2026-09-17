@@ -45,8 +45,8 @@ func (w *writeOperationsTest) TearDownTest() {
 }
 
 func TestWriteOperationsRapidWritesEnabled(t *testing.T) {
-	if !setup.IsPirloBucketRun() {
-		t.Skip("Rapid writes tests are only applicable to Pirlo buckets")
+	if !setup.IsRcuBucketRun() {
+		t.Skip("Rapid writes tests are only applicable to RCU buckets")
 	}
 	runOperationsSuite(t, func() {
 		suite.Run(t, &writeOperationsTest{isRapidWritesEnabled: true})
@@ -88,7 +88,7 @@ func (w *writeOperationsTest) validateObjectAttributes(attr1, attr2 *storage.Obj
 		w.T().Fatalf("attr1 or attr2 is nil. attr1: %v, attr2: %v", attr1, attr2)
 	}
 
-	if setup.IsZonalBucketRun() || (setup.IsPirloBucketRun() && w.isRapidWritesEnabled) {
+	if setup.IsZonalBucketRun() || (setup.IsRcuBucketRun() && w.isRapidWritesEnabled) {
 		storageClass = "RAPID"
 	}
 
@@ -121,7 +121,7 @@ func (w *writeOperationsTest) validateObjectAttributes(attr1, attr2 *storage.Obj
 	}
 	if attr1.MediaLink == "" || attr2.MediaLink == "" {
 		// TODO: Align test storage client protocol with the mount protocol. Note that when using gRPC to verify attributes for regional buckets, MediaLink will be empty.
-		if setup.IsZonalBucketRun() || setup.IsPirloBucketRun() {
+		if setup.IsZonalBucketRun() || setup.IsRcuBucketRun() {
 			w.T().Logf("media link is empty, but it is a known limitation in gRPC.")
 		} else {
 			w.T().Errorf("Expected media link to be non empty")

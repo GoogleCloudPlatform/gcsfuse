@@ -42,28 +42,28 @@ type TestConfig struct {
 	OnlyDir                          string       `yaml:"only_dir,omitempty"`
 }
 
-// PirloZoneConfig defines whether to run in the same or different zone for Pirlo.
-type PirloZoneConfig struct {
+// RcuZoneConfig defines whether to run in the same or different zone for RCU.
+type RcuZoneConfig struct {
 	SameZone      bool `yaml:"same_zone"`
 	DifferentZone bool `yaml:"different_zone"`
 }
 
-// RunOnPirloConfig defines the Pirlo execution configurations and specific flags.
-type RunOnPirloConfig struct {
-	Flat PirloZoneConfig `yaml:"flat"`
-	Hns  PirloZoneConfig `yaml:"hns"`
+// RunOnRcuConfig defines the RCU execution configurations and specific flags.
+type RunOnRcuConfig struct {
+	Flat RcuZoneConfig `yaml:"flat"`
+	Hns  RcuZoneConfig `yaml:"hns"`
 }
 
 // ConfigItem defines the variable parts of each test run.
 type ConfigItem struct {
-	Flags          []string         `yaml:"flags"`
-	SecondaryFlags []string         `yaml:"secondary_flags"`
-	Compatible     map[string]bool  `yaml:"compatible"`
-	Run            string           `yaml:"run,omitempty"`
-	Skip           []string         `yaml:"skip,omitempty"`
-	RunOnGKE       bool             `yaml:"run_on_gke"`
-	RunOnPirlo     RunOnPirloConfig `yaml:"run_on_pirlo"`
-	TPC            bool             `yaml:"tpc,omitempty"`
+	Flags          []string        `yaml:"flags"`
+	SecondaryFlags []string        `yaml:"secondary_flags"`
+	Compatible     map[string]bool `yaml:"compatible"`
+	Run            string          `yaml:"run,omitempty"`
+	Skip           []string        `yaml:"skip,omitempty"`
+	RunOnGKE       bool            `yaml:"run_on_gke"`
+	RunOnRcu       RunOnRcuConfig  `yaml:"run_on_rcu"`
+	TPC            bool            `yaml:"tpc,omitempty"`
 }
 
 // UnmarshalYAML validates flags during YAML unmarshaling without needing reflection.

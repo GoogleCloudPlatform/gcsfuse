@@ -67,8 +67,8 @@ func (s *staleFileHandleEmptyGcsFile) TearDownTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandleError() {
-	// TODO(b/554936573): Align the test with appendable object behavior and enable for zonal and pirlo.
-	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsPirloBucketRun()) {
+	// TODO(b/554936573): Align the test with appendable object behavior and enable for zonal and rcu.
+	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsRcuBucketRun()) {
 		s.T().Skip("Skip test until aligned with appendable object behavior.")
 	}
 	// Dirty the file by giving it some contents.
@@ -86,8 +86,8 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandle
 }
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
-	// TODO(b/554936573): Align the test with appendable object behavior and enable for zonal and pirlo.
-	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsPirloBucketRun()) {
+	// TODO(b/554936573): Align the test with appendable object behavior and enable for zonal and rcu.
+	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsRcuBucketRun()) {
 		s.T().Skip("Skip test until aligned with appendable object behavior.")
 	}
 	// Clobber file by replacing the underlying object with a new generation.
@@ -106,7 +106,7 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFile
 
 func (s *staleFileHandleEmptyGcsFile) TestFileDeletedRemotelySyncAndCloseThrowsStaleFileHandleError() {
 	// TODO(b/554936573): Align test with appendable object behavior where deleting an object after write without subsequent writes does not return an error on Close().
-	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsPirloBucketRun()) {
+	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsRcuBucketRun()) {
 		s.T().Skip("Skip test until aligned with appendable object behavior where deleting an object after write without subsequent writes does not return an error on Close().")
 	}
 	// Dirty the file by giving it some contents.

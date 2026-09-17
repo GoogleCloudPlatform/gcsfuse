@@ -198,7 +198,7 @@ params:
     "usage": "Whether to enable kernel-based reader"
     optimizations:
       bucket-type-optimization:
-        - bucket-type: "zonal, flat, pirlo"
+        - bucket-type: "zonal, flat, rcu"
           value: true
         - bucket-type: "hierarchical"
           value: false
@@ -212,7 +212,7 @@ params:
       bucket-type-optimization:
         - bucket-type: "zonal"
           value: 1024
-        - bucket-type: "hierarchical, flat, pirlo"
+        - bucket-type: "hierarchical, flat, rcu"
           value: 2048
       machine-based-optimization:
         - group: high-performance
@@ -264,7 +264,7 @@ params:
 		require.NotNil(t, param.Optimizations)
 		expected := &shared.OptimizationRules{
 			BucketTypeOptimization: []shared.BucketTypeOptimization{
-				{BucketTypes: shared.BucketTypeList{"zonal", "flat", "pirlo"}, Value: true},
+				{BucketTypes: shared.BucketTypeList{"zonal", "flat", "rcu"}, Value: true},
 				{BucketTypes: shared.BucketTypeList{"hierarchical"}, Value: false},
 			},
 		}
@@ -280,7 +280,7 @@ params:
 		expected := &shared.OptimizationRules{
 			BucketTypeOptimization: []shared.BucketTypeOptimization{
 				{BucketTypes: shared.BucketTypeList{"zonal"}, Value: 1024},
-				{BucketTypes: shared.BucketTypeList{"hierarchical", "flat", "pirlo"}, Value: 2048},
+				{BucketTypes: shared.BucketTypeList{"hierarchical", "flat", "rcu"}, Value: 2048},
 			},
 			MachineBasedOptimization: []shared.MachineBasedOptimization{
 				{Group: "high-performance", Value: 2048},

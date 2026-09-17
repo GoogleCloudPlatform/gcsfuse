@@ -154,8 +154,8 @@ const (
 	// BucketTypeZonal represents a zonal bucket with single-zone storage.
 	BucketTypeZonal BucketType = "zonal"
 
-	// BucketTypePirlo represents a pirlo bucket.
-	BucketTypePirlo BucketType = "pirlo"
+	// BucketTypeRCU represents an RCU bucket.
+	BucketTypeRCU BucketType = "rcu"
 
 	// BucketTypeHierarchical represents a bucket with hierarchical namespace enabled.
 	BucketTypeHierarchical BucketType = "hierarchical"
@@ -166,14 +166,14 @@ const (
 
 // IsValid returns true if the BucketType is one of the defined valid types.
 func (bt BucketType) IsValid() bool {
-	return bt == BucketTypeZonal || bt == BucketTypePirlo || bt == BucketTypeHierarchical || bt == BucketTypeFlat
+	return bt == BucketTypeZonal || bt == BucketTypeRCU || bt == BucketTypeHierarchical || bt == BucketTypeFlat
 }
 
 // StorageClass represents the storage/performance classification of a GCS bucket.
 type StorageClass string
 
 const (
-	// StorageClassRapid represents rapid storage (e.g. zonal and pirlo buckets).
+	// StorageClassRapid represents rapid storage (e.g. zonal and rcu buckets).
 	StorageClassRapid StorageClass = "rapid"
 
 	// StorageClassStandard represents standard storage (e.g. regional/multi-regional flat and hierarchical buckets).

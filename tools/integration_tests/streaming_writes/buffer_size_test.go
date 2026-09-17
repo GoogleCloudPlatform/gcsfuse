@@ -28,8 +28,8 @@ import (
 )
 
 func TestWritesWithDifferentConfig(t *testing.T) {
-	if setup.IsPirloBucketRun() {
-		t.Skip("Skip test for Pirlo buckets.")
+	if setup.IsRcuBucketRun() {
+		t.Skip("Skip test for RCU buckets.")
 	}
 	// Do not run this test with mounted directory flag.
 	if testEnv.cfg.GKEMountedDirectory != "" {

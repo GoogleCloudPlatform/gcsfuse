@@ -103,7 +103,7 @@ func (testSuite *StorageHandleTest) mockStorageLayout(bucketType gcs.BucketType)
 		storageLayout.LocationType = "multiregion"
 	}
 
-	if bucketType.Pirlo != gcs.PirloStateNone {
+	if bucketType.RCU != gcs.RCUStateNone {
 		storageLayout.RapidCacheInfo = &controlpb.StorageLayout_RapidCacheInfo{
 			CacheType: rapidCacheUltraType,
 		}
@@ -298,49 +298,49 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_RapidCacheInfo() {
 		name            string
 		writeConfig     *cfg.WriteConfig
 		rapidCacheInfo  *controlpb.StorageLayout_RapidCacheInfo
-		expectedPirlo   gcs.PirloState
+		expectedRCU     gcs.RCUState
 		expectedIsRapid bool
 	}{
 		{
 			name:            "rapid-cache-ultra with EnableRapidWrites true",
 			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
-			expectedPirlo:   gcs.PirloStateRapidWritesEnabled,
+			expectedRCU:     gcs.RCUStateRapidWritesEnabled,
 			expectedIsRapid: true,
 		},
 		{
 			name:            "rapid-cache-ultra with EnableRapidWrites false",
 			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: false},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
-			expectedPirlo:   gcs.PirloStateRapidWritesDisabled,
+			expectedRCU:     gcs.RCUStateRapidWritesDisabled,
 			expectedIsRapid: true,
 		},
 		{
 			name:            "rapid-cache-ultra with nil WriteConfig defaults to disabled",
 			writeConfig:     nil,
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
-			expectedPirlo:   gcs.PirloStateRapidWritesDisabled,
+			expectedRCU:     gcs.RCUStateRapidWritesDisabled,
 			expectedIsRapid: true,
 		},
 		{
-			name:            "non-ultra rapid-cache is not pirlo",
+			name:            "non-ultra rapid-cache is not rcu",
 			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: "rapid-cache"},
-			expectedPirlo:   gcs.PirloStateNone,
+			expectedRCU:     gcs.RCUStateNone,
 			expectedIsRapid: false,
 		},
 		{
-			name:            "empty CacheType is not pirlo",
+			name:            "empty CacheType is not rcu",
 			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: ""},
-			expectedPirlo:   gcs.PirloStateNone,
+			expectedRCU:     gcs.RCUStateNone,
 			expectedIsRapid: false,
 		},
 		{
-			name:            "nil RapidCacheInfo is not pirlo",
+			name:            "nil RapidCacheInfo is not rcu",
 			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
 			rapidCacheInfo:  nil,
-			expectedPirlo:   gcs.PirloStateNone,
+			expectedRCU:     gcs.RCUStateNone,
 			expectedIsRapid: false,
 		},
 	}
@@ -367,7 +367,7 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_RapidCacheInfo() {
 			bt, err := client.lookupBucketType(TestBucketName)
 
 			assert.NoError(testSuite.T(), err)
-			assert.Equal(testSuite.T(), tc.expectedPirlo, bt.Pirlo)
+			assert.Equal(testSuite.T(), tc.expectedRCU, bt.RCU)
 			assert.Equal(testSuite.T(), tc.expectedIsRapid, bt.IsRapid())
 		})
 	}

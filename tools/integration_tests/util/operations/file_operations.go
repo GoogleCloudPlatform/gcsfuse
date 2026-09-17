@@ -174,8 +174,8 @@ func CloseFiles(t *testing.T, files []*os.File) {
 		err := file.Close()
 		assert.NoError(t, err)
 	}
-	// Pirlo creates finalized objects on close by default, so we don't wait for it here.
-	// Update this condition if this method is used to create unfinalized Pirlo objects in the future.
+	// RCU creates finalized objects on close by default, so we don't wait for it here.
+	// Update this condition if this method is used to create unfinalized RCU objects in the future.
 	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterCloseRapid)
 }
 
@@ -184,8 +184,8 @@ func CloseFile(file *os.File) {
 	if err := file.Close(); err != nil {
 		log.Fatalf("error in closing: %v", err)
 	}
-	// Pirlo creates finalized objects on close by default, so we don't wait for it here.
-	// Update this condition if this method is used to create unfinalized Pirlo objects in the future.
+	// RCU creates finalized objects on close by default, so we don't wait for it here.
+	// Update this condition if this method is used to create unfinalized RCU objects in the future.
 	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterCloseRapid)
 }
 
@@ -585,8 +585,8 @@ func WriteAt(content string, offset int64, fh *os.File, t testing.TB) {
 func CloseFileShouldNotThrowError(t testing.TB, file *os.File) {
 	err := file.Close()
 	assert.NoError(t, err)
-	// Pirlo creates finalized objects on close by default, so we don't wait for it here.
-	// Update this condition if this method is used to create unfinalized Pirlo objects in the future.
+	// RCU creates finalized objects on close by default, so we don't wait for it here.
+	// Update this condition if this method is used to create unfinalized RCU objects in the future.
 	WaitForSizeUpdate(setup.IsZonalBucketRun(), WaitDurationAfterCloseRapid)
 }
 
@@ -604,7 +604,7 @@ func SyncFile(fh *os.File, t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s.Sync(): %v", fh.Name(), err)
 	}
-	WaitForSizeUpdate(setup.IsZonalBucketRun() || setup.IsPirloBucketRun(), WaitDurationAfterFlushRapid)
+	WaitForSizeUpdate(setup.IsZonalBucketRun() || setup.IsRcuBucketRun(), WaitDurationAfterFlushRapid)
 }
 
 func SyncFiles(files []*os.File, t *testing.T) {
