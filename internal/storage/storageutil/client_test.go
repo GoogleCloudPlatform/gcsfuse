@@ -302,7 +302,9 @@ func (t *clientTest) TestCreateHttpClientWithS2A_DialVerification() {
 	sc.S2ASpiffeID = "spiffe://example.com/sa/test-sa"
 	sc.HttpClientTimeout = 2 * time.Second
 
-	httpClient, err := CreateHttpClient(&sc, nil)
+	// Supply a static token so the OAuth2 wrapper does not attempt a real token
+	// fetch, which would fail before the transport ever dials S2A.
+	httpClient, err := CreateHttpClient(&sc, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"}))
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), httpClient)
 
@@ -312,4 +314,40 @@ func (t *clientTest) TestCreateHttpClientWithS2A_DialVerification() {
 	_, _ = httpClient.Do(req)
 
 	assert.Greater(t.T(), atomic.LoadInt32(&s2aConnections), int32(0), "Expected S2A daemon to be dialed by DialTLSContext")
+}
+
+// S2A supplies the mTLS channel but conveys no IAM principal to GCS, so the
+// OAuth2 token wrapper must still be installed when S2A is configured.
+// Otherwise GCS rejects every request as an anonymous caller.
+func (t *clientTest) TestCreateHttpClientWithS2A_AttachesOAuthTransport() {
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.ClientProtocol = cfg.HTTP1
+	sc.S2AAddress = "localhost:8080"
+	sc.S2ASpiffeID = "spiffe://example.com/sa/my-sa"
+
+	httpClient, err := CreateHttpClient(&sc, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"}))
+
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), httpClient)
+	// The outermost wrapper is the user-agent round tripper.
+	uaTransport, ok := httpClient.Transport.(*userAgentRoundTripper)
+	require.True(t.T(), ok, "expected userAgentRoundTripper, got %T", httpClient.Transport)
+	_, ok = uaTransport.wrapped.(*oauth2.Transport)
+	assert.True(t.T(), ok, "expected oauth2.Transport under S2A, got %T", uaTransport.wrapped)
+}
+
+// Anonymous access remains the only mode without a token wrapper.
+func (t *clientTest) TestCreateHttpClientWithAnonymousAccess_NoOAuthTransport() {
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.ClientProtocol = cfg.HTTP1
+	sc.AnonymousAccess = true
+
+	httpClient, err := CreateHttpClient(&sc, nil)
+
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), httpClient)
+	uaTransport, ok := httpClient.Transport.(*userAgentRoundTripper)
+	require.True(t.T(), ok, "expected userAgentRoundTripper, got %T", httpClient.Transport)
+	_, ok = uaTransport.wrapped.(*oauth2.Transport)
+	assert.False(t.T(), ok, "expected no oauth2.Transport for anonymous access")
 }

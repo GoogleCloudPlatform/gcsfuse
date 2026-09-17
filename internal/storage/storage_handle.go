@@ -102,7 +102,8 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		}
 	}
 
-	// Configure authentication.
+	// Configure the transport. S2A, when configured, supplies the mTLS channel
+	// used to reach GCS.
 	if clientConfig.S2AAddress != "" {
 		var localIdentity s2a.Identity
 		if clientConfig.S2ASpiffeID != "" {
@@ -120,11 +121,13 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 			return nil, fmt.Errorf("failed to create S2A gRPC credentials: %w", err)
 		}
 		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithTransportCredentials(creds)))
-		// When S2A is enabled, authentication is handled via mTLS at the transport level.
-		// Passing WithoutAuthentication() bypasses the default OAuth2 credential flow via Metadata Server.
-		// If not, every request will have an OAuth token attached and it will get used instead of S2A.
-		clientOpts = append(clientOpts, option.WithoutAuthentication())
-	} else if clientConfig.AnonymousAccess {
+	}
+
+	// Configure the caller identity. This is independent of the transport: S2A
+	// secures the channel but conveys no IAM principal to GCS, so an OAuth token
+	// is still required alongside it. Without one GCS rejects the request as an
+	// anonymous caller.
+	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else if clientConfig.EnableGoogleLibAuth {
 		var authOpts []option.ClientOption
