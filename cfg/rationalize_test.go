@@ -1267,3 +1267,73 @@ func TestRationalizeWithBucketOptimization(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveClientProtocol(t *testing.T) {
+	testCases := []struct {
+		name             string
+		config           *Config
+		userSetFlags     map[string]any
+		expectedProtocol Protocol
+	}{
+		{
+			name: "enable-grpc-by-default is false and client does not pass protocol",
+			config: &Config{
+				GcsConnection: GcsConnectionConfig{
+					ClientProtocol:      HTTP1,
+					EnableGrpcByDefault: false,
+				},
+			},
+			expectedProtocol: HTTP1,
+		},
+		{
+			name: "enable-grpc-by-default is true and client does not pass protocol",
+			config: &Config{
+				GcsConnection: GcsConnectionConfig{
+					ClientProtocol:      HTTP1,
+					EnableGrpcByDefault: true,
+				},
+			},
+			expectedProtocol: GRPC,
+		},
+		{
+			name: "enable-grpc-by-default is true and client passes http1",
+			config: &Config{
+				GcsConnection: GcsConnectionConfig{
+					ClientProtocol:      HTTP1,
+					EnableGrpcByDefault: true,
+				},
+			},
+			userSetFlags: map[string]any{
+				ClientProtocolConfigKey: "http1",
+			},
+			expectedProtocol: HTTP1,
+		},
+		{
+			name: "enable-grpc-by-default is false and client passes grpc",
+			config: &Config{
+				GcsConnection: GcsConnectionConfig{
+					ClientProtocol:      GRPC,
+					EnableGrpcByDefault: false,
+				},
+			},
+			userSetFlags: map[string]any{
+				ClientProtocolConfigKey: "grpc",
+			},
+			expectedProtocol: GRPC,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := viper.New()
+			for k, val := range tc.userSetFlags {
+				v.Set(k, val)
+			}
+
+			err := Rationalize(v, tc.config, []string{})
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedProtocol, tc.config.GcsConnection.ClientProtocol)
+		})
+	}
+}
