@@ -306,12 +306,12 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
 		{
-			name:       "pirlo_new_file_rapid_writes",
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			name:       "rcu_new_file_rapid_writes",
+			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
 		},
 		{
-			name:       "pirlo_append_rapid_writes",
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			name:       "rcu_append_rapid_writes",
+			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
 			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
 	}
@@ -368,12 +368,12 @@ func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
 		{
-			name:       "pirlo_new_file_rapid_writes",
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			name:       "rcu_new_file_rapid_writes",
+			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
 		},
 		{
-			name:       "pirlo_append_rapid_writes",
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			name:       "rcu_append_rapid_writes",
+			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
 			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
 	}
@@ -482,13 +482,13 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			numBlocks:  .5,
 		},
 		{
-			name:       "pirlo_bucket_rapid_writes_2.5_blocks",
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			name:       "rcu_bucket_rapid_writes_2.5_blocks",
+			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
 			numBlocks:  2.5,
 		},
 		{
-			name:       "pirlo_bucket_rapid_writes_.5_blocks",
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			name:       "rcu_bucket_rapid_writes_.5_blocks",
+			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
 			numBlocks:  .5,
 		},
 	}

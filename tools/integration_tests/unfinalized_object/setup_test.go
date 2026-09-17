@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 	testEnv.cfg = &cfg.UnfinalizedObject[0]
 	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
 
-	if !setup.IsZonalBucketRun() && !setup.IsPirloBucketRun() {
+	if !setup.IsZonalBucketRun() && !setup.IsRcuBucketRun() {
 		log.Printf("This test is only for Rapid buckets.")
 		os.Exit(0)
 	}

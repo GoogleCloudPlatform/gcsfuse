@@ -426,7 +426,7 @@ params:
     hide-flag: true
     optimizations:
       bucket-type-optimization:
-        - bucket-type: "zonal, pirlo"
+        - bucket-type: "zonal, rcu"
           value: "StorageClassRapid.DefaultCongestionThreshold()"
         - bucket-type: "flat, hierarchical"
           value: "StorageClassStandard.DefaultCongestionThreshold()"
@@ -457,7 +457,7 @@ params:
     hide-flag: false
     optimizations:
       bucket-type-optimization:
-        - bucket-type: "zonal, pirlo"
+        - bucket-type: "zonal, rcu"
           value: true
 
   - config-path: "file-system.experimental-enable-dentry-cache"
@@ -601,7 +601,7 @@ params:
     hide-flag: true
     optimizations:
       bucket-type-optimization:
-        - bucket-type: "zonal, pirlo"
+        - bucket-type: "zonal, rcu"
           value: "StorageClassRapid.DefaultMaxBackground()"
         - bucket-type: "flat, hierarchical"
           value: "StorageClassStandard.DefaultMaxBackground()"
@@ -620,7 +620,7 @@ params:
     hide-flag: true
     optimizations:
       bucket-type-optimization:
-        - bucket-type: "zonal, pirlo"
+        - bucket-type: "zonal, rcu"
           value: "StorageClassRapid.DefaultMaxReadAheadKb()"
         - bucket-type: "flat, hierarchical"
           value: "StorageClassStandard.DefaultMaxReadAheadKb()"
@@ -1532,7 +1532,7 @@ params:
     proto-tag: 154
     flag-name: "enable-rapid-writes"
     type: "bool"
-    usage: "For pirlo, toggles between using STANDARD class and RAPID class for writes."
+    usage: "For Rapid Cache Ultra, toggles between using STANDARD class and RAPID class for writes."
     default: false
 
   - config-path: "write.enable-streaming-writes"
@@ -1553,7 +1553,7 @@ params:
       bucket-type-optimization:
         - bucket-type: "zonal"
           value: false
-        - bucket-type: "pirlo"
+        - bucket-type: "rcu"
           value: true
 
   - config-path: "write.global-max-blocks"

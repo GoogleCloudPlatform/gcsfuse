@@ -21,12 +21,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// BucketTypeList represents a list of bucket types parsed from a comma-separated string (e.g. "zonal" or "zonal, pirlo") in params.yaml.
+// BucketTypeList represents a list of bucket types parsed from a comma-separated string (e.g. "zonal" or "zonal, rcu") in params.yaml.
 type BucketTypeList []string
 
 func (b *BucketTypeList) UnmarshalYAML(value *yaml.Node) error {
 	if value.Kind != yaml.ScalarNode {
-		return fmt.Errorf("bucket-type must be a string (e.g. \"zonal\" or \"zonal, pirlo\"), got %v", value.Kind)
+		return fmt.Errorf("bucket-type must be a string (e.g. \"zonal\" or \"zonal, rcu\"), got %v", value.Kind)
 	}
 
 	var parsed []string

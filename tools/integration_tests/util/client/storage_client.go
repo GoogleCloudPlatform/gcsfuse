@@ -113,7 +113,7 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 			return nil, fmt.Errorf("unable to fetch token-source for TPC: %w", err)
 		}
 		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
-	} else if setup.IsZonalBucketRun() || setup.IsPirloBucketRun() {
+	} else if setup.IsZonalBucketRun() || setup.IsRcuBucketRun() {
 		var opts []option.ClientOption
 		opts = append(opts, experimental.WithGRPCBidiReads())
 		if kf := setup.KeyFile(); kf != "" {

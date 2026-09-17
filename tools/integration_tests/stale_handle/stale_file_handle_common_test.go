@@ -59,7 +59,7 @@ func (s *staleFileHandleCommon) TearDownSuite() {
 
 func (s *staleFileHandleCommon) TestClobberedFileSyncAndCloseThrowsStaleFileHandleError() {
 	// TODO(b/554936573): Align test with appendable object behavior where clobbering an unfinalized object does not fail Close().
-	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsPirloBucketRun()) {
+	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsRcuBucketRun()) {
 		s.T().Skip("Skip test until aligned with appendable object behavior where clobbering an unfinalized object does not fail Close().")
 	}
 	// Dirty the file by giving it some contents.

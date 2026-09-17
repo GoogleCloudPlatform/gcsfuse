@@ -76,7 +76,7 @@ func (r *readOnlyCredsTest) TestEmptyCreateFileFails_FailedFileNotInListing() {
 	filePath := path.Join(r.testDirPath, testFileName)
 
 	fh, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, operations.FilePermission_0777)
-	if setup.IsZonalBucketRun() || (setup.IsPirloBucketRun() && r.isRapidWritesEnabled) {
+	if setup.IsZonalBucketRun() || (setup.IsRcuBucketRun() && r.isRapidWritesEnabled) {
 		require.Error(r.T(), err)
 		assert.True(r.T(), strings.Contains(err.Error(), permissionDeniedError))
 	} else {
@@ -91,7 +91,7 @@ func (r *readOnlyCredsTest) TestNonEmptyCreateFileFails_FailedFileNotInListing()
 	filePath := path.Join(r.testDirPath, testFileName)
 
 	fh, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, operations.FilePermission_0777)
-	if setup.IsZonalBucketRun() || (setup.IsPirloBucketRun() && r.isRapidWritesEnabled) {
+	if setup.IsZonalBucketRun() || (setup.IsRcuBucketRun() && r.isRapidWritesEnabled) {
 		require.Error(r.T(), err)
 		assert.True(r.T(), strings.Contains(err.Error(), permissionDeniedError))
 	} else {
@@ -126,8 +126,8 @@ func TestReadOnlyCredsBase(t *testing.T) {
 }
 
 func TestReadOnlyCredsRapidWritesEnabled(t *testing.T) {
-	if !setup.IsPirloBucketRun() {
-		t.Skip("Rapid writes tests are only applicable to Pirlo buckets")
+	if !setup.IsRcuBucketRun() {
+		t.Skip("Rapid writes tests are only applicable to Rapid Cache Ultra buckets")
 	}
 	ts := &readOnlyCredsTest{isRapidWritesEnabled: true}
 	runReadOnlyCredsTest(t, ts)

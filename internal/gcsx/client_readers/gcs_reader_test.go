@@ -486,8 +486,8 @@ func (t *gcsReaderTest) Test_ReadAt_ShortReadRetry() {
 			bucketType: gcs.BucketType{Zonal: true},
 		},
 		{
-			name:       "PirloBucket",
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			name:       "RCUBucket",
+			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
 		},
 	}
 	for _, tc := range testCases {

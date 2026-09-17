@@ -39,7 +39,7 @@ implicit_dir:
         run: TestImplicitDirBase
       - flags:
           - "--implicit-dirs,--enable-rapid-writes=true"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -47,7 +47,7 @@ implicit_dir:
         run: TestImplicitDirRapidWritesEnabled
       - flags:
           - "--implicit-dirs,--enable-rapid-writes=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -77,7 +77,7 @@ list_large_dir:
         run: TestListLargeDirWithKernelListCache
       - flags:
           - "--stat-cache-ttl=0,--kernel-list-cache-ttl-secs=-1"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -94,7 +94,7 @@ list_large_dir:
         run: TestListLargeDirWithoutKernelListCache
       - flags:
           - "--enable-metadata-prefetch"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -126,7 +126,7 @@ operations:
       - flags:
           - "--enable-rapid-writes=true,--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
           - "--enable-rapid-writes=true,--kernel-list-cache-ttl-secs=-1,--enable-metadata-prefetch"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -135,7 +135,7 @@ operations:
       - flags:
           - "--enable-rapid-writes=false,--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
           - "--enable-rapid-writes=false,--kernel-list-cache-ttl-secs=-1,--enable-metadata-prefetch"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -174,7 +174,7 @@ write_large_files:
       - flags:
           - "--enable-rapid-writes=true,--enable-streaming-writes=false"
           - "--enable-rapid-writes=true,--write-max-blocks-per-file=2,--write-global-max-blocks=5"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: true
@@ -182,7 +182,7 @@ write_large_files:
       - flags:
           - "--enable-rapid-writes=false,--enable-streaming-writes=false"
           - "--enable-rapid-writes=false,--write-max-blocks-per-file=2,--write-global-max-blocks=5"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -202,7 +202,7 @@ gzip:
         run_on_gke: true
       - flags:
           - "--sequential-read-size-mb=1"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -236,7 +236,7 @@ read_large_files:
           - "--file-cache-max-size-mb=700,--file-cache-cache-file-for-range-read,--cache-dir=/gcsfuse-tmp/read_large_files,--enable-kernel-reader=false"
           - "--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/read_large_files,--enable-kernel-reader=false"
           - "--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -260,7 +260,7 @@ readonly:
           - "--o=ro"
           - "--file-mode=544,--dir-mode=544"
           - "--o=ro,--cache-dir=/gcsfuse-tmp/readonly,--file-cache-max-size-mb=3,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -289,7 +289,7 @@ rename_dir_limit:
         run_on_gke: true
       - flags:
           - ""
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -324,7 +324,7 @@ local_file:
           - "--enable-rapid-writes=false,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=0"
           - "--enable-rapid-writes=true,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
           - "--enable-rapid-writes=false,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -345,7 +345,7 @@ streaming_writes:
       - flags:
           - "--enable-rapid-writes=true,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
           - "--enable-rapid-writes=false,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -365,7 +365,7 @@ cloud_profiler:
         run_on_gke: true
       - flags:
           - "--enable-cloud-profiler,--cloud-profiler-cpu,--cloud-profiler-heap,--cloud-profiler-goroutines,--cloud-profiler-mutex,--cloud-profiler-allocated-heap,--cloud-profiler-label=${PROFILE_LABEL},--cloud-profiler-service-name=${PROFILE_SERVICE_NAME}"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -406,7 +406,7 @@ read_cache:
       - flags:
           - "--metadata-cache-ttl-secs=10,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest,--log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
           - "--metadata-cache-ttl-secs=10,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestSmallCacheTTLTest,--log-file=/gcsfuse-tmp/TestSmallCacheTTLTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -432,7 +432,7 @@ read_cache:
           - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
           - "--file-cache-max-size-mb=9,--file-cache-cache-file-for-range-read,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--file-cache-enable-parallel-downloads=false,--o=ro,--enable-kernel-reader=false"
           - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestReadOnlyTest,--log-file=/gcsfuse-tmp/TestReadOnlyTest.log,--log-severity=TRACE,--o=ro,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -449,7 +449,7 @@ read_cache:
         run_on_gke: true
       - flags:
           - "--file-cache-max-size-mb=15,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestRangeReadTest,--log-file=/gcsfuse-tmp/TestRangeReadTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -466,7 +466,7 @@ read_cache:
         run_on_gke: true
       - flags:
           - "--file-cache-max-size-mb=15,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest,--log-file=/gcsfuse-tmp/TestRangeReadWithParallelDownloadsTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -486,7 +486,7 @@ read_cache:
       - flags:
           - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
           - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestLocalModificationTest,--log-file=/gcsfuse-tmp/TestLocalModificationTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -506,7 +506,7 @@ read_cache:
       - flags:
           - "--stat-cache-ttl=0s,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest,--log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
           - "--stat-cache-ttl=0s,--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestDisabledCacheTTLTest,--log-file=/gcsfuse-tmp/TestDisabledCacheTTLTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -529,7 +529,7 @@ read_cache:
           - "--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
           - "--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
           - "--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadTrueTest.log,--log-severity=TRACE,--file-cache-enable-o-direct,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -560,7 +560,7 @@ read_cache:
         run_on_gke: true
       - flags:
           - "--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -589,7 +589,7 @@ read_cache:
       - flags:
           - "--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log,--log-severity=TRACE,--enable-kernel-reader=false"
           - "--file-cache-max-size-mb=50,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads,--log-file=/gcsfuse-tmp/TestCacheFileForRangeReadFalseWithParallelDownloads.log,--log-severity=TRACE,--file-cache-enable-o-direct,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -617,7 +617,7 @@ read_cache:
         run_on_gke: true
       - flags:
           - "--file-cache-max-size-mb=48,--file-cache-cache-file-for-range-read,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestJobChunkTest,--log-file=/gcsfuse-tmp/TestJobChunkTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -644,7 +644,7 @@ read_cache:
           - "--file-cache-max-size-mb=48,--file-cache-enable-parallel-downloads,--file-cache-parallel-downloads-per-file=4,--file-cache-max-parallel-downloads=-1,--file-cache-download-chunk-size-mb=4,--file-cache-enable-crc,--cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads,--log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log,--log-severity=TRACE,--enable-kernel-reader=false"
           - "--file-cache-max-size-mb=48,--file-cache-enable-parallel-downloads,--file-cache-parallel-downloads-per-file=4,--file-cache-max-parallel-downloads=9,--file-cache-download-chunk-size-mb=4,--file-cache-enable-crc,--cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads,--log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log,--log-severity=TRACE,--enable-kernel-reader=false"
           - "--file-cache-max-size-mb=48,--file-cache-enable-parallel-downloads,--file-cache-parallel-downloads-per-file=4,--file-cache-max-parallel-downloads=2,--file-cache-download-chunk-size-mb=4,--file-cache-enable-crc,--cache-dir=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads,--log-file=/gcsfuse-tmp/TestJobChunkTestWithParallelDownloads.log,--log-severity=TRACE,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -671,7 +671,7 @@ read_cache:
           - "--file-cache-exclude-regex=.,--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
           - "--file-cache-exclude-regex=^${BUCKET_NAME}/,--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
           - "--file-cache-include-regex=^${BUCKET_NAME}/,--file-cache-exclude-regex=^${BUCKET_NAME}/,--file-cache-max-size-mb=50,--file-cache-cache-file-for-range-read,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForExcludeRegexTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -691,7 +691,7 @@ read_cache:
       - flags:
           - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads=false,--cache-dir=/gcsfuse-tmp/TestRemountTest,--log-file=/gcsfuse-tmp/TestRemountTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
           - "--file-cache-max-size-mb=9,--file-cache-enable-parallel-downloads,--cache-dir=/gcsfuse-tmp/TestRemountTest,--log-file=/gcsfuse-tmp/TestRemountTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -711,7 +711,7 @@ read_cache:
       - flags:
           - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest.*/foo*,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
           - "--file-cache-include-regex=^${BUCKET_NAME}/.*ReadCacheTest.*/foo*,--file-cache-exclude-regex=invalid,--file-cache-max-size-mb=9,--cache-dir=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest,--log-file=/gcsfuse-tmp/TestCacheFileForIncludeRegexTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -727,7 +727,7 @@ read_cache:
         run_on_gke: true
       - flags:
           - "--file-cache-experimental-enable-chunk-cache=true,--file-cache-download-chunk-size-mb=10,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestChunkCacheTest,--log-file=/gcsfuse-tmp/TestChunkCacheTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -743,7 +743,7 @@ read_cache:
         run_on_gke: true
       - flags:
           - "--file-cache-experimental-enable-chunk-cache=false,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestChunkCacheDisabledTest,--log-file=/gcsfuse-tmp/TestChunkCacheDisabledTest.log,--log-severity=TRACE,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -759,7 +759,7 @@ read_cache:
         run_on_gke: true
       - flags:
           - "--file-cache-experimental-enable-chunk-cache=true,--file-cache-download-chunk-size-mb=10,--file-cache-max-size-mb=15,--cache-dir=/gcsfuse-tmp/TestChunkCacheEviction,--log-file=/gcsfuse-tmp/TestChunkCacheEviction.log,--log-severity=TRACE,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -791,7 +791,7 @@ stale_handle:
       - flags:
           - "--enable-rapid-writes=true,--metadata-cache-ttl-secs=0,--write-block-size-mb=1,--write-max-blocks-per-file=1"
           - "--enable-rapid-writes=false,--metadata-cache-ttl-secs=0,--write-block-size-mb=1,--write-max-blocks-per-file=1"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -809,7 +809,7 @@ stale_handle:
       - flags:
           - "--enable-rapid-writes=true,--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
           - "--enable-rapid-writes=false,--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -831,7 +831,7 @@ readdirplus:
         run_on_gke: true
       - flags:
           - "--experimental-enable-readdirplus,--experimental-enable-dentry-cache,--log-file=/gcsfuse-tmp/TestReaddirplusWithDentryCacheTest.log,--log-severity=TRACE"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -848,7 +848,7 @@ readdirplus:
         run_on_gke: true
       - flags:
           - "--experimental-enable-readdirplus,--log-file=/gcsfuse-tmp/TestReaddirplusWithoutDentryCacheTest.log,--log-severity=TRACE"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -870,7 +870,7 @@ inactive_stream_timeout:
         run_on_gke: true
       - flags:
           - "--read-inactive-stream-timeout=1s,--log-format=json,--log-file=/gcsfuse-tmp/TestTimeoutEnabledSuite.log"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -886,7 +886,7 @@ inactive_stream_timeout:
         run_on_gke: true
       - flags:
           - "--read-inactive-stream-timeout=0s,--log-format=json,--log-file=/gcsfuse-tmp/TestTimeoutDisabledSuite.log"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -908,7 +908,7 @@ benchmarking:
         run_on_gke: true
       - flags:
           - "--stat-cache-ttl=0"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -925,7 +925,7 @@ benchmarking:
         run_on_gke: true
       - flags:
           - "--stat-cache-ttl=0,--enable-atomic-rename-object"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -942,7 +942,7 @@ benchmarking:
         run_on_gke: true
       - flags:
           - "--stat-cache-ttl=0"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -964,7 +964,7 @@ dentry_cache:
         run_on_gke: true
       - flags:
           - "--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=2"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -981,7 +981,7 @@ dentry_cache:
         run_on_gke: true
       - flags:
           - "--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -998,7 +998,7 @@ dentry_cache:
         run_on_gke: true
       - flags:
           - "--experimental-enable-dentry-cache,--metadata-cache-ttl-secs=1000"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1020,7 +1020,7 @@ read_gcs_algo:
         run_on_gke: true
       - flags:
           - "--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1042,7 +1042,7 @@ unfinalized_object:
       - flags:
           - "--metadata-cache-ttl-secs=-1"
           - "--metadata-cache-ttl-secs=-1,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1060,7 +1060,7 @@ unfinalized_object:
       - flags:
           - "--metadata-cache-ttl-secs=0"
           - "--metadata-cache-ttl-secs=0,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1078,7 +1078,7 @@ unfinalized_object:
       - flags:
           - "--metadata-cache-ttl-secs=2"
           - "--metadata-cache-ttl-secs=2,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1115,7 +1115,7 @@ interrupt:
           - "--enable-rapid-writes=false,--ignore-interrupts,--enable-streaming-writes=false"
           - "--enable-rapid-writes=true,--ignore-interrupts=false,--enable-streaming-writes=false"
           - "--enable-rapid-writes=false,--ignore-interrupts=false,--enable-streaming-writes=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1136,7 +1136,7 @@ log_rotation:
       - flags:
           - "--log-file=/gcsfuse-tmp/TestLogRotation.log,--log-rotate-max-file-size-mb=2,--log-rotate-backup-file-count=2,--log-rotate-compress=false,--log-severity=trace"
           - "--log-file=/gcsfuse-tmp/TestLogRotation.log,--log-rotate-max-file-size-mb=2,--log-rotate-backup-file-count=2,--log-rotate-compress,--log-severity=trace"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1159,7 +1159,7 @@ readonly_creds:
         run: TestReadOnlyCredsBase
       - flags:
           - "--enable-rapid-writes=true"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1167,7 +1167,7 @@ readonly_creds:
         run: TestReadOnlyCredsRapidWritesEnabled
       - flags:
           - "--enable-rapid-writes=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1218,7 +1218,7 @@ mounting:
         run_on_gke: false
       - flags:
           - ""
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1239,7 +1239,7 @@ flag_optimizations:
       - run: TestMountFails
         flags:
           - "--profile=unknown-profile"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1323,7 +1323,7 @@ flag_optimizations:
       - run: TestZonalBucketOptimizations
         flags:
           - "--log-severity=trace"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1339,7 +1339,7 @@ flag_optimizations:
       - run: TestZonalBucketOptimizations_ExplicitOverrides
         flags:
           - "--max-read-ahead-kb=2048,--max-background=50,--congestion-threshold=30,--log-severity=trace"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1355,7 +1355,7 @@ flag_optimizations:
       - run: TestZonalBucketOptimizations_Dynamic
         flags:
           - "--log-severity=trace"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1378,7 +1378,7 @@ flag_optimizations:
           - "--log-severity=trace,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_FileCache"
           - "--log-severity=trace,--enable-buffered-read=true"
           - "--log-severity=trace,--enable-buffered-read=true,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestKernelReader_DefaultAndPrecedence_Both"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1395,7 +1395,7 @@ flag_optimizations:
       - run: TestFileCache_KernelReaderDisabled
         flags:
           - "--log-severity=trace,--enable-kernel-reader=false,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/TestFileCache_KernelReaderDisabled"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1412,7 +1412,7 @@ flag_optimizations:
       - run: TestBufferedReader_KernelReaderDisabled
         flags:
           - "--log-severity=trace,--enable-kernel-reader=false,--enable-buffered-read"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1428,7 +1428,7 @@ flag_optimizations:
       - run: TestKernelReader_Dynamic
         flags:
           - "--log-severity=trace"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1454,7 +1454,7 @@ unsupported_path:
         run_on_gke: true
       - flags:
           - "--enable-unsupported-path-support,--rename-dir-limit=200,--metadata-cache-negative-ttl-secs=0"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1476,7 +1476,7 @@ kernel_list_cache:
         run_on_gke: true
       - flags:
           - "--kernel-list-cache-ttl-secs=-1"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1495,7 +1495,7 @@ kernel_list_cache:
         run_on_gke: true
       - flags:
           - "--kernel-list-cache-ttl-secs=-1,--metadata-cache-ttl-secs=0,--metadata-cache-negative-ttl-secs=0"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1512,7 +1512,7 @@ kernel_list_cache:
         run_on_gke: true
       - flags:
           - "--kernel-list-cache-ttl-secs=5,--rename-dir-limit=10"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1529,7 +1529,7 @@ kernel_list_cache:
         run_on_gke: true
       - flags:
           - "--kernel-list-cache-ttl-secs=0,--stat-cache-ttl=0,--rename-dir-limit=10"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1552,7 +1552,7 @@ rapid_operations:
       - run: TestSingleMountAppendsTestSuite
         flags:
           - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1572,7 +1572,7 @@ rapid_operations:
           - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
         secondary_flags:
           - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1602,7 +1602,7 @@ rapid_operations:
           - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70,--enable-kernel-reader=false" # MetadataCacheWithMRDWrapperWithoutKernelReader
           - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache,--metadata-cache-ttl-secs=0,--enable-kernel-reader=false" # FileCacheWithoutKernelReader
           - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache,--enable-kernel-reader=false" # MetadataAndFileCacheWithoutKernelReader
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1634,7 +1634,7 @@ rapid_operations:
           - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
           - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
           - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1666,7 +1666,7 @@ rapid_operations:
           - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
           - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
           - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1690,7 +1690,7 @@ rapid_operations:
       - run: TestFinalizeRapidWritesEnabledSuite
         flags:
           - "--enable-rapid-writes=true,--finalize-file-for-rapid=true"
-        run_on_pirlo:
+        run_on_rcu:
           flat:
             same_zone: true
             different_zone: false
@@ -1701,7 +1701,7 @@ rapid_operations:
       - run: TestFinalizeRapidWritesDisabledSuite
         flags:
           - "--enable-rapid-writes=true,--finalize-file-for-rapid=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1717,7 +1717,7 @@ rapid_operations:
       - run: TestStatAndListTestSuite
         flags:
           - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1725,7 +1725,7 @@ rapid_operations:
       - run: ReadRoutingTestSuite
         flags:
           - ""
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: true
@@ -1753,7 +1753,7 @@ monitoring:
         run_on_gke: false
       - flags:
           - "--prometheus-port=12190,--cache-dir=/gcsfuse-tmp/PromOTELSuite,--file-cache-max-size-mb=-1,--log-file=/gcsfuse-tmp/TestPromOTELSuite.log,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1777,7 +1777,7 @@ monitoring:
         run_on_gke: false
       - flags:
           - "--prometheus-port=12191,--enable-buffered-read,--read-block-size-mb=4,--read-random-seek-threshold=2,--read-global-max-blocks=5,--read-min-blocks-per-handle=2,--read-start-blocks-per-handle=2,--log-file=/gcsfuse-tmp/TestPromBufferedReadSuite.log,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1801,7 +1801,7 @@ monitoring:
         run_on_gke: false
       - flags:
           - "--experimental-enable-grpc-metrics,--prometheus-port=12192,--cache-dir=/gcsfuse-tmp/TestPromGrpcMetricsSuite,--file-cache-max-size-mb=-1,--log-file=/gcsfuse-tmp/TestPromGrpcMetricsSuite.log,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1817,7 +1817,7 @@ monitoring:
         run_on_gke: false
       - flags:
           - "--prometheus-port=12193,--log-file=/gcsfuse-tmp/TestPromKernelReaderSuite.log"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1841,7 +1841,7 @@ symlink_handling:
         flags:
           - "--enable-rapid-writes=true,--enable-standard-symlinks=true"
           - "--enable-rapid-writes=false,--enable-standard-symlinks=true"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1859,7 +1859,7 @@ symlink_handling:
         flags:
           - "--enable-rapid-writes=true,--enable-standard-symlinks=false"
           - "--enable-rapid-writes=false,--enable-standard-symlinks=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1881,7 +1881,7 @@ buffered_read:
       - flags:
           - "--enable-buffered-read,--read-block-size-mb=8,--read-max-blocks-per-handle=20,--read-start-blocks-per-handle=1,--read-min-blocks-per-handle=2,--enable-kernel-reader=false,--log-file=/gcsfuse-tmp/TestBufferedReadSuite.log,--log-severity=TRACE"
         run: TestSequentialReadSuite
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1897,7 +1897,7 @@ buffered_read:
         run_on_gke: true
       - flags:
           - "--enable-buffered-read,--read-block-size-mb=8,--read-min-blocks-per-handle=2,--read-global-max-blocks=1,--read-max-blocks-per-handle=10,--read-start-blocks-per-handle=2,--enable-kernel-reader=false,--log-file=/gcsfuse-tmp/TestInsufficientPoolCreationSuite.log,--log-severity=TRACE"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1914,7 +1914,7 @@ buffered_read:
         run_on_gke: true
       - flags:
           - "--enable-buffered-read,--read-block-size-mb=8,--read-max-blocks-per-handle=20,--read-start-blocks-per-handle=2,--read-min-blocks-per-handle=2,--enable-kernel-reader=false,--log-file=/gcsfuse-tmp/TestRandomReadFallbackSuite.log,--log-severity=TRACE"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1937,7 +1937,7 @@ negative_stat_cache:
         run_on_gke: true
       - flags:
           - "--metadata-cache-negative-ttl-secs=0"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1954,7 +1954,7 @@ negative_stat_cache:
         run_on_gke: true
       - flags:
           - "--metadata-cache-negative-ttl-secs=5"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1971,7 +1971,7 @@ negative_stat_cache:
         run_on_gke: true
       - flags:
           - "--metadata-cache-negative-ttl-secs=-1"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -1995,7 +1995,7 @@ managed_folders:
         flags:
           - "--enable-rapid-writes=true,--key-file=${KEY_FILE},--rename-dir-limit=3"
           - "--enable-rapid-writes=false,--key-file=${KEY_FILE},--rename-dir-limit=3"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -2012,7 +2012,7 @@ managed_folders:
         flags:
           - "--enable-rapid-writes=true,--enable-empty-managed-folders"
           - "--enable-rapid-writes=false,--enable-empty-managed-folders"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -2029,7 +2029,7 @@ managed_folders:
         flags:
           - "--enable-rapid-writes=true,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0"
           - "--enable-rapid-writes=false,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -2046,7 +2046,7 @@ managed_folders:
         flags:
           - "--enable-rapid-writes=true,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0"
           - "--enable-rapid-writes=false,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -2079,7 +2079,7 @@ concurrent_operations:
           - "--file-cache-cache-file-for-range-read=true,--file-cache-enable-parallel-downloads=true,--enable-kernel-reader=false,--cache-dir=/gcsfuse-tmp/read_large_files"
           - "--enable-buffered-read,--enable-kernel-reader=false,--enable-metadata-prefetch"
           - "--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -2099,7 +2099,7 @@ concurrent_operations:
       - flags:
           - "--kernel-list-cache-ttl-secs=0,--enable-metadata-prefetch"
           - "--kernel-list-cache-ttl-secs=-1"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
@@ -2138,7 +2138,7 @@ shared_chunk_cache:
           - "--enable-experimental-shared-chunk-cache,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/shared-cache,--enable-kernel-reader=false"
         secondary_flags:
           - "--enable-experimental-shared-chunk-cache,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/shared-cache,--enable-kernel-reader=false"
-        run_on_pirlo:
+        run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
