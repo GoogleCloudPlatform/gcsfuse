@@ -266,7 +266,7 @@ func TestGetBucketType(t *testing.T) {
 			expected:     BucketTypeZonal,
 		},
 		{
-			name:         "RCU and Hierarchical (rcu takes priority)",
+			name:         "RCU and Hierarchical (RCU takes priority)",
 			hierarchical: true,
 			rcu:          true,
 			expected:     BucketTypeRCU,

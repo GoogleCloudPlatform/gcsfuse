@@ -234,7 +234,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// it never becomes regionally durable.
 	wc.Append = bh.BucketType().RapidWritesEnabled()
 	// By default, objects in zonal buckets are not finalized on close, whereas objects in
-	// rcu buckets are. This behavior is controlled by the finalizeFileForRapid flag.
+	// RCU buckets are. This behavior is controlled by the finalizeFileForRapid flag.
 	// When writer.Append is false, then this parameter is anyways ignored.
 	// Refer: https://github.com/googleapis/google-cloud-go/blob/bf56afb2a15301500b9981ee76ccc5f449e3f545/storage/writer.go#L160
 	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileForRapid
@@ -277,7 +277,7 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	// it never becomes regionally durable.
 	wc.Append = bh.BucketType().RapidWritesEnabled()
 	// By default, objects in zonal buckets are not finalized on close, whereas objects in
-	// rcu buckets are. This behavior is controlled by the finalizeFileForRapid flag.
+	// RCU buckets are. This behavior is controlled by the finalizeFileForRapid flag.
 	// When writer.Append is false, then this parameter is anyways ignored.
 	// Refer: https://github.com/googleapis/google-cloud-go/blob/bf56afb2a15301500b9981ee76ccc5f449e3f545/storage/writer.go#L160
 	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileForRapid

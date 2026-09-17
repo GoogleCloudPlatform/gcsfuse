@@ -173,7 +173,7 @@ func (bt BucketType) IsValid() bool {
 type StorageClass string
 
 const (
-	// StorageClassRapid represents rapid storage (e.g. zonal and rcu buckets).
+	// StorageClassRapid represents rapid storage (e.g. zonal and RCU buckets).
 	StorageClassRapid StorageClass = "rapid"
 
 	// StorageClassStandard represents standard storage (e.g. regional/multi-regional flat and hierarchical buckets).

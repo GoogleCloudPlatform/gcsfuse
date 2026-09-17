@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-// Rapid bucket defaults (zonal, rcu)
+// Rapid bucket defaults (zonal, RCU)
 const (
 	rapidMaxBackground    = 192
 	rapidMaxReadAheadKb   = 16 * 1024 // 16 MiB
@@ -127,7 +127,7 @@ func GetBucketType(hierarchical, zonal, rcu bool) BucketType {
 	return BucketTypeFlat
 }
 
-// IsRapid returns true for rapid bucket types (zonal and rcu).
+// IsRapid returns true for rapid bucket types (zonal and RCU).
 func (bt BucketType) IsRapid() bool {
 	return bt == BucketTypeZonal || bt == BucketTypeRCU
 }

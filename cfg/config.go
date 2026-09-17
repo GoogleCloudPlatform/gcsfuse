@@ -1061,7 +1061,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-rapid-appends", "", true, "Enables support for appends to unfinalized object using streaming writes")
 
-	flagSet.BoolP("enable-rapid-writes", "", false, "For rcu, toggles between using STANDARD class and RAPID class for writes.")
+	flagSet.BoolP("enable-rapid-writes", "", false, "For RCU, toggles between using STANDARD class and RAPID class for writes.")
 
 	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 

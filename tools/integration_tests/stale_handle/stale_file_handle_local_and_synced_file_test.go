@@ -67,7 +67,7 @@ func (s *staleFileHandleEmptyGcsFile) TearDownTest() {
 ////////////////////////////////////////////////////////////////////////
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandleError() {
-	// TODO(b/554936573): Align the test with appendable object behavior and enable for zonal and rcu.
+	// TODO(b/554936573): Align the test with appendable object behavior and enable for zonal and RCU.
 	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsRcuBucketRun()) {
 		s.T().Skip("Skip test until aligned with appendable object behavior.")
 	}
@@ -86,7 +86,7 @@ func (s *staleFileHandleEmptyGcsFile) TestClobberedFileReadThrowsStaleFileHandle
 }
 
 func (s *staleFileHandleEmptyGcsFile) TestClobberedFileFirstWriteThrowsStaleFileHandleError() {
-	// TODO(b/554936573): Align the test with appendable object behavior and enable for zonal and rcu.
+	// TODO(b/554936573): Align the test with appendable object behavior and enable for zonal and RCU.
 	if s.isStreamingWritesEnabled && (setup.IsZonalBucketRun() || setup.IsRcuBucketRun()) {
 		s.T().Skip("Skip test until aligned with appendable object behavior.")
 	}
