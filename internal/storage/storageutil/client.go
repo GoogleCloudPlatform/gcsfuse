@@ -204,9 +204,12 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 	}
 
 	var clientTransport http.RoundTripper = transport
-	// Wrap transport with OAuth2 token source only when neither anonymous access nor S2A is used.
-	// When anonymous access or S2A is enabled, authentication is bypassed or handled via mTLS at the transport level.
-	if !storageClientConfig.AnonymousAccess && storageClientConfig.S2AAddress == "" {
+	// Wrap transport with OAuth2 token source unless anonymous access is requested.
+	// S2A only secures the channel: it establishes an mTLS connection to GCS but
+	// conveys no IAM principal, so GCS still rejects the request as an anonymous
+	// caller unless an OAuth token is attached. The two mechanisms are
+	// complementary, not alternatives.
+	if !storageClientConfig.AnonymousAccess {
 		if tokenSrc == nil {
 			// CreateTokenSource only if tokenSrc is nil, which means it wasn't provided externally.
 			// This indicates the EnableGoogleLibAuth flag is disabled.
