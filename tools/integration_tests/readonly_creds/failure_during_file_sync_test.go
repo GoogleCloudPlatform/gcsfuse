@@ -127,7 +127,7 @@ func TestReadOnlyCredsBase(t *testing.T) {
 
 func TestReadOnlyCredsRapidWritesEnabled(t *testing.T) {
 	if !setup.IsRcuBucketRun() {
-		t.Skip("Rapid writes tests are only applicable to RCU buckets")
+		t.Skip("Rapid writes tests are only applicable to Rapid Cache Ultra buckets")
 	}
 	ts := &readOnlyCredsTest{isRapidWritesEnabled: true}
 	runReadOnlyCredsTest(t, ts)

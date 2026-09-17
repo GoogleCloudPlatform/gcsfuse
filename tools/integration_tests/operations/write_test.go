@@ -46,7 +46,7 @@ func (w *writeOperationsTest) TearDownTest() {
 
 func TestWriteOperationsRapidWritesEnabled(t *testing.T) {
 	if !setup.IsRcuBucketRun() {
-		t.Skip("Rapid writes tests are only applicable to RCU buckets")
+		t.Skip("Rapid writes tests are only applicable to Rapid Cache Ultra buckets")
 	}
 	runOperationsSuite(t, func() {
 		suite.Run(t, &writeOperationsTest{isRapidWritesEnabled: true})

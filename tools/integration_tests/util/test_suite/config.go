@@ -42,13 +42,13 @@ type TestConfig struct {
 	OnlyDir                          string       `yaml:"only_dir,omitempty"`
 }
 
-// RcuZoneConfig defines whether to run in the same or different zone for RCU.
+// RcuZoneConfig defines whether to run in the same or different zone for Rapid Cache Ultra.
 type RcuZoneConfig struct {
 	SameZone      bool `yaml:"same_zone"`
 	DifferentZone bool `yaml:"different_zone"`
 }
 
-// RunOnRcuConfig defines the RCU execution configurations and specific flags.
+// RunOnRcuConfig defines the Rapid Cache Ultra execution configurations and specific flags.
 type RunOnRcuConfig struct {
 	Flat RcuZoneConfig `yaml:"flat"`
 	Hns  RcuZoneConfig `yaml:"hns"`

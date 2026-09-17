@@ -25,11 +25,11 @@ import (
 type RCUState int
 
 const (
-	// RCUStateNone indicates the bucket is not an RCU bucket.
+	// RCUStateNone indicates the bucket is not a Rapid Cache Ultra bucket.
 	RCUStateNone RCUState = iota
-	// RCUStateRapidWritesEnabled indicates it is an RCU bucket with rapid writes enabled.
+	// RCUStateRapidWritesEnabled indicates it is a Rapid Cache Ultra bucket with rapid writes enabled.
 	RCUStateRapidWritesEnabled
-	// RCUStateRapidWritesDisabled indicates it is an RCU bucket with rapid writes disabled.
+	// RCUStateRapidWritesDisabled indicates it is a Rapid Cache Ultra bucket with rapid writes disabled.
 	RCUStateRapidWritesDisabled
 )
 

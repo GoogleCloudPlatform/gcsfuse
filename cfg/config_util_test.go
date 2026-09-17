@@ -266,7 +266,7 @@ func TestGetBucketType(t *testing.T) {
 			expected:     BucketTypeZonal,
 		},
 		{
-			name:         "RCU and Hierarchical (RCU takes priority)",
+			name:         "Rapid Cache Ultra and Hierarchical (Rapid Cache Ultra takes priority)",
 			hierarchical: true,
 			rcu:          true,
 			expected:     BucketTypeRCU,

@@ -194,7 +194,7 @@ func (bh *bucketHandle) getObjectHandleWithPreconditionsSet(req *gcs.CreateObjec
 }
 
 func (bh *bucketHandle) getStorageClassForCreateObject(defaultStorageClass string) string {
-	// When rapid writes are enabled on an RCU bucket, objects should be explicitly
+	// When rapid writes are enabled on a Rapid Cache Ultra bucket, objects should be explicitly
 	// created with the RAPID storage class in the zonal cache rather than
 	// defaulting to the bucket's default storage class.
 	// If rapid writes are disabled, we explicitly clear the storage class to prevent
@@ -226,7 +226,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
 	wc = storageutil.SetAttrsInWriter(wc, req)
 	wc.ProgressFunc = req.CallBack
-	// Zonal buckets strictly require the appendable API. For RCU buckets, the
+	// Zonal buckets strictly require the appendable API. For Rapid Cache Ultra buckets, the
 	// appendable API provides file-like semantics (immediate data visibility)
 	// but defers regional durability until the object is finalized. Users can
 	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
@@ -234,7 +234,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// it never becomes regionally durable.
 	wc.Append = bh.BucketType().RapidWritesEnabled()
 	// By default, objects in zonal buckets are not finalized on close, whereas objects in
-	// RCU buckets are. This behavior is controlled by the finalizeFileForRapid flag.
+	// Rapid Cache Ultra buckets are. This behavior is controlled by the finalizeFileForRapid flag.
 	// When writer.Append is false, then this parameter is anyways ignored.
 	// Refer: https://github.com/googleapis/google-cloud-go/blob/bf56afb2a15301500b9981ee76ccc5f449e3f545/storage/writer.go#L160
 	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileForRapid
@@ -269,7 +269,7 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	wc.ChunkRetryDeadline = time.Duration(req.ChunkRetryDeadlineSecs) * time.Second
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
 	wc.ProgressFunc = callBack
-	// Zonal buckets strictly require the appendable API. For RCU buckets, the
+	// Zonal buckets strictly require the appendable API. For Rapid Cache Ultra buckets, the
 	// appendable API provides file-like semantics (immediate data visibility)
 	// but defers regional durability until the object is finalized. Users can
 	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
@@ -277,7 +277,7 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	// it never becomes regionally durable.
 	wc.Append = bh.BucketType().RapidWritesEnabled()
 	// By default, objects in zonal buckets are not finalized on close, whereas objects in
-	// RCU buckets are. This behavior is controlled by the finalizeFileForRapid flag.
+	// Rapid Cache Ultra buckets are. This behavior is controlled by the finalizeFileForRapid flag.
 	// When writer.Append is false, then this parameter is anyways ignored.
 	// Refer: https://github.com/googleapis/google-cloud-go/blob/bf56afb2a15301500b9981ee76ccc5f449e3f545/storage/writer.go#L160
 	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileForRapid

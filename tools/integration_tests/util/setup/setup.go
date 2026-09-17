@@ -42,7 +42,7 @@ import (
 
 var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
 var isZonalBucketRun = flag.Bool("zonal", false, "Boolean flag to indicate if test-run should use a zonal bucket.")
-var isRcuBucketRun = flag.Bool("rcu", false, "Boolean flag to indicate if test-run is for an RCU bucket.")
+var isRcuBucketRun = flag.Bool("rcu", false, "Boolean flag to indicate if test-run is for a Rapid Cache Ultra bucket.")
 
 // Note: testBucket and mountedDirectory can also be set via BUCKET_NAME and MOUNTED_DIR
 // environment variables respectively. However, command-line flags take precedence.
@@ -624,7 +624,7 @@ func bucketType(ctx context.Context, testBucket string) (bType string, err error
 	if attrs.LocationType == "zone" {
 		return ZonalBucket, nil
 	}
-	// TODO(b/483608308): Once GetStorageLayout starts returning RCU bucket type,
+	// TODO(b/483608308): Once GetStorageLayout starts returning Rapid Cache Ultra bucket type,
 	// update this logic to use the response instead of inferring from IsRcuBucketRun().
 	if attrs.HierarchicalNamespace != nil && attrs.HierarchicalNamespace.Enabled {
 		if IsRcuBucketRun() {

@@ -1523,7 +1523,7 @@ params:
     proto-tag: 154
     flag-name: "enable-rapid-writes"
     type: "bool"
-    usage: "For RCU, toggles between using STANDARD class and RAPID class for writes."
+    usage: "For Rapid Cache Ultra, toggles between using STANDARD class and RAPID class for writes."
     default: false
 
   - config-path: "write.enable-streaming-writes"

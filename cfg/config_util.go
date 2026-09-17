@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-// Rapid bucket defaults (zonal, RCU)
+// Rapid bucket defaults (zonal, Rapid Cache Ultra)
 const (
 	rapidMaxBackground    = 192
 	rapidMaxReadAheadKb   = 16 * 1024 // 16 MiB
@@ -111,7 +111,7 @@ func IsGKEEnvironment(mountPoint string) bool {
 }
 
 // GetBucketType converts BucketType boolean flags to a BucketType enum.
-// The priority order is: Zonal > RCU > Hierarchical > Flat.
+// The priority order is: Zonal > Rapid Cache Ultra > Hierarchical > Flat.
 // This is used to determine bucket-specific optimizations for kernel configs.
 // TODO (b/472597952): Make BucketType in bucket_handle.go as enum
 func GetBucketType(hierarchical, zonal, rcu bool) BucketType {
@@ -127,7 +127,7 @@ func GetBucketType(hierarchical, zonal, rcu bool) BucketType {
 	return BucketTypeFlat
 }
 
-// IsRapid returns true for rapid bucket types (zonal and RCU).
+// IsRapid returns true for rapid bucket types (zonal and Rapid Cache Ultra).
 func (bt BucketType) IsRapid() bool {
 	return bt == BucketTypeZonal || bt == BucketTypeRCU
 }

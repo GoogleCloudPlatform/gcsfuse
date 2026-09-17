@@ -154,7 +154,7 @@ const (
 	// BucketTypeZonal represents a zonal bucket with single-zone storage.
 	BucketTypeZonal BucketType = "zonal"
 
-	// BucketTypeRCU represents an RCU bucket.
+	// BucketTypeRCU represents a Rapid Cache Ultra bucket.
 	BucketTypeRCU BucketType = "rcu"
 
 	// BucketTypeHierarchical represents a bucket with hierarchical namespace enabled.
@@ -173,7 +173,7 @@ func (bt BucketType) IsValid() bool {
 type StorageClass string
 
 const (
-	// StorageClassRapid represents rapid storage (e.g. zonal and RCU buckets).
+	// StorageClassRapid represents rapid storage (e.g. zonal and Rapid Cache Ultra buckets).
 	StorageClassRapid StorageClass = "rapid"
 
 	// StorageClassStandard represents standard storage (e.g. regional/multi-regional flat and hierarchical buckets).

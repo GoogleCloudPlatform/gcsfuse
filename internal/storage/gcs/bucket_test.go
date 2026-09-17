@@ -28,7 +28,7 @@ func TestBucketType_IsRapid(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "Neither Zonal nor RCU",
+			name:     "Neither Zonal nor Rapid Cache Ultra",
 			zonal:    false,
 			rcu:      RCUStateNone,
 			expected: false,
@@ -40,13 +40,13 @@ func TestBucketType_IsRapid(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "RCU Rapid Enabled",
+			name:     "Rapid Cache Ultra, Rapid Writes Enabled",
 			zonal:    false,
 			rcu:      RCUStateRapidWritesEnabled,
 			expected: true,
 		},
 		{
-			name:     "RCU Rapid Disabled",
+			name:     "Rapid Cache Ultra, Rapid Writes Disabled",
 			zonal:    false,
 			rcu:      RCUStateRapidWritesDisabled,
 			expected: true,
@@ -72,7 +72,7 @@ func TestBucketType_RapidWritesEnabled(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "Neither Zonal nor RCU",
+			name:     "Neither Zonal nor Rapid Cache Ultra",
 			zonal:    false,
 			rcu:      RCUStateNone,
 			expected: false,
@@ -84,13 +84,13 @@ func TestBucketType_RapidWritesEnabled(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "RCU Rapid Enabled",
+			name:     "Rapid Cache Ultra, Rapid Writes Enabled",
 			zonal:    false,
 			rcu:      RCUStateRapidWritesEnabled,
 			expected: true,
 		},
 		{
-			name:     "RCU Rapid Disabled",
+			name:     "Rapid Cache Ultra, Rapid Writes Disabled",
 			zonal:    false,
 			rcu:      RCUStateRapidWritesDisabled,
 			expected: false,
