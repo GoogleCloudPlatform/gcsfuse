@@ -604,8 +604,6 @@ type FileSystemConfig struct {
 
 	ExperimentalEnableDentryCache bool `yaml:"experimental-enable-dentry-cache"`
 
-	ExperimentalEnablePirlo bool `yaml:"experimental-enable-pirlo"`
-
 	ExperimentalEnableReaddirplus bool `yaml:"experimental-enable-readdirplus"`
 
 	ExperimentalODirect bool `yaml:"experimental-o-direct"`
@@ -659,6 +657,8 @@ type GcsConnectionConfig struct {
 	ClientProtocol Protocol `yaml:"client-protocol"`
 
 	CustomEndpoint string `yaml:"custom-endpoint"`
+
+	EnableGrpcByDefault bool `yaml:"enable-grpc-by-default"`
 
 	EnableHttpDnsCache bool `yaml:"enable-http-dns-cache"`
 
@@ -1027,6 +1027,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.BoolP("enable-grpc-by-default", "", false, "If true, enables gRPC protocol by default (e.g. for new GKE deployments).")
+
+	if err := flagSet.MarkHidden("enable-grpc-by-default"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-grpc-read-checksums", "", false, "Enables chunk-level CRC32C checksum validation for gRPC read operations. Disabled by default to optimize CPU utilization.")
 
 	if err := flagSet.MarkHidden("enable-grpc-read-checksums"); err != nil {
@@ -1124,12 +1130,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-enable-otel-metrics", "", false, "Enable OpenTelemetry metrics exporting. Must also set cloud-metrics-export-interval-secs > 0 to take effect.")
 
 	if err := flagSet.MarkHidden("experimental-enable-otel-metrics"); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("experimental-enable-pirlo", "", false, "Enables support for pirlo.")
-
-	if err := flagSet.MarkHidden("experimental-enable-pirlo"); err != nil {
 		return err
 	}
 
@@ -1696,6 +1696,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("gcs-connection.enable-grpc-by-default", flagSet.Lookup("enable-grpc-by-default")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("read.enable-grpc-read-checksums", flagSet.Lookup("enable-grpc-read-checksums")); err != nil {
 		return err
 	}
@@ -1781,10 +1785,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.experimental-enable-otel-metrics", flagSet.Lookup("experimental-enable-otel-metrics")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("file-system.experimental-enable-pirlo", flagSet.Lookup("experimental-enable-pirlo")); err != nil {
 		return err
 	}
 

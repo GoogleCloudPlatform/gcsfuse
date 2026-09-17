@@ -1209,24 +1209,6 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 			},
 		},
 		{
-			name: "Test file system experimental-enable-pirlo flag enabled.",
-			args: []string{"gcsfuse", "--experimental-enable-pirlo", "abc", "pqr"},
-			expectedConfig: &cfg.Config{
-				FileSystem: cfg.FileSystemConfig{
-					FuseMaxRequestSizeKb:    int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
-					FuseMaxWriteSizeKb:      1024,
-					DirMode:                 0755,
-					FileMode:                0644,
-					FuseOptions:             []string{},
-					Gid:                     -1,
-					IgnoreInterrupts:        true,
-					InactiveMrdCacheSize:    1000,
-					Uid:                     -1,
-					ExperimentalEnablePirlo: true,
-				},
-			},
-		},
-		{
 			name: "Test file system max-read-ahead-kb flag enabled.",
 			args: []string{"gcsfuse", "--max-read-ahead-kb=1024", "abc", "pqr"},
 			expectedConfig: &cfg.Config{

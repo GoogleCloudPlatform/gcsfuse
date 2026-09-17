@@ -35,7 +35,7 @@
 
 # Add retired proto-tag numbers here when deleted from active params list.
 # Preserves tag reservation for Protobuf schema generation.
-retired-params: []
+retired-params: [47]
 # Example of retired parameters entry:
 #   retired-params: [28, 42]
 
@@ -471,14 +471,6 @@ params:
     default: false
     hide-flag: true
 
-  - config-path: "file-system.experimental-enable-pirlo"
-    proto-tag: 47
-    flag-name: "experimental-enable-pirlo"
-    type: "bool"
-    usage: "Enables support for pirlo."
-    default: false
-    hide-flag: true
-
   - config-path: "file-system.experimental-enable-readdirplus"
     proto-tag: 48
     flag-name: "experimental-enable-readdirplus"
@@ -749,6 +741,15 @@ params:
     usage: >-
       To specify a custom storage endpoint, ensure it supports the same resources as the default storage.googleapis.com:443 and includes the port number.
     default: ""
+
+  - config-path: "gcs-connection.enable-grpc-by-default"
+    proto-tag: 159
+    flag-name: "enable-grpc-by-default"
+    type: "bool"
+    usage: >-
+      If true, enables gRPC protocol by default (e.g. for new GKE deployments).
+    default: false
+    hide-flag: true
 
   - config-path: "gcs-connection.enable-http-dns-cache"
     proto-tag: 73
