@@ -54,7 +54,8 @@ const (
 	dynamicReadReqIncreaseRateEnv   = "DYNAMIC_READ_REQ_INCREASE_RATE"
 	dynamicReadReqInitialTimeoutEnv = "DYNAMIC_READ_REQ_INITIAL_TIMEOUT"
 
-	zonalLocationType = "zone"
+	zonalLocationType   = "zone"
+	rapidCacheUltraType = "rapid-cache-ultra"
 
 	// DirectPath detection parameters - used for fast-fail detection during client creation
 	directPathDetectionMaxAttempts = 5
@@ -393,10 +394,9 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 
 	logger.Infof("GetStorageLayout -> (%s, prefix: %q) %v msec", bucketName, prefix, duration.Milliseconds())
 
-	// TODO (b/483608308): Once GetStorageLayout starts returning Pirlo bucket type,
-	// update this logic to use the response instead of inferring from clientConfig.
 	pirloState := gcs.PirloStateNone
-	if sh.clientConfig.ExperimentalEnablePirlo {
+	isPirloBucket := storageLayout.GetRapidCacheInfo() != nil && storageLayout.GetRapidCacheInfo().GetCacheType() == rapidCacheUltraType
+	if isPirloBucket {
 		if sh.clientConfig.WriteConfig != nil && sh.clientConfig.WriteConfig.EnableRapidWrites {
 			pirloState = gcs.PirloStateRapidWritesEnabled
 		} else {

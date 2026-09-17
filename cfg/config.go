@@ -604,8 +604,6 @@ type FileSystemConfig struct {
 
 	ExperimentalEnableDentryCache bool `yaml:"experimental-enable-dentry-cache"`
 
-	ExperimentalEnablePirlo bool `yaml:"experimental-enable-pirlo"`
-
 	ExperimentalEnableReaddirplus bool `yaml:"experimental-enable-readdirplus"`
 
 	ExperimentalODirect bool `yaml:"experimental-o-direct"`
@@ -1120,12 +1118,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-enable-otel-metrics", "", false, "Enable OpenTelemetry metrics exporting. Must also set cloud-metrics-export-interval-secs > 0 to take effect.")
 
 	if err := flagSet.MarkHidden("experimental-enable-otel-metrics"); err != nil {
-		return err
-	}
-
-	flagSet.BoolP("experimental-enable-pirlo", "", false, "Enables support for pirlo.")
-
-	if err := flagSet.MarkHidden("experimental-enable-pirlo"); err != nil {
 		return err
 	}
 
@@ -1773,10 +1765,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.experimental-enable-otel-metrics", flagSet.Lookup("experimental-enable-otel-metrics")); err != nil {
-		return err
-	}
-
-	if err := v.BindPFlag("file-system.experimental-enable-pirlo", flagSet.Lookup("experimental-enable-pirlo")); err != nil {
 		return err
 	}
 

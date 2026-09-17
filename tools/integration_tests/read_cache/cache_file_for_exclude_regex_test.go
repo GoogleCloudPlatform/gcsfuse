@@ -110,8 +110,7 @@ func TestCacheFileForExcludeRegexTest(t *testing.T) {
 			"--enable-kernel-reader=false",
 		}
 		if setup.IsPirloBucketRun() {
-			f1 := append([]string{"--experimental-enable-pirlo"}, baseFlags...)
-			flagsSet = append(flagsSet, f1)
+			flagsSet = append(flagsSet, baseFlags)
 		} else {
 			f2 := append([]string{"--client-protocol=grpc"}, baseFlags...)
 			flagsSet = append(flagsSet, baseFlags, f2)
