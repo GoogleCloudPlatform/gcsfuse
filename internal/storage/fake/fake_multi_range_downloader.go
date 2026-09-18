@@ -147,7 +147,7 @@ func (fmrd *fakeMultiRangeDownloader) Add(output io.Writer, offset, length int64
 		}
 		// Don't clear pre-existing error in downloader.
 		fmrd.mu.Lock()
-		if fmrd.err != nil {
+		if fmrd.err == nil && err != nil {
 			fmrd.err = err
 		}
 		fmrd.mu.Unlock()
