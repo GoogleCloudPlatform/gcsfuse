@@ -21,9 +21,7 @@ import (
 	"strings"
 )
 
-func main() {
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Split(bufio.ScanLines)
+func getSkipPattern(scanner *bufio.Scanner) string {
 	skipsList := make([]string, 0, 16)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -32,5 +30,14 @@ func main() {
 		}
 		skipsList = append(skipsList, line)
 	}
-	fmt.Println(strings.Join(skipsList, "|"))
+	if len(skipsList) == 0 {
+		return "^$"
+	}
+	return strings.Join(skipsList, "|")
+}
+
+func main() {
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Split(bufio.ScanLines)
+	fmt.Println(getSkipPattern(scanner))
 }
