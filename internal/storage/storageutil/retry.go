@@ -158,13 +158,13 @@ func ExecuteWithCustomShouldRetryAtLogLevel[T any](
 	backoff := newExponentialBackoff(&config.BackoffConfig)
 	var lastErr error
 	for attemptNum := 1; ; attemptNum++ {
-		attemptCtx, attemptCancel := context.WithTimeout(ctx, config.RetryDeadline)
 		if attemptNum == 1 {
 			logger.GetLogFHandler(logLevel)("Calling %s for %q: InvocationID: %s, Attempt: %d, with deadline=%v", operationName, reqDescription, requestID, attemptNum, config.RetryDeadline)
 		} else {
 			logger.GetLogFHandler(logger.LevelWarn)("Retrying %s for %q: InvocationID: %s, Attempt: %d, due to error: %v", operationName, reqDescription, requestID, attemptNum, lastErr)
 		}
 
+		attemptCtx, attemptCancel := context.WithTimeout(ctx, config.RetryDeadline)
 		result, err := apiCall(attemptCtx)
 		lastErr = err
 		// Cancel attemptCtx after it is no longer needed, to free up its resources.
