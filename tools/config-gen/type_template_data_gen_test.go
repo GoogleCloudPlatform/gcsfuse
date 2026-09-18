@@ -126,3 +126,104 @@ func TestConstructTypeTemplateData(t *testing.T) {
 	require.Len(t, loggingMsg.Fields, 1)
 	assert.Equal(t, "Severity", loggingMsg.Fields[0].FieldName)
 }
+
+func TestComputeProtoMappings(t *testing.T) {
+	params := []Param{
+		{
+			FlagName:       "file-cache-max-size-mb",
+			ConfigPath:     "file-cache.max-size-mb",
+			Type:           "int",
+			ProtoType:      "sint64",
+			ProtoFieldName: "file_cache_max_size_mb",
+			ProtoTag:       3,
+		},
+		{
+			FlagName:       "app-name",
+			ConfigPath:     "app-name",
+			Type:           "string",
+			ProtoType:      "bool",
+			ProtoFieldName: "is_app_name_set",
+			ProtoTag:       1,
+		},
+		{
+			FlagName:       "cache-dir",
+			ConfigPath:     "cache-dir",
+			Type:           "resolvedPath",
+			ProtoType:      "bool",
+			ProtoFieldName: "is_cache_dir_set",
+			ProtoTag:       2,
+		},
+		{
+			FlagName:       "fuse-options",
+			ConfigPath:     "file-system.fuse-options",
+			Type:           "[]string",
+			ProtoType:      "bool",
+			ProtoFieldName: "is_file_system_fuse_options_set",
+			ProtoTag:       4,
+		},
+		{
+			FlagName:       "client-protocol",
+			ConfigPath:     "gcs-connection.client-protocol",
+			Type:           "protocol",
+			ProtoType:      "string",
+			ProtoFieldName: "gcs_connection_client_protocol",
+			ProtoTag:       5,
+		},
+		{
+			FlagName:       "machine-type",
+			ConfigPath:     "machine-type",
+			Type:           "string",
+			ProtoType:      "string",
+			ProtoFieldName: "machine_type",
+			ProtoTag:       6,
+		},
+		{
+			FlagName:       "profile",
+			ConfigPath:     "profile",
+			Type:           "string",
+			ProtoType:      "string",
+			ProtoFieldName: "profile",
+			ProtoTag:       7,
+		},
+		{
+			FlagName:       "deprecated-flag",
+			ConfigPath:     "",
+			Type:           "bool",
+			ProtoType:      "",
+			ProtoFieldName: "",
+			ProtoTag:       0,
+		},
+	}
+
+	mappings, err := computeProtoMappings(params)
+	require.NoError(t, err)
+	require.Len(t, mappings, 7)
+
+	assert.Equal(t, "IsAppNameSet", mappings[0].ProtoFieldName)
+	assert.Equal(t, `config.AppName != ""`, mappings[0].GoExpression)
+	assert.Equal(t, 1, mappings[0].ProtoTag)
+
+	assert.Equal(t, "IsCacheDirSet", mappings[1].ProtoFieldName)
+	assert.Equal(t, `string(config.CacheDir) != ""`, mappings[1].GoExpression)
+	assert.Equal(t, 2, mappings[1].ProtoTag)
+
+	assert.Equal(t, "FileCacheMaxSizeMb", mappings[2].ProtoFieldName)
+	assert.Equal(t, "config.FileCache.MaxSizeMb", mappings[2].GoExpression)
+	assert.Equal(t, 3, mappings[2].ProtoTag)
+
+	assert.Equal(t, "IsFileSystemFuseOptionsSet", mappings[3].ProtoFieldName)
+	assert.Equal(t, "len(config.FileSystem.FuseOptions) > 0", mappings[3].GoExpression)
+	assert.Equal(t, 4, mappings[3].ProtoTag)
+
+	assert.Equal(t, "GcsConnectionClientProtocol", mappings[4].ProtoFieldName)
+	assert.Equal(t, "string(config.GcsConnection.ClientProtocol)", mappings[4].GoExpression)
+	assert.Equal(t, 5, mappings[4].ProtoTag)
+
+	assert.Equal(t, "MachineType", mappings[5].ProtoFieldName)
+	assert.Equal(t, "string(config.MachineType)", mappings[5].GoExpression)
+	assert.Equal(t, 6, mappings[5].ProtoTag)
+
+	assert.Equal(t, "Profile", mappings[6].ProtoFieldName)
+	assert.Equal(t, "string(config.Profile)", mappings[6].GoExpression)
+	assert.Equal(t, 7, mappings[6].ProtoTag)
+}
