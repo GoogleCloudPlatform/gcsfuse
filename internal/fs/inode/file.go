@@ -134,6 +134,8 @@ type FileInode struct {
 	// code.
 	MRDWrapper *gcsx.MultiRangeDownloaderWrapper
 
+	metricHandle metrics.MetricHandle
+
 	bwh bufferedwrites.BufferedWriteHandler
 
 	// mrdInstance manages the MultiRangeDownloader instances for this inode.
@@ -206,6 +208,7 @@ func NewFileInode(
 		src:            minObj,
 		local:          localFile,
 		unlinked:       false,
+		metricHandle:   metricHandle,
 	}
 
 	if f.bucket.BucketType().IsRapid() {
@@ -282,6 +285,9 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 		ReturnExtendedObjectAttributes: includeExtendedObjectAttributes,
 	}
 	m, e, err := f.bucket.StatObject(ctx, req)
+	if !forceFetchFromGcs && metrics.IsMonitoringEnabled(f.metricHandle) {
+		f.metricHandle.MetadataCacheReadCount(1, true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr)
+	}
 	if includeExtendedObjectAttributes {
 		o = storageutil.ConvertMinObjectAndExtendedObjectAttributesToObject(m, e)
 	} else {

@@ -62,6 +62,7 @@ func newBenchmarkDirInode(b *testing.B, implicitDirs bool) *dirInode {
 		&clock,
 		semaphore.NewWeighted(10),
 		config,
+		nil,
 	)
 
 	return in.(*dirInode)

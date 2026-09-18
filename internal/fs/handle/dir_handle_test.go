@@ -91,7 +91,8 @@ func (t *DirHandleTest) resetDirHandle() {
 		&t.clock,
 		&t.clock,
 		semaphore.NewWeighted(10),
-		cfg)
+		cfg,
+		nil)
 
 	t.dh = NewDirHandle(
 		dirInode,
