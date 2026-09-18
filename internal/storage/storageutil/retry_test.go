@@ -360,6 +360,10 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_AllAttemptsTimeOut() {
 		// Simulate a call that always takes longer than the per-attempt deadline.
 		select {
 		case <-time.After(stallDuration):
+			if dl, ok := ctx.Deadline(); ok && !time.Now().Before(dl) {
+				<-ctx.Done()
+				return "", ctx.Err()
+			}
 			// This case should not be hit, as the context deadline
 			// is shorter than stallDuration.
 			return "", errors.New("simulated apiCall finished before context timeout")
@@ -388,6 +392,10 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutSho
 		callCount++
 		select {
 		case <-time.After(stallDuration):
+			if dl, ok := ctx.Deadline(); ok && !time.Now().Before(dl) {
+				<-ctx.Done()
+				return "", ctx.Err()
+			}
 		case <-ctx.Done():
 			return "", ctx.Err()
 		}
@@ -418,6 +426,10 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutBet
 		callCount++
 		select {
 		case <-time.After(stallDuration):
+			if dl, ok := ctx.Deadline(); ok && !time.Now().Before(dl) {
+				<-ctx.Done()
+				return "", ctx.Err()
+			}
 		case <-ctx.Done():
 			return "", ctx.Err()
 		}
