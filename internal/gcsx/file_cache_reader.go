@@ -33,10 +33,12 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 )
 
+type readContextKey string
+
 const (
 	// ReadOp ("readOp") is the value used in read context to store pointer to the read operation.
-	ReadOp = "readOp"
-	MiB    = 1 << 20
+	ReadOp readContextKey = "readOp"
+	MiB                   = 1 << 20
 )
 
 // FileCacheReader is a reader that attempts to satisfy read requests for a GCS
