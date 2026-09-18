@@ -36,7 +36,7 @@ func (p *PromTest) TestStatMetrics() {
 
 	require.NoError(p.T(), err)
 	assertNonZeroCountMetric(p.T(), "fs_ops_count", "fs_op", "LookUpInode", prometheusPort)
-	assertNonZeroHistogramMetric(p.T(), "fs_ops_latency", "fs_op", "LookUpInode", prometheusPort)
+	assertNonZeroHistogramMetric(p.T(), "fs_ops_latencies", "fs_op", "LookUpInode", prometheusPort)
 	assertNonZeroCountMetric(p.T(), "gcs_request_count", "gcs_method", "StatObject", prometheusPort)
 	assertNonZeroHistogramMetric(p.T(), "gcs_request_latencies", "gcs_method", "StatObject", prometheusPort)
 }
@@ -47,7 +47,7 @@ func (p *PromTest) TestFsOpsErrorMetrics() {
 	require.Error(p.T(), err)
 
 	assertNonZeroCountMetric(p.T(), "fs_ops_error_count", "fs_op", "LookUpInode", prometheusPort)
-	assertNonZeroHistogramMetric(p.T(), "fs_ops_latency", "fs_op", "LookUpInode", prometheusPort)
+	assertNonZeroHistogramMetric(p.T(), "fs_ops_latencies", "fs_op", "LookUpInode", prometheusPort)
 }
 
 func (p *PromTest) TestListMetrics() {
