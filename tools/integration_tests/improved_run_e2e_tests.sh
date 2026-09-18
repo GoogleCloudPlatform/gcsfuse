@@ -28,6 +28,9 @@ usage() {
   echo "    --presubmit                                  Run tests with presubmit flag. (Default: false)"
   echo "    --zonal                                      Run tests with zonal bucket in --bucket-location region."
   echo "                                                 The placement for Zonal buckets by deafault is Zone A of --bucket-location. (Default: false)"
+  echo "    --rcu                                        Run tests against an RCU (Rapid Cache Ultra) bucket. (Default: false)"
+  echo "    --rcu-bucket                  <bucket-name>  Pre-created RCU bucket name to use. (Default: gcsfuse-rcu-test-bucket or \$RCU_BUCKET_NAME)"
+  echo "    --rcu-same-zone               <true|false>   Indicates if the client VM is in the same zone as the RCU cache. (Default: true)"
   echo "    --no-build-binary-in-script                  To disable building gcsfuse binary in script. (Default: false)"
   echo "    --package-level-parallelism   <parallelism>  To adjust the number of packages to execute in parallel. (Default: 10)"
   echo "    --track-resource-usage                       To track resource(cpu/mem/disk) usage during e2e run. (Default: false)"
@@ -92,6 +95,8 @@ readonly DELAY_BETWEEN_BUCKET_CREATION=6
 readonly ZONAL="zonal"
 readonly FLAT="flat"
 readonly HNS="hns"
+readonly RCU="rcu"
+readonly DEFAULT_RCU_BUCKET="${RCU_BUCKET_NAME:-gcsfuse-rcu-test-bucket}"
 readonly SUCCESS_DIR_NAME="success_package_logs"
 readonly FAILED_DIR_NAME="failed_package_logs"
 
@@ -131,6 +136,9 @@ INSTALL_PACKAGE_FROM_PATH=""
 RUN_TEST_ON_TPC_ENDPOINT=false
 RUN_TESTS_WITH_PRESUBMIT_FLAG=false
 RUN_TESTS_WITH_ZONAL_BUCKET=false
+RUN_TESTS_WITH_RCU_BUCKET=false
+RCU_BUCKET_NAME=""
+RCU_SAME_ZONE=true
 BUILD_BINARY_IN_SCRIPT=true
 TRACK_RESOURCE_USAGE=false
 PACKAGE_LEVEL_PARALLELISM=10 # Controls how many test packages are run in parallel for hns, flat or zonal buckets.
@@ -140,7 +148,7 @@ FLAKE_ATTEMPTS=1
 
 # Define options for getopt
 # A long option name followed by a colon indicates it requires an argument.
-LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator,flake-attempts:
+LONG=bucket-location:,project-id:,test-installed-package,install-package-from-path:,skip-non-essential-tests,no-build-binary-in-script,test-on-tpc-endpoint,presubmit,zonal,rcu,rcu-bucket:,rcu-same-zone:,package-level-parallelism:,track-resource-usage,output-dir:,help,run-package:,skip-emulator,flake-attempts:
 
 # Parse the options using getopt
 # --options "" specifies that there are no short options.
@@ -195,6 +203,18 @@ while (( $# >= 1 )); do
         --zonal)
             RUN_TESTS_WITH_ZONAL_BUCKET=true
             shift
+            ;;
+        --rcu)
+            RUN_TESTS_WITH_RCU_BUCKET=true
+            shift
+            ;;
+        --rcu-bucket)
+            RCU_BUCKET_NAME="$2"
+            shift 2
+            ;;
+        --rcu-same-zone)
+            RCU_SAME_ZONE="$2"
+            shift 2
             ;;
         --track-resource-usage)
             TRACK_RESOURCE_USAGE=true
@@ -295,6 +315,14 @@ if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
   fi
 fi
 
+# RCU Bucket setup and validation.
+if ${RUN_TESTS_WITH_RCU_BUCKET}; then
+  if [[ -z "$RCU_BUCKET_NAME" ]]; then
+    RCU_BUCKET_NAME="${DEFAULT_RCU_BUCKET}"
+  fi
+  log_info "Configured RCU test run with constant bucket: '${RCU_BUCKET_NAME}', same_zone: '${RCU_SAME_ZONE}'"
+fi
+
 # Create file helper creates a file in the output directory.
 create_file_helper() {
   local relative_path="$1"
@@ -387,6 +415,8 @@ filter_array() {
 TEST_PACKAGES_FOR_RB=("${TEST_PACKAGES_COMMON[@]}" "inactive_stream_timeout" "cloud_profiler" "requester_pays_bucket")
 # Test packages for zonal buckets.
 TEST_PACKAGES_FOR_ZB=("${TEST_PACKAGES_COMMON[@]}" "rapid_operations" "unfinalized_object")
+# Test packages for RCU buckets.
+TEST_PACKAGES_FOR_RCU=("${TEST_PACKAGES_COMMON[@]}" "rapid_operations" "unfinalized_object")
 # Test packages for TPC buckets.
 TEST_PACKAGES_FOR_TPC=("operations")
 
@@ -394,6 +424,7 @@ TEST_PACKAGES_FOR_TPC=("operations")
 if [[ -n "$RUN_PACKAGE_REGEX" ]]; then
   filter_array TEST_PACKAGES_FOR_RB "$RUN_PACKAGE_REGEX"
   filter_array TEST_PACKAGES_FOR_ZB "$RUN_PACKAGE_REGEX"
+  filter_array TEST_PACKAGES_FOR_RCU "$RUN_PACKAGE_REGEX"
 fi
 
 # acquire_lock: Acquires exclusive lock or exits script on failure.
@@ -703,10 +734,18 @@ create_bucket_and_run_package() {
   local bucket_type="$1"
   local package_name="$2"
   local attempt_number="$3"
+  local bucket_name
 
-  if ! bucket_name=$(create_bucket "$package_name" "$bucket_type"); then
-    log_error_locked "Failed to create bucket of type ${bucket_type} for package ${package_name}. Bucket creation output: ${bucket_name}"
-    return 1
+  # For RCU, dynamic bucket recreation/deletion is strictly prohibited. Use the constant RCU bucket.
+  if [[ "$bucket_type" == "$RCU" ]]; then
+    bucket_name="$RCU_BUCKET_NAME"
+    log_info_locked "[DEBUG] Using pre-created constant RCU bucket '$bucket_name' for package '$package_name'."
+  else
+    log_info_locked "[DEBUG] Dynamically creating $bucket_type bucket for package '$package_name'."
+    if ! bucket_name=$(create_bucket "$package_name" "$bucket_type"); then
+      log_error_locked "Failed to create bucket of type ${bucket_type} for package ${package_name}. Bucket creation output: ${bucket_name}"
+      return 1
+    fi
   fi
   test_package "$package_name" "$bucket_name" "$bucket_type" "$attempt_number"
 }
@@ -752,6 +791,14 @@ test_package() {
   if [[ "$bucket_type" == "$ZONAL" ]]; then
     go_test_cmd_parts+=("--zonal")
   fi
+  if [[ "$bucket_type" == "$RCU" ]]; then
+    go_test_cmd_parts+=("--rcu")
+    if ${RCU_SAME_ZONE}; then
+      go_test_cmd_parts+=("--rcu-same-zone=true")
+    else
+      go_test_cmd_parts+=("--rcu-same-zone=false")
+    fi
+  fi
   if ${RUN_TEST_ON_TPC_ENDPOINT}; then
     go_test_cmd_parts+=("--testOnTPCEndPoint")
   fi
@@ -766,6 +813,7 @@ test_package() {
   test_package_log_file=$(create_file_helper "running_package_logs/${bucket_type}/${package_name}_attempt_${attempt_number}.txt")
   # Run the package test command and capture log output with runtime stats.
   log_info_locked "Started running test package [$package_name] for bucket type [$bucket_type] with bucket name [$bucket_name] (Attempt: $attempt_number)"
+  log_info_locked "[DEBUG] Full test command for $package_name: $go_test_cmd"
 
   if ! eval "$go_test_cmd" > "$test_package_log_file" 2>&1; then
     exit_code=1
@@ -1047,7 +1095,9 @@ main() {
 
   local pids=()
   local overall_exit_code=0
-  if ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
+  if ${RUN_TESTS_WITH_RCU_BUCKET}; then
+    run_test_group "RCU" "$RCU" "${TEST_PACKAGES_FOR_RCU[@]}" & pids+=($!)
+  elif ${RUN_TESTS_WITH_ZONAL_BUCKET}; then
     run_test_group "ZONAL" "$ZONAL" "${TEST_PACKAGES_FOR_ZB[@]}" & pids+=($!)
   elif ${RUN_TEST_ON_TPC_ENDPOINT}; then
     # Override PROJECT_ID and BUCKET_LOCATION for TPC tests
