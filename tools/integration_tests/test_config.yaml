@@ -865,7 +865,7 @@ inactive_stream_timeout:
         compatible:
           flat: true
           hns: true
-          zonal: true
+          zonal: false
         run: TestTimeoutEnabledSuite
         run_on_gke: true
       - flags:
