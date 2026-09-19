@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -214,7 +215,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 		implicitDirInodes:          make(map[inode.Name]inode.DirInode),
 		folderInodes:               make(map[inode.Name]inode.DirInode),
 		localFileInodes:            make(map[inode.Name]inode.Inode),
-		handles:                    make(map[fuseops.HandleID]any),
+		// handles (sync.Map zero value is ready to use)
 		newConfig:                  serverCfg.NewConfig,
 		fileCacheHandler:           fileCacheHandler,
 		sharedChunkCacheManager:    sharedChunkCacheManager,
@@ -602,9 +603,7 @@ type fileSystem struct {
 	// The collection of live handles, keyed by handle ID.
 	//
 	// INVARIANT: All values are of type *dirHandle or *handle.FileHandle
-	//
-	// GUARDED_BY(mu)
-	handles map[fuseops.HandleID]any
+	handles sync.Map
 
 	// The next handle ID to hand out. We assume that this will never overflow.
 	//
@@ -885,29 +884,32 @@ func (fs *fileSystem) checkInvariants() {
 	fs.checkInvariantsForLocalFileInodes()
 
 	//////////////////////////////////
-	// handles
+	// handles & nextHandleID
 	//////////////////////////////////
 
 	// INVARIANT: All values are of type *dirHandle or *handle.FileHandle
-	for _, h := range fs.handles {
-		switch h.(type) {
+	// INVARIANT: For all keys k in handles, k < nextHandleID
+	fs.handles.Range(func(k, v any) bool {
+		switch v.(type) {
 		case *handle.DirHandle:
 		case *handle.FileHandle:
 		default:
-			panic(fmt.Sprintf("Unexpected handle type: %T", h))
+			panic(fmt.Sprintf("Unexpected handle type: %T", v))
 		}
-	}
-
-	//////////////////////////////////
-	// nextHandleID
-	//////////////////////////////////
-
-	// INVARIANT: For all keys k in handles, k < nextHandleID
-	for k := range fs.handles {
-		if k >= fs.nextHandleID {
-			panic(fmt.Sprintf("Illegal handle ID: %v", k))
+		var handleID fuseops.HandleID
+		switch vKey := k.(type) {
+		case fuseops.HandleID:
+			handleID = vKey
+		case uint64:
+			handleID = fuseops.HandleID(vKey)
+		default:
+			panic(fmt.Sprintf("Unexpected key type in handles: %T", k))
 		}
-	}
+		if handleID >= fs.nextHandleID {
+			panic(fmt.Sprintf("Illegal handle ID: %v (nextHandleID: %v)", handleID, fs.nextHandleID))
+		}
+		return true
+	})
 }
 
 func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.Core, parInodeCtx context.Context) inode.Inode {
@@ -2242,7 +2244,7 @@ func (fs *fileSystem) CreateFile(
 
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[op.Handle] = handle.NewFileHandle(
+	fs.handles.Store(op.Handle, handle.NewFileHandle(
 		child.(*inode.FileInode),
 		fs.fileCacheHandler,
 		fs.sharedChunkCacheManager,
@@ -2254,7 +2256,7 @@ func (fs *fileSystem) CreateFile(
 		fs.bufferedReadWorkerPool,
 		fs.globalMaxReadBlocksSem,
 		op.Handle,
-	)
+	))
 
 	fs.mu.Unlock()
 
@@ -2914,7 +2916,7 @@ func (fs *fileSystem) OpenDir(
 	handleID := fs.nextHandleID
 	fs.nextHandleID++
 
-	fs.handles[handleID] = handle.NewDirHandle(in, fs.implicitDirs)
+	fs.handles.Store(handleID, handle.NewDirHandle(in, fs.implicitDirs))
 	op.Handle = handleID
 
 	fs.mu.Unlock()
@@ -2935,12 +2937,13 @@ func (fs *fileSystem) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
-	// Find the handle.
+	val, ok := fs.handles.Load(op.Handle)
+	if !ok {
+		return syscall.EBADF
+	}
+	dh := val.(*handle.DirHandle)
 	fs.mu.Lock()
-	dh := fs.handles[op.Handle].(*handle.DirHandle)
 	in := fs.dirInodeOrDie(op.Inode)
-	// Fetch local file entries beforehand and pass it to directory handle as
-	// we need fs lock to fetch local file entries.
 	localFileEntries := in.LocalFileEntries(fs.localFileInodes)
 	fs.mu.Unlock()
 
@@ -2957,9 +2960,12 @@ func (fs *fileSystem) ReadDir(
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
-	// Find the handle.
+	val, ok := fs.handles.Load(op.Handle)
+	if !ok {
+		return syscall.EBADF
+	}
+	dh := val.(*handle.DirHandle)
 	fs.mu.Lock()
-	dh := fs.handles[op.Handle].(*handle.DirHandle)
 	in := fs.dirInodeOrDie(op.Inode)
 	// Fetch local file entries beforehand for passing it to directory handle as
 	// we need fs lock to fetch local file entries.
@@ -3006,11 +3012,8 @@ func (fs *fileSystem) ReleaseDirHandle(
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	// Sanity check that this handle exists and is of the correct type.
-	_ = fs.handles[op.Handle].(*handle.DirHandle)
-
 	// Clear the entry from the map.
-	delete(fs.handles, op.Handle)
+	fs.handles.Delete(op.Handle)
 
 	return
 }
@@ -3056,7 +3059,7 @@ func (fs *fileSystem) OpenFile(
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op.OpenFlags)
-	fs.handles[op.Handle] = handle.NewFileHandle(
+	fs.handles.Store(op.Handle, handle.NewFileHandle(
 		in,
 		fs.fileCacheHandler,
 		fs.sharedChunkCacheManager,
@@ -3068,7 +3071,7 @@ func (fs *fileSystem) OpenFile(
 		fs.bufferedReadWorkerPool,
 		fs.globalMaxReadBlocksSem,
 		op.Handle,
-	)
+	))
 
 	// When we observe object generations that we didn't create, we assign them
 	// new inode IDs. So for a given inode, all modifications go through the
@@ -3085,10 +3088,12 @@ func (fs *fileSystem) ReadFile(
 	op *fuseops.ReadFileOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
 
-	// Find the handle and lock it.
-	fs.mu.Lock()
-	fh := fs.handles[op.Handle].(*handle.FileHandle)
-	fs.mu.Unlock()
+	// Find the handle without acquiring fs.mu!
+	val, ok := fs.handles.Load(op.Handle)
+	if !ok {
+		return syscall.EBADF
+	}
+	fh := val.(*handle.FileHandle)
 
 	fh.Inode().Lock()
 	if fh.Inode().IsUsingBWH() {
@@ -3191,9 +3196,14 @@ func (fs *fileSystem) WriteFile(
 	op *fuseops.WriteFileOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
 
-	// Find the inode( and file handle in case of appends).
+	// Find the handle without acquiring fs.mu!
+	val, ok := fs.handles.Load(op.Handle)
+	if !ok {
+		return syscall.EBADF
+	}
+	fh := val.(*handle.FileHandle)
+
 	fs.mu.Lock()
-	fh := fs.handles[op.Handle].(*handle.FileHandle)
 	in := fs.fileInodeOrDie(op.Inode)
 	fs.mu.Unlock()
 
@@ -3280,13 +3290,11 @@ func (fs *fileSystem) FlushFile(
 func (fs *fileSystem) ReleaseFileHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) (err error) {
-	fs.mu.Lock()
-
-	fileHandle := fs.handles[op.Handle].(*handle.FileHandle)
-	// Update the map. We are okay updating the map before destroy is called
-	// since destroy is doing only internal cleanup.
-	delete(fs.handles, op.Handle)
-	fs.mu.Unlock()
+	val, loaded := fs.handles.LoadAndDelete(op.Handle)
+	if !loaded {
+		return syscall.EBADF
+	}
+	fileHandle := val.(*handle.FileHandle)
 
 	// Destroy the handle.
 	fileHandle.Lock()
