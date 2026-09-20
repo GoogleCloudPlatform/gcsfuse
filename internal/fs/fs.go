@@ -2633,11 +2633,18 @@ func (fs *fileSystem) getBucketDirInode(ctx context.Context, parent inode.DirIno
 
 func (fs *fileSystem) ensureNoLocalFilesInDirectory(dir inode.BucketOwnedDirInode, name string) error {
 	fs.mu.Lock()
-	entries := dir.LocalFileEntries(fs.localFileInodes)
-	fs.mu.Unlock()
+	defer fs.mu.Unlock()
 
-	if len(entries) != 0 {
-		return fmt.Errorf("can't rename directory %s with open files: %w", name, syscall.ENOTSUP)
+	dirName := dir.Name()
+	for localInodeName, in := range fs.localFileInodes {
+		file, ok := in.(*inode.FileInode)
+		if ok && file.IsUnlinked() {
+			continue
+		}
+
+		if localInodeName.IsDescendantOf(dirName) {
+			return fmt.Errorf("can't rename directory %s with open files: %w", name, syscall.ENOTSUP)
+		}
 	}
 	return nil
 }
