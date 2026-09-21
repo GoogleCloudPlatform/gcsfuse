@@ -64,8 +64,8 @@ func TestMain(m *testing.M) {
 	testEnv.ctx = context.Background()
 	testEnv.cfg = &cfg.RapidOperations[0]
 	testEnv.bucketType = setup.TestEnvironment(testEnv.ctx, testEnv.cfg)
-	if !setup.IsZonalBucketRun() && !setup.IsPirloBucketRun() {
-		log.Fatalf("This test package is only compatible for zonal and pirlo bucket runs")
+	if !setup.IsZonalBucketRun() && !setup.IsRcuBucketRun() {
+		log.Fatalf("This test package is only compatible for zonal and Rapid Cache Ultra bucket runs")
 	}
 
 	// 2. Create storage client before running tests.

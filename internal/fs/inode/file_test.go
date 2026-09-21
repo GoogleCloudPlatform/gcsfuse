@@ -86,8 +86,8 @@ func TestFileTestSuite(t *testing.T) {
 	t.Run("Zonal", func(t *testing.T) {
 		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Zonal: true}})
 	})
-	t.Run("Pirlo", func(t *testing.T) {
-		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled}})
+	t.Run("RCU", func(t *testing.T) {
+		suite.Run(t, &FileTest{bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled}})
 	})
 }
 
@@ -282,17 +282,17 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 			supported:  false,
 		},
 		{
-			name:       "AppendToUnfinalizedObjOnPirloWithRapidWritesEnabled",
+			name:       "AppendToUnfinalizedObjOnRCUWithRapidWritesEnabled",
 			content:    nonNilContents,
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
 			finalized:  unFinalizedTime,
 			openMode:   AppendMode,
 			supported:  true,
 		},
 		{
-			name:       "AppendToUnfinalizedObjOnPirloWithRapidWritesDisabled",
+			name:       "AppendToUnfinalizedObjOnRCUWithRapidWritesDisabled",
 			content:    nonNilContents,
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
+			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesDisabled},
 			finalized:  unFinalizedTime,
 			openMode:   AppendMode,
 			supported:  false,

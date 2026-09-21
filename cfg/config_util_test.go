@@ -256,7 +256,7 @@ func TestGetBucketType(t *testing.T) {
 		name         string
 		hierarchical bool
 		zonal        bool
-		pirlo        bool
+		rcu          bool
 		expected     BucketType
 	}{
 		{
@@ -266,10 +266,10 @@ func TestGetBucketType(t *testing.T) {
 			expected:     BucketTypeZonal,
 		},
 		{
-			name:         "Pirlo and Hierarchical (pirlo takes priority)",
+			name:         "Rapid Cache Ultra and Hierarchical (Rapid Cache Ultra takes priority)",
 			hierarchical: true,
-			pirlo:        true,
-			expected:     BucketTypePirlo,
+			rcu:          true,
+			expected:     BucketTypeRCU,
 		},
 		{
 			name:         "Hierarchical bucket",
@@ -287,10 +287,10 @@ func TestGetBucketType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GetBucketType(tt.hierarchical, tt.zonal, tt.pirlo)
+			result := GetBucketType(tt.hierarchical, tt.zonal, tt.rcu)
 			if result != tt.expected {
 				t.Errorf("GetBucketType(%v, %v, %v) = %v; want %v",
-					tt.hierarchical, tt.zonal, tt.pirlo, result, tt.expected)
+					tt.hierarchical, tt.zonal, tt.rcu, result, tt.expected)
 			}
 		})
 	}
@@ -316,7 +316,7 @@ func Test_MaxPagesForRequestSizeKb(t *testing.T) {
 
 func Test_StorageClass(t *testing.T) {
 	assert.Equal(t, StorageClassRapid, BucketTypeZonal.StorageClass())
-	assert.Equal(t, StorageClassRapid, BucketTypePirlo.StorageClass())
+	assert.Equal(t, StorageClassRapid, BucketTypeRCU.StorageClass())
 	assert.Equal(t, StorageClassStandard, BucketTypeFlat.StorageClass())
 	assert.Equal(t, StorageClassStandard, BucketTypeHierarchical.StorageClass())
 }

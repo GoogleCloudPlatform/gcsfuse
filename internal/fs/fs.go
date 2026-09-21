@@ -272,7 +272,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 			if bucketType.IsRapid() && serverCfg.ViperConfig.IsSet("file-system.fuse-max-request-size-kb") {
 				return nil, fmt.Errorf("fuse-max-request-size-kb flag is not supported for rapid buckets")
 			}
-			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.Pirlo != gcs.PirloStateNone)
+			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.RCU != gcs.RCUStateNone)
 			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.ViperConfig, &cfg.OptimizationInput{
 				BucketType: bucketTypeEnum,
 			})

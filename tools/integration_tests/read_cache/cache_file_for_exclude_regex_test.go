@@ -109,7 +109,7 @@ func TestCacheFileForExcludeRegexTest(t *testing.T) {
 			"--log-severity=TRACE",
 			"--enable-kernel-reader=false",
 		}
-		if setup.IsPirloBucketRun() {
+		if setup.IsRcuBucketRun() {
 			flagsSet = append(flagsSet, baseFlags)
 		} else {
 			f2 := append([]string{"--client-protocol=grpc"}, baseFlags...)

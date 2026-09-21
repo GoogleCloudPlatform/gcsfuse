@@ -41,7 +41,7 @@ func (t *SingleMountReadsTestSuite) runAppendAndReadTest(verifyFunc readAndVerif
 	for i := range numAppends {
 		// Wait for a minute for stat to return the correct file size, which is needed by appendToFile.
 		if i > 0 {
-			operations.WaitForSizeUpdate(setup.IsZonalBucketRun() || setup.IsPirloBucketRun(), operations.WaitDurationAfterFlushRapid)
+			operations.WaitForSizeUpdate(setup.IsZonalBucketRun() || setup.IsRcuBucketRun(), operations.WaitDurationAfterFlushRapid)
 		}
 
 		t.appendToFile(appendFileHandle, setup.GenerateRandomString(appendSize))
