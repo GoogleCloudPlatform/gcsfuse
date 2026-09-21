@@ -480,6 +480,7 @@ func (b *fastStatBucket) StatObject(
 		m = entry
 		return
 	} else if req.FetchOnlyFromCache {
+		// Cache Miss Handling
 		return nil, nil, &CacheMissError{
 			Err:         fmt.Errorf("cache miss for %q", req.Name),
 			EntryStatus: entryStatus,

@@ -669,14 +669,6 @@ func (d *dirInode) Bucket() *gcsx.SyncerBucket {
 const ConflictingFileNameSuffix = "\n"
 
 // LOCKS_REQUIRED(d.mu.RLock)
-func (d *dirInode) recordCacheMetric(hit bool, entryStatus metrics.EntryStatus, lookupDetail metrics.LookupDetail) {
-	if !metrics.IsMonitoringEnabled(d.metricHandle) {
-		return
-	}
-	d.metricHandle.MetadataCacheReadCount(1, hit, entryStatus, lookupDetail)
-}
-
-// LOCKS_REQUIRED(d.mu.RLock)
 func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) {
 	// Is this a conflict marker name?
 	if strings.HasSuffix(name, ConflictingFileNameSuffix) {
@@ -708,7 +700,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 		// If we found a directory, we're done. Return it now.
 		if dirResult != nil {
-			d.recordCacheMetric(true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr)
+			d.metricHandle.MetadataCacheReadCount(1, true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr)
 			return dirResult, nil
 		}
 
@@ -719,7 +711,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		}
 
 		if fileResult != nil {
-			d.recordCacheMetric(true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr)
+			d.metricHandle.MetadataCacheReadCount(1, true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr)
 			return fileResult, nil
 		}
 
@@ -728,7 +720,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		// conclude the entry does not exist. If only one candidate is a negative hit, the other
 		// candidate may still exist in GCS, so we must fall through and query GCS.
 		if dirErr == nil && fileErr == nil {
-			d.recordCacheMetric(true, metrics.EntryStatusNegativeAttr, metrics.LookupDetailFoundAttr)
+			d.metricHandle.MetadataCacheReadCount(1, true, metrics.EntryStatusNegativeAttr, metrics.LookupDetailFoundAttr)
 			return nil, nil
 		}
 
@@ -766,9 +758,9 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	// 5. Emit cache miss metric
 	if d.IsTypeCacheDeprecated() && d.metadataCacheTtlSecs != 0 {
 		if isExpired {
-			d.recordCacheMetric(false, expiredStatus, metrics.LookupDetailTtlExpiredAttr)
+			d.metricHandle.MetadataCacheReadCount(1, false, expiredStatus, metrics.LookupDetailTtlExpiredAttr)
 		} else {
-			d.recordCacheMetric(false, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr)
+			d.metricHandle.MetadataCacheReadCount(1, false, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr)
 		}
 	}
 
