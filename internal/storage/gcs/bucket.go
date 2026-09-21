@@ -22,32 +22,32 @@ import (
 	"cloud.google.com/go/storage"
 )
 
-type PirloState int
+type RCUState int
 
 const (
-	// PirloStateNone indicates the bucket is not a Pirlo bucket.
-	PirloStateNone PirloState = iota
-	// PirloStateRapidWritesEnabled indicates it is a Pirlo bucket with rapid writes enabled.
-	PirloStateRapidWritesEnabled
-	// PirloStateRapidWritesDisabled indicates it is a Pirlo bucket with rapid writes disabled.
-	PirloStateRapidWritesDisabled
+	// RCUStateNone indicates the bucket is not a Rapid Cache Ultra bucket.
+	RCUStateNone RCUState = iota
+	// RCUStateRapidWritesEnabled indicates it is a Rapid Cache Ultra bucket with rapid writes enabled.
+	RCUStateRapidWritesEnabled
+	// RCUStateRapidWritesDisabled indicates it is a Rapid Cache Ultra bucket with rapid writes disabled.
+	RCUStateRapidWritesDisabled
 )
 
 // BucketType represents bucket features.
 type BucketType struct {
 	Hierarchical bool
 	Zonal        bool
-	Pirlo        PirloState
+	RCU          RCUState
 }
 
 func (bt BucketType) IsRapid() bool {
-	return bt.Zonal || bt.Pirlo != PirloStateNone
+	return bt.Zonal || bt.RCU != RCUStateNone
 }
 
 // RapidWritesEnabled returns true if the bucket supports rapid writes
 // and they are currently active.
 func (bt BucketType) RapidWritesEnabled() bool {
-	return bt.Zonal || bt.Pirlo == PirloStateRapidWritesEnabled
+	return bt.Zonal || bt.RCU == RCUStateRapidWritesEnabled
 }
 
 const (

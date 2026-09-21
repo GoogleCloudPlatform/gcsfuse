@@ -246,7 +246,7 @@ func validateParam(param Param) error {
 
 	// Validate bucket-based optimizations if present.
 	if param.Optimizations != nil {
-		validBucketTypes := []string{"zonal", "hierarchical", "flat", "pirlo"}
+		validBucketTypes := []string{"zonal", "hierarchical", "flat", "rcu"}
 		seenBucketTypes := make(map[string]bool)
 		for _, bto := range param.Optimizations.BucketTypeOptimization {
 			if len(bto.BucketTypes) == 0 {

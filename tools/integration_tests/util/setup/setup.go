@@ -42,7 +42,7 @@ import (
 
 var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
 var isZonalBucketRun = flag.Bool("zonal", false, "Boolean flag to indicate if test-run should use a zonal bucket.")
-var isPirloBucketRun = flag.Bool("pirlo", false, "Boolean flag to indicate if test-run is for a Pirlo bucket.")
+var isRcuBucketRun = flag.Bool("rcu", false, "Boolean flag to indicate if test-run is for a Rapid Cache Ultra bucket.")
 
 // Note: testBucket and mountedDirectory can also be set via BUCKET_NAME and MOUNTED_DIR
 // environment variables respectively. However, command-line flags take precedence.
@@ -124,12 +124,12 @@ func SetIsZonalBucketRun(val bool) {
 	*isZonalBucketRun = val
 }
 
-func IsPirloBucketRun() bool {
-	return *isPirloBucketRun
+func IsRcuBucketRun() bool {
+	return *isRcuBucketRun
 }
 
-func SetIsPirloBucketRun(val bool) {
-	*isPirloBucketRun = val
+func SetIsRcuBucketRun(val bool) {
+	*isRcuBucketRun = val
 }
 
 func TestBucket() string {
@@ -580,8 +580,8 @@ func TestEnvironment(ctx context.Context, cfg *test_suite.TestConfig) string {
 const FlatBucket = "flat"
 const HNSBucket = "hns"
 const ZonalBucket = "zonal"
-const FlatPirloBucket = "flat_pirlo"
-const HNSPirloBucket = "hns_pirlo"
+const FlatRcuBucket = "flat_rcu"
+const HNSRcuBucket = "hns_rcu"
 
 func bucketType(ctx context.Context, testBucket string) (bType string, err error) {
 	// For only-dir mounts bucket name is passed as <test_bucket>/<only_dir> by GKE.
@@ -624,16 +624,16 @@ func bucketType(ctx context.Context, testBucket string) (bType string, err error
 	if attrs.LocationType == "zone" {
 		return ZonalBucket, nil
 	}
-	// TODO(b/483608308): Once GetStorageLayout starts returning Pirlo bucket type,
-	// update this logic to use the response instead of inferring from IsPirloBucketRun().
+	// TODO(b/483608308): Once GetStorageLayout starts returning Rapid Cache Ultra bucket type,
+	// update this logic to use the response instead of inferring from IsRcuBucketRun().
 	if attrs.HierarchicalNamespace != nil && attrs.HierarchicalNamespace.Enabled {
-		if IsPirloBucketRun() {
-			return HNSPirloBucket, nil
+		if IsRcuBucketRun() {
+			return HNSRcuBucket, nil
 		}
 		return HNSBucket, nil
 	}
-	if IsPirloBucketRun() {
-		return FlatPirloBucket, nil
+	if IsRcuBucketRun() {
+		return FlatRcuBucket, nil
 	}
 	return FlatBucket, nil
 }
@@ -647,10 +647,10 @@ type DualMountFlags struct {
 func isConfigCompatible(testConfig *test_suite.ConfigItem, bucketType string, testName string) bool {
 	isBucketCompatible := false
 	switch bucketType {
-	case FlatPirloBucket:
-		isBucketCompatible = testConfig.RunOnPirlo.Flat.SameZone || testConfig.RunOnPirlo.Flat.DifferentZone
-	case HNSPirloBucket:
-		isBucketCompatible = testConfig.RunOnPirlo.Hns.SameZone || testConfig.RunOnPirlo.Hns.DifferentZone
+	case FlatRcuBucket:
+		isBucketCompatible = testConfig.RunOnRcu.Flat.SameZone || testConfig.RunOnRcu.Flat.DifferentZone
+	case HNSRcuBucket:
+		isBucketCompatible = testConfig.RunOnRcu.Hns.SameZone || testConfig.RunOnRcu.Hns.DifferentZone
 	default:
 		var ok bool
 		isBucketCompatible, ok = testConfig.Compatible[bucketType]

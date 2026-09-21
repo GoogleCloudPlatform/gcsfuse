@@ -79,10 +79,10 @@ func TestZonalFileCacheReaderTestSuite(t *testing.T) {
 	suite.Run(t, zonalBucketFileCacheReaderTestSuite)
 }
 
-func TestPirloFileCacheReaderTestSuite(t *testing.T) {
-	pirloBucketFileCacheReaderTestSuite := &fileCacheReaderTest{
-		bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled}}
-	suite.Run(t, pirloBucketFileCacheReaderTestSuite)
+func TestRCUFileCacheReaderTestSuite(t *testing.T) {
+	rcuBucketFileCacheReaderTestSuite := &fileCacheReaderTest{
+		bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled}}
+	suite.Run(t, rcuBucketFileCacheReaderTestSuite)
 }
 
 func (t *fileCacheReaderTest) SetupTest() {

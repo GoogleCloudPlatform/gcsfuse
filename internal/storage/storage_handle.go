@@ -394,20 +394,20 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 
 	logger.Infof("GetStorageLayout -> (%s, prefix: %q) %v msec", bucketName, prefix, duration.Milliseconds())
 
-	pirloState := gcs.PirloStateNone
-	isPirloBucket := storageLayout.GetRapidCacheInfo() != nil && storageLayout.GetRapidCacheInfo().GetCacheType() == rapidCacheUltraType
-	if isPirloBucket {
+	rcuState := gcs.RCUStateNone
+	isRCUBucket := storageLayout.GetRapidCacheInfo() != nil && storageLayout.GetRapidCacheInfo().GetCacheType() == rapidCacheUltraType
+	if isRCUBucket {
 		if sh.clientConfig.WriteConfig != nil && sh.clientConfig.WriteConfig.EnableRapidWrites {
-			pirloState = gcs.PirloStateRapidWritesEnabled
+			rcuState = gcs.RCUStateRapidWritesEnabled
 		} else {
-			pirloState = gcs.PirloStateRapidWritesDisabled
+			rcuState = gcs.RCUStateRapidWritesDisabled
 		}
 	}
 
 	return &gcs.BucketType{
 		Hierarchical: storageLayout.GetHierarchicalNamespace().GetEnabled(),
 		Zonal:        storageLayout.GetLocationType() == zonalLocationType,
-		Pirlo:        pirloState,
+		RCU:          rcuState,
 	}, nil
 }
 

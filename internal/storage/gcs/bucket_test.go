@@ -24,31 +24,31 @@ func TestBucketType_IsRapid(t *testing.T) {
 	testCases := []struct {
 		name     string
 		zonal    bool
-		pirlo    PirloState
+		rcu      RCUState
 		expected bool
 	}{
 		{
-			name:     "Neither Zonal nor Pirlo",
+			name:     "Neither Zonal nor Rapid Cache Ultra",
 			zonal:    false,
-			pirlo:    PirloStateNone,
+			rcu:      RCUStateNone,
 			expected: false,
 		},
 		{
 			name:     "Only Zonal is true",
 			zonal:    true,
-			pirlo:    PirloStateNone,
+			rcu:      RCUStateNone,
 			expected: true,
 		},
 		{
-			name:     "Pirlo Rapid Enabled",
+			name:     "Rapid Cache Ultra, Rapid Writes Enabled",
 			zonal:    false,
-			pirlo:    PirloStateRapidWritesEnabled,
+			rcu:      RCUStateRapidWritesEnabled,
 			expected: true,
 		},
 		{
-			name:     "Pirlo Rapid Disabled",
+			name:     "Rapid Cache Ultra, Rapid Writes Disabled",
 			zonal:    false,
-			pirlo:    PirloStateRapidWritesDisabled,
+			rcu:      RCUStateRapidWritesDisabled,
 			expected: true,
 		},
 	}
@@ -56,7 +56,7 @@ func TestBucketType_IsRapid(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			bt := BucketType{
 				Zonal: tc.zonal,
-				Pirlo: tc.pirlo,
+				RCU:   tc.rcu,
 			}
 
 			assert.Equal(t, tc.expected, bt.IsRapid())
@@ -68,31 +68,31 @@ func TestBucketType_RapidWritesEnabled(t *testing.T) {
 	testCases := []struct {
 		name     string
 		zonal    bool
-		pirlo    PirloState
+		rcu      RCUState
 		expected bool
 	}{
 		{
-			name:     "Neither Zonal nor Pirlo",
+			name:     "Neither Zonal nor Rapid Cache Ultra",
 			zonal:    false,
-			pirlo:    PirloStateNone,
+			rcu:      RCUStateNone,
 			expected: false,
 		},
 		{
 			name:     "Only Zonal is true",
 			zonal:    true,
-			pirlo:    PirloStateNone,
+			rcu:      RCUStateNone,
 			expected: true,
 		},
 		{
-			name:     "Pirlo Rapid Enabled",
+			name:     "Rapid Cache Ultra, Rapid Writes Enabled",
 			zonal:    false,
-			pirlo:    PirloStateRapidWritesEnabled,
+			rcu:      RCUStateRapidWritesEnabled,
 			expected: true,
 		},
 		{
-			name:     "Pirlo Rapid Disabled",
+			name:     "Rapid Cache Ultra, Rapid Writes Disabled",
 			zonal:    false,
-			pirlo:    PirloStateRapidWritesDisabled,
+			rcu:      RCUStateRapidWritesDisabled,
 			expected: false,
 		},
 	}
@@ -100,7 +100,7 @@ func TestBucketType_RapidWritesEnabled(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			bt := BucketType{
 				Zonal: tc.zonal,
-				Pirlo: tc.pirlo,
+				RCU:   tc.rcu,
 			}
 
 			assert.Equal(t, tc.expected, bt.RapidWritesEnabled())

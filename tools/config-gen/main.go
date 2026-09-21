@@ -24,6 +24,7 @@ import (
 	"path"
 	"reflect"
 	"slices"
+	"strings"
 	"text/template" // NOLINT
 	"unicode"
 
@@ -80,7 +81,12 @@ func write(dataObj any, outputFile, templateFile string) (err error) {
 	// Define the custom function map.
 	funcMap := template.FuncMap{
 		"formatValue": formatValue,
-		"title":       cases.Title(language.English).String,
+		"title": func(s string) string {
+			if strings.EqualFold(s, "rcu") {
+				return "RCU"
+			}
+			return cases.Title(language.English).String(s)
+		},
 	}
 
 	file := path.Base(templateFile)

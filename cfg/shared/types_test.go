@@ -35,13 +35,13 @@ func TestBucketTypeListUnmarshalYAML(t *testing.T) {
 		},
 		{
 			name:     "Scalar string CSV",
-			yaml:     `bucket-type: "zonal, pirlo"`,
-			expected: BucketTypeList{"zonal", "pirlo"},
+			yaml:     `bucket-type: "zonal, rcu"`,
+			expected: BucketTypeList{"zonal", "rcu"},
 		},
 		{
 			name:     "Scalar string CSV with spaces",
-			yaml:     `bucket-type: " zonal , pirlo , flat "`,
-			expected: BucketTypeList{"zonal", "pirlo", "flat"},
+			yaml:     `bucket-type: " zonal , rcu , flat "`,
+			expected: BucketTypeList{"zonal", "rcu", "flat"},
 		},
 	}
 
@@ -63,7 +63,7 @@ func TestBucketTypeListUnmarshalYAMLErrors(t *testing.T) {
 	}{
 		{
 			name:                   "Sequence of strings not allowed",
-			yaml:                   `bucket-type: ["zonal", "pirlo"]`,
+			yaml:                   `bucket-type: ["zonal", "rcu"]`,
 			expectedErrorSubstring: "bucket-type must be a string",
 		},
 		{

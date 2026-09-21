@@ -653,14 +653,14 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 			expectedAppend:       true,
 		},
 		{
-			name:                 "PirloBucket_RapidEnabled",
-			bucketType:           gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			name:                 "RCUBucket_RapidEnabled",
+			bucketType:           gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
 			finalizeFileForRapid: true,
 			expectedAppend:       true,
 		},
 		{
-			name:                 "PirloBucket_RapidDisabled",
-			bucketType:           gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
+			name:                 "RCUBucket_RapidDisabled",
+			bucketType:           gcs.BucketType{RCU: gcs.RCUStateRapidWritesDisabled},
 			finalizeFileForRapid: false,
 			expectedAppend:       false,
 		},
@@ -695,7 +695,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 	}{
 		{
 			name:                        "StandardBucket",
-			bucketType:                  gcs.BucketType{Pirlo: gcs.PirloStateNone},
+			bucketType:                  gcs.BucketType{RCU: gcs.RCUStateNone},
 			initialStorageClass:         "",
 			expectedWriterStorageClass:  "",
 			expectedCreatedStorageClass: "STANDARD",
@@ -703,7 +703,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 		},
 		{
 			name:                        "StandardBucket_InheritsStorageClass",
-			bucketType:                  gcs.BucketType{Pirlo: gcs.PirloStateNone},
+			bucketType:                  gcs.BucketType{RCU: gcs.RCUStateNone},
 			initialStorageClass:         "COLDLINE",
 			expectedWriterStorageClass:  "COLDLINE",
 			expectedCreatedStorageClass: "COLDLINE",
@@ -717,15 +717,15 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 			canTestCreateObject:        false, // Fails on HTTP append.
 		},
 		{
-			name:                       "PirloBucket_RapidEnabled",
-			bucketType:                 gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			name:                       "RCUBucket_RapidEnabled",
+			bucketType:                 gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
 			initialStorageClass:        "STANDARD", // Simulate inheriting from standard source
 			expectedWriterStorageClass: storageClassRapid,
 			canTestCreateObject:        false, // Fails on HTTP append.
 		},
 		{
-			name:                        "PirloBucket_RapidDisabled",
-			bucketType:                  gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
+			name:                        "RCUBucket_RapidDisabled",
+			bucketType:                  gcs.BucketType{RCU: gcs.RCUStateRapidWritesDisabled},
 			initialStorageClass:         storageClassRapid, // Simulate inheriting from rapid source
 			expectedWriterStorageClass:  "",
 			expectedCreatedStorageClass: "STANDARD",
