@@ -726,8 +726,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		}
 
 		// 3. Negative entry check:
-		// If either candidate is a negative hit, return nil to indicate the entry does not exist from cache.
-		if dirErr == nil || fileErr == nil {
+		// Both lookups must be cache hits (no cacheMiss errors) with no results found for us to
+		// conclude the entry does not exist. If only one candidate is a negative hit, the other
+		// candidate may still exist in GCS, so we must fall through and query GCS.
+		if dirErr == nil && fileErr == nil {
 			d.recordCacheMetric(true, metrics.EntryStatusNegativeAttr, metrics.LookupDetailFoundAttr)
 			return nil, nil
 		}
