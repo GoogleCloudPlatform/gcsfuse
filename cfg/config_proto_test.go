@@ -151,10 +151,6 @@ func TestToProto_AllDataTypes(t *testing.T) {
 				encoded, err := tc.config.SerializeConfigToProtoBase64()
 
 				require.NoError(t, err)
-				if proto.Equal(tc.expected, &pb.Config{}) {
-					assert.Empty(t, encoded)
-					return
-				}
 				// Asserts RFC 4648 URL-safe Base64 without padding (strictly [A-Za-z0-9_-]).
 				assert.Regexp(t, `^[A-Za-z0-9_-]+$`, encoded)
 			})

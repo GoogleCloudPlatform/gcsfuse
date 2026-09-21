@@ -40,16 +40,21 @@ func (config *Config) ToProto() *pb.Config {
 }
 
 // SerializeConfigToProtoBase64 maps the given Config to its flat Protobuf representation,
-// marshals it using proto3 binary encoding, and encodes it into URL-safe Base64 without padding.
+// wraps it in a UserAgentConfig envelope, marshals it using proto3
+// binary encoding, and encodes it into URL-safe Base64 without padding.
 func (config *Config) SerializeConfigToProtoBase64() (string, error) {
 	if config == nil {
 		return "", nil
 	}
 
 	protoConfig := config.ToProto()
-	data, err := proto.Marshal(protoConfig)
+	userAgentConfig := &pb.UserAgentConfig{
+		Config: protoConfig,
+	}
+
+	data, err := proto.Marshal(userAgentConfig)
 	if err != nil {
-		return "", fmt.Errorf("marshaling config proto: %w", err)
+		return "", fmt.Errorf("marshaling user agent config proto: %w", err)
 	}
 
 	return base64.RawURLEncoding.EncodeToString(data), nil

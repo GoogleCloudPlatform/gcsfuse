@@ -21,6 +21,10 @@ package gcsfuse.cfg.v1;
 
 option go_package = "github.com/googlecloudplatform/gcsfuse/v3/cfg/pb";
 
+message UserAgentConfig {
+  Config config = 1;
+}
+
 message Config {
 {{- if .ReservedTags}}
   reserved {{.ReservedTags}};
