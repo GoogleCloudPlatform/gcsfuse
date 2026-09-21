@@ -79,7 +79,6 @@ func (config *Config) ToProto() *pb.Config {
 		FileSystemDisableParallelDirops:                       config.FileSystem.DisableParallelDirops,
 		FileSystemEnableKernelReader:                          config.FileSystem.EnableKernelReader,
 		FileSystemExperimentalEnableDentryCache:               config.FileSystem.ExperimentalEnableDentryCache,
-		FileSystemExperimentalEnablePirlo:                     config.FileSystem.ExperimentalEnablePirlo,
 		FileSystemExperimentalEnableReaddirplus:               config.FileSystem.ExperimentalEnableReaddirplus,
 		FileSystemExperimentalODirect:                         config.FileSystem.ExperimentalODirect,
 		FileSystemFileMode:                                    int32(config.FileSystem.FileMode),
@@ -191,6 +190,7 @@ func (config *Config) ToProto() *pb.Config {
 		WriteFinalizeFileForRapid:                             config.Write.FinalizeFileForRapid,
 		WriteGlobalMaxBlocks:                                  config.Write.GlobalMaxBlocks,
 		WriteMaxBlocksPerFile:                                 config.Write.MaxBlocksPerFile,
+		GcsConnectionEnableGrpcByDefault:                      config.GcsConnection.EnableGrpcByDefault,
 	}
 }
 
