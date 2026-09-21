@@ -396,19 +396,19 @@ func (d *dirInode) checkInvariants() {
 }
 
 func (d *dirInode) lookUpChildFile(ctx context.Context, name string) (*Core, error) {
-	return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false, d.IsTypeCacheDeprecated())
+	return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
 }
 
 func (d *dirInode) lookUpChildDir(ctx context.Context, name string) (*Core, error) {
 	childName := NewDirName(d.Name(), name)
 	if d.isBucketHierarchical() {
-		return findExplicitFolder(ctx, d.Bucket(), childName, false, d.IsTypeCacheDeprecated())
+		return findExplicitFolder(ctx, d.Bucket(), childName, false)
 	}
 
 	if d.implicitDirs {
 		return findDirInode(ctx, d.Bucket(), childName)
 	}
-	return findExplicitInode(ctx, d.Bucket(), childName, false, d.IsTypeCacheDeprecated())
+	return findExplicitInode(ctx, d.Bucket(), childName, false)
 }
 
 // Look up the file for a (file, dir) pair with conflicting names, overriding
@@ -442,12 +442,11 @@ func (d *dirInode) lookUpConflicting(ctx context.Context, name string) (*Core, e
 
 // findExplicitInode finds the file or dir inode core backed by an explicit
 // object in GCS with the given name. Return nil if such object does not exist.
-func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, fetchOnlyFromCache bool, forceFetchFromGcs bool) (*Core, error) {
+func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, fetchOnlyFromCache bool) (*Core, error) {
 	// Call the bucket.
 	req := &gcs.StatObjectRequest{
 		Name:               name.GcsObjectName(),
 		FetchOnlyFromCache: fetchOnlyFromCache,
-		ForceFetchFromGcs:  forceFetchFromGcs,
 	}
 
 	m, _, err := bucket.StatObject(ctx, req)
@@ -477,12 +476,11 @@ func findExplicitInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name
 	}, nil
 }
 
-func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, fetchOnlyFromCache bool, forceFetchFromGcs bool) (*Core, error) {
+func findExplicitFolder(ctx context.Context, bucket *gcsx.SyncerBucket, name Name, fetchOnlyFromCache bool) (*Core, error) {
 	// Call the bucket.
 	req := &gcs.GetFolderRequest{
 		Name:               name.GcsObjectName(),
 		FetchOnlyFromCache: fetchOnlyFromCache,
-		ForceFetchFromGcs:  forceFetchFromGcs,
 	}
 	folder, err := bucket.GetFolder(ctx, req)
 
@@ -698,9 +696,9 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		var dirResult *Core
 		var dirErr error
 		if d.Bucket().BucketType().Hierarchical {
-			dirResult, dirErr = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true, false)
+			dirResult, dirErr = findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
 		} else {
-			dirResult, dirErr = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true, false)
+			dirResult, dirErr = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), true)
 		}
 
 		// If we hit a real error (not a cache miss), exit early.
@@ -715,7 +713,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		}
 
 		// 2. Try File ONLY if directory wasn't found
-		fileResult, fileErr := findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true, false)
+		fileResult, fileErr := findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), true)
 		if fileErr != nil && !errors.As(fileErr, &cacheMissErr) {
 			return nil, fileErr
 		}
@@ -793,12 +791,12 @@ func (d *dirInode) fetchCoreEntity(ctx context.Context, name string, cachedType 
 
 	case metadata.ExplicitDirType:
 		if d.isBucketHierarchical() {
-			return findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), false, false)
+			return findExplicitFolder(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
 		}
-		return findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), false, false)
+		return findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
 
 	case metadata.RegularFileType, metadata.SymlinkType:
-		return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false, false)
+		return findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
 
 	case metadata.UnknownType:
 		return d.lookUpUnknownType(ctx, name)
@@ -825,7 +823,7 @@ func (d *dirInode) lookUpUnknownType(ctx context.Context, name string) (*Core, e
 	var dirResult *Core
 
 	group.Go(func() (err error) {
-		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false, d.IsTypeCacheDeprecated())
+		fileResult, err = findExplicitInode(ctx, d.Bucket(), NewFileName(d.Name(), name), false)
 		return err
 	})
 
@@ -836,7 +834,7 @@ func (d *dirInode) lookUpUnknownType(ctx context.Context, name string) (*Core, e
 		})
 	} else {
 		group.Go(func() (err error) {
-			dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), false, d.IsTypeCacheDeprecated())
+			dirResult, err = findExplicitInode(ctx, d.Bucket(), NewDirName(d.Name(), name), false)
 			return err
 		})
 	}
@@ -863,12 +861,12 @@ func (d *dirInode) lookUpHNSRace(ctx context.Context, name string) (*Core, error
 	ch := make(chan raceResult, 2)
 
 	go func() {
-		res, err := findExplicitInode(raceCtx, d.Bucket(), NewFileName(d.Name(), name), false, d.IsTypeCacheDeprecated())
+		res, err := findExplicitInode(raceCtx, d.Bucket(), NewFileName(d.Name(), name), false)
 		ch <- raceResult{core: res, err: err}
 	}()
 
 	go func() {
-		res, err := findExplicitFolder(raceCtx, d.Bucket(), NewDirName(d.Name(), name), false, d.IsTypeCacheDeprecated())
+		res, err := findExplicitFolder(raceCtx, d.Bucket(), NewDirName(d.Name(), name), false)
 		ch <- raceResult{core: res, err: err}
 	}()
 
