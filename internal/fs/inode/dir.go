@@ -638,6 +638,7 @@ func (d *dirInode) CancelCurrDirPrefetcher() {
 	if d.prefetcher != nil {
 		d.prefetcher.Cancel()
 	}
+	return
 }
 
 // UpdateSize is a no-op for implicit directories. These directories are not
