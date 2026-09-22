@@ -20,7 +20,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 )
 
-// CacheOutcome records how the metadata cache answered a single child lookup.
+// CacheOutcome records how the metadata cache answered a child lookup operation.
 //
 // It is carried on the context rather than returned from LookUpChild so that
 // the emission point can live at the file-system layer, where there is exactly
@@ -49,11 +49,12 @@ func WithCacheOutcome(ctx context.Context) (context.Context, *CacheOutcome) {
 // recordCacheOutcome stores how the cache answered on the outcome installed by
 // WithCacheOutcome.
 //
-// Only the first call has any effect. lookUpOrCreateChildInode may run
-// LookUpChild up to three times when it races with a concurrent generation
-// bump, and the first result is the one describing the cache state the
-// operation actually encountered; later probes observe a cache that the retry
-// itself has already warmed.
+// If retries occur in lookUpOrCreateChildInode:
+// - A cache miss means a GCS network call was made. A miss always trumps a hit
+//   so that any operation requiring a GCS call is classified as a cache miss
+//   overall.
+// - Subsequent hits that merely observe an entry warmed by an earlier miss will
+//   not overwrite the miss.
 //
 // This is a no-op when the context carries no outcome, which is the case for
 // unit tests that drive LookUpChild directly.
@@ -63,7 +64,13 @@ func WithCacheOutcome(ctx context.Context) (context.Context, *CacheOutcome) {
 // lookUpUnknownType spawns.
 func recordCacheOutcome(ctx context.Context, cacheHit bool, entryStatus metrics.EntryStatus, lookupDetail metrics.LookupDetail) {
 	outcome, ok := ctx.Value(cacheOutcomeKey{}).(*CacheOutcome)
-	if !ok || outcome.Recorded {
+	if !ok {
+		return
+	}
+
+	// If we already recorded a Miss in an earlier attempt, a GCS call was made.
+	// That Miss trumps any subsequent Hit (which was only warm because of the prior miss).
+	if outcome.Recorded && !outcome.CacheHit && cacheHit {
 		return
 	}
 
