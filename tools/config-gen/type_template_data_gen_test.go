@@ -24,58 +24,117 @@ import (
 )
 
 func TestComputeProtoFields(t *testing.T) {
+	testCases := []struct {
+		param             Param
+		expectedFieldName string
+		expectedTag       int
+		expectedType      string
+		isSkipped         bool
+	}{
+		{
+			param: Param{
+				FlagName:       "app-name",
+				ConfigPath:     "app-name",
+				ProtoType:      "bool",
+				ProtoFieldName: "is_app_name_set",
+				ProtoTag:       1,
+			},
+			expectedFieldName: "is_app_name_set",
+			expectedTag:       1,
+			expectedType:      "bool",
+		},
+		{
+			param: Param{
+				FlagName:       "cache-dir",
+				ConfigPath:     "cache-dir",
+				ProtoType:      "bool",
+				ProtoFieldName: "is_cache_dir_set",
+				ProtoTag:       2,
+			},
+			expectedFieldName: "is_cache_dir_set",
+			expectedTag:       2,
+			expectedType:      "bool",
+		},
+		{
+			param: Param{
+				FlagName:       "file-cache-max-size-mb",
+				ConfigPath:     "file-cache.max-size-mb",
+				ProtoType:      "sint64",
+				ProtoFieldName: "file_cache_max_size_mb",
+				ProtoTag:       3,
+			},
+			expectedFieldName: "file_cache_max_size_mb",
+			expectedTag:       3,
+			expectedType:      "sint64",
+		},
+		{
+			param: Param{
+				FlagName:       "deprecated-cli-flag",
+				ConfigPath:     "",
+				ProtoType:      "bool",
+				ProtoFieldName: "is_deprecated_cli_flag_set",
+				ProtoTag:       0,
+			},
+			isSkipped: true,
+		},
+	}
 	params := []Param{
-		{
-			FlagName:       "file-cache-max-size-mb",
-			ConfigPath:     "file-cache.max-size-mb",
-			ProtoType:      "sint64",
-			ProtoFieldName: "file_cache_max_size_mb",
-			ProtoTag:       3,
-		},
-		{
-			FlagName:       "app-name",
-			ConfigPath:     "app-name",
-			ProtoType:      "bool",
-			ProtoFieldName: "is_app_name_set",
-			ProtoTag:       1,
-		},
-		{
-			FlagName:       "cache-dir",
-			ConfigPath:     "cache-dir",
-			ProtoType:      "bool",
-			ProtoFieldName: "is_cache_dir_set",
-			ProtoTag:       2,
-		},
-		{
-			FlagName:       "deprecated-cli-flag",
-			ConfigPath:     "",
-			ProtoType:      "bool",
-			ProtoFieldName: "is_deprecated_cli_flag_set",
-			ProtoTag:       0,
-		},
+		testCases[2].param,
+		testCases[0].param,
+		testCases[1].param,
+		testCases[3].param,
 	}
 
 	protoFields := computeProtoFields(params)
 
 	require.Len(t, protoFields, 3)
-	assert.Equal(t, "is_app_name_set", protoFields[0].ProtoFieldName)
-	assert.Equal(t, 1, protoFields[0].ProtoTag)
-	assert.Equal(t, "bool", protoFields[0].ProtoType)
-
-	assert.Equal(t, "is_cache_dir_set", protoFields[1].ProtoFieldName)
-	assert.Equal(t, 2, protoFields[1].ProtoTag)
-	assert.Equal(t, "bool", protoFields[1].ProtoType)
-
-	assert.Equal(t, "file_cache_max_size_mb", protoFields[2].ProtoFieldName)
-	assert.Equal(t, 3, protoFields[2].ProtoTag)
-	assert.Equal(t, "sint64", protoFields[2].ProtoType)
+	fieldIdx := 0
+	for _, tc := range testCases {
+		if tc.isSkipped {
+			continue
+		}
+		assert.Equal(t, tc.expectedFieldName, protoFields[fieldIdx].ProtoFieldName)
+		assert.Equal(t, tc.expectedTag, protoFields[fieldIdx].ProtoTag)
+		assert.Equal(t, tc.expectedType, protoFields[fieldIdx].ProtoType)
+		fieldIdx++
+	}
 }
 
 func TestFormatReservedTags(t *testing.T) {
-	assert.Equal(t, "", formatReservedTags(nil))
-	assert.Equal(t, "", formatReservedTags([]int{}))
-	assert.Equal(t, "4", formatReservedTags([]int{4}))
-	assert.Equal(t, "4, 10, 28", formatReservedTags([]int{28, 4, 10}))
+	testCases := []struct {
+		name     string
+		tags     []int
+		expected string
+	}{
+		{
+			name:     "NilSlice",
+			tags:     nil,
+			expected: "",
+		},
+		{
+			name:     "EmptySlice",
+			tags:     []int{},
+			expected: "",
+		},
+		{
+			name:     "SingleTag",
+			tags:     []int{4},
+			expected: "4",
+		},
+		{
+			name:     "MultipleUnsortedTags",
+			tags:     []int{28, 4, 10},
+			expected: "4, 10, 28",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := formatReservedTags(tc.tags)
+
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
 }
 
 func TestConstructTypeTemplateData(t *testing.T) {
@@ -98,8 +157,8 @@ func TestConstructTypeTemplateData(t *testing.T) {
 	}
 
 	ttd, err := constructTypeTemplateData(params)
-	require.NoError(t, err)
 
+	require.NoError(t, err)
 	var configMsg, fileCacheMsg, loggingMsg typeTemplateData
 	for _, msg := range ttd {
 		switch msg.TypeName {
@@ -111,119 +170,153 @@ func TestConstructTypeTemplateData(t *testing.T) {
 			loggingMsg = msg
 		}
 	}
-
 	assert.Equal(t, "Config", configMsg.TypeName)
 	require.Len(t, configMsg.Fields, 3)
 	assert.Equal(t, "AppName", configMsg.Fields[0].FieldName)
 	assert.Equal(t, "FileCache", configMsg.Fields[1].FieldName)
 	assert.Equal(t, "Logging", configMsg.Fields[2].FieldName)
-
 	assert.Equal(t, "FileCacheConfig", fileCacheMsg.TypeName)
 	require.Len(t, fileCacheMsg.Fields, 1)
 	assert.Equal(t, "MaxSizeMb", fileCacheMsg.Fields[0].FieldName)
-
 	assert.Equal(t, "LoggingConfig", loggingMsg.TypeName)
 	require.Len(t, loggingMsg.Fields, 1)
 	assert.Equal(t, "Severity", loggingMsg.Fields[0].FieldName)
 }
 
 func TestComputeProtoMappings(t *testing.T) {
+	testCases := []struct {
+		param                  Param
+		expectedProtoFieldName string
+		expectedGoExpression   string
+		expectedProtoTag       int
+		isSkipped              bool
+	}{
+		{
+			param: Param{
+				FlagName:       "app-name",
+				ConfigPath:     "app-name",
+				Type:           "string",
+				ProtoType:      "bool",
+				ProtoFieldName: "is_app_name_set",
+				ProtoTag:       1,
+			},
+			expectedProtoFieldName: "IsAppNameSet",
+			expectedGoExpression:   `config.AppName != ""`,
+			expectedProtoTag:       1,
+		},
+		{
+			param: Param{
+				FlagName:       "cache-dir",
+				ConfigPath:     "cache-dir",
+				Type:           "resolvedPath",
+				ProtoType:      "bool",
+				ProtoFieldName: "is_cache_dir_set",
+				ProtoTag:       2,
+			},
+			expectedProtoFieldName: "IsCacheDirSet",
+			expectedGoExpression:   `string(config.CacheDir) != ""`,
+			expectedProtoTag:       2,
+		},
+		{
+			param: Param{
+				FlagName:       "file-cache-max-size-mb",
+				ConfigPath:     "file-cache.max-size-mb",
+				Type:           "int",
+				ProtoType:      "sint64",
+				ProtoFieldName: "file_cache_max_size_mb",
+				ProtoTag:       3,
+			},
+			expectedProtoFieldName: "FileCacheMaxSizeMb",
+			expectedGoExpression:   "config.FileCache.MaxSizeMb",
+			expectedProtoTag:       3,
+		},
+		{
+			param: Param{
+				FlagName:       "fuse-options",
+				ConfigPath:     "file-system.fuse-options",
+				Type:           "[]string",
+				ProtoType:      "bool",
+				ProtoFieldName: "is_file_system_fuse_options_set",
+				ProtoTag:       4,
+			},
+			expectedProtoFieldName: "IsFileSystemFuseOptionsSet",
+			expectedGoExpression:   "len(config.FileSystem.FuseOptions) > 0",
+			expectedProtoTag:       4,
+		},
+		{
+			param: Param{
+				FlagName:       "client-protocol",
+				ConfigPath:     "gcs-connection.client-protocol",
+				Type:           "protocol",
+				ProtoType:      "string",
+				ProtoFieldName: "gcs_connection_client_protocol",
+				ProtoTag:       5,
+			},
+			expectedProtoFieldName: "GcsConnectionClientProtocol",
+			expectedGoExpression:   "string(config.GcsConnection.ClientProtocol)",
+			expectedProtoTag:       5,
+		},
+		{
+			param: Param{
+				FlagName:       "machine-type",
+				ConfigPath:     "machine-type",
+				Type:           "string",
+				ProtoType:      "string",
+				ProtoFieldName: "machine_type",
+				ProtoTag:       6,
+			},
+			expectedProtoFieldName: "MachineType",
+			expectedGoExpression:   "string(config.MachineType)",
+			expectedProtoTag:       6,
+		},
+		{
+			param: Param{
+				FlagName:       "profile",
+				ConfigPath:     "profile",
+				Type:           "string",
+				ProtoType:      "string",
+				ProtoFieldName: "profile",
+				ProtoTag:       7,
+			},
+			expectedProtoFieldName: "Profile",
+			expectedGoExpression:   "string(config.Profile)",
+			expectedProtoTag:       7,
+		},
+		{
+			param: Param{
+				FlagName:       "deprecated-flag",
+				ConfigPath:     "",
+				Type:           "bool",
+				ProtoType:      "",
+				ProtoFieldName: "",
+				ProtoTag:       0,
+			},
+			isSkipped: true,
+		},
+	}
 	params := []Param{
-		{
-			FlagName:       "file-cache-max-size-mb",
-			ConfigPath:     "file-cache.max-size-mb",
-			Type:           "int",
-			ProtoType:      "sint64",
-			ProtoFieldName: "file_cache_max_size_mb",
-			ProtoTag:       3,
-		},
-		{
-			FlagName:       "app-name",
-			ConfigPath:     "app-name",
-			Type:           "string",
-			ProtoType:      "bool",
-			ProtoFieldName: "is_app_name_set",
-			ProtoTag:       1,
-		},
-		{
-			FlagName:       "cache-dir",
-			ConfigPath:     "cache-dir",
-			Type:           "resolvedPath",
-			ProtoType:      "bool",
-			ProtoFieldName: "is_cache_dir_set",
-			ProtoTag:       2,
-		},
-		{
-			FlagName:       "fuse-options",
-			ConfigPath:     "file-system.fuse-options",
-			Type:           "[]string",
-			ProtoType:      "bool",
-			ProtoFieldName: "is_file_system_fuse_options_set",
-			ProtoTag:       4,
-		},
-		{
-			FlagName:       "client-protocol",
-			ConfigPath:     "gcs-connection.client-protocol",
-			Type:           "protocol",
-			ProtoType:      "string",
-			ProtoFieldName: "gcs_connection_client_protocol",
-			ProtoTag:       5,
-		},
-		{
-			FlagName:       "machine-type",
-			ConfigPath:     "machine-type",
-			Type:           "string",
-			ProtoType:      "string",
-			ProtoFieldName: "machine_type",
-			ProtoTag:       6,
-		},
-		{
-			FlagName:       "profile",
-			ConfigPath:     "profile",
-			Type:           "string",
-			ProtoType:      "string",
-			ProtoFieldName: "profile",
-			ProtoTag:       7,
-		},
-		{
-			FlagName:       "deprecated-flag",
-			ConfigPath:     "",
-			Type:           "bool",
-			ProtoType:      "",
-			ProtoFieldName: "",
-			ProtoTag:       0,
-		},
+		testCases[2].param,
+		testCases[0].param,
+		testCases[1].param,
+		testCases[7].param,
+		testCases[3].param,
+		testCases[4].param,
+		testCases[5].param,
+		testCases[6].param,
 	}
 
 	mappings, err := computeProtoMappings(params)
+
 	require.NoError(t, err)
 	require.Len(t, mappings, 7)
-
-	assert.Equal(t, "IsAppNameSet", mappings[0].ProtoFieldName)
-	assert.Equal(t, `config.AppName != ""`, mappings[0].GoExpression)
-	assert.Equal(t, 1, mappings[0].ProtoTag)
-
-	assert.Equal(t, "IsCacheDirSet", mappings[1].ProtoFieldName)
-	assert.Equal(t, `string(config.CacheDir) != ""`, mappings[1].GoExpression)
-	assert.Equal(t, 2, mappings[1].ProtoTag)
-
-	assert.Equal(t, "FileCacheMaxSizeMb", mappings[2].ProtoFieldName)
-	assert.Equal(t, "config.FileCache.MaxSizeMb", mappings[2].GoExpression)
-	assert.Equal(t, 3, mappings[2].ProtoTag)
-
-	assert.Equal(t, "IsFileSystemFuseOptionsSet", mappings[3].ProtoFieldName)
-	assert.Equal(t, "len(config.FileSystem.FuseOptions) > 0", mappings[3].GoExpression)
-	assert.Equal(t, 4, mappings[3].ProtoTag)
-
-	assert.Equal(t, "GcsConnectionClientProtocol", mappings[4].ProtoFieldName)
-	assert.Equal(t, "string(config.GcsConnection.ClientProtocol)", mappings[4].GoExpression)
-	assert.Equal(t, 5, mappings[4].ProtoTag)
-
-	assert.Equal(t, "MachineType", mappings[5].ProtoFieldName)
-	assert.Equal(t, "string(config.MachineType)", mappings[5].GoExpression)
-	assert.Equal(t, 6, mappings[5].ProtoTag)
-
-	assert.Equal(t, "Profile", mappings[6].ProtoFieldName)
-	assert.Equal(t, "string(config.Profile)", mappings[6].GoExpression)
-	assert.Equal(t, 7, mappings[6].ProtoTag)
+	mappingIdx := 0
+	for _, tc := range testCases {
+		if tc.isSkipped {
+			continue
+		}
+		assert.Equal(t, tc.expectedProtoFieldName, mappings[mappingIdx].ProtoFieldName)
+		assert.Equal(t, tc.expectedGoExpression, mappings[mappingIdx].GoExpression)
+		assert.Equal(t, tc.expectedProtoTag, mappings[mappingIdx].ProtoTag)
+		mappingIdx++
+	}
 }
