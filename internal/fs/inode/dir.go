@@ -721,14 +721,21 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 			return nil, nil
 		}
 
-		// Track whether either probe was a TTL expiration
-		var missErr *caching.CacheMissError
-		if errors.As(fileErr, &missErr) && missErr.Detail == metrics.LookupDetailTtlExpiredAttr {
+		// Track whether either probe was a TTL expiration.
+		// A positive expiration trumps a negative expiration: if either candidate
+		// was positively cached and expired, the entity existed in cache.
+		var dirMissErr, fileMissErr *caching.CacheMissError
+		dirExpired := errors.As(dirErr, &dirMissErr) && dirMissErr.Detail == metrics.LookupDetailTtlExpiredAttr
+		fileExpired := errors.As(fileErr, &fileMissErr) && fileMissErr.Detail == metrics.LookupDetailTtlExpiredAttr
+
+		if dirExpired || fileExpired {
 			isExpired = true
-			expiredStatus = missErr.EntryStatus
-		} else if errors.As(dirErr, &missErr) && missErr.Detail == metrics.LookupDetailTtlExpiredAttr {
-			isExpired = true
-			expiredStatus = missErr.EntryStatus
+			if (dirExpired && dirMissErr.EntryStatus == metrics.EntryStatusPositiveAttr) ||
+				(fileExpired && fileMissErr.EntryStatus == metrics.EntryStatusPositiveAttr) {
+				expiredStatus = metrics.EntryStatusPositiveAttr
+			} else {
+				expiredStatus = metrics.EntryStatusNegativeAttr
+			}
 		}
 	}
 

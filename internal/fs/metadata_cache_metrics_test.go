@@ -605,4 +605,23 @@ func TestMetadataCache_EndToEndScenarios(t *testing.T) {
 		assert.Equal(t, uint32(0), getOp.Attributes.Nlink)
 		env.assertReads(ctx, t)
 	})
+
+	t.Run("Scenario 23: Directory Stat Cache TTL Expiration", func(t *testing.T) {
+		// Arrange
+		env := newMetadataCacheTestEnv(ctx, t)
+		env.putObject(ctx, t, "existing_dir/")
+		_, err := env.lookUp(ctx, fuseops.RootInodeID, "existing_dir")
+		require.NoError(t, err)
+		env.clock.AdvanceTime(env.ttl + 10*time.Second)
+
+		// Act
+		_, err = env.lookUp(ctx, fuseops.RootInodeID, "existing_dir")
+
+		// Assert
+		require.NoError(t, err)
+		env.assertReads(ctx, t,
+			wantRead{false, statusNone, detailNotFound, 1},
+			wantRead{false, statusPositive, detailTTLExpired, 1},
+		)
+	})
 }
