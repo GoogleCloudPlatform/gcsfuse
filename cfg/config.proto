@@ -21,7 +21,7 @@ package gcsfuse.cfg.v1;
 
 option go_package = "github.com/googlecloudplatform/gcsfuse/v3/cfg/pb";
 
-message UserAgentConfig {
+message ConfigPayload {
   Config config = 1;
 }
 

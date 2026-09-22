@@ -39,27 +39,27 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type UserAgentConfig struct {
+type ConfigPayload struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Config        *Config                `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UserAgentConfig) Reset() {
-	*x = UserAgentConfig{}
+func (x *ConfigPayload) Reset() {
+	*x = ConfigPayload{}
 	mi := &file_cfg_config_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UserAgentConfig) String() string {
+func (x *ConfigPayload) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UserAgentConfig) ProtoMessage() {}
+func (*ConfigPayload) ProtoMessage() {}
 
-func (x *UserAgentConfig) ProtoReflect() protoreflect.Message {
+func (x *ConfigPayload) ProtoReflect() protoreflect.Message {
 	mi := &file_cfg_config_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -71,12 +71,12 @@ func (x *UserAgentConfig) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UserAgentConfig.ProtoReflect.Descriptor instead.
-func (*UserAgentConfig) Descriptor() ([]byte, []int) {
+// Deprecated: Use ConfigPayload.ProtoReflect.Descriptor instead.
+func (*ConfigPayload) Descriptor() ([]byte, []int) {
 	return file_cfg_config_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *UserAgentConfig) GetConfig() *Config {
+func (x *ConfigPayload) GetConfig() *Config {
 	if x != nil {
 		return x.Config
 	}
@@ -1387,8 +1387,8 @@ var File_cfg_config_proto protoreflect.FileDescriptor
 
 const file_cfg_config_proto_rawDesc = "" +
 	"\n" +
-	"\x10cfg/config.proto\x12\x0egcsfuse.cfg.v1\"A\n" +
-	"\x0fUserAgentConfig\x12.\n" +
+	"\x10cfg/config.proto\x12\x0egcsfuse.cfg.v1\"?\n" +
+	"\rConfigPayload\x12.\n" +
 	"\x06config\x18\x01 \x01(\v2\x16.gcsfuse.cfg.v1.ConfigR\x06config\"\xebT\n" +
 	"\x06Config\x12%\n" +
 	"\x0fis_app_name_set\x18\x01 \x01(\bR\fisAppNameSet\x12'\n" +
@@ -1569,11 +1569,11 @@ func file_cfg_config_proto_rawDescGZIP() []byte {
 
 var file_cfg_config_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_cfg_config_proto_goTypes = []any{
-	(*UserAgentConfig)(nil), // 0: gcsfuse.cfg.v1.UserAgentConfig
-	(*Config)(nil),          // 1: gcsfuse.cfg.v1.Config
+	(*ConfigPayload)(nil), // 0: gcsfuse.cfg.v1.ConfigPayload
+	(*Config)(nil),        // 1: gcsfuse.cfg.v1.Config
 }
 var file_cfg_config_proto_depIdxs = []int32{
-	1, // 0: gcsfuse.cfg.v1.UserAgentConfig.config:type_name -> gcsfuse.cfg.v1.Config
+	1, // 0: gcsfuse.cfg.v1.ConfigPayload.config:type_name -> gcsfuse.cfg.v1.Config
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
