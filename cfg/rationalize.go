@@ -18,7 +18,6 @@ import (
 	"log"
 	"math"
 	"net/url"
-	"os"
 	"path"
 	"slices"
 	"strings"
@@ -189,24 +188,6 @@ func resolveKernelReadAhead(v *viper.Viper, c *Config) {
 	c.FileSystem.MaxReadAheadKb = max(c.FileSystem.MaxReadAheadKb, c.FileSystem.FuseMaxRequestSizeKb)
 }
 
-// resolveClientProtocol selects gRPC when client-protocol is not explicitly
-// set by the user and gRPC is enabled by default (via --enable-grpc-by-default
-// or GKE high-performance machine).
-func resolveClientProtocol(v *viper.Viper, c *Config) {
-	if v != nil && v.IsSet(ClientProtocolConfigKey) {
-		c.GcsConnection.EnableGrpcByDefault = false
-		return
-	}
-
-	isGKE := len(os.Args) > 0 && IsGKEEnvironment(os.Args[len(os.Args)-1])
-	isHighPerfMachine := machineTypeToGroupMap[c.MachineType] == "high-performance"
-
-	if c.GcsConnection.EnableGrpcByDefault || (isGKE && isHighPerfMachine) {
-		c.GcsConnection.EnableGrpcByDefault = true
-		c.GcsConnection.ClientProtocol = GRPC
-	}
-}
-
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	var err error
@@ -230,7 +211,6 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	resolveGCSRetriesConfig(&c.GcsRetries)
 	resolveOnlyDir(c)
 	resolveKernelReadAhead(v, c)
-	resolveClientProtocol(v, c)
 
 	return nil
 }

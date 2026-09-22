@@ -103,7 +103,7 @@ type StorageClientConfig struct {
 	WriteConfig *cfg.WriteConfig
 }
 
-func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
+func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource, clientProtocol cfg.Protocol) (httpClient *http.Client, err error) {
 	dialer := net.Dialer{}
 	if storageClientConfig.LocalSocketAddress != "" {
 		if err := ConfigureDialerWithLocalAddr(&dialer, storageClientConfig.LocalSocketAddress); err != nil {
@@ -116,7 +116,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
-	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
+	if clientProtocol == cfg.HTTP1 {
 		transport = &http.Transport{
 			DialContext:         dialer.DialContext,
 			Proxy:               http.ProxyFromEnvironment,
