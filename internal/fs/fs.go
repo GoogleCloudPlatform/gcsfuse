@@ -1169,13 +1169,12 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	ctx context.Context,
 	parent inode.DirInode,
 	childName string) (child inode.Inode, err error) {
-	// Emit exactly one metadata-cache event per lookup. The outcome is filled in
-	// by LookUpChild below; the retry loop may run it more than once, but only
-	// the first outcome is retained.
-	ctx, cacheOutcome := inode.WithCacheOutcome(ctx)
+	// Emit exactly one metadata-cache event per lookup. The outcome is recorded
+	// by LookUpChild below; if retries occur, a GCS miss trumps a subsequent hit.
+	ctx, outcome := inode.WithMetadataCacheOutcome(ctx)
 	defer func() {
-		if cacheOutcome.Recorded {
-			fs.metricHandle.MetadataCacheReadCount(1, cacheOutcome.CacheHit, cacheOutcome.EntryStatus, cacheOutcome.LookupDetail)
+		if outcome.Recorded {
+			fs.metricHandle.MetadataCacheReadCount(1, outcome.CacheHit, outcome.EntryStatus, outcome.LookupDetail)
 		}
 	}()
 

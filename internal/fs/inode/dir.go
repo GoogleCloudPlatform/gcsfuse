@@ -697,7 +697,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 		// If we found a directory, we're done. Return it now.
 		if dirResult != nil {
-			recordCacheOutcome(ctx, true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr)
+			recordMetadataCacheOutcome(ctx, true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr)
 			return dirResult, nil
 		}
 
@@ -708,7 +708,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		}
 
 		if fileResult != nil {
-			recordCacheOutcome(ctx, true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr)
+			recordMetadataCacheOutcome(ctx, true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr)
 			return fileResult, nil
 		}
 
@@ -717,7 +717,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		// conclude the entry does not exist. If only one candidate is a negative hit, the other
 		// candidate may still exist in GCS, so we must fall through and query GCS.
 		if dirErr == nil && fileErr == nil {
-			recordCacheOutcome(ctx, true, metrics.EntryStatusNegativeAttr, metrics.LookupDetailFoundAttr)
+			recordMetadataCacheOutcome(ctx, true, metrics.EntryStatusNegativeAttr, metrics.LookupDetailFoundAttr)
 			return nil, nil
 		}
 
@@ -755,9 +755,9 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	// 5. Emit cache miss metric
 	if d.IsTypeCacheDeprecated() && d.metadataCacheTtlSecs != 0 {
 		if isExpired {
-			recordCacheOutcome(ctx, false, expiredStatus, metrics.LookupDetailTtlExpiredAttr)
+			recordMetadataCacheOutcome(ctx, false, expiredStatus, metrics.LookupDetailTtlExpiredAttr)
 		} else {
-			recordCacheOutcome(ctx, false, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr)
+			recordMetadataCacheOutcome(ctx, false, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr)
 		}
 	}
 
