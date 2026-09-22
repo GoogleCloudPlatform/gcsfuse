@@ -27,9 +27,7 @@ func TestComputeProtoFields(t *testing.T) {
 	testCases := []struct {
 		param             Param
 		expectedFieldName string
-		expectedTag       int
 		expectedType      string
-		isSkipped         bool
 	}{
 		{
 			param: Param{
@@ -40,7 +38,6 @@ func TestComputeProtoFields(t *testing.T) {
 				ProtoTag:       1,
 			},
 			expectedFieldName: "is_app_name_set",
-			expectedTag:       1,
 			expectedType:      "bool",
 		},
 		{
@@ -52,7 +49,6 @@ func TestComputeProtoFields(t *testing.T) {
 				ProtoTag:       2,
 			},
 			expectedFieldName: "is_cache_dir_set",
-			expectedTag:       2,
 			expectedType:      "bool",
 		},
 		{
@@ -64,40 +60,36 @@ func TestComputeProtoFields(t *testing.T) {
 				ProtoTag:       3,
 			},
 			expectedFieldName: "file_cache_max_size_mb",
-			expectedTag:       3,
 			expectedType:      "sint64",
 		},
-		{
-			param: Param{
-				FlagName:       "deprecated-cli-flag",
-				ConfigPath:     "",
-				ProtoType:      "bool",
-				ProtoFieldName: "is_deprecated_cli_flag_set",
-				ProtoTag:       0,
-			},
-			isSkipped: true,
-		},
 	}
+
+	for _, tc := range testCases {
+		t.Run(tc.param.FlagName, func(t *testing.T) {
+			protoFields := computeProtoFields([]Param{tc.param})
+
+			require.Len(t, protoFields, 1)
+			assert.Equal(t, tc.expectedFieldName, protoFields[0].ProtoFieldName)
+			assert.Equal(t, tc.expectedType, protoFields[0].ProtoType)
+			assert.Equal(t, tc.param.ProtoTag, protoFields[0].ProtoTag)
+		})
+	}
+}
+
+func TestComputeProtoFields_DeprecatedParamSkipped(t *testing.T) {
 	params := []Param{
-		testCases[2].param,
-		testCases[0].param,
-		testCases[1].param,
-		testCases[3].param,
+		{
+			FlagName:       "deprecated-cli-flag",
+			ConfigPath:     "",
+			ProtoType:      "bool",
+			ProtoFieldName: "is_deprecated_cli_flag_set",
+			ProtoTag:       0,
+		},
 	}
 
 	protoFields := computeProtoFields(params)
 
-	require.Len(t, protoFields, 3)
-	fieldIdx := 0
-	for _, tc := range testCases {
-		if tc.isSkipped {
-			continue
-		}
-		assert.Equal(t, tc.expectedFieldName, protoFields[fieldIdx].ProtoFieldName)
-		assert.Equal(t, tc.expectedTag, protoFields[fieldIdx].ProtoTag)
-		assert.Equal(t, tc.expectedType, protoFields[fieldIdx].ProtoType)
-		fieldIdx++
-	}
+	assert.Empty(t, protoFields)
 }
 
 func TestFormatReservedTags(t *testing.T) {
@@ -188,8 +180,6 @@ func TestComputeProtoMappings(t *testing.T) {
 		param                  Param
 		expectedProtoFieldName string
 		expectedGoExpression   string
-		expectedProtoTag       int
-		isSkipped              bool
 	}{
 		{
 			param: Param{
@@ -202,7 +192,6 @@ func TestComputeProtoMappings(t *testing.T) {
 			},
 			expectedProtoFieldName: "IsAppNameSet",
 			expectedGoExpression:   `config.AppName != ""`,
-			expectedProtoTag:       1,
 		},
 		{
 			param: Param{
@@ -215,7 +204,6 @@ func TestComputeProtoMappings(t *testing.T) {
 			},
 			expectedProtoFieldName: "IsCacheDirSet",
 			expectedGoExpression:   `string(config.CacheDir) != ""`,
-			expectedProtoTag:       2,
 		},
 		{
 			param: Param{
@@ -228,7 +216,6 @@ func TestComputeProtoMappings(t *testing.T) {
 			},
 			expectedProtoFieldName: "FileCacheMaxSizeMb",
 			expectedGoExpression:   "config.FileCache.MaxSizeMb",
-			expectedProtoTag:       3,
 		},
 		{
 			param: Param{
@@ -241,7 +228,6 @@ func TestComputeProtoMappings(t *testing.T) {
 			},
 			expectedProtoFieldName: "IsFileSystemFuseOptionsSet",
 			expectedGoExpression:   "len(config.FileSystem.FuseOptions) > 0",
-			expectedProtoTag:       4,
 		},
 		{
 			param: Param{
@@ -254,7 +240,6 @@ func TestComputeProtoMappings(t *testing.T) {
 			},
 			expectedProtoFieldName: "GcsConnectionClientProtocol",
 			expectedGoExpression:   "string(config.GcsConnection.ClientProtocol)",
-			expectedProtoTag:       5,
 		},
 		{
 			param: Param{
@@ -267,7 +252,6 @@ func TestComputeProtoMappings(t *testing.T) {
 			},
 			expectedProtoFieldName: "MachineType",
 			expectedGoExpression:   "string(config.MachineType)",
-			expectedProtoTag:       6,
 		},
 		{
 			param: Param{
@@ -280,43 +264,36 @@ func TestComputeProtoMappings(t *testing.T) {
 			},
 			expectedProtoFieldName: "Profile",
 			expectedGoExpression:   "string(config.Profile)",
-			expectedProtoTag:       7,
-		},
-		{
-			param: Param{
-				FlagName:       "deprecated-flag",
-				ConfigPath:     "",
-				Type:           "bool",
-				ProtoType:      "",
-				ProtoFieldName: "",
-				ProtoTag:       0,
-			},
-			isSkipped: true,
 		},
 	}
+
+	for _, tc := range testCases {
+		t.Run(tc.param.FlagName, func(t *testing.T) {
+			mappings, err := computeProtoMappings([]Param{tc.param})
+
+			require.NoError(t, err)
+			require.Len(t, mappings, 1)
+			assert.Equal(t, tc.expectedProtoFieldName, mappings[0].ProtoFieldName)
+			assert.Equal(t, tc.expectedGoExpression, mappings[0].GoExpression)
+			assert.Equal(t, tc.param.ProtoTag, mappings[0].ProtoTag)
+		})
+	}
+}
+
+func TestComputeProtoMappings_DeprecatedParamSkipped(t *testing.T) {
 	params := []Param{
-		testCases[2].param,
-		testCases[0].param,
-		testCases[1].param,
-		testCases[7].param,
-		testCases[3].param,
-		testCases[4].param,
-		testCases[5].param,
-		testCases[6].param,
+		{
+			FlagName:       "deprecated-flag",
+			ConfigPath:     "",
+			Type:           "bool",
+			ProtoType:      "",
+			ProtoFieldName: "",
+			ProtoTag:       0,
+		},
 	}
 
 	mappings, err := computeProtoMappings(params)
 
 	require.NoError(t, err)
-	require.Len(t, mappings, 7)
-	mappingIdx := 0
-	for _, tc := range testCases {
-		if tc.isSkipped {
-			continue
-		}
-		assert.Equal(t, tc.expectedProtoFieldName, mappings[mappingIdx].ProtoFieldName)
-		assert.Equal(t, tc.expectedGoExpression, mappings[mappingIdx].GoExpression)
-		assert.Equal(t, tc.expectedProtoTag, mappings[mappingIdx].ProtoTag)
-		mappingIdx++
-	}
+	assert.Empty(t, mappings)
 }
