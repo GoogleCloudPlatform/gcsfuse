@@ -50,11 +50,11 @@ func WithCacheOutcome(ctx context.Context) (context.Context, *CacheOutcome) {
 // WithCacheOutcome.
 //
 // If retries occur in lookUpOrCreateChildInode:
-// - A cache miss means a GCS network call was made. A miss always trumps a hit
-//   so that any operation requiring a GCS call is classified as a cache miss
-//   overall.
-// - Subsequent hits that merely observe an entry warmed by an earlier miss will
-//   not overwrite the miss.
+//   - A cache miss means a GCS network call was made. A miss always trumps a hit
+//     so that any operation requiring a GCS call is classified as a cache miss
+//     overall.
+//   - Subsequent hits that merely observe an entry warmed by an earlier miss will
+//     not overwrite the miss.
 //
 // This is a no-op when the context carries no outcome, which is the case for
 // unit tests that drive LookUpChild directly.
