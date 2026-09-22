@@ -25,7 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/sync/semaphore"
 )
@@ -63,7 +62,6 @@ func newBenchmarkDirInode(b *testing.B, implicitDirs bool) *dirInode {
 		&clock,
 		semaphore.NewWeighted(10),
 		config,
-		metrics.NewNoopMetrics(),
 	)
 
 	return in.(*dirInode)

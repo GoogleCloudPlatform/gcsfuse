@@ -29,7 +29,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
@@ -117,7 +116,6 @@ func (t *hnsDirTest) resetDirInodeWithTypeCacheConfigs(implicitDirs, enableNonex
 		&t.fixedTime,
 		semaphore.NewWeighted(10),
 		t.config,
-		metrics.NewNoopMetrics(),
 	)
 
 	d := t.in.(*dirInode)
@@ -161,7 +159,6 @@ func (t *hnsDirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName str
 		&t.fixedTime,
 		semaphore.NewWeighted(10),
 		config,
-		metrics.NewNoopMetrics(),
 	)
 
 	return NewDirInode(
@@ -176,7 +173,6 @@ func (t *hnsDirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName str
 		&t.fixedTime,
 		semaphore.NewWeighted(10),
 		config,
-		metrics.NewNoopMetrics(),
 	)
 }
 
@@ -384,7 +380,6 @@ func (t *HNSDirTest) TestRenameFolderWithGivenName() {
 		&t.fixedTime,
 		semaphore.NewWeighted(10),
 		t.config,
-		metrics.NewNoopMetrics(),
 	)
 	folderName := path.Join(dirInodeName, dirName) + "/"
 	renameFolderName := path.Join(dirInodeName, renameDirName) + "/"
@@ -419,7 +414,6 @@ func (t *HNSDirTest) TestRenameFolderWithNonExistentSourceFolder() {
 		&t.fixedTime,
 		semaphore.NewWeighted(10),
 		t.config,
-		metrics.NewNoopMetrics(),
 	)
 	folderName := path.Join(dirInodeName, dirName) + "/"
 	renameFolderName := path.Join(dirInodeName, renameDirName) + "/"
@@ -825,7 +819,6 @@ func (t *NonHNSDirTest) TestDeleteChildDir_TypeCacheDeprecated() {
 				&t.fixedTime,
 				semaphore.NewWeighted(10),
 				t.config,
-				metrics.NewNoopMetrics(),
 			)
 			dirName := path.Join(dirInodeName, tc.name) + "/"
 			// Expectation: DeleteObject called with OnlyDeleteFromCache

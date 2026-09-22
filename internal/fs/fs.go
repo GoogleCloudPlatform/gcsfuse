@@ -427,7 +427,6 @@ func makeRootForBucket(
 		fs.cacheClock,
 		fs.globalMetadataPrefetchSem,
 		fs.newConfig,
-		fs.metricHandle,
 	)
 }
 
@@ -924,8 +923,7 @@ func (fs *fileSystem) createExplicitDirInode(inodeID fuseops.InodeID, ic inode.C
 		fs.mtimeClock,
 		fs.cacheClock,
 		fs.globalMetadataPrefetchSem,
-		fs.newConfig,
-		fs.metricHandle)
+		fs.newConfig)
 
 	return in
 }
@@ -959,7 +957,6 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			fs.cacheClock,
 			fs.globalMetadataPrefetchSem,
 			fs.newConfig,
-			fs.metricHandle,
 		)
 
 	case inode.IsSymlink(ic.MinObject):
@@ -1172,6 +1169,16 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	ctx context.Context,
 	parent inode.DirInode,
 	childName string) (child inode.Inode, err error) {
+	// Emit exactly one metadata-cache event per lookup. The outcome is filled in
+	// by LookUpChild below; the retry loop may run it more than once, but only
+	// the first outcome is retained.
+	ctx, cacheOutcome := inode.WithCacheOutcome(ctx)
+	defer func() {
+		if cacheOutcome.Recorded {
+			fs.metricHandle.MetadataCacheReadCount(1, cacheOutcome.CacheHit, cacheOutcome.EntryStatus, cacheOutcome.LookupDetail)
+		}
+	}()
+
 	// First check if the requested child is a localFileInode.
 	child, err = fs.lookUpLocalFileInode(parent, childName)
 	if err != nil {

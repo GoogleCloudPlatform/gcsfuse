@@ -135,7 +135,6 @@ func (t *DirTest) resetInodeWithTypeCacheConfigs(implicitDirs, enableNonexistent
 		&t.clock,
 		semaphore.NewWeighted(10),
 		config,
-		metrics.NewNoopMetrics(),
 	)
 
 	d := t.in.(*dirInode)
@@ -179,7 +178,6 @@ func (t *DirTest) createDirInodeWithTypeCacheDeprecationFlag(dirInodeName string
 		&t.clock,
 		semaphore.NewWeighted(10),
 		config,
-		metrics.NewNoopMetrics(),
 	)
 }
 
@@ -373,7 +371,6 @@ func (t *DirTest) TestLookUpChild_NegativeCacheHit() {
 		&t.clock,
 		semaphore.NewWeighted(10),
 		config,
-		metrics.NewNoopMetrics(),
 	)
 
 	result, err := in.LookUpChild(t.ctx, name)
@@ -1631,7 +1628,6 @@ func (t *DirTest) TestCreateChildSymlink_StandardSymlinkEnabled() {
 		&t.clock,
 		semaphore.NewWeighted(10),
 		config,
-		metrics.NewNoopMetrics(),
 	)
 	d := t.in.(*dirInode)
 	t.tc = d.cache
@@ -2424,7 +2420,6 @@ func (t *DirTest) TestMetadataPrefetcher_InitializationGuards() {
 				&t.bucket, &t.clock, &t.clock,
 				semaphore.NewWeighted(10),
 				config,
-				metrics.NewNoopMetrics(),
 			)
 
 			d := inode.(*dirInode)

@@ -21,7 +21,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/sync/semaphore"
@@ -48,8 +47,7 @@ func NewExplicitDirInode(
 	mtimeClock timeutil.Clock,
 	cacheClock timeutil.Clock,
 	prefetchSem *semaphore.Weighted,
-	cfg *cfg.Config,
-	metricHandle metrics.MetricHandle) (d ExplicitDirInode) {
+	cfg *cfg.Config) (d ExplicitDirInode) {
 	wrapped := NewDirInode(
 		id,
 		name,
@@ -61,8 +59,7 @@ func NewExplicitDirInode(
 		mtimeClock,
 		cacheClock,
 		prefetchSem,
-		cfg,
-		metricHandle)
+		cfg)
 
 	dirInode := &explicitDirInode{
 		dirInode: wrapped.(*dirInode),
