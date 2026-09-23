@@ -130,7 +130,7 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 			}
 
 			mountInfo.viperConfig = viperConfig
-			optimizedFlags := mountInfo.config.ApplyOptimizations(viperConfig, nil)
+			optimizedFlags := mountInfo.config.ApplyOptimizations(viperConfig, &cfg.OptimizationInput{IsGKE: cfg.IsGKEEnvironment(args[len(args)-1])})
 			optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))
 			if err := cfg.Rationalize(viperConfig, mountInfo.config, optimizedFlagNames); err != nil {
 				return fmt.Errorf("error rationalizing config: %w", err)

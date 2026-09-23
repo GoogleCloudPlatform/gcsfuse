@@ -145,6 +145,9 @@ type OptimizationInput struct {
 	// BucketType specifies the GCS bucket type.
 	// An empty string means no bucket-type-based optimization should be applied.
 	BucketType BucketType
+
+	// IsGKE indicates whether GCSFuse is running in a GKE environment.
+	IsGKE bool
 }
 
 // BucketType represents the type of GCS bucket.

@@ -148,9 +148,11 @@ func getOptimizedValue(
 	}
 
 	// 2. Only if no profile is set, check for a machine-based optimization.
+	isGKE := input != nil && input.IsGKE
 	if group, ok := machineTypeToGroupMap[machineType]; ok {
 		for _, mbo := range rules.MachineBasedOptimization {
-			if mbo.Group == group {
+			// Do NOT apply if the rule is GkeOnly (mbo.GkeOnly == true) and we are NOT on GKE (isGKE == false), otherwise apply.
+			if mbo.Group == group && (!mbo.GkeOnly || isGKE) {
 				return OptimizationResult{
 					FinalValue:         mbo.Value,
 					OptimizationReason: fmt.Sprintf("machine-type group %q", group),
