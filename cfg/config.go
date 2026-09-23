@@ -602,6 +602,8 @@ type FileSystemConfig struct {
 
 	EnableKernelReader bool `yaml:"enable-kernel-reader"`
 
+	EnableLargeReceiveOffload bool `yaml:"enable-large-receive-offload"`
+
 	ExperimentalEnableDentryCache bool `yaml:"experimental-enable-dentry-cache"`
 
 	ExperimentalEnableReaddirplus bool `yaml:"experimental-enable-readdirplus"`
@@ -625,6 +627,8 @@ type FileSystemConfig struct {
 	KernelListCacheTtlSecs int64 `yaml:"kernel-list-cache-ttl-secs"`
 
 	KernelParamsFile ResolvedPath `yaml:"kernel-params-file"`
+
+	LargeReceiveOffload bool `yaml:"large-receive-offload"`
 
 	MaxBackground int64 `yaml:"max-background"`
 
@@ -1051,6 +1055,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("enable-kernel-reader", "", false, "Enables the kernel reader and FUSE asynchronous reads. When enabled, GCSFuse-side prefetching is disabled, and file read operations rely entirely on the Linux kernel's native read-ahead and page-cache mechanisms.")
 
+	flagSet.BoolP("enable-large-receive-offload", "", false, "Enables Large Receive Offload (LRO) on the default network interface. Defaults to true when client-protocol is grpc, and false otherwise.")
+
+	if err := flagSet.MarkHidden("enable-large-receive-offload"); err != nil {
+		return err
+	}
+
 	flagSet.BoolP("enable-metadata-prefetch", "", true, "Enables background prefetching of object metadata when a directory is first opened.  This reduces latency for subsequent file lookups by pre-filling the metadata cache.")
 
 	flagSet.BoolP("enable-mount-retries", "", false, "If true, enables retry logic in GCSFuse during the mount sequence  for additional errors (such as metadata server readiness delays, IAM propagation  delays, and temporary bucket non-existence). Intended specifically for the  GKE GCSFuse CSI Driver.")
@@ -1292,6 +1302,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	}
 
 	flagSet.StringP("key-file", "", "", "Absolute path to JSON key file for use with GCS. If this flag is left unset, Google application default credentials are used.")
+
+	flagSet.BoolP("large-receive-offload", "", false, "Enables Large Receive Offload (LRO) on the default network interface. Defaults to true when client-protocol is grpc, and false otherwise.")
+
+	if err := flagSet.MarkHidden("large-receive-offload"); err != nil {
+		return err
+	}
 
 	flagSet.Float64P("limit-bytes-per-sec", "", -1, "Bandwidth limit for reading data, measured over a 30-second window. (use -1 for no limit)")
 
@@ -1712,6 +1728,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	if err := v.BindPFlag("file-system.enable-large-receive-offload", flagSet.Lookup("enable-large-receive-offload")); err != nil {
+		return err
+	}
+
 	if err := v.BindPFlag("metadata-cache.enable-metadata-prefetch", flagSet.Lookup("enable-metadata-prefetch")); err != nil {
 		return err
 	}
@@ -1929,6 +1949,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-auth.key-file", flagSet.Lookup("key-file")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.large-receive-offload", flagSet.Lookup("large-receive-offload")); err != nil {
 		return err
 	}
 

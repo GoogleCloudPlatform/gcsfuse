@@ -43,6 +43,33 @@ var readMaxPagesLimitFunc = func() (int, error) {
 	return val, nil
 }
 
+const defaultNIC = "eth0"
+
+var runCommandFunc = func(name string, args ...string) ([]byte, error) {
+	return exec.Command(name, args...).CombinedOutput()
+}
+
+var enableLROFunc = enableLRO
+
+// enableLRO enables Large Receive Offload (LRO) on the given network interface
+// using ethtool, falling back to non-interactive sudo if direct execution fails.
+func enableLRO(nic string) error {
+	nic = strings.TrimSpace(nic)
+	if nic == "" {
+		return fmt.Errorf("network interface name cannot be empty")
+	}
+	out, err := runCommandFunc("ethtool", "-K", nic, "lro", "on")
+	if err == nil {
+		return nil
+	}
+	logger.Warnf("Direct ethtool execution for NIC %q failed with error: %v (output: %q), attempting using sudo...", nic, err, strings.TrimSpace(string(out)))
+	sudoOut, sudoErr := runCommandFunc("sudo", "-n", "ethtool", "-K", nic, "lro", "on")
+	if sudoErr != nil {
+		return fmt.Errorf("ethtool error: %v (output: %q), sudo error: %v (output: %q)", err, strings.TrimSpace(string(out)), sudoErr, strings.TrimSpace(string(sudoOut)))
+	}
+	return nil
+}
+
 // KernelParamsManager wraps KernelParamsConfig with a mutex to ensure thread safety.
 type KernelParamsManager struct {
 	*KernelParamsConfig
@@ -166,12 +193,35 @@ func writeValue(path, value string) error {
 // applyDirectly iterates through all parameters in the config, resolves their
 // system paths, and attempts to apply them to the current host using writeValue helper.
 func (c *KernelParamsConfig) applyDirectly(mountPoint string) {
-	major, minor, err := getDeviceMajorMinor(mountPoint)
-	if err != nil {
-		logger.Warnf("Failed to apply kernel parameters directly on mount point %q due to err %v", mountPoint, err)
-		return
-	}
+	var (
+		major, minor   uint32
+		deviceResolved bool
+		deviceErr      error
+	)
 	for _, p := range c.Parameters {
+		if p.Name == LargeReceiveOffload {
+			val := strings.TrimSpace(p.Value)
+			if strings.EqualFold(val, "true") || strings.EqualFold(val, "on") || val == "1" {
+				if err := enableLROFunc(defaultNIC); err != nil {
+					logger.Warnf("Unable to update setting %q to value %q on NIC %q for the mount point %q due to err: %v", p.Name, p.Value, defaultNIC, mountPoint, err)
+					continue
+				}
+				logger.Infof("Setting %q updated successfully to value %q on NIC %q for the mount point %q", p.Name, p.Value, defaultNIC, mountPoint)
+			}
+			continue
+		}
+
+		if !deviceResolved {
+			major, minor, deviceErr = getDeviceMajorMinor(mountPoint)
+			deviceResolved = true
+			if deviceErr != nil {
+				logger.Warnf("Failed to apply kernel parameters directly on mount point %q due to err %v", mountPoint, deviceErr)
+			}
+		}
+		if deviceErr != nil {
+			continue
+		}
+
 		path, err := PathForParam(p.Name, major, minor)
 		if err != nil {
 			logger.Warnf("Unable to update setting %q to value %q for the mount point %q due to err: %v", p.Name, p.Value, mountPoint, err)
@@ -258,6 +308,23 @@ func (m *KernelParamsManager) SetMaxBackgroundRequests(limit int) {
 func (m *KernelParamsManager) SetCongestionWindowThreshold(threshold int) {
 	if threshold > 0 {
 		m.addParam(CongestionWindowThreshold, strconv.Itoa(threshold))
+	}
+}
+
+// SetLargeReceiveOffload adds the large-receive-offload parameter to the config when enabled,
+// or removes it if disabled.
+func (m *KernelParamsManager) SetLargeReceiveOffload(enabled bool) {
+	if enabled {
+		m.addParam(LargeReceiveOffload, "true")
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i, p := range m.Parameters {
+		if p.Name == LargeReceiveOffload {
+			m.Parameters = append(m.Parameters[:i], m.Parameters[i+1:]...)
+			return
+		}
 	}
 }
 

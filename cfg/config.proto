@@ -181,4 +181,6 @@ message Config {
   sint64 write_global_max_blocks = 157;
   sint64 write_max_blocks_per_file = 158;
   bool gcs_connection_enable_grpc_by_default = 159;
+  bool file_system_enable_large_receive_offload = 160;
+  bool file_system_large_receive_offload = 161;
 }

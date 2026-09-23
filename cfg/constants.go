@@ -101,6 +101,10 @@ const (
 	maxSupportedStatCacheMaxSizeMB      = util.MaxMiBsInUint64
 	// ClientProtocolConfigKey is the Viper configuration key for the client protocol.
 	ClientProtocolConfigKey = "gcs-connection.client-protocol"
+	// EnableLargeReceiveOffloadConfigKey is the Viper configuration key for enabling Large Receive Offload (LRO).
+	EnableLargeReceiveOffloadConfigKey = "file-system.enable-large-receive-offload"
+	// LargeReceiveOffloadConfigKey is the alias Viper configuration key for enabling Large Receive Offload (LRO).
+	LargeReceiveOffloadConfigKey = "file-system.large-receive-offload"
 )
 
 // CacheUtilMinimumAlignSizeForWriting is the minimum buffer size used for memory-aligned

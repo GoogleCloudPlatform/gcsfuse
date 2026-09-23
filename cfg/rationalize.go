@@ -202,8 +202,83 @@ func resolveClientProtocol(v *viper.Viper, c *GcsConnectionConfig) {
 	}
 }
 
+// LROSupportedMachineType is the GCE machine type on which Large Receive Offload
+// (LRO) is signaled and enabled by GCSFuse.
+const LROSupportedMachineType = "ct6e-standard-4t"
+
+// IsLROSupportedMachineType returns true if and only if the normalized machine
+// type is ct6e-standard-4t.
+func IsLROSupportedMachineType(machineType string) bool {
+	trimmed := strings.TrimSpace(machineType)
+	if trimmed == "" {
+		return false
+	}
+	parts := strings.Split(trimmed, "/")
+	return parts[len(parts)-1] == LROSupportedMachineType
+}
+
+// ShouldEnableLargeReceiveOffload returns true if and only if the config has
+// LRO enabled and the machine type is ct6e-standard-4t.
+func ShouldEnableLargeReceiveOffload(c *Config) bool {
+	if c == nil || !IsLROSupportedMachineType(c.MachineType) {
+		return false
+	}
+	return c.FileSystem.EnableLargeReceiveOffload || c.FileSystem.LargeReceiveOffload
+}
+
+// resolveLargeReceiveOffload enables large-receive-offload if and only if the
+// machine type is ct6e-standard-4t (defaulting to true when the resolved client
+// protocol is gRPC, unless explicitly configured by the user).
+func resolveLargeReceiveOffload(v *viper.Viper, c *Config) {
+	if v != nil && v.IsSet(machineTypeFlg) {
+		if mt := v.GetString(machineTypeFlg); mt != "" {
+			c.MachineType = mt
+		}
+	} else if c.MachineType == "" && v != nil && len(metadataEndpoints) > 0 && metadataEndpoints[0] != "http://metadata.google.internal/computeMetadata/v1/instance/machine-type" {
+		if mt, err := getMachineType(v); err == nil {
+			c.MachineType = mt
+		}
+	}
+
+	if !IsLROSupportedMachineType(c.MachineType) {
+		c.FileSystem.EnableLargeReceiveOffload = false
+		c.FileSystem.LargeReceiveOffload = false
+		return
+	}
+
+	if v != nil {
+		if v.IsSet(EnableLargeReceiveOffloadConfigKey) {
+			val := v.GetBool(EnableLargeReceiveOffloadConfigKey)
+			c.FileSystem.EnableLargeReceiveOffload = val
+			c.FileSystem.LargeReceiveOffload = val
+			return
+		}
+		if v.IsSet(LargeReceiveOffloadConfigKey) {
+			val := v.GetBool(LargeReceiveOffloadConfigKey)
+			c.FileSystem.EnableLargeReceiveOffload = val
+			c.FileSystem.LargeReceiveOffload = val
+			return
+		}
+	}
+	if c.FileSystem.EnableLargeReceiveOffload || c.FileSystem.LargeReceiveOffload {
+		c.FileSystem.EnableLargeReceiveOffload = true
+		c.FileSystem.LargeReceiveOffload = true
+		return
+	}
+	if c.GcsConnection.ClientProtocol == GRPC {
+		c.FileSystem.EnableLargeReceiveOffload = true
+		c.FileSystem.LargeReceiveOffload = true
+	} else {
+		c.FileSystem.EnableLargeReceiveOffload = false
+		c.FileSystem.LargeReceiveOffload = false
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
+	if v == nil {
+		v = viper.New()
+	}
 	var err error
 	if c.GcsConnection.CustomEndpoint, err = decodeURL(c.GcsConnection.CustomEndpoint); err != nil {
 		return err
@@ -226,6 +301,7 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	resolveOnlyDir(c)
 	resolveKernelReadAhead(v, c)
 	resolveClientProtocol(v, &c.GcsConnection)
+	resolveLargeReceiveOffload(v, c)
 
 	return nil
 }
