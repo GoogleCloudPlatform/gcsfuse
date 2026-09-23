@@ -129,14 +129,6 @@ of Cloud Storage FUSE, see https://cloud.google.com/storage/docs/gcs-fuse.`,
 				return fmt.Errorf("invalid config: %w", err)
 			}
 
-			if cmd.PersistentFlags().Changed("enable-large-receive-offload") && !cmd.PersistentFlags().Changed("large-receive-offload") {
-				mountInfo.config.FileSystem.LargeReceiveOffload = mountInfo.config.FileSystem.EnableLargeReceiveOffload
-				viperConfig.Set(cfg.LargeReceiveOffloadConfigKey, mountInfo.config.FileSystem.EnableLargeReceiveOffload)
-			} else if cmd.PersistentFlags().Changed("large-receive-offload") && !cmd.PersistentFlags().Changed("enable-large-receive-offload") {
-				mountInfo.config.FileSystem.EnableLargeReceiveOffload = mountInfo.config.FileSystem.LargeReceiveOffload
-				viperConfig.Set(cfg.EnableLargeReceiveOffloadConfigKey, mountInfo.config.FileSystem.LargeReceiveOffload)
-			}
-
 			mountInfo.viperConfig = viperConfig
 			optimizedFlags := mountInfo.config.ApplyOptimizations(viperConfig, nil)
 			optimizedFlagNames := slices.Collect(maps.Keys(optimizedFlags))

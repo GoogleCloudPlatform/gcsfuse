@@ -234,13 +234,14 @@ func resolveLargeReceiveOffload(v *viper.Viper, c *Config) {
 		if mt := v.GetString(machineTypeFlg); mt != "" {
 			c.MachineType = mt
 		}
-	} else if c.MachineType == "" && v != nil && len(metadataEndpoints) > 0 && metadataEndpoints[0] != "http://metadata.google.internal/computeMetadata/v1/instance/machine-type" {
-		if mt, err := getMachineType(v); err == nil {
-			c.MachineType = mt
-		}
 	}
 
 	if !IsLROSupportedMachineType(c.MachineType) {
+		if v != nil && (v.IsSet(EnableLargeReceiveOffloadConfigKey) || v.IsSet(LargeReceiveOffloadConfigKey)) {
+			if v.GetBool(EnableLargeReceiveOffloadConfigKey) || v.GetBool(LargeReceiveOffloadConfigKey) {
+				log.Printf("Warning: Large Receive Offload (LRO) is only supported on %s machines. Disabling LRO.", LROSupportedMachineType)
+			}
+		}
 		c.FileSystem.EnableLargeReceiveOffload = false
 		c.FileSystem.LargeReceiveOffload = false
 		return

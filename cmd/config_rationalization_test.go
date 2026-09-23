@@ -703,23 +703,23 @@ file-system:
 			expectedLRO: false,
 		},
 		{
-			name: "yaml_lro_true_overridden_by_cli_enable_lro_false_cross_alias",
+			name: "yaml_lro_false_overridden_by_cli_lro_true",
+			yamlContent: `machine-type: ct6e-standard-4t
+gcs-connection:
+  client-protocol: grpc
+file-system:
+  large-receive-offload: false
+`,
+			cliArgs:     []string{"--large-receive-offload=true"},
+			expectedLRO: true,
+		},
+		{
+			name: "yaml_lro_true_overridden_by_cli_lro_false",
 			yamlContent: `machine-type: ct6e-standard-4t
 gcs-connection:
   client-protocol: http1
 file-system:
   large-receive-offload: true
-`,
-			cliArgs:     []string{"--enable-large-receive-offload=false"},
-			expectedLRO: false,
-		},
-		{
-			name: "yaml_enable_lro_true_overridden_by_cli_lro_false_cross_alias",
-			yamlContent: `machine-type: ct6e-standard-4t
-gcs-connection:
-  client-protocol: http1
-file-system:
-  enable-large-receive-offload: true
 `,
 			cliArgs:     []string{"--large-receive-offload=false"},
 			expectedLRO: false,
