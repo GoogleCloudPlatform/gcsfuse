@@ -112,40 +112,39 @@ func registerTerminatingSignalHandler(mountPoint string) {
 	}()
 }
 
-func getUserAgent(appName, config, mountInstanceID string) string {
-	var userAgent string
+func getBaseUserAgent(appName string) string {
 	gcsfuseMetadataImageType := os.Getenv("GCSFUSE_METADATA_IMAGE_TYPE")
 	if len(gcsfuseMetadataImageType) > 0 {
-		userAgent = fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s) (Cfg:%s)", common.GetVersion(), appName, gcsfuseMetadataImageType, config)
-		userAgent = strings.Join(strings.Fields(userAgent), " ")
+		userAgent := fmt.Sprintf("gcsfuse/%s %s (GPN:gcsfuse-%s)", common.GetVersion(), appName, gcsfuseMetadataImageType)
+		return strings.Join(strings.Fields(userAgent), " ")
 	} else if len(appName) > 0 {
-		userAgent = fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s) (Cfg:%s)", common.GetVersion(), appName, config)
-	} else {
-		userAgent = fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse) (Cfg:%s)", common.GetVersion(), config)
+		return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse-%s)", common.GetVersion(), appName)
 	}
-	return fmt.Sprintf("%s (mount-id:%s)", userAgent, mountInstanceID)
+	return fmt.Sprintf("gcsfuse/%s (GPN:gcsfuse)", common.GetVersion())
 }
 
-func boolToBin(b bool) string {
-	if b {
-		return "1"
-	}
-	return "0"
+func getUserAgent(appName, mountInstanceID string) string {
+	return fmt.Sprintf("%s (mount-id:%s)", getBaseUserAgent(appName), mountInstanceID)
 }
 
-func getConfigForUserAgent(mountConfig *cfg.Config) string {
-	// Minimum configuration details created in a bitset fashion.
-	parts := []string{
-		boolToBin(cfg.IsFileCacheEnabled(mountConfig)),
-		boolToBin(mountConfig.FileCache.CacheFileForRangeRead),
-		boolToBin(cfg.IsParallelDownloadsEnabled(mountConfig)),
-		boolToBin(mountConfig.Write.EnableStreamingWrites),
-		boolToBin(mountConfig.Read.EnableBufferedRead),
-		boolToBin(mountConfig.Profile != ""),
+func getUserAgentWithConfig(appName string, mountConfig *cfg.Config, mountInstanceID string) string {
+	var fullConfig string
+	if mountConfig != nil {
+		var err error
+		fullConfig, err = mountConfig.SerializeConfigToProtoBase64()
+		if err != nil {
+			logger.Warnf("failed to serialize config to proto base64: %v", err)
+			fullConfig = ""
+		}
 	}
-	return strings.Join(parts, ":")
+	gcsfuseConfigStr := ""
+	if fullConfig != "" {
+		gcsfuseConfigStr = fmt.Sprintf(" (GCSFuseConfig:%s)", fullConfig)
+	}
+	return fmt.Sprintf("%s%s (mount-id:%s)", getBaseUserAgent(appName), gcsfuseConfigStr, mountInstanceID)
 }
-func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle, isGKE bool, isDynamicMount bool) (storageHandle storage.StorageHandle, err error) {
+
+func createStorageHandle(newConfig *cfg.Config, userAgent string, configUserAgent string, metricHandle metrics.MetricHandle, isGKE bool, isDynamicMount bool) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             newConfig.GcsConnection.ClientProtocol,
 		MaxConnsPerHost:            int(newConfig.GcsConnection.MaxConnsPerHost),
@@ -156,6 +155,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		RetryMultiplier:            newConfig.GcsRetries.Multiplier,
 		EnableMountRetries:         newConfig.GcsRetries.EnableMountRetries && !isDynamicMount,
 		UserAgent:                  userAgent,
+		ConfigUserAgent:            configUserAgent,
 		CustomEndpoint:             newConfig.GcsConnection.CustomEndpoint,
 		KeyFile:                    string(newConfig.GcsAuth.KeyFile),
 		AnonymousAccess:            newConfig.GcsAuth.AnonymousAccess,
@@ -178,6 +178,9 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		WriteConfig:                &newConfig.Write,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
+	if storageClientConfig.ConfigUserAgent != "" {
+		logger.Infof("ConfigUserAgent = %s\n", storageClientConfig.ConfigUserAgent)
+	}
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig, newConfig.GcsConnection.BillingProject)
 	return
 }
@@ -204,9 +207,10 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	// connection.
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
-		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig), logger.MountInstanceID(fsName(bucketName), newConfig.MountId))
+		userAgent := getUserAgent(newConfig.AppName, logger.MountInstanceID(fsName(bucketName), newConfig.MountId))
+		configUserAgent := getUserAgentWithConfig(newConfig.AppName, newConfig, logger.MountInstanceID(fsName(bucketName), newConfig.MountId))
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(newConfig, userAgent, metricHandle, isGKE, isDynamicMount(bucketName))
+		storageHandle, err = createStorageHandle(newConfig, userAgent, configUserAgent, metricHandle, isGKE, isDynamicMount(bucketName))
 		if err != nil {
 			err = fmt.Errorf("failed to create storage handle using createStorageHandle: %w", err)
 			return
