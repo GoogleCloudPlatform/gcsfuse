@@ -460,6 +460,16 @@ params:
         - bucket-type: "zonal, rcu"
           value: true
 
+  - config-path: "file-system.enable-large-receive-offload"
+    proto-tag: 160
+    flag-name: "enable-large-receive-offload"
+    type: "bool"
+    usage: >-
+      Enables Large Receive Offload (LRO) on the default network interface on ct6e-standard-4t machines.
+      Defaults to true when client-protocol is grpc and machine-type is ct6e-standard-4t, and false otherwise.
+    default: false
+    hide-flag: true
+
   - config-path: "file-system.experimental-enable-dentry-cache"
     proto-tag: 46
     flag-name: "experimental-enable-dentry-cache"
@@ -586,6 +596,16 @@ params:
     type: "resolvedPath"
     usage: >-
       File path used to communicate various kernel parameters to CSI Driver in GKE environment.
+    hide-flag: true
+
+  - config-path: "file-system.large-receive-offload"
+    proto-tag: 161
+    flag-name: "large-receive-offload"
+    type: "bool"
+    usage: >-
+      Enables Large Receive Offload (LRO) on the default network interface on ct6e-standard-4t machines.
+      Defaults to true when client-protocol is grpc and machine-type is ct6e-standard-4t, and false otherwise.
+    default: false
     hide-flag: true
 
   - config-path: "file-system.max-background"

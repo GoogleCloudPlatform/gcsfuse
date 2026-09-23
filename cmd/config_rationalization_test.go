@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -471,6 +472,268 @@ func TestRationalizeKernelReadAheadViperIsSet(t *testing.T) {
 			info, err := getMountInfoForTest(t, args)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedIsSet, info.viperConfig.IsSet("file-system.max-read-ahead-kb"))
+		})
+	}
+}
+
+func TestRationalizeLargeReceiveOffloadCliFlags(t *testing.T) {
+	testCases := []struct {
+		name             string
+		cliArgs          []string
+		expectedProtocol cfg.Protocol
+		expectedLRO      bool
+	}{
+		{
+			name:             "no_flags_default_http1_disables_lro",
+			cliArgs:          []string{"--machine-type=ct6e-standard-4t"},
+			expectedProtocol: cfg.HTTP1,
+			expectedLRO:      false,
+		},
+		{
+			name:             "ct6e_standard_4t_client_protocol_grpc_enables_lro",
+			cliArgs:          []string{"--machine-type=ct6e-standard-4t", "--client-protocol=grpc"},
+			expectedProtocol: cfg.GRPC,
+			expectedLRO:      true,
+		},
+		{
+			name:             "non_ct6e_machine_type_client_protocol_grpc_disables_lro",
+			cliArgs:          []string{"--machine-type=n2-standard-8", "--client-protocol=grpc"},
+			expectedProtocol: cfg.GRPC,
+			expectedLRO:      false,
+		},
+		{
+			name:             "unset_machine_type_client_protocol_grpc_disables_lro",
+			cliArgs:          []string{"--client-protocol=grpc"},
+			expectedProtocol: cfg.GRPC,
+			expectedLRO:      false,
+		},
+		{
+			name:             "ct6e_standard_4t_client_protocol_http1_disables_lro",
+			cliArgs:          []string{"--machine-type=ct6e-standard-4t", "--client-protocol=http1"},
+			expectedProtocol: cfg.HTTP1,
+			expectedLRO:      false,
+		},
+		{
+			name:             "ct6e_standard_4t_client_protocol_http2_disables_lro",
+			cliArgs:          []string{"--machine-type=ct6e-standard-4t", "--client-protocol=http2"},
+			expectedProtocol: cfg.HTTP2,
+			expectedLRO:      false,
+		},
+		{
+			name:             "ct6e_standard_4t_enable_grpc_by_default_enables_lro",
+			cliArgs:          []string{"--machine-type=ct6e-standard-4t", "--enable-grpc-by-default"},
+			expectedProtocol: cfg.GRPC,
+			expectedLRO:      true,
+		},
+		{
+			name:             "ct6e_standard_4t_enable_grpc_by_default_with_http1_disables_lro",
+			cliArgs:          []string{"--machine-type=ct6e-standard-4t", "--enable-grpc-by-default", "--client-protocol=http1"},
+			expectedProtocol: cfg.HTTP1,
+			expectedLRO:      false,
+		},
+		{
+			name:             "ct6e_standard_4t_grpc_with_enable_lro_false_flag",
+			cliArgs:          []string{"--machine-type=ct6e-standard-4t", "--client-protocol=grpc", "--enable-large-receive-offload=false"},
+			expectedProtocol: cfg.GRPC,
+			expectedLRO:      false,
+		},
+		{
+			name:             "ct6e_standard_4t_grpc_with_lro_false_flag",
+			cliArgs:          []string{"--machine-type=ct6e-standard-4t", "--client-protocol=grpc", "--large-receive-offload=false"},
+			expectedProtocol: cfg.GRPC,
+			expectedLRO:      false,
+		},
+		{
+			name:             "ct6e_standard_4t_grpc_with_posix_enable_lro_false_flag",
+			cliArgs:          []string{"--machine-type=ct6e-standard-4t", "--client-protocol=grpc", "-enable-large-receive-offload=false"},
+			expectedProtocol: cfg.GRPC,
+			expectedLRO:      false,
+		},
+		{
+			name:             "ct6e_standard_4t_grpc_with_posix_lro_false_flag",
+			cliArgs:          []string{"--machine-type=ct6e-standard-4t", "--client-protocol=grpc", "-large-receive-offload=false"},
+			expectedProtocol: cfg.GRPC,
+			expectedLRO:      false,
+		},
+		{
+			name:             "ct6e_standard_4t_http1_with_enable_lro_true_flag",
+			cliArgs:          []string{"--machine-type=ct6e-standard-4t", "--client-protocol=http1", "--enable-large-receive-offload=true"},
+			expectedProtocol: cfg.HTTP1,
+			expectedLRO:      true,
+		},
+		{
+			name:             "ct6e_standard_4t_http1_with_lro_true_flag",
+			cliArgs:          []string{"--machine-type=ct6e-standard-4t", "--client-protocol=http1", "--large-receive-offload=true"},
+			expectedProtocol: cfg.HTTP1,
+			expectedLRO:      true,
+		},
+		{
+			name:             "ct6e_standard_4t_http1_with_posix_enable_lro_boolean_flag",
+			cliArgs:          []string{"--machine-type=ct6e-standard-4t", "--client-protocol=http1", "-enable-large-receive-offload"},
+			expectedProtocol: cfg.HTTP1,
+			expectedLRO:      true,
+		},
+		{
+			name:             "ct6e_standard_4t_http1_with_posix_lro_boolean_flag",
+			cliArgs:          []string{"--machine-type=ct6e-standard-4t", "--client-protocol=http1", "-large-receive-offload"},
+			expectedProtocol: cfg.HTTP1,
+			expectedLRO:      true,
+		},
+		{
+			name:             "non_ct6e_machine_type_with_explicit_enable_lro_true_remains_false",
+			cliArgs:          []string{"--machine-type=ct6e-standard-8t", "--client-protocol=grpc", "--enable-large-receive-offload=true"},
+			expectedProtocol: cfg.GRPC,
+			expectedLRO:      false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			info, err := getMountInfoForTest(t, tc.cliArgs)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedProtocol, info.config.GcsConnection.ClientProtocol)
+			assert.Equal(t, tc.expectedLRO, info.config.FileSystem.EnableLargeReceiveOffload)
+			assert.Equal(t, tc.expectedLRO, info.config.FileSystem.LargeReceiveOffload)
+		})
+	}
+}
+
+func TestRationalizeLargeReceiveOffloadConfigFile(t *testing.T) {
+	testCases := []struct {
+		name        string
+		yamlContent string
+		expectedLRO bool
+	}{
+		{
+			name: "ct6e_standard_4t_grpc_in_config_enables_lro_by_default",
+			yamlContent: `machine-type: ct6e-standard-4t
+gcs-connection:
+  client-protocol: grpc
+`,
+			expectedLRO: true,
+		},
+		{
+			name: "non_ct6e_grpc_in_config_disables_lro",
+			yamlContent: `machine-type: a3-highgpu-8g
+gcs-connection:
+  client-protocol: grpc
+`,
+			expectedLRO: false,
+		},
+		{
+			name: "ct6e_standard_4t_grpc_with_enable_lro_false_in_config",
+			yamlContent: `machine-type: ct6e-standard-4t
+gcs-connection:
+  client-protocol: grpc
+file-system:
+  enable-large-receive-offload: false
+`,
+			expectedLRO: false,
+		},
+		{
+			name: "ct6e_standard_4t_grpc_with_lro_false_in_config",
+			yamlContent: `machine-type: ct6e-standard-4t
+gcs-connection:
+  client-protocol: grpc
+file-system:
+  large-receive-offload: false
+`,
+			expectedLRO: false,
+		},
+		{
+			name: "ct6e_standard_4t_http1_with_enable_lro_true_in_config",
+			yamlContent: `machine-type: ct6e-standard-4t
+gcs-connection:
+  client-protocol: http1
+file-system:
+  enable-large-receive-offload: true
+`,
+			expectedLRO: true,
+		},
+		{
+			name: "ct6e_standard_4t_http1_with_lro_true_in_config",
+			yamlContent: `machine-type: ct6e-standard-4t
+gcs-connection:
+  client-protocol: http1
+file-system:
+  large-receive-offload: true
+`,
+			expectedLRO: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfgPath := createTempConfigFile(t, tc.yamlContent)
+			info, err := getMountInfoForTest(t, []string{fmt.Sprintf("--config-file=%s", cfgPath)})
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedLRO, info.config.FileSystem.EnableLargeReceiveOffload)
+			assert.Equal(t, tc.expectedLRO, info.config.FileSystem.LargeReceiveOffload)
+		})
+	}
+}
+
+func TestRationalizeLargeReceiveOffloadConfigVsCli(t *testing.T) {
+	testCases := []struct {
+		name        string
+		yamlContent string
+		cliArgs     []string
+		expectedLRO bool
+	}{
+		{
+			name: "yaml_enable_lro_false_overridden_by_cli_enable_lro_true",
+			yamlContent: `machine-type: ct6e-standard-4t
+gcs-connection:
+  client-protocol: grpc
+file-system:
+  enable-large-receive-offload: false
+`,
+			cliArgs:     []string{"--enable-large-receive-offload=true"},
+			expectedLRO: true,
+		},
+		{
+			name: "yaml_enable_lro_true_overridden_by_cli_enable_lro_false",
+			yamlContent: `machine-type: ct6e-standard-4t
+gcs-connection:
+  client-protocol: http1
+file-system:
+  enable-large-receive-offload: true
+`,
+			cliArgs:     []string{"--enable-large-receive-offload=false"},
+			expectedLRO: false,
+		},
+		{
+			name: "yaml_lro_false_overridden_by_cli_lro_true",
+			yamlContent: `machine-type: ct6e-standard-4t
+gcs-connection:
+  client-protocol: grpc
+file-system:
+  large-receive-offload: false
+`,
+			cliArgs:     []string{"--large-receive-offload=true"},
+			expectedLRO: true,
+		},
+		{
+			name: "yaml_lro_true_overridden_by_cli_lro_false",
+			yamlContent: `machine-type: ct6e-standard-4t
+gcs-connection:
+  client-protocol: http1
+file-system:
+  large-receive-offload: true
+`,
+			cliArgs:     []string{"--large-receive-offload=false"},
+			expectedLRO: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfgPath := createTempConfigFile(t, tc.yamlContent)
+			args := append([]string{fmt.Sprintf("--config-file=%s", cfgPath)}, tc.cliArgs...)
+			info, err := getMountInfoForTest(t, args)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedLRO, info.config.FileSystem.EnableLargeReceiveOffload)
+			assert.Equal(t, tc.expectedLRO, info.config.FileSystem.LargeReceiveOffload)
 		})
 	}
 }

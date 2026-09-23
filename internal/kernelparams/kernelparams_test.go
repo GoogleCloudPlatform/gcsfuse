@@ -16,12 +16,14 @@ package kernelparams
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAtomicFileWrite(t *testing.T) {
@@ -333,4 +335,121 @@ func TestShouldUpdateMaxPagesLimit_InvalidLimit(t *testing.T) {
 			assert.False(t, got)
 		})
 	}
+}
+
+func TestSetLargeReceiveOffload(t *testing.T) {
+	cfg := NewKernelParamsManager()
+
+	cfg.SetLargeReceiveOffload(false)
+	assert.Empty(t, cfg.Parameters)
+
+	cfg.SetLargeReceiveOffload(true)
+	require.Len(t, cfg.Parameters, 1)
+	assert.Equal(t, KernelParam{Name: LargeReceiveOffload, Value: "true"}, cfg.Parameters[0])
+
+	cfg.SetLargeReceiveOffload(false)
+	assert.Empty(t, cfg.Parameters)
+}
+
+func TestApplyGKE_WithLargeReceiveOffload(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "kernel-params.json")
+	cfg := NewKernelParamsManager()
+	cfg.SetLargeReceiveOffload(true)
+
+	cfg.ApplyGKE(filePath)
+
+	data, err := os.ReadFile(filePath)
+	require.NoError(t, err)
+
+	var unmarshaled KernelParamsConfig
+	err = json.Unmarshal(data, &unmarshaled)
+	require.NoError(t, err)
+	assert.NotEmpty(t, unmarshaled.RequestID)
+	assert.NotEmpty(t, unmarshaled.Timestamp)
+	require.Len(t, unmarshaled.Parameters, 1)
+	assert.Equal(t, KernelParam{Name: LargeReceiveOffload, Value: "true"}, unmarshaled.Parameters[0])
+}
+
+func TestEnableLROOnNIC(t *testing.T) {
+	oldRunCmd := runCommandFunc
+	defer func() { runCommandFunc = oldRunCmd }()
+
+	t.Run("direct_ethtool_succeeds", func(t *testing.T) {
+		var calls [][]string
+		runCommandFunc = func(name string, args ...string) ([]byte, error) {
+			calls = append(calls, append([]string{name}, args...))
+			return []byte("ok"), nil
+		}
+
+		err := enableLRO("eth0")
+		require.NoError(t, err)
+		require.Len(t, calls, 1)
+		assert.Equal(t, []string{"ethtool", "-K", "eth0", "lro", "on"}, calls[0])
+	})
+
+	t.Run("direct_ethtool_fails_sudo_succeeds", func(t *testing.T) {
+		var calls [][]string
+		runCommandFunc = func(name string, args ...string) ([]byte, error) {
+			calls = append(calls, append([]string{name}, args...))
+			if name == "ethtool" {
+				return []byte("Cannot set device feature settings: Operation not permitted"), fmt.Errorf("exit status 80")
+			}
+			return []byte("ok"), nil
+		}
+
+		err := enableLRO("eth0")
+		require.NoError(t, err)
+		require.Len(t, calls, 2)
+		assert.Equal(t, []string{"ethtool", "-K", "eth0", "lro", "on"}, calls[0])
+		assert.Equal(t, []string{"sudo", "-n", "ethtool", "-K", "eth0", "lro", "on"}, calls[1])
+	})
+
+	t.Run("both_ethtool_and_sudo_fail", func(t *testing.T) {
+		runCommandFunc = func(name string, args ...string) ([]byte, error) {
+			return []byte("permission denied"), fmt.Errorf("exit status 1")
+		}
+
+		err := enableLRO("eth0")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "sudo error")
+	})
+
+	t.Run("empty_nic_fails", func(t *testing.T) {
+		err := enableLRO("   ")
+		require.Error(t, err)
+	})
+}
+
+func TestApplyNonGKE_LargeReceiveOffload(t *testing.T) {
+	oldEnableLRO := enableLROFunc
+	defer func() {
+		enableLROFunc = oldEnableLRO
+	}()
+
+	t.Run("success_enables_lro_on_eth0", func(t *testing.T) {
+		var enabledNIC string
+		enableLROFunc = func(nic string) error {
+			enabledNIC = nic
+			return nil
+		}
+
+		cfg := NewKernelParamsManager()
+		cfg.SetLargeReceiveOffload(true)
+		cfg.ApplyNonGKE("/non-existent-synthetic-mountpoint")
+
+		assert.Equal(t, "eth0", enabledNIC)
+	})
+
+	t.Run("enable_lro_failure_logs_warning_without_crashing", func(t *testing.T) {
+		enableLROFunc = func(nic string) error {
+			return fmt.Errorf("ethtool failed")
+		}
+
+		cfg := NewKernelParamsManager()
+		cfg.SetLargeReceiveOffload(true)
+		assert.NotPanics(t, func() {
+			cfg.ApplyNonGKE("/non-existent-synthetic-mountpoint")
+		})
+	})
 }
