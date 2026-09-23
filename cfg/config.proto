@@ -21,6 +21,10 @@ package gcsfuse.cfg.v1;
 
 option go_package = "github.com/googlecloudplatform/gcsfuse/v3/cfg/pb";
 
+message ConfigPayload {
+  Config config = 1;
+}
+
 message Config {
   reserved 47;
   bool is_app_name_set = 1;
