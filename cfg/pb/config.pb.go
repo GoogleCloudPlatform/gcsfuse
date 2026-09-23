@@ -243,6 +243,8 @@ type Config struct {
 	WriteGlobalMaxBlocks                                  int64                  `protobuf:"zigzag64,157,opt,name=write_global_max_blocks,json=writeGlobalMaxBlocks,proto3" json:"write_global_max_blocks,omitempty"`
 	WriteMaxBlocksPerFile                                 int64                  `protobuf:"zigzag64,158,opt,name=write_max_blocks_per_file,json=writeMaxBlocksPerFile,proto3" json:"write_max_blocks_per_file,omitempty"`
 	GcsConnectionEnableGrpcByDefault                      bool                   `protobuf:"varint,159,opt,name=gcs_connection_enable_grpc_by_default,json=gcsConnectionEnableGrpcByDefault,proto3" json:"gcs_connection_enable_grpc_by_default,omitempty"`
+	IsGcsAuthS2AAddressSet                                bool                   `protobuf:"varint,160,opt,name=is_gcs_auth_s2a_address_set,json=isGcsAuthS2aAddressSet,proto3" json:"is_gcs_auth_s2a_address_set,omitempty"`
+	IsGcsAuthS2ASpiffeIdSet                               bool                   `protobuf:"varint,161,opt,name=is_gcs_auth_s2a_spiffe_id_set,json=isGcsAuthS2aSpiffeIdSet,proto3" json:"is_gcs_auth_s2a_spiffe_id_set,omitempty"`
 	unknownFields                                         protoimpl.UnknownFields
 	sizeCache                                             protoimpl.SizeCache
 }
@@ -1383,13 +1385,27 @@ func (x *Config) GetGcsConnectionEnableGrpcByDefault() bool {
 	return false
 }
 
+func (x *Config) GetIsGcsAuthS2AAddressSet() bool {
+	if x != nil {
+		return x.IsGcsAuthS2AAddressSet
+	}
+	return false
+}
+
+func (x *Config) GetIsGcsAuthS2ASpiffeIdSet() bool {
+	if x != nil {
+		return x.IsGcsAuthS2ASpiffeIdSet
+	}
+	return false
+}
+
 var File_cfg_config_proto protoreflect.FileDescriptor
 
 const file_cfg_config_proto_rawDesc = "" +
 	"\n" +
 	"\x10cfg/config.proto\x12\x0egcsfuse.cfg.v1\"?\n" +
 	"\rConfigPayload\x12.\n" +
-	"\x06config\x18\x01 \x01(\v2\x16.gcsfuse.cfg.v1.ConfigR\x06config\"\xebT\n" +
+	"\x06config\x18\x01 \x01(\v2\x16.gcsfuse.cfg.v1.ConfigR\x06config\"\xeaU\n" +
 	"\x06Config\x12%\n" +
 	"\x0fis_app_name_set\x18\x01 \x01(\bR\fisAppNameSet\x12'\n" +
 	"\x10is_cache_dir_set\x18\x02 \x01(\bR\risCacheDirSet\x12A\n" +
@@ -1553,7 +1569,9 @@ const file_cfg_config_proto_rawDesc = "" +
 	"\x1dwrite_finalize_file_for_rapid\x18\x9c\x01 \x01(\bR\x19writeFinalizeFileForRapid\x126\n" +
 	"\x17write_global_max_blocks\x18\x9d\x01 \x01(\x12R\x14writeGlobalMaxBlocks\x129\n" +
 	"\x19write_max_blocks_per_file\x18\x9e\x01 \x01(\x12R\x15writeMaxBlocksPerFile\x12P\n" +
-	"%gcs_connection_enable_grpc_by_default\x18\x9f\x01 \x01(\bR gcsConnectionEnableGrpcByDefaultJ\x04\b/\x100B2Z0github.com/googlecloudplatform/gcsfuse/v3/cfg/pbb\x06proto3"
+	"%gcs_connection_enable_grpc_by_default\x18\x9f\x01 \x01(\bR gcsConnectionEnableGrpcByDefault\x12<\n" +
+	"\x1bis_gcs_auth_s2a_address_set\x18\xa0\x01 \x01(\bR\x16isGcsAuthS2aAddressSet\x12?\n" +
+	"\x1dis_gcs_auth_s2a_spiffe_id_set\x18\xa1\x01 \x01(\bR\x17isGcsAuthS2aSpiffeIdSetJ\x04\b/\x100B2Z0github.com/googlecloudplatform/gcsfuse/v3/cfg/pbb\x06proto3"
 
 var (
 	file_cfg_config_proto_rawDescOnce sync.Once

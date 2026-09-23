@@ -693,14 +693,14 @@ params:
     default: "true"
 
   - config-path: "gcs-auth.s2a-address"
-    proto-tag: 159
+    proto-tag: 160
     flag-name: "s2a-address"
     type: "string"
     usage: "S2A daemon address for direct S2A authentication."
     default: ""
 
   - config-path: "gcs-auth.s2a-spiffe-id"
-    proto-tag: 160
+    proto-tag: 161
     flag-name: "s2a-spiffe-id"
     type: "string"
     usage: "Local SPIFFE ID to assume for direct S2A authentication."
