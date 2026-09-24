@@ -37,6 +37,9 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
 			{
 				Group: "{{ .Group }}",
 				Value: {{$goType}}({{ formatValue .Value }}),
+				{{- if .GkeOnly }}
+				GkeOnly: true,
+				{{- end }}
 			},
 			{{- end }}
 		},

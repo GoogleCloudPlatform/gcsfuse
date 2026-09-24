@@ -734,6 +734,11 @@ params:
       If true, enables gRPC protocol by default (e.g. for new GKE deployments).
     default: false
     hide-flag: true
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: true
+          gke-only: true
 
   - config-path: "gcs-connection.enable-http-dns-cache"
     proto-tag: 73
