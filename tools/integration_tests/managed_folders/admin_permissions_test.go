@@ -220,10 +220,10 @@ func (s *managedFoldersAdminPermission) TestListNonEmptyManagedFoldersWithAdminP
 func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	ts := &managedFoldersAdminPermission{}
 	setup.RunTestsOnlyForStaticMount(testEnv.mountDir, t)
-	_, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
+	bucket, testFolderPath := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
 	t.Cleanup(func() {
-		client.DeleteManagedFoldersInBucket(testEnv.ctx, testEnv.controlClient, path.Join(testDir, ManagedFolder1), setup.TestBucket())
-		client.DeleteManagedFoldersInBucket(testEnv.ctx, testEnv.controlClient, path.Join(testDir, ManagedFolder2), setup.TestBucket())
+		client.DeleteManagedFoldersInBucket(testEnv.ctx, testEnv.controlClient, path.Join(testFolderPath, ManagedFolder1), bucket)
+		client.DeleteManagedFoldersInBucket(testEnv.ctx, testEnv.controlClient, path.Join(testFolderPath, ManagedFolder2), bucket)
 	})
 	// Run tests for GCE environment otherwise.
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
