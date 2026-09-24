@@ -94,9 +94,11 @@ def generate_files_and_upload_to_gcs_bucket(destination_blob_name, num_of_files,
     # Deleting batch files from temporary folder:
     subprocess.call('rm -rf {}/*'.format(TEMPORARY_DIRECTORY), shell=True)
 
-    # Writing number of files uploaded to output file after every batch uploads:
-    logmessage('{}/{} files uploaded to {}\n'.format(file_num, num_of_files,
-                                                     destination_blob_name))
+    # Writing number of files uploaded to output file every 5% of progress or upon completion:
+    log_step = max(BATCH_SIZE, (num_of_files // 20) // BATCH_SIZE * BATCH_SIZE)
+    if file_num % log_step == 0 or file_num == num_of_files:
+      logmessage('{}/{} files ({:.0f}%) uploaded to {}\n'.format(
+          file_num, num_of_files, (file_num / num_of_files) * 100, destination_blob_name))
 
   return 0
 
