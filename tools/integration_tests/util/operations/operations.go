@@ -18,6 +18,7 @@ package operations
 import (
 	"bytes"
 	"fmt"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -82,7 +83,7 @@ func ExecuteGcloudCommand(command string) ([]byte, error) {
 // WaitForSizeUpdate waits for a specified time duration to ensure that stat()
 // call returns correct size for unfinalized object.
 func WaitForSizeUpdate(isUnfinalized bool, duration time.Duration) {
-	if isUnfinalized {
+	if isUnfinalized || setup.IsRcuBucketRun() {
 		time.Sleep(duration)
 	}
 }
