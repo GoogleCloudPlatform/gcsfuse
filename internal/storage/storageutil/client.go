@@ -116,7 +116,7 @@ const http1ALPNProto = "http/1.1"
 // order to disable HTTP/2, the transport would then speak HTTP/1.1 over an
 // HTTP/2-negotiated connection and every request would fail while parsing the
 // server's first HTTP/2 frame.
-func newS2ADialTLSContextForHTTP1(opts *s2a.ClientOptions) (func(ctx context.Context, network, addr string) (net.Conn, error), error) {
+func newS2ADialTLSContextForHTTP1(opts *s2a.ClientOptions, baseDialer *net.Dialer) (func(ctx context.Context, network, addr string) (net.Conn, error), error) {
 	factory, err := s2a.NewTLSClientConfigFactory(opts)
 	if err != nil {
 		return nil, fmt.Errorf("while creating S2A TLS client config factory: %w", err)
@@ -134,7 +134,7 @@ func newS2ADialTLSContextForHTTP1(opts *s2a.ClientOptions) (func(ctx context.Con
 		}
 		tlsConfig.NextProtos = []string{http1ALPNProto}
 
-		return (&tls.Dialer{Config: tlsConfig}).DialContext(ctx, network, addr)
+		return (&tls.Dialer{NetDialer: baseDialer, Config: tlsConfig}).DialContext(ctx, network, addr)
 	}, nil
 }
 
@@ -166,7 +166,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 			VerificationMode: s2a.ConnectToGoogle,
 		}
 		if storageClientConfig.ClientProtocol == cfg.HTTP1 {
-			dialTLSContext, err = newS2ADialTLSContextForHTTP1(s2aClientOptions)
+			dialTLSContext, err = newS2ADialTLSContextForHTTP1(s2aClientOptions, &dialer)
 			if err != nil {
 				return nil, fmt.Errorf("while creating S2A dialer for http1: %w", err)
 			}
