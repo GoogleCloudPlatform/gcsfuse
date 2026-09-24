@@ -1060,6 +1060,119 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithTra
 	assert.Len(testSuite.T(), optsWithTracing, len(optsWithoutTracing)+1, "Enabling tracing should add exactly one client option.")
 }
 
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithReadStallRetryAddsOneOption() {
+	scWithoutReadStall := storageutil.GetDefaultStorageClientConfig(keyFile)
+	scWithoutReadStall.ReadStallRetryConfig.Enable = false
+	optsWithoutReadStall, err := createClientOptionForGRPCClient(context.TODO(), &scWithoutReadStall, false)
+	assert.Nil(testSuite.T(), err)
+	scWithReadStall := storageutil.GetDefaultStorageClientConfig(keyFile)
+	scWithReadStall.ReadStallRetryConfig.Enable = true
+
+	optsWithReadStall, err := createClientOptionForGRPCClient(context.TODO(), &scWithReadStall, false)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), optsWithReadStall)
+	assert.Len(testSuite.T(), optsWithReadStall, len(optsWithoutReadStall)+1, "Enabling read stall retry should add exactly one client option.")
+}
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_WithReadStallRetry() {
+	testCases := []struct {
+		name      string
+		modifyCfg func(*cfg.ReadStallGcsRetriesConfig)
+		expectErr bool
+	}{
+		{
+			name:      "ReadStallRetryDisabled",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) { c.Enable = false },
+			expectErr: false,
+		},
+		{
+			name:      "ReadStallRetryEnabled",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) { c.Enable = true },
+			expectErr: false,
+		},
+		{
+			name: "ShortTimeouts",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.InitialReqTimeout = 1 * time.Millisecond
+				c.MinReqTimeout = 1 * time.Millisecond
+			},
+			expectErr: false,
+		},
+		{
+			name: "LongTimeouts",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.InitialReqTimeout = 10 * time.Second
+				c.MinReqTimeout = 10 * time.Second
+			},
+			expectErr: false,
+		},
+		{
+			name: "PositiveIncreaseRate",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.ReqIncreaseRate = 1.5
+			},
+			expectErr: false,
+		},
+		{
+			name: "NegativeIncreaseRate",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.ReqIncreaseRate = -0.5
+			},
+			expectErr: true,
+		},
+		{
+			name: "ZeroIncreaseRate",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.ReqIncreaseRate = 0.0
+			},
+			expectErr: true,
+		},
+		{
+			name: "ValidTargetPercentile",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.ReqTargetPercentile = 0.50
+			},
+			expectErr: false,
+		},
+		{
+			name: "InvalidTargetPercentile_Low",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.ReqTargetPercentile = -0.5
+			},
+			expectErr: true,
+		},
+		{
+			name: "InvalidTargetPercentile_High",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.ReqTargetPercentile = 1.5
+			},
+			expectErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+			sc.ClientProtocol = cfg.GRPC
+			sc.ReadStallRetryConfig.Enable = true
+			tc.modifyCfg(&sc.ReadStallRetryConfig)
+
+			storageClient, err := createGRPCClientHandle(testSuite.ctx, &sc, false, false, TestBucketName, "")
+			if storageClient != nil {
+				defer func() { _ = storageClient.Close() }()
+			}
+
+			if tc.expectErr {
+				assert.NotNil(testSuite.T(), err)
+			} else {
+				assert.Nil(testSuite.T(), err)
+				assert.NotNil(testSuite.T(), storageClient)
+			}
+		})
+	}
+}
+
 func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithGrpcMetrics() {
 	oldProvider := otel.GetMeterProvider()
 	defer otel.SetMeterProvider(oldProvider)
