@@ -125,6 +125,24 @@ func (t *RenameDirTests) TestRenameFolderWithSourceDirectoryHaveLocalFiles() {
 	assert.True(t.T(), strings.Contains(err.Error(), "operation not supported"))
 }
 
+func (t *RenameDirTests) TestRenameFolderWithSourceDirectoryHaveNestedLocalFiles() {
+	oldDirPath := path.Join(mntDir, "foo", "test")
+	_, err := os.Stat(oldDirPath)
+	require.NoError(t.T(), err)
+	subDirPath := path.Join(oldDirPath, "nested_dir")
+	err = os.Mkdir(subDirPath, dirPerms)
+	require.NoError(t.T(), err)
+	file, err := os.OpenFile(path.Join(subDirPath, "file5.txt"), os.O_RDWR|os.O_CREATE, filePerms)
+	require.NoError(t.T(), err)
+	defer file.Close()
+	newDirPath := path.Join(mntDir, "bar", "foo_rename")
+
+	err = os.Rename(oldDirPath, newDirPath)
+
+	assert.Error(t.T(), err)
+	assert.True(t.T(), strings.Contains(err.Error(), "operation not supported"))
+}
+
 func (t *RenameDirTests) TestRenameFolderWithSameParent() {
 	oldDirPath := path.Join(mntDir, "foo")
 	_, err := os.Stat(oldDirPath)
