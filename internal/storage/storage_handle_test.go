@@ -1016,6 +1016,119 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithTra
 	assert.Len(testSuite.T(), optsWithTracing, len(optsWithoutTracing)+1, "Enabling tracing should add exactly one client option.")
 }
 
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithReadStallRetryAddsOneOption() {
+	scWithoutReadStall := storageutil.GetDefaultStorageClientConfig(keyFile)
+	scWithoutReadStall.ReadStallRetryConfig.Enable = false
+	optsWithoutReadStall, err := createClientOptionForGRPCClient(context.TODO(), &scWithoutReadStall, false)
+	assert.Nil(testSuite.T(), err)
+	scWithReadStall := storageutil.GetDefaultStorageClientConfig(keyFile)
+	scWithReadStall.ReadStallRetryConfig.Enable = true
+
+	optsWithReadStall, err := createClientOptionForGRPCClient(context.TODO(), &scWithReadStall, false)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), optsWithReadStall)
+	assert.Len(testSuite.T(), optsWithReadStall, len(optsWithoutReadStall)+1, "Enabling read stall retry should add exactly one client option.")
+}
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_WithReadStallRetry() {
+	testCases := []struct {
+		name                 string
+		enableReadStallRetry bool
+	}{
+		{
+			name:                 "ReadStallRetryEnabled",
+			enableReadStallRetry: true,
+		},
+		{
+			name:                 "ReadStallRetryDisabled",
+			enableReadStallRetry: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+			sc.ClientProtocol = cfg.GRPC
+			sc.ReadStallRetryConfig.Enable = tc.enableReadStallRetry
+
+			storageClient, err := createGRPCClientHandle(testSuite.ctx, &sc, false, false, TestBucketName, "")
+			if storageClient != nil {
+				defer func() { _ = storageClient.Close() }()
+			}
+
+			assert.Nil(testSuite.T(), err)
+			assert.NotNil(testSuite.T(), storageClient)
+		})
+	}
+}
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_ReadStallInitialReqTimeout() {
+	testCases := []struct {
+		name              string
+		initialReqTimeout time.Duration
+	}{
+		{
+			name:              "ShortTimeout",
+			initialReqTimeout: 1 * time.Millisecond,
+		},
+		{
+			name:              "LongTimeout",
+			initialReqTimeout: 10 * time.Second,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+			sc.ClientProtocol = cfg.GRPC
+			sc.ReadStallRetryConfig.Enable = true
+			sc.ReadStallRetryConfig.InitialReqTimeout = tc.initialReqTimeout
+
+			storageClient, err := createGRPCClientHandle(testSuite.ctx, &sc, false, false, TestBucketName, "")
+			if storageClient != nil {
+				defer func() { _ = storageClient.Close() }()
+			}
+
+			assert.Nil(testSuite.T(), err)
+			assert.NotNil(testSuite.T(), storageClient)
+		})
+	}
+}
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_ReadStallMinReqTimeout() {
+	testCases := []struct {
+		name          string
+		minReqTimeout time.Duration
+	}{
+		{
+			name:          "ShortTimeout",
+			minReqTimeout: 1 * time.Millisecond,
+		},
+		{
+			name:          "LongTimeout",
+			minReqTimeout: 10 * time.Second,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+			sc.ClientProtocol = cfg.GRPC
+			sc.ReadStallRetryConfig.Enable = true
+			sc.ReadStallRetryConfig.MinReqTimeout = tc.minReqTimeout
+
+			storageClient, err := createGRPCClientHandle(testSuite.ctx, &sc, false, false, TestBucketName, "")
+			if storageClient != nil {
+				defer func() { _ = storageClient.Close() }()
+			}
+
+			assert.Nil(testSuite.T(), err)
+			assert.NotNil(testSuite.T(), storageClient)
+		})
+	}
+}
+
 func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithGrpcMetrics() {
 	oldProvider := otel.GetMeterProvider()
 	defer otel.SetMeterProvider(oldProvider)
