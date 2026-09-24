@@ -220,7 +220,11 @@ func (s *managedFoldersAdminPermission) TestListNonEmptyManagedFoldersWithAdminP
 func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 	ts := &managedFoldersAdminPermission{}
 	setup.RunTestsOnlyForStaticMount(testEnv.mountDir, t)
-
+	_, testDir := setup.GetBucketAndObjectBasedOnTypeOfMount(TestDirForManagedFolderTest)
+	t.Cleanup(func() {
+		client.DeleteManagedFoldersInBucket(testEnv.ctx, testEnv.controlClient, path.Join(testDir, ManagedFolder1), setup.TestBucket())
+		client.DeleteManagedFoldersInBucket(testEnv.ctx, testEnv.controlClient, path.Join(testDir, ManagedFolder2), setup.TestBucket())
+	})
 	// Run tests for GCE environment otherwise.
 	flagsSet := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, ts.flags = range flagsSet {
@@ -255,9 +259,5 @@ func TestManagedFolders_FolderAdminPermission(t *testing.T) {
 				creds_tests.RevokePermission(testEnv.ctx, testEnv.storageClient, testEnv.serviceAccount, ViewPermission, setup.TestBucket())
 			}
 		}
-		t.Cleanup(func() {
-			client.DeleteManagedFoldersInBucket(testEnv.ctx, testEnv.controlClient, path.Join(testEnv.testDir, ManagedFolder1), setup.TestBucket())
-			client.DeleteManagedFoldersInBucket(testEnv.ctx, testEnv.controlClient, path.Join(testEnv.testDir, ManagedFolder2), setup.TestBucket())
-		})
 	}
 }
