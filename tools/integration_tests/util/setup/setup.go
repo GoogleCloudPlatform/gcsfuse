@@ -32,6 +32,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	control "cloud.google.com/go/storage/control/apiv2"
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"cloud.google.com/go/storage/experimental"
 	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
@@ -43,6 +45,7 @@ import (
 var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
 var isZonalBucketRun = flag.Bool("zonal", false, "Boolean flag to indicate if test-run should use a zonal bucket.")
 var isRcuBucketRun = flag.Bool("rcu", false, "Boolean flag to indicate if test-run is for a Rapid Cache Ultra bucket.")
+var isRcuSameZone = flag.Bool("rcu-same-zone", true, "Boolean flag to indicate if test-run is in the same zone as the Rapid Cache Ultra cache.")
 
 // Note: testBucket and mountedDirectory can also be set via BUCKET_NAME and MOUNTED_DIR
 // environment variables respectively. However, command-line flags take precedence.
@@ -130,6 +133,14 @@ func IsRcuBucketRun() bool {
 
 func SetIsRcuBucketRun(val bool) {
 	*isRcuBucketRun = val
+}
+
+func IsRcuSameZone() bool {
+	return *isRcuSameZone
+}
+
+func SetIsRcuSameZone(val bool) {
+	*isRcuSameZone = val
 }
 
 func TestBucket() string {
@@ -573,6 +584,9 @@ func TestEnvironment(ctx context.Context, cfg *test_suite.TestConfig) string {
 	if bType == ZonalBucket {
 		SetIsZonalBucketRun(true)
 	}
+	if bType == HNSRcuBucket {
+		SetIsRcuBucketRun(true)
+	}
 
 	return bType
 }
@@ -613,6 +627,11 @@ func bucketType(ctx context.Context, testBucket string) (bType string, err error
 	if err != nil {
 		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}
+	defer func() {
+		if cErr := storageClient.Close(); cErr != nil {
+			log.Printf("Failed to close storage client: %v", cErr)
+		}
+	}()
 	bucket := storageClient.Bucket(testBucket)
 	if billingProject != "" {
 		bucket = bucket.UserProject(billingProject)
@@ -624,16 +643,42 @@ func bucketType(ctx context.Context, testBucket string) (bType string, err error
 	if attrs.LocationType == "zone" {
 		return ZonalBucket, nil
 	}
-	// TODO(b/483608308): Once GetStorageLayout starts returning Rapid Cache Ultra bucket type,
-	// update this logic to use the response instead of inferring from IsRcuBucketRun().
-	if attrs.HierarchicalNamespace != nil && attrs.HierarchicalNamespace.Enabled {
-		if IsRcuBucketRun() {
+
+	isRcu := false
+	var layoutResp *controlpb.StorageLayout
+	controlClient, controlErr := control.NewStorageControlClient(ctx, opts...)
+	if controlErr != nil {
+		isRcu = IsRcuBucketRun()
+	} else {
+		defer func() {
+			if cErr := controlClient.Close(); cErr != nil {
+				log.Printf("Failed to close storage control client: %v", cErr)
+			}
+		}()
+
+		var getLayoutErr error
+		layoutResp, getLayoutErr = controlClient.GetStorageLayout(ctx, &controlpb.GetStorageLayoutRequest{
+			Name: fmt.Sprintf("projects/_/buckets/%s/storageLayout", testBucket),
+		})
+
+		if getLayoutErr == nil && layoutResp != nil && layoutResp.GetRapidCacheInfo() != nil {
+			isRcu = layoutResp.GetRapidCacheInfo().GetCacheType() == "rapid-cache-ultra"
+		} else {
+			isRcu = IsRcuBucketRun()
+		}
+	}
+
+	isHns := (attrs.HierarchicalNamespace != nil && attrs.HierarchicalNamespace.Enabled) ||
+		(layoutResp != nil && layoutResp.GetHierarchicalNamespace() != nil && layoutResp.GetHierarchicalNamespace().GetEnabled())
+
+	if isHns {
+		if isRcu {
 			return HNSRcuBucket, nil
 		}
 		return HNSBucket, nil
 	}
-	if IsRcuBucketRun() {
-		return FlatRcuBucket, nil
+	if isRcu {
+		return "", fmt.Errorf("bucket %q is an RCU bucket without Hierarchical Namespace enabled; only HNS RCU buckets are supported", testBucket)
 	}
 	return FlatBucket, nil
 }
@@ -648,9 +693,17 @@ func isConfigCompatible(testConfig *test_suite.ConfigItem, bucketType string, te
 	isBucketCompatible := false
 	switch bucketType {
 	case FlatRcuBucket:
-		isBucketCompatible = testConfig.RunOnRcu.Flat.SameZone || testConfig.RunOnRcu.Flat.DifferentZone
+		if IsRcuSameZone() {
+			isBucketCompatible = testConfig.RunOnRcu.Flat.SameZone
+		} else {
+			isBucketCompatible = testConfig.RunOnRcu.Flat.DifferentZone
+		}
 	case HNSRcuBucket:
-		isBucketCompatible = testConfig.RunOnRcu.Hns.SameZone || testConfig.RunOnRcu.Hns.DifferentZone
+		if IsRcuSameZone() {
+			isBucketCompatible = testConfig.RunOnRcu.Hns.SameZone
+		} else {
+			isBucketCompatible = testConfig.RunOnRcu.Hns.DifferentZone
+		}
 	default:
 		var ok bool
 		isBucketCompatible, ok = testConfig.Compatible[bucketType]
