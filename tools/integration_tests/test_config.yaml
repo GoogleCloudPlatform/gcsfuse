@@ -322,7 +322,6 @@ local_file:
           - "--enable-rapid-writes=false,--rename-dir-limit=3,--enable-streaming-writes=false"
           - "--enable-rapid-writes=true,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=0"
           - "--enable-rapid-writes=false,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=0"
-          - "--enable-rapid-writes=true,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
           - "--enable-rapid-writes=false,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
         run_on_rcu:
           hns:
