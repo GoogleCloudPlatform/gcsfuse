@@ -130,7 +130,7 @@
     attribute-type: string
     values: *fs_ops_list
 
-- metric-name: "fs/ops_latency"
+- metric-name: "fs/ops_latencies"
   description: "The cumulative distribution of file system operation latencies"
   type: "time_histogram"
   unit: "us"
