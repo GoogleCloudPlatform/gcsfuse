@@ -108,7 +108,7 @@ class TestPodTemplateSubstitution(unittest.TestCase):
     def test_render_pod_manifest_grpc_protocol(self):
         rendered = run_benchmark.render_pod_manifest(
             project_id="gcs-fuse-test-ml",
-            bucket_name="llama_europe_west4",
+            bucket_name="gcsfuse_gke_pygrain_benchmark_euw4",
             iterations=20,
             staging_version="prow-gob-internal-boskos-pygrain-benchmark",
             client_protocol="grpc",

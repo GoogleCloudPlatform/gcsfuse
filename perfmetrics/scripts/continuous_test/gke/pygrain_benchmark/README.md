@@ -25,7 +25,7 @@ This directory contains the continuous GKE TPU v6e (`ct6e-standard-4t`) benchmar
 python3 perfmetrics/scripts/continuous_test/gke/pygrain_benchmark/run_benchmark.py \
   --project_id=gcs-fuse-test-ml \
   --zone=europe-west4-a \
-  --bucket_name=llama_europe_west4
+  --bucket_name=gcsfuse_gke_pygrain_benchmark_euw4
 ```
 
 ### Running on an Existing TPU v6e Cluster
