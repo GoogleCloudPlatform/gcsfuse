@@ -16,17 +16,22 @@
 package storageutil
 
 import (
+	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"golang.org/x/oauth2"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -218,4 +223,131 @@ func (t *clientTest) TestCreateHttpClientWithInvalidSocketAddress() {
 
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), httpClient)
+}
+
+func (t *clientTest) TestCreateHttpClientWithS2A_HTTP1() {
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.ClientProtocol = cfg.HTTP1
+	sc.S2AAddress = "localhost:8080"
+
+	httpClient, err := CreateHttpClient(&sc, nil)
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), httpClient)
+	assert.Equal(t.T(), sc.HttpClientTimeout, httpClient.Timeout)
+}
+
+func (t *clientTest) TestCreateHttpClientWithS2A_HTTP2() {
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.ClientProtocol = cfg.HTTP2
+	sc.S2AAddress = "localhost:8080"
+	sc.S2ASpiffeID = "spiffe://example.com/sa/my-sa"
+
+	httpClient, err := CreateHttpClient(&sc, nil)
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), httpClient)
+	assert.Equal(t.T(), sc.HttpClientTimeout, httpClient.Timeout)
+}
+
+func (t *clientTest) TestCreateHttpClientWithoutS2A_EmptyAddress() {
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.ClientProtocol = cfg.HTTP1
+	sc.S2AAddress = ""
+
+	// When S2AAddress is empty, it uses token/credential flow from keyFile.
+	httpClient, err := CreateHttpClient(&sc, nil)
+
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), httpClient)
+}
+
+func (t *clientTest) TestCreateHttpClientWithS2A_DialVerification() {
+	var s2aConnections int32
+	s2aListener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t.T(), err)
+	defer func() { _ = s2aListener.Close() }()
+
+	go func() {
+		for {
+			conn, err := s2aListener.Accept()
+			if err != nil {
+				return
+			}
+			atomic.AddInt32(&s2aConnections, 1)
+			_ = conn.Close()
+		}
+	}()
+
+	// Start a local target server so TCP connection succeeds
+	targetListener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t.T(), err)
+	defer func() { _ = targetListener.Close() }()
+
+	go func() {
+		for {
+			conn, err := targetListener.Accept()
+			if err != nil {
+				return
+			}
+			// Keep target connection open briefly for handshake attempt
+			time.Sleep(100 * time.Millisecond)
+			_ = conn.Close()
+		}
+	}()
+
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.ClientProtocol = cfg.HTTP1
+	sc.S2AAddress = s2aListener.Addr().String()
+	sc.S2ASpiffeID = "spiffe://example.com/sa/test-sa"
+	sc.HttpClientTimeout = 2 * time.Second
+
+	// Supply a static token so the OAuth2 wrapper does not attempt a real token
+	// fetch, which would fail before the transport ever dials S2A.
+	httpClient, err := CreateHttpClient(&sc, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"}))
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), httpClient)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, fmt.Sprintf("https://%s/test", targetListener.Addr().String()), nil)
+	require.NoError(t.T(), err)
+
+	_, _ = httpClient.Do(req)
+
+	assert.Greater(t.T(), atomic.LoadInt32(&s2aConnections), int32(0), "Expected S2A daemon to be dialed by DialTLSContext")
+}
+
+// S2A supplies the mTLS channel but conveys no IAM principal to GCS, so the
+// OAuth2 token wrapper must still be installed when S2A is configured.
+// Otherwise GCS rejects every request as an anonymous caller.
+func (t *clientTest) TestCreateHttpClientWithS2A_AttachesOAuthTransport() {
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.ClientProtocol = cfg.HTTP1
+	sc.S2AAddress = "localhost:8080"
+	sc.S2ASpiffeID = "spiffe://example.com/sa/my-sa"
+
+	httpClient, err := CreateHttpClient(&sc, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"}))
+
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), httpClient)
+	// The outermost wrapper is the user-agent round tripper.
+	uaTransport, ok := httpClient.Transport.(*userAgentRoundTripper)
+	require.True(t.T(), ok, "expected userAgentRoundTripper, got %T", httpClient.Transport)
+	_, ok = uaTransport.wrapped.(*oauth2.Transport)
+	assert.True(t.T(), ok, "expected oauth2.Transport under S2A, got %T", uaTransport.wrapped)
+}
+
+// Anonymous access remains the only mode without a token wrapper or UA middleware.
+func (t *clientTest) TestCreateHttpClientWithAnonymousAccess_NoOAuthTransport() {
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.ClientProtocol = cfg.HTTP1
+	sc.AnonymousAccess = true
+
+	httpClient, err := CreateHttpClient(&sc, nil)
+
+	require.NoError(t.T(), err)
+	require.NotNil(t.T(), httpClient)
+	_, ok := httpClient.Transport.(*userAgentRoundTripper)
+	assert.False(t.T(), ok, "expected no userAgentRoundTripper for anonymous access")
+	_, ok = httpClient.Transport.(*oauth2.Transport)
+	assert.False(t.T(), ok, "expected no oauth2.Transport for anonymous access")
 }
