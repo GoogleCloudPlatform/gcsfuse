@@ -336,7 +336,7 @@ func (t *clientTest) TestCreateHttpClientWithS2A_AttachesOAuthTransport() {
 	assert.True(t.T(), ok, "expected oauth2.Transport under S2A, got %T", uaTransport.wrapped)
 }
 
-// Anonymous access remains the only mode without a token wrapper.
+// Anonymous access remains the only mode without a token wrapper or UA middleware.
 func (t *clientTest) TestCreateHttpClientWithAnonymousAccess_NoOAuthTransport() {
 	sc := GetDefaultStorageClientConfig(keyFile)
 	sc.ClientProtocol = cfg.HTTP1
@@ -346,8 +346,8 @@ func (t *clientTest) TestCreateHttpClientWithAnonymousAccess_NoOAuthTransport() 
 
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), httpClient)
-	uaTransport, ok := httpClient.Transport.(*userAgentRoundTripper)
-	require.True(t.T(), ok, "expected userAgentRoundTripper, got %T", httpClient.Transport)
-	_, ok = uaTransport.wrapped.(*oauth2.Transport)
+	_, ok := httpClient.Transport.(*userAgentRoundTripper)
+	assert.False(t.T(), ok, "expected no userAgentRoundTripper for anonymous access")
+	_, ok = httpClient.Transport.(*oauth2.Transport)
 	assert.False(t.T(), ok, "expected no oauth2.Transport for anonymous access")
 }

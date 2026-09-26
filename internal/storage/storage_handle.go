@@ -288,12 +288,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	var clientOpts []option.ClientOption
 	var tokenSrc oauth2.TokenSource = nil
 
-	if clientConfig.S2AAddress != "" {
-		// When S2A is enabled, authentication is handled via mTLS at the transport level.
-		// Passing WithoutAuthentication() bypasses the default OAuth2 credential flow via Metadata Server.
-		// If not, every request will have an OAuth token attached and it will get used instead of S2A.
-		clientOpts = append(clientOpts, option.WithoutAuthentication())
-	} else if clientConfig.AnonymousAccess {
+	if clientConfig.AnonymousAccess {
 		clientOpts = append(clientOpts, option.WithoutAuthentication())
 	} else if clientConfig.EnableGoogleLibAuth {
 		var authOpts []option.ClientOption

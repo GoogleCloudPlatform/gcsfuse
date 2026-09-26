@@ -228,16 +228,18 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 		Timeout:   storageClientConfig.HttpClientTimeout,
 	}
 
-	// Setting UserAgent through RoundTripper middleware
-	httpClient.Transport = &userAgentRoundTripper{
-		wrapped:   httpClient.Transport,
-		UserAgent: storageClientConfig.UserAgent,
-	}
+	if !storageClientConfig.AnonymousAccess {
+		// Setting UserAgent through RoundTripper middleware
+		httpClient.Transport = &userAgentRoundTripper{
+			wrapped:   httpClient.Transport,
+			UserAgent: storageClientConfig.UserAgent,
+		}
 
-	if storageClientConfig.TracingEnabled {
-		httpClient.Transport = otelhttp.NewTransport(httpClient.Transport, otelhttp.WithClientTrace(func(ctx context.Context) *httptrace.ClientTrace {
-			return otelhttptrace.NewClientTrace(ctx)
-		}), otelhttp.WithTracerProvider(otel.GetTracerProvider()))
+		if storageClientConfig.TracingEnabled {
+			httpClient.Transport = otelhttp.NewTransport(httpClient.Transport, otelhttp.WithClientTrace(func(ctx context.Context) *httptrace.ClientTrace {
+				return otelhttptrace.NewClientTrace(ctx)
+			}), otelhttp.WithTracerProvider(otel.GetTracerProvider()))
+		}
 	}
 
 	return httpClient, nil
