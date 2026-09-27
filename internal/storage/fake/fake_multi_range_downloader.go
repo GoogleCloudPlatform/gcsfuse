@@ -116,7 +116,9 @@ func (fmrd *fakeMultiRangeDownloader) Add(output io.Writer, offset, length int64
 	if err != nil {
 		// If inputs aren't correct, fail immediately and return callback.
 		fmrd.mu.Lock()
-		fmrd.err = err
+		if fmrd.err == nil {
+			fmrd.err = err
+		}
 		fmrd.mu.Unlock()
 		if callback != nil {
 			callback(offset, 0, err)
@@ -142,15 +144,15 @@ func (fmrd *fakeMultiRangeDownloader) Add(output io.Writer, offset, length int64
 			err = fmt.Errorf("failed to write %v bytes to writer through multi-range-downloader, bytes written = %v, error = %v", length, n, err)
 		}
 
-		if callback != nil {
-			callback(offset, int64(n), err)
-		}
 		// Don't clear pre-existing error in downloader.
 		fmrd.mu.Lock()
 		if fmrd.err == nil && err != nil {
 			fmrd.err = err
 		}
 		fmrd.mu.Unlock()
+		if callback != nil {
+			callback(offset, int64(n), err)
+		}
 	}()
 }
 

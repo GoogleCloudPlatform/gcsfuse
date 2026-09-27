@@ -548,6 +548,7 @@ func TestDummyMultiRangeDownloader_Add_MultipleConcurrent(t *testing.T) {
 	addWg.Add(numAdds)
 	for i := 0; i < numAdds; i++ {
 		go func(i int) {
+			defer addWg.Done()
 			var output bytes.Buffer
 			length := int64(100 + i*10)
 			offset := int64(50 + i*100)
@@ -574,7 +575,6 @@ func TestDummyMultiRangeDownloader_Add_MultipleConcurrent(t *testing.T) {
 				}
 				errChan <- nil
 			})
-			addWg.Done()
 		}(i)
 	}
 	addWg.Wait()

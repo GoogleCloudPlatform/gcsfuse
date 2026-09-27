@@ -43,18 +43,16 @@ type stallingStorageControlClient struct {
 
 func (s *stallingStorageControlClient) stall(ctx context.Context, stallDuration *time.Duration) error {
 	if stallDuration == nil || *stallDuration <= 0 {
-		if dl, ok := ctx.Deadline(); ok && !time.Now().Before(dl) {
-			<-ctx.Done()
-		}
-		return ctx.Err()
+		return nil
 	}
+	d := *stallDuration
 
-	if dl, ok := ctx.Deadline(); ok && !time.Now().Add(*stallDuration).Before(dl) {
+	if dl, ok := ctx.Deadline(); ok && !time.Now().Add(d).Before(dl) {
 		<-ctx.Done()
 		return ctx.Err()
 	}
 
-	timer := time.NewTimer(*stallDuration)
+	timer := time.NewTimer(d)
 	defer timer.Stop()
 	select {
 	case <-timer.C:
@@ -256,13 +254,16 @@ func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_MountRetriesDisable
 }
 
 func (t *StorageLayoutRetryWrapperTest) TestGetStorageLayout_MountRetriesEnabled_AllAttemptsTimeOut() {
+	// Arrange
 	client := t.newHelperRetryWrapperWithMountRetries(t.stallingClient, 100*time.Millisecond, time.Microsecond, 10*time.Microsecond, 2, false, true)
 	req := &controlpb.GetStorageLayoutRequest{Name: "some/bucket"}
 	mountErr := status.Error(codes.NotFound, "The specified bucket does not exist.")
-	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(nil, mountErr)
+	t.mockRawClient.On("GetStorageLayout", mock.Anything, req, mock.Anything).Return(nil, mountErr).Times(3)
 
+	// Act
 	layout, err := client.GetStorageLayout(t.ctx, req)
 
+	// Assert
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), layout)
 	assert.Contains(t.T(), err.Error(), mountErr.Error())
