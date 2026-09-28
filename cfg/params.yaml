@@ -1596,7 +1596,7 @@ params:
     proto-tag: 162
     flag-name: "rapid-write"
     type: "rapidWriteStrategy"
-    usage: "For Rapid Cache Ultra, toggles between using bucket default class and RAPID class for writes."
+    usage: "For Rapid Cache Ultra, toggles between using bucket default storage class and RAPID storage class for writes."
     default: "disabled"
 
   - flag-name: "debug_fs"
