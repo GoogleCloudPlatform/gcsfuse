@@ -188,7 +188,7 @@ func setRetryConfig(ctx context.Context, sc *storage.Client, clientConfig *stora
 }
 
 // Followed https://pkg.go.dev/cloud.google.com/go/storage#hdr-Experimental_gRPC_API to create the gRPC client.
-func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, isBucketRapid bool, enableBidiConfig bool, bucketName string, billingProject string) (*storage.Client, error) {
+func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enforceDirectPath bool, enableBidiConfig bool, bucketName string, billingProject string) (*storage.Client, error) {
 	if err := os.Setenv("GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS", "true"); err != nil {
 		return nil, fmt.Errorf("error setting direct path env var: %w", err)
 	}
@@ -200,11 +200,22 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 	}
 
+	if enforceDirectPath {
+		clientOpts = append(clientOpts, experimental.WithDirectConnectivityEnforced())
+	}
+
 	sc, err := storage.NewGRPCClient(ctx, clientOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("NewGRPCClient: %w", err)
 	}
 
+	if enforceDirectPath {
+		if verifyErr := verifyDirectPathConnectivity(ctx, clientConfig, bucketName, sc, billingProject); verifyErr != nil {
+			logger.Warnf("DirectPath verification failed with error: %v", verifyErr)
+			return nil, verifyErr
+		}
+		logger.Infof("DirectPath verification succeeded, continuing with DirectPath.")
+	}
 	setRetryConfig(ctx, sc, clientConfig)
 	return sc, nil
 }
@@ -259,7 +270,7 @@ func unSetDirectPathEnvVariable() {
 	}
 }
 
-func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig) (sc *storage.Client, err error) {
+func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.StorageClientConfig, clientProtocol cfg.Protocol) (sc *storage.Client, err error) {
 	var clientOpts []option.ClientOption
 	var tokenSrc oauth2.TokenSource = nil
 
@@ -279,7 +290,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 		}
 	}
 
-	if clientConfig.ClientProtocol == cfg.HTTPMtls {
+	if clientProtocol == cfg.HTTPMtls {
 		clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
 		// When googleLibAuth is enabled, clientOpts already has tokenSrc.
 		if !clientConfig.EnableGoogleLibAuth && tokenSrc != nil {
@@ -288,9 +299,9 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 
 	// Add WithHttpClient option.
-	if clientConfig.ClientProtocol != cfg.HTTPMtls {
+	if clientProtocol != cfg.HTTPMtls {
 		var httpClient *http.Client
-		httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc)
+		httpClient, err = storageutil.CreateHttpClient(clientConfig, tokenSrc, clientProtocol)
 		if err != nil {
 			err = fmt.Errorf("while creating http endpoint: %w", err)
 			return
@@ -469,25 +480,44 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 
 func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, bucketName string, billingProject string) (*storage.Client, error) {
 	var err error
+	// Rapid (zonal) buckets always require a bi-directional streaming gRPC client.
 	if isBucketRapid {
 		if sh.grpcClientWithBidiConfig == nil {
-			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, isBucketRapid, true, bucketName, billingProject)
+			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, true, bucketName, billingProject)
 		}
 		return sh.grpcClientWithBidiConfig, err
 	}
 
-	if sh.clientConfig.ClientProtocol == cfg.GRPC {
-		return sh.createNonBidiGRPCClientWithHttpFallback(ctx, bucketName, billingProject)
+	clientProtocol := sh.clientConfig.ClientProtocol
+
+	if clientProtocol == "" {
+		// When client-protocol is not explicitly set and gRPC is enabled by default,
+		// attempt gRPC via DirectPath and fall back to HTTP if DirectPath is unavailable.
+		if sh.clientConfig.EnableGrpcByDefault {
+			return sh.createNonBidiGRPCClientWithHttpFallback(ctx, bucketName, billingProject)
+		}
+		// Default to HTTP1 when client-protocol is unset and gRPC is not enabled by default.
+		clientProtocol = cfg.HTTP1
 	}
 
-	if sh.clientConfig.ClientProtocol == cfg.HTTP1 || sh.clientConfig.ClientProtocol == cfg.HTTP2 || sh.clientConfig.ClientProtocol == cfg.HTTPMtls {
+	// When client-protocol is explicitly set to gRPC, create a gRPC client without
+	// enforcing DirectPath connectivity.
+	if clientProtocol == cfg.GRPC {
+		if sh.grpcClient == nil {
+			sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, false, bucketName, billingProject)
+		}
+		return sh.grpcClient, err
+	}
+
+	// Default to HTTP1 when client-protocol is unset, or use the explicitly requested HTTP protocol.
+	if clientProtocol == cfg.HTTP1 || clientProtocol == cfg.HTTP2 || clientProtocol == cfg.HTTPMtls {
 		if sh.httpClient == nil {
-			sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
+			sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig, clientProtocol)
 		}
 		return sh.httpClient, err
 	}
 
-	return nil, fmt.Errorf("invalid client-protocol requested: %s", sh.clientConfig.ClientProtocol)
+	return nil, fmt.Errorf("invalid client-protocol requested: %s", clientProtocol)
 }
 
 func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Context, bucketName string, billingProject string) (*storage.Client, error) {
@@ -496,7 +526,7 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 	}
 
 	var err error
-	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, false, bucketName, billingProject)
+	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, true, false, bucketName, billingProject)
 	// No error means we are able to successfully create a grpc client with direct path. Return it.
 	if err == nil {
 		return sh.grpcClient, nil
@@ -512,7 +542,7 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 	// When grpcPathStrategy=DirectPathWithFallback, create a http client.
 	logger.Infof("Grpc dp is not available and falling back to Http.")
 	if sh.httpClient == nil {
-		sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig)
+		sh.httpClient, err = createHTTPClientHandle(ctx, &sh.clientConfig, cfg.HTTP1)
 	}
 
 	return sh.httpClient, err
@@ -553,7 +583,8 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	disableGrpcReadChecksums := !sh.clientConfig.EnableGrpcReadChecksums
 	// If the user configures an HTTP connection on a Standard (regional) bucket, grpc checksums
 	// do not apply, so we unconditionally disable them regardless of the flag's value.
-	if !bucketType.IsRapid() && sh.clientConfig.ClientProtocol != cfg.GRPC {
+	isGRPC := sh.clientConfig.ClientProtocol == cfg.GRPC || (sh.clientConfig.ClientProtocol == "" && sh.clientConfig.EnableGrpcByDefault && sh.grpcClient != nil)
+	if !bucketType.IsRapid() && !isGRPC {
 		disableGrpcReadChecksums = true
 	}
 

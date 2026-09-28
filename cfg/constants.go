@@ -99,8 +99,6 @@ const (
 	//parallel-downloads enablement.
 	FileCacheParallelDownloadsConfigKey = "file-cache.enable-parallel-downloads"
 	maxSupportedStatCacheMaxSizeMB      = util.MaxMiBsInUint64
-	// ClientProtocolConfigKey is the Viper configuration key for the client protocol.
-	ClientProtocolConfigKey = "gcs-connection.client-protocol"
 )
 
 // CacheUtilMinimumAlignSizeForWriting is the minimum buffer size used for memory-aligned
