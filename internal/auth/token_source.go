@@ -88,8 +88,26 @@ type proxyTokenSource struct {
 	client   *http.Client
 }
 
+const (
+	metadataFlavorHeader = "Metadata-Flavor"
+	metadataFlavorValue  = "Google"
+)
+
 func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
-	resp, err := ts.client.Get(ts.endpoint)
+	req, err := http.NewRequest(http.MethodGet, ts.endpoint, nil)
+	if err != nil {
+		err = fmt.Errorf("proxyTokenSource cannot create request: %w", err)
+		return nil, err
+	}
+	// The token endpoint speaks the GCE metadata server protocol, either the
+	// metadata server itself or a proxy in front of it. Those servers require
+	// this header on every request and reject requests without it, which is
+	// what stops a browser or other naive HTTP client from being coerced into
+	// fetching a token on an attacker's behalf. Sending it unconditionally is
+	// harmless for endpoints that do not check it.
+	req.Header.Set(metadataFlavorHeader, metadataFlavorValue)
+
+	resp, err := ts.client.Do(req)
 	if err != nil {
 		err = fmt.Errorf("proxyTokenSource cannot fetch token: %w", err)
 		return nil, err

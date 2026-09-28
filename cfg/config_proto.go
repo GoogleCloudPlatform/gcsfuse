@@ -191,6 +191,8 @@ func (config *Config) ToProto() *pb.Config {
 		WriteGlobalMaxBlocks:                                  config.Write.GlobalMaxBlocks,
 		WriteMaxBlocksPerFile:                                 config.Write.MaxBlocksPerFile,
 		GcsConnectionEnableGrpcByDefault:                      config.GcsConnection.EnableGrpcByDefault,
+		IsGcsAuthS2AAddressSet:                                config.GcsAuth.S2aAddress != "",
+		IsGcsAuthS2ASpiffeIdSet:                               config.GcsAuth.S2aSpiffeId != "",
 	}
 }
 
