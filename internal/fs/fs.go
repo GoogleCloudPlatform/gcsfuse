@@ -1169,15 +1169,6 @@ func (fs *fileSystem) lookUpOrCreateChildInode(
 	ctx context.Context,
 	parent inode.DirInode,
 	childName string) (child inode.Inode, err error) {
-	// Emit exactly one metadata-cache event per lookup. The outcome is recorded
-	// by LookUpChild below; if retries occur, a GCS miss trumps a subsequent hit.
-	ctx, outcome := inode.WithMetadataCacheOutcome(ctx)
-	defer func() {
-		if outcome.Recorded {
-			fs.metricHandle.MetadataCacheReadCount(1, outcome.CacheHit, outcome.EntryStatus, outcome.LookupDetail)
-		}
-	}()
-
 	// First check if the requested child is a localFileInode.
 	child, err = fs.lookUpLocalFileInode(parent, childName)
 	if err != nil {
@@ -1885,8 +1876,9 @@ func (fs *fileSystem) StatFS(
 func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Context {
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
 		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context.
-		newCtx := context.Background()
+		// cancellable by parent context. It keeps collecting the op's metadata
+		// cache reads so that the op still records its metadata_cache/read_count.
+		newCtx := metadata.WithCacheReadsFrom(context.Background(), ctx)
 		return fs.traceHandle.PropagateTraceContext(newCtx, ctx)
 	}
 

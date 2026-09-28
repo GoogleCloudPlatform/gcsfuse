@@ -31,7 +31,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
@@ -509,6 +508,9 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 		Prefix:     name.GcsObjectName(),
 		MaxResults: 1,
 	}
+	// The listing goes to GCS without consulting the stat cache: record it so
+	// that the op counts as a metadata cache miss.
+	metadata.RecordGCSFetch(ctx)
 	listing, err := bucket.ListObjects(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("list objects: %w", err)
@@ -673,8 +675,6 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 	}
 
 	cachedType := metadata.UnknownType
-	isExpired := false
-	var expiredStatus metrics.EntryStatus
 
 	// 1. Optimization: If Type Cache is deprecated, attempt a lookup via the Stat Cache first.
 	// We skip this if the metadata cache TTL is 0, as the cache layer is inactive.
@@ -697,7 +697,6 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 
 		// If we found a directory, we're done. Return it now.
 		if dirResult != nil {
-			recordMetadataCacheOutcome(ctx, true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr)
 			return dirResult, nil
 		}
 
@@ -708,7 +707,6 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		}
 
 		if fileResult != nil {
-			recordMetadataCacheOutcome(ctx, true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr)
 			return fileResult, nil
 		}
 
@@ -717,25 +715,7 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 		// conclude the entry does not exist. If only one candidate is a negative hit, the other
 		// candidate may still exist in GCS, so we must fall through and query GCS.
 		if dirErr == nil && fileErr == nil {
-			recordMetadataCacheOutcome(ctx, true, metrics.EntryStatusNegativeAttr, metrics.LookupDetailFoundAttr)
 			return nil, nil
-		}
-
-		// Track whether either probe was a TTL expiration.
-		// A positive expiration trumps a negative expiration: if either candidate
-		// was positively cached and expired, the entity existed in cache.
-		var dirMissErr, fileMissErr *caching.CacheMissError
-		dirExpired := errors.As(dirErr, &dirMissErr) && dirMissErr.Detail == metrics.LookupDetailTtlExpiredAttr
-		fileExpired := errors.As(fileErr, &fileMissErr) && fileMissErr.Detail == metrics.LookupDetailTtlExpiredAttr
-
-		if dirExpired || fileExpired {
-			isExpired = true
-			if (dirExpired && dirMissErr.EntryStatus == metrics.EntryStatusPositiveAttr) ||
-				(fileExpired && fileMissErr.EntryStatus == metrics.EntryStatusPositiveAttr) {
-				expiredStatus = metrics.EntryStatusPositiveAttr
-			} else {
-				expiredStatus = metrics.EntryStatusNegativeAttr
-			}
 		}
 	}
 
@@ -756,15 +736,6 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 			d.cache.Insert(d.cacheClock.Now(), name, result.Type())
 		} else if d.enableNonexistentTypeCache && cachedType == metadata.UnknownType {
 			d.cache.Insert(d.cacheClock.Now(), name, metadata.NonexistentType)
-		}
-	}
-
-	// 5. Emit cache miss metric
-	if d.IsTypeCacheDeprecated() && d.metadataCacheTtlSecs != 0 {
-		if isExpired {
-			recordMetadataCacheOutcome(ctx, false, expiredStatus, metrics.LookupDetailTtlExpiredAttr)
-		} else {
-			recordMetadataCacheOutcome(ctx, false, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr)
 		}
 	}
 

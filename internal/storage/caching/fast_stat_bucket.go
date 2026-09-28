@@ -27,7 +27,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 
 	"github.com/jacobsa/timeutil"
 )
@@ -35,9 +34,7 @@ import (
 // A *CacheMissError value is an error that indicates an object name or a
 // particular generation for that name were not found from cache.
 type CacheMissError struct {
-	Err         error
-	EntryStatus metrics.EntryStatus
-	Detail      metrics.LookupDetail
+	Err error
 }
 
 func (cme *CacheMissError) Error() string {
@@ -296,37 +293,30 @@ func (b *fastStatBucket) invalidate(name string) {
 	b.cache.Erase(name)
 }
 
+// lookUp reads name from the stat cache and records the read with the
+// metadata.CacheReads carried by ctx, if any.
+//
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) lookUp(name string) (hit bool, m *gcs.MinObject) {
+func (b *fastStatBucket) lookUp(ctx context.Context, name string) (hit bool, m *gcs.MinObject) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	hit, m = b.cache.LookUp(name, b.clock.Now())
+	hit, m, entryStatus, lookupDetail := b.cache.LookUpDetail(name, b.clock.Now())
+	metadata.RecordCacheRead(ctx, hit, entryStatus, lookupDetail)
 	return
 }
 
-func (b *fastStatBucket) lookUpDetail(name string) (hit bool, m *gcs.MinObject, entryStatus metrics.EntryStatus, detail metrics.LookupDetail) {
+// lookUpFolder reads the folder name from the stat cache and records the read
+// with the metadata.CacheReads carried by ctx, if any.
+//
+// LOCKS_EXCLUDED(b.mu)
+func (b *fastStatBucket) lookUpFolder(ctx context.Context, name string) (bool, *gcs.Folder) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	hit, m, entryStatus, detail = b.cache.LookUpDetail(name, b.clock.Now())
-	return
-}
-
-func (b *fastStatBucket) lookUpFolder(name string) (bool, *gcs.Folder) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	hit, f := b.cache.LookUpFolder(name, b.clock.Now())
+	hit, f, entryStatus, lookupDetail := b.cache.LookUpFolderDetail(name, b.clock.Now())
+	metadata.RecordCacheRead(ctx, hit, entryStatus, lookupDetail)
 	return hit, f
-}
-
-func (b *fastStatBucket) lookUpFolderDetail(name string) (bool, *gcs.Folder, metrics.EntryStatus, metrics.LookupDetail) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	hit, f, entryStatus, detail := b.cache.LookUpFolderDetail(name, b.clock.Now())
-	return hit, f, entryStatus, detail
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -466,7 +456,7 @@ func (b *fastStatBucket) StatObject(
 	}
 
 	// Do we have an entry in the cache?
-	if hit, entry, entryStatus, detail := b.lookUpDetail(req.Name); hit {
+	if hit, entry := b.lookUp(ctx, req.Name); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
 			err = &gcs.NotFoundError{
@@ -479,16 +469,17 @@ func (b *fastStatBucket) StatObject(
 		// Otherwise, return MinObject and nil ExtendedObjectAttributes.
 		m = entry
 		return
-	} else if req.FetchOnlyFromCache {
-		// Cache Miss Handling
+	}
+
+	// Cache Miss Handling
+	if req.FetchOnlyFromCache {
 		return nil, nil, &CacheMissError{
-			Err:         fmt.Errorf("cache miss for %q", req.Name),
-			EntryStatus: entryStatus,
-			Detail:      detail,
+			Err: fmt.Errorf("cache miss for %q", req.Name),
 		}
 	}
 
 	// Standard fallback to GCS.
+	metadata.RecordGCSFetch(ctx)
 	return b.StatObjectFromGcs(ctx, req)
 }
 
@@ -607,7 +598,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 
 func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
 	// Cache Lookup
-	if hit, entry, entryStatus, detail := b.lookUpFolderDetail(req.Name); hit {
+	if hit, entry := b.lookUpFolder(ctx, req.Name); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
 			err := &gcs.NotFoundError{
@@ -618,15 +609,16 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderReques
 		}
 
 		return entry, nil
-	} else if req.FetchOnlyFromCache {
+	}
+
+	if req.FetchOnlyFromCache {
 		return nil, &CacheMissError{
-			Err:         fmt.Errorf("cache miss for %q", req.Name),
-			EntryStatus: entryStatus,
-			Detail:      detail,
+			Err: fmt.Errorf("cache miss for %q", req.Name),
 		}
 	}
 
 	// Fetch the Folder from GCS
+	metadata.RecordGCSFetch(ctx)
 	return b.getFolderFromGCS(ctx, req)
 }
 
