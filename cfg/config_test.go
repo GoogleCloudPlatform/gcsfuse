@@ -20,8 +20,8 @@ package cfg
 import (
 	"testing"
 
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"github.com/spf13/viper"
 )
 
 func TestApplyOptimizations(t *testing.T) {
@@ -36,15 +36,16 @@ func TestApplyOptimizations(t *testing.T) {
 			expectedValue   any
 		}{
 			{
-				name:   "user_set",
-				config: Config{},
+				name: "user_set",
+				config: Config{
+				},
 				userSetFlags: map[string]any{
 					"file-system.congestion-threshold": 98765,
-					"machine-type":                     "a2-megagpu-16g",
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -52,38 +53,38 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-				input:           nil,
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   0,
 			},
 			{
-				name:            "bucket_type_zonal",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_zonal",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
 				expectedValue:   StorageClassRapid.DefaultCongestionThreshold(),
 			},
 			{
-				name:            "bucket_type_rcu",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_rcu",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeRCU},
 				expectOptimized: true,
 				expectedValue:   StorageClassRapid.DefaultCongestionThreshold(),
 			},
 			{
-				name:            "bucket_type_flat",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_flat",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeFlat},
 				expectOptimized: true,
 				expectedValue:   StorageClassStandard.DefaultCongestionThreshold(),
 			},
 			{
-				name:            "bucket_type_hierarchical",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_hierarchical",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
 				expectOptimized: true,
 				expectedValue:   StorageClassStandard.DefaultCongestionThreshold(),
@@ -100,7 +101,7 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.FileSystem.CongestionThreshold = int64(0)
 				}
-
+				
 				v := viper.New()
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)
@@ -129,15 +130,16 @@ func TestApplyOptimizations(t *testing.T) {
 			expectedValue   any
 		}{
 			{
-				name:   "user_set",
-				config: Config{},
+				name: "user_set",
+				config: Config{
+				},
 				userSetFlags: map[string]any{
 					"gcs-connection.enable-grpc-by-default": true,
-					"machine-type":                          "a2-megagpu-16g",
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   true,
+				expectedValue: true,
 			},
 			{
 				name:   "no_optimization",
@@ -145,7 +147,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-				input:           nil,
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   false,
 			},
@@ -158,7 +160,7 @@ func TestApplyOptimizations(t *testing.T) {
 				input:           &OptimizationInput{IsGKE: true},
 				expectOptimized: true,
 				expectedValue:   true,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
 				userSetFlags: map[string]any{
@@ -167,7 +169,7 @@ func TestApplyOptimizations(t *testing.T) {
 				input:           &OptimizationInput{IsGKE: true},
 				expectOptimized: true,
 				expectedValue:   true,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_when_aiml-training_is_unrelated",
 				config: Config{Profile: "aiml-training"},
 				userSetFlags: map[string]any{
@@ -189,7 +191,7 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.GcsConnection.EnableGrpcByDefault = bool(false)
 				}
-
+				
 				v := viper.New()
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)
@@ -218,15 +220,16 @@ func TestApplyOptimizations(t *testing.T) {
 			expectedValue   any
 		}{
 			{
-				name:   "user_set",
-				config: Config{},
+				name: "user_set",
+				config: Config{
+				},
 				userSetFlags: map[string]any{
 					"file-system.enable-kernel-reader": true,
-					"machine-type":                     "a2-megagpu-16g",
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
-				expectedValue:   true,
+				expectedValue: true,
 			},
 			{
 				name:   "no_optimization",
@@ -234,22 +237,22 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-				input:           nil,
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   false,
 			},
 			{
-				name:            "bucket_type_zonal",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_zonal",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
 				expectedValue:   true,
 			},
 			{
-				name:            "bucket_type_rcu",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_rcu",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeRCU},
 				expectOptimized: true,
 				expectedValue:   true,
@@ -266,7 +269,7 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.FileSystem.EnableKernelReader = bool(false)
 				}
-
+				
 				v := viper.New()
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)
@@ -301,11 +304,11 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				userSetFlags: map[string]any{
 					"file-cache.cache-file-for-range-read": true,
-					"machine-type":                         "a2-megagpu-16g",
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   true,
+				expectedValue: true,
 			},
 			{
 				name:   "no_optimization",
@@ -313,7 +316,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-				input:           nil,
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   false,
 			},
@@ -345,7 +348,7 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.FileCache.CacheFileForRangeRead = bool(false)
 				}
-
+				
 				v := viper.New()
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)
@@ -374,15 +377,16 @@ func TestApplyOptimizations(t *testing.T) {
 			expectedValue   any
 		}{
 			{
-				name:   "user_set",
-				config: Config{},
+				name: "user_set",
+				config: Config{
+				},
 				userSetFlags: map[string]any{
 					"write.finalize-file-for-rapid": true,
-					"machine-type":                  "a2-megagpu-16g",
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
-				expectedValue:   true,
+				expectedValue: true,
 			},
 			{
 				name:   "no_optimization",
@@ -390,22 +394,22 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-				input:           nil,
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   false,
 			},
 			{
-				name:            "bucket_type_zonal",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_zonal",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
 				expectedValue:   false,
 			},
 			{
-				name:            "bucket_type_rcu",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_rcu",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeRCU},
 				expectOptimized: true,
 				expectedValue:   true,
@@ -422,7 +426,7 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.Write.FinalizeFileForRapid = bool(false)
 				}
-
+				
 				v := viper.New()
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)
@@ -451,15 +455,16 @@ func TestApplyOptimizations(t *testing.T) {
 			expectedValue   any
 		}{
 			{
-				name:   "user_set",
-				config: Config{},
+				name: "user_set",
+				config: Config{
+				},
 				userSetFlags: map[string]any{
 					"file-system.fuse-max-request-size-kb": 98765,
-					"machine-type":                         "a2-megagpu-16g",
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeFlat},
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -467,22 +472,22 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-				input:           nil,
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   StorageClassRapid.DefaultFuseMaxRequestSizeKb(),
 			},
 			{
-				name:            "bucket_type_flat",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_flat",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeFlat},
 				expectOptimized: true,
 				expectedValue:   StorageClassStandard.DefaultFuseMaxRequestSizeKb(),
 			},
 			{
-				name:            "bucket_type_hierarchical",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_hierarchical",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
 				expectOptimized: true,
 				expectedValue:   StorageClassStandard.DefaultFuseMaxRequestSizeKb(),
@@ -499,7 +504,7 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.FileSystem.FuseMaxRequestSizeKb = int64(StorageClassRapid.DefaultFuseMaxRequestSizeKb())
 				}
-
+				
 				v := viper.New()
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)
@@ -534,11 +539,11 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				userSetFlags: map[string]any{
 					"implicit-dirs": true,
-					"machine-type":  "a2-megagpu-16g",
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   true,
+				expectedValue: true,
 			},
 			{
 				name:   "no_optimization",
@@ -546,7 +551,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-				input:           nil,
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   false,
 			},
@@ -593,7 +598,7 @@ func TestApplyOptimizations(t *testing.T) {
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   true,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
 				userSetFlags: map[string]any{
@@ -615,7 +620,7 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.ImplicitDirs = bool(false)
 				}
-
+				
 				v := viper.New()
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)
@@ -650,11 +655,11 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				userSetFlags: map[string]any{
 					"file-system.kernel-list-cache-ttl-secs": 98765,
-					"machine-type":                           "a2-megagpu-16g",
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -662,7 +667,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-				input:           nil,
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   0,
 			},
@@ -686,7 +691,7 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.FileSystem.KernelListCacheTtlSecs = int64(0)
 				}
-
+				
 				v := viper.New()
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)
@@ -715,15 +720,16 @@ func TestApplyOptimizations(t *testing.T) {
 			expectedValue   any
 		}{
 			{
-				name:   "user_set",
-				config: Config{},
+				name: "user_set",
+				config: Config{
+				},
 				userSetFlags: map[string]any{
 					"file-system.max-background": 98765,
-					"machine-type":               "a2-megagpu-16g",
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -731,38 +737,38 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-				input:           nil,
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   0,
 			},
 			{
-				name:            "bucket_type_zonal",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_zonal",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
 				expectedValue:   StorageClassRapid.DefaultMaxBackground(),
 			},
 			{
-				name:            "bucket_type_rcu",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_rcu",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeRCU},
 				expectOptimized: true,
 				expectedValue:   StorageClassRapid.DefaultMaxBackground(),
 			},
 			{
-				name:            "bucket_type_flat",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_flat",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeFlat},
 				expectOptimized: true,
 				expectedValue:   StorageClassStandard.DefaultMaxBackground(),
 			},
 			{
-				name:            "bucket_type_hierarchical",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_hierarchical",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
 				expectOptimized: true,
 				expectedValue:   StorageClassStandard.DefaultMaxBackground(),
@@ -779,7 +785,7 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.FileSystem.MaxBackground = int64(0)
 				}
-
+				
 				v := viper.New()
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)
@@ -808,15 +814,16 @@ func TestApplyOptimizations(t *testing.T) {
 			expectedValue   any
 		}{
 			{
-				name:   "user_set",
-				config: Config{},
+				name: "user_set",
+				config: Config{
+				},
 				userSetFlags: map[string]any{
 					"file-system.max-read-ahead-kb": 98765,
-					"machine-type":                  "a2-megagpu-16g",
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -824,38 +831,38 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-				input:           nil,
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   0,
 			},
 			{
-				name:            "bucket_type_zonal",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_zonal",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeZonal},
 				expectOptimized: true,
 				expectedValue:   StorageClassRapid.DefaultMaxReadAheadKb(),
 			},
 			{
-				name:            "bucket_type_rcu",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_rcu",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeRCU},
 				expectOptimized: true,
 				expectedValue:   StorageClassRapid.DefaultMaxReadAheadKb(),
 			},
 			{
-				name:            "bucket_type_flat",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_flat",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeFlat},
 				expectOptimized: true,
 				expectedValue:   StorageClassStandard.DefaultMaxReadAheadKb(),
 			},
 			{
-				name:            "bucket_type_hierarchical",
-				config:          Config{Profile: ""},
-				userSetFlags:    map[string]any{},
+				name:   "bucket_type_hierarchical",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{},
 				input:           &OptimizationInput{BucketType: BucketTypeHierarchical},
 				expectOptimized: true,
 				expectedValue:   StorageClassStandard.DefaultMaxReadAheadKb(),
@@ -872,7 +879,7 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.FileSystem.MaxReadAheadKb = int64(0)
 				}
-
+				
 				v := viper.New()
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)
@@ -907,11 +914,11 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				userSetFlags: map[string]any{
 					"metadata-cache.negative-ttl-secs": 98765,
-					"machine-type":                     "a2-megagpu-16g",
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -919,7 +926,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-				input:           nil,
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   5,
 			},
@@ -966,7 +973,7 @@ func TestApplyOptimizations(t *testing.T) {
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   0,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
 				userSetFlags: map[string]any{
@@ -988,7 +995,7 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.MetadataCache.NegativeTtlSecs = int64(5)
 				}
-
+				
 				v := viper.New()
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)
@@ -1023,11 +1030,11 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				userSetFlags: map[string]any{
 					"metadata-cache.ttl-secs": 98765,
-					"machine-type":            "a2-megagpu-16g",
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -1035,7 +1042,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-				input:           nil,
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   60,
 			},
@@ -1082,7 +1089,7 @@ func TestApplyOptimizations(t *testing.T) {
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
 				userSetFlags: map[string]any{
@@ -1104,7 +1111,7 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.MetadataCache.TtlSecs = int64(60)
 				}
-
+				
 				v := viper.New()
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)
@@ -1139,11 +1146,11 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				userSetFlags: map[string]any{
 					"file-system.rename-dir-limit": 98765,
-					"machine-type":                 "a2-megagpu-16g",
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -1151,7 +1158,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-				input:           nil,
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   0,
 			},
@@ -1182,7 +1189,7 @@ func TestApplyOptimizations(t *testing.T) {
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   200000,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
 				userSetFlags: map[string]any{
@@ -1191,7 +1198,7 @@ func TestApplyOptimizations(t *testing.T) {
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   200000,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_when_aiml-training_is_unrelated",
 				config: Config{Profile: "aiml-training"},
 				userSetFlags: map[string]any{
@@ -1213,7 +1220,7 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.FileSystem.RenameDirLimit = int64(0)
 				}
-
+				
 				v := viper.New()
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)
@@ -1248,11 +1255,11 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				userSetFlags: map[string]any{
 					"metadata-cache.stat-cache-max-size-mb": 98765,
-					"machine-type":                          "a2-megagpu-16g",
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -1260,7 +1267,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-				input:           nil,
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   34,
 			},
@@ -1307,7 +1314,7 @@ func TestApplyOptimizations(t *testing.T) {
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   -1,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
 				userSetFlags: map[string]any{
@@ -1329,7 +1336,7 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.MetadataCache.StatCacheMaxSizeMb = int64(34)
 				}
-
+				
 				v := viper.New()
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)
@@ -1358,15 +1365,16 @@ func TestApplyOptimizations(t *testing.T) {
 			expectedValue   any
 		}{
 			{
-				name:   "user_set",
-				config: Config{},
+				name: "user_set",
+				config: Config{
+				},
 				userSetFlags: map[string]any{
 					"write.global-max-blocks": 98765,
-					"machine-type":            "a2-megagpu-16g",
+					"machine-type": "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   int64(98765),
+				expectedValue: int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -1374,7 +1382,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "low-end-machine",
 				},
-				input:           nil,
+			input:           nil,
 				expectOptimized: false,
 				expectedValue:   4,
 			},
@@ -1387,7 +1395,7 @@ func TestApplyOptimizations(t *testing.T) {
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   1600,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_with_non_existent_profile",
 				config: Config{Profile: "non_existent_profile"},
 				userSetFlags: map[string]any{
@@ -1396,7 +1404,7 @@ func TestApplyOptimizations(t *testing.T) {
 				input:           nil,
 				expectOptimized: true,
 				expectedValue:   1600,
-			}, {
+			},{
 				name:   "fallback_to_machine_type_when_aiml-training_is_unrelated",
 				config: Config{Profile: "aiml-training"},
 				userSetFlags: map[string]any{
@@ -1418,7 +1426,7 @@ func TestApplyOptimizations(t *testing.T) {
 				} else {
 					c.Write.GlobalMaxBlocks = int64(4)
 				}
-
+				
 				v := viper.New()
 				for key, val := range tc.userSetFlags {
 					v.Set(key, val)

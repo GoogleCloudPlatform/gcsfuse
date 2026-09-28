@@ -82,6 +82,28 @@ func (d *DirectPathStrategy) UnmarshalText(text []byte) error {
 	}
 }
 
+// RapidWriteStrategy specifies whether writes use RAPID or bucket default storage class for Rapid Cache Ultra.
+type RapidWriteStrategy string
+
+const (
+	// RapidWriteStrategyEnabled uses RAPID storage class for writes.
+	RapidWriteStrategyEnabled RapidWriteStrategy = "enabled"
+	// RapidWriteStrategyDisabled uses bucket default storage class for writes.
+	RapidWriteStrategyDisabled RapidWriteStrategy = "disabled"
+)
+
+func (r *RapidWriteStrategy) UnmarshalText(text []byte) error {
+	strategy := RapidWriteStrategy(strings.ToLower(string(text)))
+	switch strategy {
+	case RapidWriteStrategyEnabled, RapidWriteStrategyDisabled:
+		*r = strategy
+		return nil
+	default:
+		validValues := []string{string(RapidWriteStrategyEnabled), string(RapidWriteStrategyDisabled)}
+		return fmt.Errorf("invalid rapid-write strategy value: %s. It can only accept values in the list: %v", string(text), validValues)
+	}
+}
+
 // LogSeverity represents the logging severity and can accept the following values
 // "TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "OFF"
 type LogSeverity string

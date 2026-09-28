@@ -237,7 +237,6 @@ type Config struct {
 	WriteBlockSizeMb                                      float64                `protobuf:"fixed64,151,opt,name=write_block_size_mb,json=writeBlockSizeMb,proto3" json:"write_block_size_mb,omitempty"`
 	WriteCreateEmptyFile                                  bool                   `protobuf:"varint,152,opt,name=write_create_empty_file,json=writeCreateEmptyFile,proto3" json:"write_create_empty_file,omitempty"`
 	WriteEnableRapidAppends                               bool                   `protobuf:"varint,153,opt,name=write_enable_rapid_appends,json=writeEnableRapidAppends,proto3" json:"write_enable_rapid_appends,omitempty"`
-	WriteEnableRapidWrites                                bool                   `protobuf:"varint,154,opt,name=write_enable_rapid_writes,json=writeEnableRapidWrites,proto3" json:"write_enable_rapid_writes,omitempty"`
 	WriteEnableStreamingWrites                            bool                   `protobuf:"varint,155,opt,name=write_enable_streaming_writes,json=writeEnableStreamingWrites,proto3" json:"write_enable_streaming_writes,omitempty"`
 	WriteFinalizeFileForRapid                             bool                   `protobuf:"varint,156,opt,name=write_finalize_file_for_rapid,json=writeFinalizeFileForRapid,proto3" json:"write_finalize_file_for_rapid,omitempty"`
 	WriteGlobalMaxBlocks                                  int64                  `protobuf:"zigzag64,157,opt,name=write_global_max_blocks,json=writeGlobalMaxBlocks,proto3" json:"write_global_max_blocks,omitempty"`
@@ -245,6 +244,7 @@ type Config struct {
 	GcsConnectionEnableGrpcByDefault                      bool                   `protobuf:"varint,159,opt,name=gcs_connection_enable_grpc_by_default,json=gcsConnectionEnableGrpcByDefault,proto3" json:"gcs_connection_enable_grpc_by_default,omitempty"`
 	IsGcsAuthS2AAddressSet                                bool                   `protobuf:"varint,160,opt,name=is_gcs_auth_s2a_address_set,json=isGcsAuthS2aAddressSet,proto3" json:"is_gcs_auth_s2a_address_set,omitempty"`
 	IsGcsAuthS2ASpiffeIdSet                               bool                   `protobuf:"varint,161,opt,name=is_gcs_auth_s2a_spiffe_id_set,json=isGcsAuthS2aSpiffeIdSet,proto3" json:"is_gcs_auth_s2a_spiffe_id_set,omitempty"`
+	WriteRapidWrite                                       string                 `protobuf:"bytes,162,opt,name=write_rapid_write,json=writeRapidWrite,proto3" json:"write_rapid_write,omitempty"`
 	unknownFields                                         protoimpl.UnknownFields
 	sizeCache                                             protoimpl.SizeCache
 }
@@ -1343,13 +1343,6 @@ func (x *Config) GetWriteEnableRapidAppends() bool {
 	return false
 }
 
-func (x *Config) GetWriteEnableRapidWrites() bool {
-	if x != nil {
-		return x.WriteEnableRapidWrites
-	}
-	return false
-}
-
 func (x *Config) GetWriteEnableStreamingWrites() bool {
 	if x != nil {
 		return x.WriteEnableStreamingWrites
@@ -1399,13 +1392,20 @@ func (x *Config) GetIsGcsAuthS2ASpiffeIdSet() bool {
 	return false
 }
 
+func (x *Config) GetWriteRapidWrite() string {
+	if x != nil {
+		return x.WriteRapidWrite
+	}
+	return ""
+}
+
 var File_cfg_config_proto protoreflect.FileDescriptor
 
 const file_cfg_config_proto_rawDesc = "" +
 	"\n" +
 	"\x10cfg/config.proto\x12\x0egcsfuse.cfg.v1\"?\n" +
 	"\rConfigPayload\x12.\n" +
-	"\x06config\x18\x01 \x01(\v2\x16.gcsfuse.cfg.v1.ConfigR\x06config\"\xeaU\n" +
+	"\x06config\x18\x01 \x01(\v2\x16.gcsfuse.cfg.v1.ConfigR\x06config\"\xe3U\n" +
 	"\x06Config\x12%\n" +
 	"\x0fis_app_name_set\x18\x01 \x01(\bR\fisAppNameSet\x12'\n" +
 	"\x10is_cache_dir_set\x18\x02 \x01(\bR\risCacheDirSet\x12A\n" +
@@ -1563,15 +1563,15 @@ const file_cfg_config_proto_rawDesc = "" +
 	"\x1aworkload_insight_visualize\x18\x96\x01 \x01(\bR\x18workloadInsightVisualize\x12.\n" +
 	"\x13write_block_size_mb\x18\x97\x01 \x01(\x01R\x10writeBlockSizeMb\x126\n" +
 	"\x17write_create_empty_file\x18\x98\x01 \x01(\bR\x14writeCreateEmptyFile\x12<\n" +
-	"\x1awrite_enable_rapid_appends\x18\x99\x01 \x01(\bR\x17writeEnableRapidAppends\x12:\n" +
-	"\x19write_enable_rapid_writes\x18\x9a\x01 \x01(\bR\x16writeEnableRapidWrites\x12B\n" +
+	"\x1awrite_enable_rapid_appends\x18\x99\x01 \x01(\bR\x17writeEnableRapidAppends\x12B\n" +
 	"\x1dwrite_enable_streaming_writes\x18\x9b\x01 \x01(\bR\x1awriteEnableStreamingWrites\x12A\n" +
 	"\x1dwrite_finalize_file_for_rapid\x18\x9c\x01 \x01(\bR\x19writeFinalizeFileForRapid\x126\n" +
 	"\x17write_global_max_blocks\x18\x9d\x01 \x01(\x12R\x14writeGlobalMaxBlocks\x129\n" +
 	"\x19write_max_blocks_per_file\x18\x9e\x01 \x01(\x12R\x15writeMaxBlocksPerFile\x12P\n" +
 	"%gcs_connection_enable_grpc_by_default\x18\x9f\x01 \x01(\bR gcsConnectionEnableGrpcByDefault\x12<\n" +
 	"\x1bis_gcs_auth_s2a_address_set\x18\xa0\x01 \x01(\bR\x16isGcsAuthS2aAddressSet\x12?\n" +
-	"\x1dis_gcs_auth_s2a_spiffe_id_set\x18\xa1\x01 \x01(\bR\x17isGcsAuthS2aSpiffeIdSetJ\x04\b/\x100B2Z0github.com/googlecloudplatform/gcsfuse/v3/cfg/pbb\x06proto3"
+	"\x1dis_gcs_auth_s2a_spiffe_id_set\x18\xa1\x01 \x01(\bR\x17isGcsAuthS2aSpiffeIdSet\x12+\n" +
+	"\x11write_rapid_write\x18\xa2\x01 \x01(\tR\x0fwriteRapidWriteJ\x04\b/\x100J\x06\b\x9a\x01\x10\x9b\x01B2Z0github.com/googlecloudplatform/gcsfuse/v3/cfg/pbb\x06proto3"
 
 var (
 	file_cfg_config_proto_rawDescOnce sync.Once
