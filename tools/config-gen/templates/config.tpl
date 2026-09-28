@@ -91,7 +91,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	machineType, err := getMachineType(v)
 	if err != nil {
 		// Non-fatal, just means machine-based optimizations won't apply.
-		machineType = c.MachineType
+		machineType = ""
 	}
 	c.MachineType = machineType
 

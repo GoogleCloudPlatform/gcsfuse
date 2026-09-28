@@ -53,7 +53,6 @@ const (
 	MaxReadAheadKb            ParamName = "max-read-ahead-kb"
 	MaxBackgroundRequests     ParamName = "fuse-max-background-requests"
 	CongestionWindowThreshold ParamName = "fuse-congestion-window-threshold"
-	LargeReceiveOffload       ParamName = "large-receive-offload"
 )
 
 // KernelParam represents an individual parameter setting.
