@@ -1574,6 +1574,9 @@ params:
           value: false
         - bucket-type: "rcu"
           value: true
+      profiles:
+        - name: "aiml-checkpointing"
+          value: true
 
   - config-path: "write.global-max-blocks"
     proto-tag: 157
