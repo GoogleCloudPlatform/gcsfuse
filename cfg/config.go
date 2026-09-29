@@ -43,6 +43,14 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: int64(StorageClassStandard.DefaultCongestionThreshold()),
 		},
 	},
+}, "gcs-connection.enable-grpc-by-default": {
+	MachineBasedOptimization: []shared.MachineBasedOptimization{
+		{
+			Group:   "high-performance",
+			Value:   bool(true),
+			GkeOnly: true,
+		},
+	},
 }, "file-system.enable-kernel-reader": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
@@ -292,6 +300,18 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 				if c.FileSystem.CongestionThreshold != val {
 					c.FileSystem.CongestionThreshold = val
 					optimizedFlags["file-system.congestion-threshold"] = result
+				}
+			}
+		}
+	}
+	if !v.IsSet("gcs-connection.enable-grpc-by-default") {
+		rules := AllFlagOptimizationRules["gcs-connection.enable-grpc-by-default"]
+		result := getOptimizedValue(&rules, c.GcsConnection.EnableGrpcByDefault, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(bool); ok {
+				if c.GcsConnection.EnableGrpcByDefault != val {
+					c.GcsConnection.EnableGrpcByDefault = val
+					optimizedFlags["gcs-connection.enable-grpc-by-default"] = result
 				}
 			}
 		}
@@ -645,6 +665,10 @@ type GcsAuthConfig struct {
 	KeyFile ResolvedPath `yaml:"key-file"`
 
 	ReuseTokenFromUrl bool `yaml:"reuse-token-from-url"`
+
+	S2aAddress string `yaml:"s2a-address"`
+
+	S2aSpiffeId string `yaml:"s2a-spiffe-id"`
 
 	TokenUrl string `yaml:"token-url"`
 }
@@ -1461,6 +1485,10 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.BoolP("reuse-token-from-url", "", true, "If false, the token acquired from token-url is not reused.")
 
+	flagSet.StringP("s2a-address", "", "", "S2A daemon address for direct S2A authentication.")
+
+	flagSet.StringP("s2a-spiffe-id", "", "", "Local SPIFFE ID to assume for direct S2A authentication.")
+
 	flagSet.IntP("sequential-read-size-mb", "", 200, "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported")
 
 	flagSet.DurationP("stackdriver-export-interval", "", 0*time.Nanosecond, "Export metrics to stackdriver with this interval. A value of 0 indicates no exporting.")
@@ -2101,6 +2129,14 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-auth.reuse-token-from-url", flagSet.Lookup("reuse-token-from-url")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-auth.s2a-address", flagSet.Lookup("s2a-address")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-auth.s2a-spiffe-id", flagSet.Lookup("s2a-spiffe-id")); err != nil {
 		return err
 	}
 

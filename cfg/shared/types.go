@@ -48,8 +48,9 @@ type ProfileOptimization struct {
 
 // MachineBasedOptimization defines a machine-group-based optimization.
 type MachineBasedOptimization struct {
-	Group string `yaml:"group"`
-	Value any    `yaml:"value"`
+	Group   string `yaml:"group"`
+	Value   any    `yaml:"value"`
+	GkeOnly bool   `yaml:"gke-only,omitempty"`
 }
 
 // BucketTypeOptimization defines a bucket-type-based optimization.

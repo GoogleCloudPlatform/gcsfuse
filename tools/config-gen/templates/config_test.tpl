@@ -106,7 +106,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "{{$machineType}}",
 				},
-				input:           nil,
+				input:           {{if $mbo.GkeOnly}}&OptimizationInput{IsGKE: true}{{else}}nil{{end}},
 				expectOptimized: {{if ne (printf "%v" $mbo.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{$mbo.Value}},
 			},
@@ -135,7 +135,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "{{$machineType}}",
 				},
-				input:           nil,
+				input:           {{if $mbo.GkeOnly}}&OptimizationInput{IsGKE: true}{{else}}nil{{end}},
 				expectOptimized: {{if ne (printf "%v" $profile.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{$profile.Value}},
 			},
@@ -164,7 +164,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "{{$machineType}}",
 				},
-				input:           &OptimizationInput{BucketType: BucketType{{ $bt | title }}},
+				input:           &OptimizationInput{BucketType: BucketType{{ $bt | title }}{{if $mbo.GkeOnly}}, IsGKE: true{{end}}},
 				expectOptimized: {{if ne (printf "%v" $mbo.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{$mbo.Value}},
 			},
@@ -178,7 +178,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "{{$machineType}}",
 				},
-				input:           nil,
+				input:           {{if $mbo.GkeOnly}}&OptimizationInput{IsGKE: true}{{else}}nil{{end}},
 				expectOptimized: {{if ne (printf "%v" $mbo.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{$mbo.Value}},
 			},
@@ -196,7 +196,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags: map[string]any{
 					"machine-type": "{{$machineType}}",
 				},
-				input:           nil,
+				input:           {{if $mbo.GkeOnly}}&OptimizationInput{IsGKE: true}{{else}}nil{{end}},
 				expectOptimized: {{if ne (printf "%v" $mbo.Value) (printf "%v" $flag.DefaultValue)}}true{{else}}false{{end}},
 				expectedValue:   {{$mbo.Value}},
 			},

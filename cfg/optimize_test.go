@@ -177,6 +177,25 @@ func TestApplyOptimizations_MatchingMachineType(t *testing.T) {
 	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
 	assert.True(t, cfg.ImplicitDirs)
 	assert.EqualValues(t, 200000, cfg.FileSystem.RenameDirLimit)
+	assert.False(t, cfg.GcsConnection.EnableGrpcByDefault)
+}
+
+func TestApplyOptimizations_IsGKE_EnableGrpcByDefault(t *testing.T) {
+	resetMetadataEndpoints(t)
+	server := createTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_, err := fmt.Fprint(w, "zones/us-central1-a/machineTypes/a3-highgpu-8g")
+		assert.NoError(t, err)
+	})
+	defer closeTestServer(t, server)
+	metadataEndpoints = []string{server.URL}
+	gkeCfg := defaultConfig()
+	gceCfg := defaultConfig()
+
+	gkeCfg.ApplyOptimizations(viper.New(), &OptimizationInput{IsGKE: true})
+	gceCfg.ApplyOptimizations(viper.New(), &OptimizationInput{IsGKE: false})
+
+	assert.True(t, gkeCfg.GcsConnection.EnableGrpcByDefault)
+	assert.False(t, gceCfg.GcsConnection.EnableGrpcByDefault)
 }
 
 func TestApplyOptimizations_NonMatchingMachineType(t *testing.T) {

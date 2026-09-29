@@ -310,3 +310,41 @@ func Test_NewTokenSourceFromURL_UnixSocket_ExpiresInPopulatesExpiry(t *testing.T
 	assert.False(t, token.Expiry.IsZero())
 	assert.True(t, time.Until(token.Expiry) > 1700*time.Second)
 }
+
+func Test_NewTokenSourceFromURL_SendsMetadataFlavorHeader(t *testing.T) {
+	var gotFlavor string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotFlavor = r.Header.Get("Metadata-Flavor")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"tcp-token","token_type":"Bearer","expires_in":3600}`))
+	}))
+	defer server.Close()
+	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false)
+	require.NoError(t, err)
+
+	token, err := ts.Token()
+
+	require.NoError(t, err)
+	assert.Equal(t, "tcp-token", token.AccessToken)
+	assert.Equal(t, "Google", gotFlavor)
+}
+
+func Test_NewTokenSourceFromURL_UnixSocket_SendsMetadataFlavorHeader(t *testing.T) {
+	var gotFlavor string
+	socketPath, listener := createTempUnixSocket(t)
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotFlavor = r.Header.Get("Metadata-Flavor")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"uds-token","token_type":"Bearer","expires_in":3600}`))
+	})
+	startUDSServer(t, listener, handler)
+	tokenURL := fmt.Sprintf("unix://%s#/computeMetadata/v1/instance/service-accounts/default/token", socketPath)
+	ts, err := NewTokenSourceFromURL(context.Background(), tokenURL, false)
+	require.NoError(t, err)
+
+	token, err := ts.Token()
+
+	require.NoError(t, err)
+	assert.Equal(t, "uds-token", token.AccessToken)
+	assert.Equal(t, "Google", gotFlavor)
+}
