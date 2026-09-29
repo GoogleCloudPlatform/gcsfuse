@@ -358,10 +358,6 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_AllAttemptsTimeOut() {
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
 		// Simulate a call that always takes longer than the per-attempt deadline.
-		if dl, ok := ctx.Deadline(); ok && !time.Now().Add(stallDuration).Before(dl) {
-			<-ctx.Done()
-			return "", ctx.Err()
-		}
 		timer := time.NewTimer(stallDuration)
 		defer timer.Stop()
 		select {
@@ -391,13 +387,9 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutSho
 	// Arrange
 	var callCount int
 	t.retryConfig.RetryDeadline = 200 * time.Millisecond
-	stallDuration := t.retryConfig.RetryDeadline + 100*time.Millisecond
+	stallDuration := t.retryConfig.RetryDeadline - 50*time.Millisecond
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
-		if dl, ok := ctx.Deadline(); ok && !time.Now().Add(stallDuration).Before(dl) {
-			<-ctx.Done()
-			return "", ctx.Err()
-		}
 		timer := time.NewTimer(stallDuration)
 		defer timer.Stop()
 		select {
@@ -433,10 +425,6 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutBet
 	stallDuration := t.retryConfig.RetryDeadline + 100*time.Millisecond
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
-		if dl, ok := ctx.Deadline(); ok && !time.Now().Add(stallDuration).Before(dl) {
-			<-ctx.Done()
-			return "", ctx.Err()
-		}
 		timer := time.NewTimer(stallDuration)
 		defer timer.Stop()
 		select {

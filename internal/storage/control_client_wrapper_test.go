@@ -46,22 +46,18 @@ func (s *stallingStorageControlClient) stall(ctx context.Context, stallDuration 
 		return nil
 	}
 	d := *stallDuration
-
-	if dl, ok := ctx.Deadline(); ok && !time.Now().Add(d).Before(dl) {
-		<-ctx.Done()
-		return ctx.Err()
-	}
-
 	timer := time.NewTimer(d)
 	defer timer.Stop()
 	select {
 	case <-timer.C:
 		if dl, ok := ctx.Deadline(); ok && !time.Now().Before(dl) {
 			<-ctx.Done()
+			return ctx.Err()
 		}
+		return nil
 	case <-ctx.Done():
+		return ctx.Err()
 	}
-	return ctx.Err()
 }
 
 func (s *stallingStorageControlClient) GetStorageLayout(ctx context.Context, req *controlpb.GetStorageLayoutRequest, opts ...gax.CallOption) (*controlpb.StorageLayout, error) {
