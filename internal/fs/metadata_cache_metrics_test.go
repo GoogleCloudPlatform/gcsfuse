@@ -312,10 +312,8 @@ func TestMetadataCache_EndToEndScenarios(t *testing.T) {
 		)
 	})
 
-	// Guards the decision to leave clobbered() uninstrumented: GetInodeAttributes
-	// does read the stat cache, but must contribute no events. Only the cold
-	// lookup is counted.
-	t.Run("Scenario 6: GetInodeAttributes records no cache read", func(t *testing.T) {
+	// GetInodeAttributes' clobbered() check is a positive stat-cache hit.
+	t.Run("Scenario 6: GetInodeAttributes records a cache hit", func(t *testing.T) {
 		// Arrange
 		env := newMetadataCacheTestEnv(ctx, t)
 		env.putObject(ctx, t, "existing_file.txt")
@@ -327,7 +325,10 @@ func TestMetadataCache_EndToEndScenarios(t *testing.T) {
 
 		// Assert
 		require.NoError(t, err)
-		env.assertReads(ctx, t, wantRead{false, statusNone, detailNotFound, 1})
+		env.assertReads(ctx, t,
+			wantRead{false, statusNone, detailNotFound, 1},
+			wantRead{true, statusPositive, detailFound, 1},
+		)
 	})
 
 	t.Run("Scenario 7: Stat Cache TTL Expiration", func(t *testing.T) {
@@ -382,6 +383,7 @@ func TestMetadataCache_EndToEndScenarios(t *testing.T) {
 		)
 	})
 
+	// CreateFile's clobbered() check goes to GCS (miss); the later lookup is a hit.
 	t.Run("Scenario 10: File Creation & Warm Lookup", func(t *testing.T) {
 		// Arrange
 		env := newMetadataCacheTestEnv(ctx, t)
@@ -399,7 +401,10 @@ func TestMetadataCache_EndToEndScenarios(t *testing.T) {
 
 		// Assert
 		require.NoError(t, err)
-		env.assertReads(ctx, t, wantRead{true, statusPositive, detailFound, 1})
+		env.assertReads(ctx, t,
+			wantRead{false, statusNone, detailNotFound, 1},
+			wantRead{true, statusPositive, detailFound, 1},
+		)
 	})
 
 	// The cold lookup negatively caches the directory key and Unlink negatively
@@ -423,8 +428,8 @@ func TestMetadataCache_EndToEndScenarios(t *testing.T) {
 		)
 	})
 
-	// Same guard as Scenario 6, via the SetInodeAttributes route into clobbered().
-	t.Run("Scenario 12: SetInodeAttributes records no cache read", func(t *testing.T) {
+	// Same as Scenario 6, via the SetInodeAttributes route into clobbered().
+	t.Run("Scenario 12: SetInodeAttributes records a cache hit", func(t *testing.T) {
 		// Arrange
 		env := newMetadataCacheTestEnv(ctx, t)
 		env.putObject(ctx, t, "existing_file.txt")
@@ -437,7 +442,10 @@ func TestMetadataCache_EndToEndScenarios(t *testing.T) {
 
 		// Assert
 		require.NoError(t, err)
-		env.assertReads(ctx, t, wantRead{false, statusNone, detailNotFound, 1})
+		env.assertReads(ctx, t,
+			wantRead{false, statusNone, detailNotFound, 1},
+			wantRead{true, statusPositive, detailFound, 1},
+		)
 	})
 
 	t.Run("Scenario 13: Symlink Creation & Lookup", func(t *testing.T) {
@@ -575,8 +583,7 @@ func TestMetadataCache_EndToEndScenarios(t *testing.T) {
 		)
 	})
 
-	// Conflict-marker names are resolved before the stat-cache probe, so they record
-	// nothing.
+	// The conflict-marker lookup checks "conflict/", a miss that goes to GCS.
 	t.Run("Scenario 21: Conflicting Filename Lookup", func(t *testing.T) {
 		// Arrange
 		env := newMetadataCacheTestEnv(ctx, t)
@@ -586,9 +593,10 @@ func TestMetadataCache_EndToEndScenarios(t *testing.T) {
 
 		// Assert
 		assert.Equal(t, fuse.ENOENT, err)
-		env.assertReads(ctx, t)
+		env.assertReads(ctx, t, wantRead{false, statusNone, detailNotFound, 1})
 	})
 
+	// CreateFile misses as in Scenario 10; GetInodeAttributes hits the negative entry.
 	t.Run("Scenario 22: Unlinked local file Attributes", func(t *testing.T) {
 		// Arrange
 		env := newMetadataCacheTestEnv(ctx, t)
@@ -603,7 +611,10 @@ func TestMetadataCache_EndToEndScenarios(t *testing.T) {
 		// Assert
 		require.NoError(t, err)
 		assert.Equal(t, uint32(0), getOp.Attributes.Nlink)
-		env.assertReads(ctx, t)
+		env.assertReads(ctx, t,
+			wantRead{false, statusNone, detailNotFound, 1},
+			wantRead{true, statusNegative, detailFound, 1},
+		)
 	})
 
 	t.Run("Scenario 23: Directory Stat Cache TTL Expiration", func(t *testing.T) {

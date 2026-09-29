@@ -66,7 +66,7 @@ func newProductionLikeMetadataCacheFS(ctx context.Context, t *testing.T, opts me
 	uncachedBucket := fake.NewFakeBucket(clock, bucketName, gcs.BucketType{})
 	// Like the bucket manager, only put the stat cache in front of the bucket
 	// when the metadata cache is enabled.
-	var bucket gcs.Bucket = uncachedBucket
+	bucket := uncachedBucket
 	if opts.ttl != 0 {
 		statCache := metadata.NewStatCacheBucketView(lru.NewCache(uint64(1000*cfg.AverageSizeOfPositiveStatCacheEntry)), "")
 		bucket = caching.NewFastStatBucket(opts.ttl, statCache, clock, uncachedBucket, opts.ttl, true, opts.implicitDirs, opts.enableEmptyManagedFolders)

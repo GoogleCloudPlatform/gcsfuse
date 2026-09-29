@@ -84,16 +84,16 @@ func RecordCacheRead(ctx context.Context, hit bool, entryStatus metrics.EntrySta
 		return
 	}
 	switch {
+	case hit && entryStatus == metrics.EntryStatusPositiveAttr:
+		r.reads.Or(readHitPositive)
 	case hit && entryStatus == metrics.EntryStatusNegativeAttr:
 		r.reads.Or(readHitNegative)
-	case hit:
-		r.reads.Or(readHitPositive)
-	case lookupDetail != metrics.LookupDetailTtlExpiredAttr:
-		r.reads.Or(readMissAbsent)
-	case entryStatus == metrics.EntryStatusPositiveAttr:
+	case lookupDetail == metrics.LookupDetailTtlExpiredAttr && entryStatus == metrics.EntryStatusPositiveAttr:
 		r.reads.Or(readMissExpiredPositive)
-	default:
+	case lookupDetail == metrics.LookupDetailTtlExpiredAttr && entryStatus == metrics.EntryStatusNegativeAttr:
 		r.reads.Or(readMissExpiredNegative)
+	default: // not_found: no entry in the cache
+		r.reads.Or(readMissAbsent)
 	}
 }
 
