@@ -9,14 +9,14 @@ require (
 	cloud.google.com/go/iam v1.13.0
 	cloud.google.com/go/profiler v0.6.0
 	cloud.google.com/go/secretmanager v1.21.0
-	cloud.google.com/go/storage v1.65.1
+	cloud.google.com/go/storage v1.68.1-0.20260930023200-12cdbd69fe88
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.60.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.36.0
 	github.com/fsouza/fake-gcs-server v1.54.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/s2a-go v0.1.10
 	github.com/google/uuid v1.6.0
-	github.com/googleapis/gax-go/v2 v2.24.0
+	github.com/googleapis/gax-go/v2 v2.26.2
 	github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec
 	github.com/jacobsa/fuse v0.0.0-20260630194014-a124548f6da7
 	github.com/jacobsa/oglematchers v0.0.0-20150720000706-141901ea67cd
