@@ -72,21 +72,6 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: bool(true),
 		},
 	},
-}, "write.finalize-file-for-rapid": {
-	BucketTypeOptimization: []shared.BucketTypeOptimization{
-		{
-			BucketTypes: shared.BucketTypeList{
-				"zonal",
-			},
-			Value: bool(false),
-		},
-		{
-			BucketTypes: shared.BucketTypeList{
-				"rcu",
-			},
-			Value: bool(true),
-		},
-	},
 }, "file-system.fuse-max-request-size-kb": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
@@ -336,18 +321,6 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 				if c.FileCache.CacheFileForRangeRead != val {
 					c.FileCache.CacheFileForRangeRead = val
 					optimizedFlags["file-cache.cache-file-for-range-read"] = result
-				}
-			}
-		}
-	}
-	if !v.IsSet("write.finalize-file-for-rapid") {
-		rules := AllFlagOptimizationRules["write.finalize-file-for-rapid"]
-		result := getOptimizedValue(&rules, c.Write.FinalizeFileForRapid, profileName, machineType, input, machineTypeToGroupMap)
-		if result.Optimized {
-			if val, ok := result.FinalValue.(bool); ok {
-				if c.Write.FinalizeFileForRapid != val {
-					c.Write.FinalizeFileForRapid = val
-					optimizedFlags["write.finalize-file-for-rapid"] = result
 				}
 			}
 		}

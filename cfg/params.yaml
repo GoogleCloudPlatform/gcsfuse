@@ -1561,12 +1561,6 @@ params:
     usage: "Finalizes the files on close for Rapid storage. Appends will be slower on finalized files."
     default: false
     hide-flag: true
-    optimizations:
-      bucket-type-optimization:
-        - bucket-type: "zonal"
-          value: false
-        - bucket-type: "rcu"
-          value: true
 
   - config-path: "write.global-max-blocks"
     proto-tag: 157

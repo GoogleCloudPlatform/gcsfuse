@@ -188,6 +188,27 @@ func resolveKernelReadAhead(v *viper.Viper, c *Config) {
 	c.FileSystem.MaxReadAheadKb = max(c.FileSystem.MaxReadAheadKb, c.FileSystem.FuseMaxRequestSizeKb)
 }
 
+// resolveFinalizeFileForRapid sets finalize-file-for-rapid to true when rapid-write
+// is enabled, unless finalize-file-for-rapid was explicitly configured by the user.
+// It is safe to do this here for this flag since rapid-write is explicitly
+// applicable to RCU buckets and finalize-file-for-rapid is only honored by the Go SDK
+// when appendable writes are used.
+//
+// NOTE: If some other value is used to indicate appendable writes in the future,
+// use that value instead of RapidWriteStrategyEnabled.
+//
+// TODO(b/569556864): Once bucket-type optimizations are supported for dynamic
+// mounts, move this logic to bucket-type optimizations in params.yaml.
+func resolveFinalizeFileForRapid(v *viper.Viper, w *WriteConfig) {
+	if v != nil && v.IsSet(FinalizeFileForRapidConfigKey) {
+		return
+	}
+
+	if w.RapidWrite == RapidWriteStrategyEnabled {
+		w.FinalizeFileForRapid = true
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	var err error
@@ -203,6 +224,7 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	resolveTraceConfig(&c.Trace)
 	resolveReadConfig(&c.Read)
 	resolveStreamingWriteConfig(&c.Write)
+	resolveFinalizeFileForRapid(v, &c.Write)
 	resolveMetadataCacheConfig(v, &c.MetadataCache, optimizedFlags)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)
