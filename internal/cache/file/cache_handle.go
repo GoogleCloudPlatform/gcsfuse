@@ -305,6 +305,16 @@ func (fch *CacheHandle) IsSequential(currentOffset int64) bool {
 	return true
 }
 
+func (fch *CacheHandle) UpdateJobSize(newSize uint64) {
+	if fch.fileDownloadJob != nil {
+		fch.fileDownloadJob.UpdateSize(newSize)
+	}
+}
+
+func (fch *CacheHandle) GetDownloadJob() *downloader.Job {
+	return fch.fileDownloadJob
+}
+
 // Close closes the underlying fileHandle pointing to locally downloaded cache file.
 func (fch *CacheHandle) Close() (err error) {
 	if fch.fileHandle != nil {
