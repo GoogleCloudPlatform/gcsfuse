@@ -202,6 +202,25 @@ func resolveClientProtocol(v *viper.Viper, c *GcsConnectionConfig) {
 	}
 }
 
+// resolveFinalizeFileForRapid sets FinalizeFileForRapid to true when rapid-write
+// is enabled, unless finalize-file-for-rapid was explicitly configured by the user.
+// It is safe to do this here for this flag since rapid-write is explicitly
+// applicable to RCU buckets and FinalizeFileForRapid is only honored by the Go SDK
+// when appendable writes are used. If some other value is used to indicate
+// appendable writes in the future, use that value instead of RapidWriteStrategyEnabled.
+//
+// TODO: Once we decide to honor bucket-type optimizations for dynamic mounts, move
+// this logic back to bucket-type optimizations in params.yaml so that it is consistent.
+func resolveFinalizeFileForRapid(v *viper.Viper, w *WriteConfig) {
+	if v != nil && v.IsSet(FinalizeFileForRapidConfigKey) {
+		return
+	}
+
+	if w.RapidWrite == RapidWriteStrategyEnabled {
+		w.FinalizeFileForRapid = true
+	}
+}
+
 // Rationalize updates the config fields based on the values of other fields.
 func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	var err error
@@ -217,6 +236,7 @@ func Rationalize(v *viper.Viper, c *Config, optimizedFlags []string) error {
 	resolveTraceConfig(&c.Trace)
 	resolveReadConfig(&c.Read)
 	resolveStreamingWriteConfig(&c.Write)
+	resolveFinalizeFileForRapid(v, &c.Write)
 	resolveMetadataCacheConfig(v, &c.MetadataCache, optimizedFlags)
 	resolveStatCacheMaxSizeMB(v, &c.MetadataCache, optimizedFlags)
 	resolveCloudMetricsUploadIntervalSecs(&c.Metrics)

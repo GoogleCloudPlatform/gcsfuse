@@ -101,6 +101,8 @@ const (
 	maxSupportedStatCacheMaxSizeMB      = util.MaxMiBsInUint64
 	// ClientProtocolConfigKey is the Viper configuration key for the client protocol.
 	ClientProtocolConfigKey = "gcs-connection.client-protocol"
+	// FinalizeFileForRapidConfigKey is the Viper configuration key for finalize-file-for-rapid.
+	FinalizeFileForRapidConfigKey = "write.finalize-file-for-rapid"
 )
 
 // CacheUtilMinimumAlignSizeForWriting is the minimum buffer size used for memory-aligned

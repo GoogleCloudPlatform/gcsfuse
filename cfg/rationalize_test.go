@@ -1337,3 +1337,73 @@ func TestResolveClientProtocol(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveFinalizeFileForRapid(t *testing.T) {
+	testCases := []struct {
+		name                         string
+		config                       *Config
+		userSetFlags                 map[string]any
+		expectedFinalizeFileForRapid bool
+	}{
+		{
+			name: "rapid-write is disabled and finalize-file-for-rapid is not set",
+			config: &Config{
+				Write: WriteConfig{
+					RapidWrite:           RapidWriteStrategyDisabled,
+					FinalizeFileForRapid: false,
+				},
+			},
+			expectedFinalizeFileForRapid: false,
+		},
+		{
+			name: "rapid-write is enabled and finalize-file-for-rapid is not set",
+			config: &Config{
+				Write: WriteConfig{
+					RapidWrite:           RapidWriteStrategyEnabled,
+					FinalizeFileForRapid: false,
+				},
+			},
+			expectedFinalizeFileForRapid: true,
+		},
+		{
+			name: "rapid-write is enabled and finalize-file-for-rapid is explicitly set to false",
+			config: &Config{
+				Write: WriteConfig{
+					RapidWrite:           RapidWriteStrategyEnabled,
+					FinalizeFileForRapid: false,
+				},
+			},
+			userSetFlags: map[string]any{
+				FinalizeFileForRapidConfigKey: false,
+			},
+			expectedFinalizeFileForRapid: false,
+		},
+		{
+			name: "rapid-write is disabled and finalize-file-for-rapid is explicitly set to true",
+			config: &Config{
+				Write: WriteConfig{
+					RapidWrite:           RapidWriteStrategyDisabled,
+					FinalizeFileForRapid: true,
+				},
+			},
+			userSetFlags: map[string]any{
+				FinalizeFileForRapidConfigKey: true,
+			},
+			expectedFinalizeFileForRapid: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := viper.New()
+			for k, val := range tc.userSetFlags {
+				v.Set(k, val)
+			}
+
+			err := Rationalize(v, tc.config, []string{})
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedFinalizeFileForRapid, tc.config.Write.FinalizeFileForRapid)
+		})
+	}
+}
