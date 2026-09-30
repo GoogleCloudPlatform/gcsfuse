@@ -48,7 +48,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false, false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "", metrics.NewNoopMetrics(), false, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -60,7 +60,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false, false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "", metrics.NewNoopMetrics(), false, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -72,7 +72,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPCIsGKE() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), true, false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "", metrics.NewNoopMetrics(), true, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -496,5 +496,73 @@ func (t *MainTest) TestForwardedEnvVars_NotPassedWhenUnset() {
 		name, _, ok := strings.Cut(forwardedVar, "=")
 		require.True(t.T(), ok, "Invalid env var format: %s", forwardedVar)
 		assert.NotContains(t.T(), unexpectedForwardedEnvVars, name, "unexpected env var %q was forwarded", name)
+	}
+}
+
+func (t *MainTest) TestGetMountConfigsHeader() {
+	mountConfig := &cfg.Config{}
+	proto, err := mountConfig.SerializeConfigToProtoBase64()
+	require.NoError(t.T(), err)
+	testCases := []struct {
+		name            string
+		appName         string
+		mountConfig     *cfg.Config
+		mountInstanceID string
+		expected        string
+	}{
+		{
+			name:            "AllFieldsSet",
+			appName:         "AppName",
+			mountConfig:     mountConfig,
+			mountInstanceID: "testFS-123",
+			expected:        "(GCSFuseConfig:<proto>) (app-name:AppName) (mount-id:testFS-123)",
+		},
+		{
+			name:            "EmptyAppName",
+			mountConfig:     mountConfig,
+			mountInstanceID: "testFS-123",
+			expected:        "(GCSFuseConfig:<proto>) (mount-id:testFS-123)",
+		},
+		{
+			name:        "EmptyMountInstanceID",
+			appName:     "AppName",
+			mountConfig: mountConfig,
+			expected:    "(GCSFuseConfig:<proto>) (app-name:AppName)",
+		},
+		{
+			name:            "NilConfig",
+			appName:         "AppName",
+			mountInstanceID: "testFS-123",
+			expected:        "(app-name:AppName) (mount-id:testFS-123)",
+		},
+		{
+			name:            "AppNameWithNewlineIsOmitted",
+			appName:         "app\nname",
+			mountConfig:     mountConfig,
+			mountInstanceID: "testFS-123",
+			expected:        "(GCSFuseConfig:<proto>) (mount-id:testFS-123)",
+		},
+		{
+			name:            "AppNameWithNonASCIIIsOmitted",
+			appName:         "appé",
+			mountConfig:     mountConfig,
+			mountInstanceID: "testFS-123",
+			expected:        "(GCSFuseConfig:<proto>) (mount-id:testFS-123)",
+		},
+		{
+			name:            "MountIDWithNonASCIIIsOmitted",
+			appName:         "AppName",
+			mountConfig:     mountConfig,
+			mountInstanceID: "bucket-idé-abc",
+			expected:        "(GCSFuseConfig:<proto>) (app-name:AppName)",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(t *testing.T) {
+			header := getMountConfigsHeader(tc.appName, tc.mountConfig, tc.mountInstanceID)
+
+			assert.Equal(t, strings.ReplaceAll(tc.expected, "<proto>", proto), header)
+		})
 	}
 }

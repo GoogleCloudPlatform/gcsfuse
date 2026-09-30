@@ -145,7 +145,51 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	}
 	return strings.Join(parts, ":")
 }
-func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle, isGKE bool, isDynamicMount bool) (storageHandle storage.StorageHandle, err error) {
+
+// getMountConfigsHeader builds the gcsfuse-mount-configs metadata value sent on
+// GetStorageLayout. gRPC rejects metadata values that are not printable ASCII,
+// which would fail the mount, so user-supplied fields (app-name, mount-id) that
+// aren't printable ASCII are dropped. The config proto is base64url and always ASCII.
+func getMountConfigsHeader(appName string, mountConfig *cfg.Config, mountInstanceID string) string {
+	fullConfig, err := mountConfig.SerializeConfigToProtoBase64()
+	if err != nil {
+		logger.Warnf("failed to serialize config to proto base64: %v", err)
+	}
+	parts := make([]string, 0, 3)
+	if fullConfig != "" {
+		parts = append(parts, fmt.Sprintf("(GCSFuseConfig:%s)", fullConfig))
+	}
+	if part := printableField("app-name", appName); part != "" {
+		parts = append(parts, part)
+	}
+	if part := printableField("mount-id", mountInstanceID); part != "" {
+		parts = append(parts, part)
+	}
+	return strings.Join(parts, " ")
+}
+
+// printableField formats "(key:value)", or returns "" if value is empty or not printable ASCII.
+func printableField(key, value string) string {
+	if value == "" {
+		return ""
+	}
+	if !isPrintableASCII(value) {
+		logger.Warnf("Omitting %s from gcsfuse-mount-configs metadata: value contains non-printable ASCII characters", key)
+		return ""
+	}
+	return fmt.Sprintf("(%s:%s)", key, value)
+}
+
+func isPrintableASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < 0x20 || s[i] > 0x7E {
+			return false
+		}
+	}
+	return true
+}
+
+func createStorageHandle(newConfig *cfg.Config, userAgent string, mountConfigsHeader string, metricHandle metrics.MetricHandle, isGKE bool, isDynamicMount bool) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             newConfig.GcsConnection.ClientProtocol,
 		MaxConnsPerHost:            int(newConfig.GcsConnection.MaxConnsPerHost),
@@ -156,6 +200,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		RetryMultiplier:            newConfig.GcsRetries.Multiplier,
 		EnableMountRetries:         newConfig.GcsRetries.EnableMountRetries && !isDynamicMount,
 		UserAgent:                  userAgent,
+		MountConfigsHeader:         mountConfigsHeader,
 		CustomEndpoint:             newConfig.GcsConnection.CustomEndpoint,
 		KeyFile:                    string(newConfig.GcsAuth.KeyFile),
 		AnonymousAccess:            newConfig.GcsAuth.AnonymousAccess,
@@ -180,6 +225,9 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		WriteConfig:                &newConfig.Write,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
+	if storageClientConfig.MountConfigsHeader != "" {
+		logger.Infof("MountConfigsHeader = %s\n", storageClientConfig.MountConfigsHeader)
+	}
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig, newConfig.GcsConnection.BillingProject)
 	return
 }
@@ -206,9 +254,11 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	// connection.
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
-		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig), logger.MountInstanceID(fsName(bucketName), newConfig.MountId))
+		mountInstanceID := logger.MountInstanceID(fsName(bucketName), newConfig.MountId)
+		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig), mountInstanceID)
+		mountConfigsHeader := getMountConfigsHeader(newConfig.AppName, newConfig, mountInstanceID)
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(newConfig, userAgent, metricHandle, isGKE, isDynamicMount(bucketName))
+		storageHandle, err = createStorageHandle(newConfig, userAgent, mountConfigsHeader, metricHandle, isGKE, isDynamicMount(bucketName))
 		if err != nil {
 			err = fmt.Errorf("failed to create storage handle using createStorageHandle: %w", err)
 			return

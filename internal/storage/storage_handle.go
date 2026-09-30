@@ -43,6 +43,7 @@ import (
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 
 	// Side effect to run grpc client with direct-path on gcp machine.
 	_ "google.golang.org/grpc/balancer/rls"
@@ -57,6 +58,9 @@ const (
 
 	zonalLocationType   = "zone"
 	rapidCacheUltraType = "rapid-cache-ultra"
+
+	// mountConfigsMetadataKey is the gRPC metadata key carrying mount telemetry on GetStorageLayout.
+	mountConfigsMetadataKey = "gcsfuse-mount-configs"
 
 	// DirectPath detection parameters - used for fast-fail detection during client creation
 	directPathDetectionMaxAttempts = 5
@@ -439,7 +443,12 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.StorageLayout, error) {
 	var callOptions []gax.CallOption
 
-	storageLayout, err := sh.storageControlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
+	ctx := context.Background()
+	if sh.clientConfig.MountConfigsHeader != "" {
+		ctx = metadata.AppendToOutgoingContext(ctx, mountConfigsMetadataKey, sh.clientConfig.MountConfigsHeader)
+	}
+
+	storageLayout, err := sh.storageControlClient.GetStorageLayout(ctx, &controlpb.GetStorageLayoutRequest{
 		Name:      fmt.Sprintf("projects/_/buckets/%s/storageLayout", bucketName),
 		Prefix:    sh.clientConfig.OnlyDir,
 		RequestId: uuid.NewString(),
