@@ -147,7 +147,7 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 
 	// Additional client options.
 	if enableBidiConfig {
-		clientOpts = append(clientOpts, experimental.WithGRPCBidiReads())
+		clientOpts = append(clientOpts, storage.WithGRPCBidiReads())
 	}
 
 	if clientConfig.LocalSocketAddress != "" {
