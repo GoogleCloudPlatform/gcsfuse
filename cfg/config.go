@@ -862,8 +862,6 @@ type WriteConfig struct {
 
 	EnableRapidAppends bool `yaml:"enable-rapid-appends"`
 
-	EnableRapidWrites bool `yaml:"enable-rapid-writes"`
-
 	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
 
 	FinalizeFileForRapid bool `yaml:"finalize-file-for-rapid"`
@@ -871,6 +869,8 @@ type WriteConfig struct {
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
 
 	MaxBlocksPerFile int64 `yaml:"max-blocks-per-file"`
+
+	RapidWrite RapidWriteStrategy `yaml:"rapid-write"`
 }
 
 func BuildFlagSet(flagSet *pflag.FlagSet) error {
@@ -1092,8 +1092,6 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("enable-nonexistent-type-cache", "", false, "Once set, if an inode is not found in GCS, a type cache entry with type NonexistentType will be created. This also means new file/dir created might not be seen. For example, if this flag is set, and metadata-cache-ttl-secs is set, then if we create the same file/node in the meantime using the same mount, since we are not refreshing the cache, it will still return nil. This flag has been deprecated in favour of a single unified flag metadata-cache-negative-ttl-secs.")
 
 	flagSet.BoolP("enable-rapid-appends", "", true, "Enables support for appends to unfinalized object using streaming writes")
-
-	flagSet.BoolP("enable-rapid-writes", "", false, "For Rapid Cache Ultra, toggles between using STANDARD class and RAPID class for writes.")
 
 	flagSet.BoolP("enable-read-stall-retry", "", true, "To turn on/off retries for stalled read requests. This is based on a timeout that changes depending on how long similar requests took in the past.")
 
@@ -1410,6 +1408,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("profile", "", "", "The name of the profile to apply. e.g. aiml-training, aiml-serving, aiml-checkpointing")
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
+
+	flagSet.StringP("rapid-write", "", "disabled", "For Rapid Cache Ultra, toggles between using bucket default storage class and RAPID storage class for writes.")
 
 	flagSet.IntP("read-block-size-mb", "", 16, "Specifies the block size for buffered reads. The value should be more than 0. This is used to read data in chunks from GCS.")
 
@@ -1760,10 +1760,6 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("write.enable-rapid-writes", flagSet.Lookup("enable-rapid-writes")); err != nil {
-		return err
-	}
-
 	if err := v.BindPFlag("gcs-retries.read-stall.enable", flagSet.Lookup("enable-read-stall-retry")); err != nil {
 		return err
 	}
@@ -2069,6 +2065,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.prometheus-port", flagSet.Lookup("prometheus-port")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("write.rapid-write", flagSet.Lookup("rapid-write")); err != nil {
 		return err
 	}
 

@@ -302,15 +302,15 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_RapidCacheInfo() {
 		expectedIsRapid bool
 	}{
 		{
-			name:            "rapid-cache-ultra with EnableRapidWrites true",
-			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			name:            "rapid-cache-ultra with RapidWrite enabled",
+			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
 			expectedRCU:     gcs.RCUStateRapidWritesEnabled,
 			expectedIsRapid: true,
 		},
 		{
-			name:            "rapid-cache-ultra with EnableRapidWrites false",
-			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: false},
+			name:            "rapid-cache-ultra with RapidWrite disabled",
+			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyDisabled},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
 			expectedRCU:     gcs.RCUStateRapidWritesDisabled,
 			expectedIsRapid: true,
@@ -324,21 +324,21 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_RapidCacheInfo() {
 		},
 		{
 			name:            "non-ultra rapid-cache is not rcu",
-			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: "rapid-cache"},
 			expectedRCU:     gcs.RCUStateNone,
 			expectedIsRapid: false,
 		},
 		{
 			name:            "empty CacheType is not rcu",
-			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: ""},
 			expectedRCU:     gcs.RCUStateNone,
 			expectedIsRapid: false,
 		},
 		{
 			name:            "nil RapidCacheInfo is not rcu",
-			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
 			rapidCacheInfo:  nil,
 			expectedRCU:     gcs.RCUStateNone,
 			expectedIsRapid: false,

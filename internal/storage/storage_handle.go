@@ -422,7 +422,7 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 	rcuState := gcs.RCUStateNone
 	isRCUBucket := storageLayout.GetRapidCacheInfo() != nil && storageLayout.GetRapidCacheInfo().GetCacheType() == rapidCacheUltraType
 	if isRCUBucket {
-		if sh.clientConfig.WriteConfig != nil && sh.clientConfig.WriteConfig.EnableRapidWrites {
+		if sh.clientConfig.WriteConfig != nil && sh.clientConfig.WriteConfig.RapidWrite == cfg.RapidWriteStrategyEnabled {
 			rcuState = gcs.RCUStateRapidWritesEnabled
 		} else {
 			rcuState = gcs.RCUStateRapidWritesDisabled

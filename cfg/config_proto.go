@@ -185,7 +185,6 @@ func (config *Config) ToProto() *pb.Config {
 		WriteBlockSizeMb:                                      config.Write.BlockSizeMb,
 		WriteCreateEmptyFile:                                  config.Write.CreateEmptyFile,
 		WriteEnableRapidAppends:                               config.Write.EnableRapidAppends,
-		WriteEnableRapidWrites:                                config.Write.EnableRapidWrites,
 		WriteEnableStreamingWrites:                            config.Write.EnableStreamingWrites,
 		WriteFinalizeFileForRapid:                             config.Write.FinalizeFileForRapid,
 		WriteGlobalMaxBlocks:                                  config.Write.GlobalMaxBlocks,
@@ -193,6 +192,7 @@ func (config *Config) ToProto() *pb.Config {
 		GcsConnectionEnableGrpcByDefault:                      config.GcsConnection.EnableGrpcByDefault,
 		IsGcsAuthS2AAddressSet:                                config.GcsAuth.S2aAddress != "",
 		IsGcsAuthS2ASpiffeIdSet:                               config.GcsAuth.S2aSpiffeId != "",
+		WriteRapidWrite:                                       string(config.Write.RapidWrite),
 	}
 }
 

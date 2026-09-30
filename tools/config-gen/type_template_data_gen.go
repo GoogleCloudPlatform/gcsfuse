@@ -116,7 +116,7 @@ func computeProtoMappings(params []Param) ([]protoMappingTemplateData, error) {
 				expr = fmt.Sprintf("int32(%s)", goAccess)
 			case "duration":
 				expr = fmt.Sprintf("int64(%s)", goAccess)
-			case "string", "protocol", "directPathStrategy", "logSeverity":
+			case "string", "protocol", "directPathStrategy", "logSeverity", "rapidWriteStrategy":
 				expr = fmt.Sprintf("string(%s)", goAccess)
 			case "[]int":
 				expr = goAccess
@@ -213,6 +213,8 @@ func getGoDataType(dt string) string {
 		return "[]int64"
 	case "directPathStrategy":
 		return "DirectPathStrategy"
+	case "rapidWriteStrategy":
+		return "RapidWriteStrategy"
 	default:
 		return dt
 	}

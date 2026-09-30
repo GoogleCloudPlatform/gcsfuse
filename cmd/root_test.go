@@ -282,7 +282,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		expectedWriteBlockSizeMB      float64
 		expectedWriteGlobalMaxBlocks  int64
 		expectedWriteMaxBlocksPerFile int64
-		expectedEnableRapidWrites     bool
+		expectedRapidWrite            cfg.RapidWriteStrategy
 		expectedFinalizeFileForRapid  bool
 	}{
 		{
@@ -294,6 +294,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
 			name:                          "Test create-empty-file flag false.",
@@ -304,6 +305,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
 			name:                          "Test default flags.",
@@ -314,6 +316,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
 			name:                          "Test enable-streaming-writes flag true.",
@@ -324,6 +327,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
 			name:                          "Test enable-streaming-writes flag false.",
@@ -334,6 +338,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
 			name:                          "Test enable-rapid-appends flag true.",
@@ -344,6 +349,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
 			name:                          "Test positive write-block-size-mb flag.",
@@ -354,6 +360,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      10,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
 			name:                          "Test fractional write-block-size-mb flag.",
@@ -364,6 +371,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      0.5,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
 			name:                          "Test positive write-global-max-blocks flag.",
@@ -374,6 +382,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  10,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
 			name:                          "Test positive write-max-blocks-per-file flag.",
@@ -384,6 +393,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 10,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
 			name:                          "Test high performance config values.",
@@ -392,6 +402,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedEnableRapidAppends:    true,
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  1600,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
 			name:                          "Test high performance config values with --write-global-max-blocks flag overriden.",
@@ -402,6 +413,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  2000,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
 			name:                          "Test_optimization_fallback_to_machine-type_config_with_un-overridden_profile_on_high-end_machine",
@@ -412,6 +424,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  1600,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
 			name:                          "Test_optimization_fallback_to_default_config_with_un-overridden_profile_on_low-end_machine",
@@ -422,6 +435,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
 			name:                          "Test_optimization_overriden_by_user_config_with_profile_set_on_high-end_machine",
@@ -432,6 +446,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  200,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
 			name:                          "Test_optimizationoverriden_by_user_config_with_profile_set_on_low-end_machine",
@@ -442,17 +457,18 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  16,
 			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
 		},
 		{
-			name:                          "Test enable-rapid-writes and finalize-file-for-rapid flags.",
-			args:                          []string{"gcsfuse", "--enable-rapid-writes=true", "--finalize-file-for-rapid=true", "abc", "pqr"},
+			name:                          "Test rapid-write and finalize-file-for-rapid flags.",
+			args:                          []string{"gcsfuse", "--rapid-write=enabled", "--finalize-file-for-rapid=true", "abc", "pqr"},
 			expectedCreateEmptyFile:       false,
 			expectedEnableStreamingWrites: true,
 			expectedEnableRapidAppends:    true,
 			expectedWriteBlockSizeMB:      32,
 			expectedWriteGlobalMaxBlocks:  4,
 			expectedWriteMaxBlocksPerFile: 1,
-			expectedEnableRapidWrites:     true,
+			expectedRapidWrite:            cfg.RapidWriteStrategyEnabled,
 			expectedFinalizeFileForRapid:  true,
 		},
 	}
@@ -475,7 +491,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 				assert.Equal(t, tc.expectedWriteBlockSizeMB, wc.BlockSizeMb)
 				assert.Equal(t, tc.expectedWriteGlobalMaxBlocks, wc.GlobalMaxBlocks)
 				assert.Equal(t, tc.expectedEnableRapidAppends, wc.EnableRapidAppends)
-				assert.Equal(t, tc.expectedEnableRapidWrites, wc.EnableRapidWrites)
+				assert.Equal(t, tc.expectedRapidWrite, wc.RapidWrite)
 				assert.Equal(t, tc.expectedFinalizeFileForRapid, wc.FinalizeFileForRapid)
 			}
 		})

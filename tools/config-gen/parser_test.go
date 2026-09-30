@@ -633,7 +633,7 @@ params:
 
 func TestPopulateProtoMetadataExhaustive(t *testing.T) {
 	yamlContent := `
-retired-params: [13, 14]
+retired-params: [14, 15]
 params:
   - config-path: "type-bool"
     proto-tag: 1
@@ -675,6 +675,11 @@ params:
     flag-name: "type-protocol"
     type: "protocol"
     usage: "test"
+  - config-path: "type-rapid-write-strategy"
+    proto-tag: 13
+    flag-name: "type-rapid-write-strategy"
+    type: "rapidWriteStrategy"
+    usage: "test"
   - config-path: "type-resolved-path"
     proto-tag: 9
     flag-name: "type-resolved-path"
@@ -711,6 +716,7 @@ params:
 		{"string", "type_log_severity"},
 		{"int32", "type_octal"},
 		{"string", "type_protocol"},
+		{"string", "type_rapid_write_strategy"},
 		{"bool", "is_type_resolved_path_set"},
 		{"repeated sint64", "type_slice_int"},
 		{"bool", "is_type_slice_string_set"},
@@ -723,7 +729,7 @@ params:
 		assert.Equal(t, expected[i].protoFieldName, param.ProtoFieldName, "Failed protoFieldName for %s", param.FlagName)
 	}
 
-	assert.Equal(t, []int{13, 14}, parsedYAML.RetiredParams)
+	assert.Equal(t, []int{14, 15}, parsedYAML.RetiredParams)
 }
 
 func TestPopulateProtoMetadataWhitelistedText(t *testing.T) {
