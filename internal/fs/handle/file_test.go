@@ -197,16 +197,25 @@ func (t *fileTest) Test_IsValidReadManager_GenerationValidation() {
 	testCases := []struct {
 		name             string
 		readerGeneration int64
+		readerSize       uint64
 		expectedIsValid  bool
 	}{
 		{
 			name:             "Generation mismatch",
 			readerGeneration: 2, // Inode has generation 1
+			readerSize:       uint64(len(objectContent)),
 			expectedIsValid:  false,
 		},
 		{
-			name:             "Generation match",
+			name:             "Size mismatch",
 			readerGeneration: 1, // Inode has generation 1
+			readerSize:       uint64(len(objectContent)) + 10,
+			expectedIsValid:  false,
+		},
+		{
+			name:             "Generation and Size match",
+			readerGeneration: 1, // Inode has generation 1
+			readerSize:       uint64(len(objectContent)),
 			expectedIsValid:  true,
 		},
 	}
@@ -215,6 +224,7 @@ func (t *fileTest) Test_IsValidReadManager_GenerationValidation() {
 		t.Run(tc.name, func() {
 			minObj := in.Source()
 			minObj.Generation = tc.readerGeneration
+			minObj.Size = tc.readerSize
 			fh.readManager = read_manager.NewReadManager(minObj, &t.bucket, &read_manager.ReadManagerConfig{Config: config})
 
 			result := fh.isValidReadManager()
@@ -253,16 +263,25 @@ func (t *fileTest) Test_IsValidReader_GenerationValidation() {
 	testCases := []struct {
 		name             string
 		readerGeneration int64
+		readerSize       uint64
 		expectedIsValid  bool
 	}{
 		{
 			name:             "Generation mismatch",
 			readerGeneration: 2, // Inode has generation 1
+			readerSize:       uint64(len(objectContent)),
 			expectedIsValid:  false,
 		},
 		{
-			name:             "Generation match",
+			name:             "Size mismatch",
 			readerGeneration: 1, // Inode has generation 1
+			readerSize:       uint64(len(objectContent)) + 10,
+			expectedIsValid:  false,
+		},
+		{
+			name:             "Generation and Size match",
+			readerGeneration: 1, // Inode has generation 1
+			readerSize:       uint64(len(objectContent)),
 			expectedIsValid:  true,
 		},
 	}
@@ -271,6 +290,7 @@ func (t *fileTest) Test_IsValidReader_GenerationValidation() {
 		t.Run(tc.name, func() {
 			minObj := in.Source()
 			minObj.Generation = tc.readerGeneration
+			minObj.Size = tc.readerSize
 			fh.reader = gcsx.NewRandomReader(minObj, &t.bucket, 200, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), in.MRDWrapper, config, 0)
 
 			result := fh.isValidReader()
@@ -437,7 +457,7 @@ func (t *fileTest) Test_ReadWithReadManager_ErrorScenarios() {
 		returnErr error
 	}
 
-	object := gcs.MinObject{Name: "test_obj", Generation: 1}
+	object := gcs.MinObject{Name: "test_obj", Generation: 1, Size: uint64(len("data"))}
 	mockErr := fmt.Errorf("mock error")
 	dst := make([]byte, 100)
 
@@ -477,7 +497,7 @@ func (t *fileTest) Test_Read_ErrorScenarios() {
 		returnErr error
 	}
 
-	object := gcs.MinObject{Name: "test_obj", Generation: 1}
+	object := gcs.MinObject{Name: "test_obj", Generation: 1, Size: uint64(len("data"))}
 	mockErr := fmt.Errorf("mock error")
 	dst := make([]byte, 100)
 
