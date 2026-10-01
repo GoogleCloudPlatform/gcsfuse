@@ -32,6 +32,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	control "cloud.google.com/go/storage/control/apiv2"
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"cloud.google.com/go/storage/experimental"
 	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
@@ -43,6 +45,7 @@ import (
 var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
 var isZonalBucketRun = flag.Bool("zonal", false, "Boolean flag to indicate if test-run should use a zonal bucket.")
 var isRcuBucketRun = flag.Bool("rcu", false, "Boolean flag to indicate if test-run is for a Rapid Cache Ultra bucket.")
+var isRcuSameZone = flag.Bool("rcu-same-zone", true, "Boolean flag to indicate if test-run is in the same zone as the Rapid Cache Ultra cache.")
 
 // Note: testBucket and mountedDirectory can also be set via BUCKET_NAME and MOUNTED_DIR
 // environment variables respectively. However, command-line flags take precedence.
@@ -130,6 +133,14 @@ func IsRcuBucketRun() bool {
 
 func SetIsRcuBucketRun(val bool) {
 	*isRcuBucketRun = val
+}
+
+func IsRcuSameZone() bool {
+	return *isRcuSameZone
+}
+
+func SetIsRcuSameZone(val bool) {
+	*isRcuSameZone = val
 }
 
 func TestBucket() string {
@@ -573,6 +584,9 @@ func TestEnvironment(ctx context.Context, cfg *test_suite.TestConfig) string {
 	if bType == ZonalBucket {
 		SetIsZonalBucketRun(true)
 	}
+	if bType == HNSRcuBucket {
+		SetIsRcuBucketRun(true)
+	}
 
 	return bType
 }
@@ -580,39 +594,48 @@ func TestEnvironment(ctx context.Context, cfg *test_suite.TestConfig) string {
 const FlatBucket = "flat"
 const HNSBucket = "hns"
 const ZonalBucket = "zonal"
-const FlatRcuBucket = "flat_rcu"
 const HNSRcuBucket = "hns_rcu"
+
+// rapidCacheUltraType is the StorageLayout.RapidCacheInfo.CacheType value for
+// Rapid Cache Ultra buckets. Mirrors rapidCacheUltraType in internal/storage.
+const rapidCacheUltraType = "rapid-cache-ultra"
 
 func bucketType(ctx context.Context, testBucket string) (bType string, err error) {
 	// For only-dir mounts bucket name is passed as <test_bucket>/<only_dir> by GKE.
 	testBucket = strings.Split(testBucket, "/")[0]
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	var opts []option.ClientOption
-	opts = append(opts, experimental.WithGRPCBidiReads())
+	// clientOpts holds auth/endpoint options shared by the storage and control clients.
+	var clientOpts []option.ClientOption
 	if TestOnTPCEndPoint() {
 		cred, err := auth2.GetCredentials("/tmp/sa.key.json")
 		if err != nil {
 			return "", fmt.Errorf("failed to get credentials for TPC: %w", err)
 		}
-		opts = append(opts, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithAuthCredentials(cred), option.WithUniverseDomain("apis-tpczero.goog"))
+		clientOpts = append(clientOpts, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithAuthCredentials(cred), option.WithUniverseDomain("apis-tpczero.goog"))
 	} else if keyFile != "" {
 		cred, err := auth2.GetCredentials(keyFile)
 		if err != nil {
 			return "", fmt.Errorf("failed to get credentials: %w", err)
 		}
-		opts = append(opts, option.WithAuthCredentials(cred))
+		clientOpts = append(clientOpts, option.WithAuthCredentials(cred))
 	}
+	storageOpts := append([]option.ClientOption{experimental.WithGRPCBidiReads()}, clientOpts...)
 	var storageClient *storage.Client
 	if TestOnTPCEndPoint() {
-		storageClient, err = storage.NewClient(ctx, opts...)
+		storageClient, err = storage.NewClient(ctx, storageOpts...)
 	} else {
-		storageClient, err = storage.NewGRPCClient(ctx, opts...)
+		storageClient, err = storage.NewGRPCClient(ctx, storageOpts...)
 	}
 
 	if err != nil {
 		return "", fmt.Errorf("failed to create storage client: %w", err)
 	}
+	defer func() {
+		if cErr := storageClient.Close(); cErr != nil {
+			log.Printf("Failed to close storage client: %v", cErr)
+		}
+	}()
 	bucket := storageClient.Bucket(testBucket)
 	if billingProject != "" {
 		bucket = bucket.UserProject(billingProject)
@@ -624,18 +647,50 @@ func bucketType(ctx context.Context, testBucket string) (bType string, err error
 	if attrs.LocationType == "zone" {
 		return ZonalBucket, nil
 	}
-	// TODO(b/483608308): Once GetStorageLayout starts returning Rapid Cache Ultra bucket type,
-	// update this logic to use the response instead of inferring from IsRcuBucketRun().
-	if attrs.HierarchicalNamespace != nil && attrs.HierarchicalNamespace.Enabled {
-		if IsRcuBucketRun() {
+
+	isRcu := isRcuBucket(ctx, testBucket, clientOpts)
+	isHns := attrs.HierarchicalNamespace != nil && attrs.HierarchicalNamespace.Enabled
+	if isHns {
+		if isRcu {
 			return HNSRcuBucket, nil
 		}
 		return HNSBucket, nil
 	}
-	if IsRcuBucketRun() {
-		return FlatRcuBucket, nil
+	if isRcu {
+		return "", fmt.Errorf("bucket %q is an RCU bucket without Hierarchical Namespace enabled; only HNS RCU buckets are supported", testBucket)
 	}
 	return FlatBucket, nil
+}
+
+// getStorageLayoutTimeout bounds the GetStorageLayout call during test setup so
+// a stalled control-plane call falls back to --rcu instead of hanging.
+const getStorageLayoutTimeout = 30 * time.Second
+
+// isRcuBucket reports whether testBucket is a Rapid Cache Ultra bucket.
+// A successful GetStorageLayout response is authoritative; the --rcu flag is
+// used only as a fallback when the control-plane call cannot be made.
+func isRcuBucket(ctx context.Context, testBucket string, opts []option.ClientOption) bool {
+	controlClient, err := control.NewStorageControlClient(ctx, opts...)
+	if err != nil {
+		log.Printf("control.NewStorageControlClient failed, falling back to --rcu=%t: %v", IsRcuBucketRun(), err)
+		return IsRcuBucketRun()
+	}
+	defer func() {
+		if cErr := controlClient.Close(); cErr != nil {
+			log.Printf("Failed to close storage control client: %v", cErr)
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(ctx, getStorageLayoutTimeout)
+	defer cancel()
+	layout, err := controlClient.GetStorageLayout(ctx, &controlpb.GetStorageLayoutRequest{
+		Name: fmt.Sprintf("projects/_/buckets/%s/storageLayout", testBucket),
+	})
+	if err != nil {
+		log.Printf("GetStorageLayout(%q) failed, falling back to --rcu=%t: %v", testBucket, IsRcuBucketRun(), err)
+		return IsRcuBucketRun()
+	}
+	return layout.GetRapidCacheInfo().GetCacheType() == rapidCacheUltraType
 }
 
 // DualMountFlags holds a paired set of primary and secondary mount flags.
@@ -647,10 +702,12 @@ type DualMountFlags struct {
 func isConfigCompatible(testConfig *test_suite.ConfigItem, bucketType string, testName string) bool {
 	isBucketCompatible := false
 	switch bucketType {
-	case FlatRcuBucket:
-		isBucketCompatible = testConfig.RunOnRcu.Flat.SameZone || testConfig.RunOnRcu.Flat.DifferentZone
 	case HNSRcuBucket:
-		isBucketCompatible = testConfig.RunOnRcu.Hns.SameZone || testConfig.RunOnRcu.Hns.DifferentZone
+		if IsRcuSameZone() {
+			isBucketCompatible = testConfig.RunOnRcu.Hns.SameZone
+		} else {
+			isBucketCompatible = testConfig.RunOnRcu.Hns.DifferentZone
+		}
 	default:
 		var ok bool
 		isBucketCompatible, ok = testConfig.Compatible[bucketType]
