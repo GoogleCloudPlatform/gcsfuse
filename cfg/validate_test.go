@@ -504,6 +504,17 @@ func TestValidateConfig_ErrorScenarios(t *testing.T) {
 			},
 		},
 		{
+			name: "large_dir_warning_threshold_negative",
+			config: &Config{
+				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache: validFileCacheConfig(t),
+				MetadataCache: MetadataCacheConfig{
+					ExperimentalMetadataPrefetchOnMount: "sync",
+				},
+				FileSystem: FileSystemConfig{ExperimentalLargeDirWarningThreshold: -1},
+			},
+		},
+		{
 			name: "read_stall_req_increase_rate_negative",
 			config: &Config{
 				Logging:   LoggingConfig{LogRotate: validLogRotateConfig()},
