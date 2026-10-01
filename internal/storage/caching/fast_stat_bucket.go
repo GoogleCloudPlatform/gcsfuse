@@ -293,20 +293,29 @@ func (b *fastStatBucket) invalidate(name string) {
 	b.cache.Erase(name)
 }
 
+// lookUp reads name from the stat cache and records the read with the
+// metadata.CacheReads carried by ctx, if any.
+//
 // LOCKS_EXCLUDED(b.mu)
-func (b *fastStatBucket) lookUp(name string) (hit bool, m *gcs.MinObject) {
+func (b *fastStatBucket) lookUp(ctx context.Context, name string) (hit bool, m *gcs.MinObject) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	hit, m = b.cache.LookUp(name, b.clock.Now())
+	hit, m, entryStatus, lookupDetail := b.cache.LookUpDetail(name, b.clock.Now())
+	metadata.RecordCacheRead(ctx, hit, entryStatus, lookupDetail)
 	return
 }
 
-func (b *fastStatBucket) lookUpFolder(name string) (bool, *gcs.Folder) {
+// lookUpFolder reads the folder name from the stat cache and records the read
+// with the metadata.CacheReads carried by ctx, if any.
+//
+// LOCKS_EXCLUDED(b.mu)
+func (b *fastStatBucket) lookUpFolder(ctx context.Context, name string) (bool, *gcs.Folder) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	hit, f := b.cache.LookUpFolder(name, b.clock.Now())
+	hit, f, entryStatus, lookupDetail := b.cache.LookUpFolderDetail(name, b.clock.Now())
+	metadata.RecordCacheRead(ctx, hit, entryStatus, lookupDetail)
 	return hit, f
 }
 
@@ -447,7 +456,7 @@ func (b *fastStatBucket) StatObject(
 	}
 
 	// Do we have an entry in the cache?
-	if hit, entry := b.lookUp(req.Name); hit {
+	if hit, entry := b.lookUp(ctx, req.Name); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
 			err = &gcs.NotFoundError{
@@ -470,6 +479,7 @@ func (b *fastStatBucket) StatObject(
 	}
 
 	// Standard fallback to GCS.
+	metadata.RecordGCSFetch(ctx)
 	return b.StatObjectFromGcs(ctx, req)
 }
 
@@ -588,7 +598,7 @@ func (b *fastStatBucket) StatObjectFromGcs(ctx context.Context,
 
 func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderRequest) (*gcs.Folder, error) {
 	// Cache Lookup
-	if hit, entry := b.lookUpFolder(req.Name); hit {
+	if hit, entry := b.lookUpFolder(ctx, req.Name); hit {
 		// Negative entries result in NotFoundError.
 		if entry == nil {
 			err := &gcs.NotFoundError{
@@ -608,6 +618,7 @@ func (b *fastStatBucket) GetFolder(ctx context.Context, req *gcs.GetFolderReques
 	}
 
 	// Fetch the Folder from GCS
+	metadata.RecordGCSFetch(ctx)
 	return b.getFolderFromGCS(ctx, req)
 }
 
