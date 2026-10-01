@@ -88,6 +88,10 @@ type StorageClientConfig struct {
 
 	ReadStallRetryConfig cfg.ReadStallGcsRetriesConfig
 
+	// MountConfigsHeader contains serialized config proto and mount metadata
+	// sent via gcsfuse-mount-configs metadata on GetStorageLayout calls.
+	MountConfigsHeader string
+
 	MetricHandle metrics.MetricHandle
 
 	TracingEnabled bool
