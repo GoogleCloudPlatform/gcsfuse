@@ -110,30 +110,43 @@ func BenchmarkInsert1Million(b *testing.B) {
 	}
 }
 
-func BenchmarkEraseEntriesWithGivenPrefix_1Million(b *testing.B) {
-	const numEntries = 1000000
-	data := testData{Value: 1, DataSize: 10}
-	cacheMaxSize := uint64(numEntries * 20) // ensure enough size so no evictions
+func BenchmarkEraseEntriesWithGivenPrefix(b *testing.B) {
+	tests := []struct {
+		name       string
+		numEntries int
+	}{
+		{"200_Entries", 200},
+		{"2000_Entries", 2000},
+		{"20000_Entries", 20000},
+	}
 
-	for range b.N {
-		b.StopTimer()
-		cache := lru.NewCache(cacheMaxSize)
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			data := testData{Value: 1, DataSize: 10}
+			cacheMaxSize := uint64(tt.numEntries * 20) // ensure enough size so no evictions
 
-		// Insert 1 million entries
-		for j := range numEntries {
-			var key string
-			// Add a specific prefix to half the keys
-			if j%2 == 0 {
-				key = fmt.Sprintf("prefix/key-%d", j)
-			} else {
-				key = fmt.Sprintf("other/key-%d", j)
+			for b.Loop() {
+				b.StopTimer()
+				cache := lru.NewCache(cacheMaxSize)
+
+				// Insert entries
+				for j := range tt.numEntries {
+					var key string
+					// Add a specific prefix to half the keys
+					if j%2 == 0 {
+						key = fmt.Sprintf("prefix/key-%d", j)
+					} else {
+						key = fmt.Sprintf("other/key-%d", j)
+					}
+					_, _ = cache.Insert(key, data)
+				}
+
+				b.StartTimer()
+
+				// Delete entries with "prefix/"
+				cache.EraseEntriesWithGivenPrefix("prefix/")
 			}
-			_, _ = cache.Insert(key, data)
-		}
-
-		b.StartTimer()
-
-		// Delete entries with "prefix/"
-		cache.EraseEntriesWithGivenPrefix("prefix/")
+		})
 	}
 }
+
