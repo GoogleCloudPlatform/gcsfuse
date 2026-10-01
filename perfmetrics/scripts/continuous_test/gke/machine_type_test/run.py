@@ -374,10 +374,11 @@ async def main():
   )
   parser.add_argument(
       "--reservation_name",
-      default=os.environ.get("RESERVATION_NAME", utils.DEFAULT_RESERVATION_NAME),
+      default=os.environ.get("RESERVATION_NAME"),
       help=(
           "The specific reservation to use for the nodes. Can also be set with"
-          " RESERVATION_NAME env var."
+          " RESERVATION_NAME env var. If not provided, an available"
+          " reservation will be looked up."
       ),
   )
   parser.add_argument(
@@ -417,6 +418,11 @@ async def main():
     args.subnet_name = f"{args.subnet_name}-{args.zone}"
 
   await utils.check_prerequisites()
+
+  if not args.reservation_name:
+    args.reservation_name = await utils.get_available_reservation(
+        args.project_id, args.zone, args.machine_type
+    )
 
   timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
   return_code = 0

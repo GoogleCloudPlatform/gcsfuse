@@ -55,7 +55,7 @@ Argument                  | Description                                         
 `--machine_type`          | Machine type for the node pool.                                  | `ct6e-standard-4t` (TPU v6e)
 `--node_pool_name`        | Node pool name.                                                  | `ct6e-pool`
 `--gcsfuse_branch`        | GCSFuse branch to build.                                         | `master`
-`--reservation_name`      | Specific reservation to use for the nodes.                       | `cloudtpu-20260521143000-1388945208`
+`--reservation_name`      | Specific reservation to use for the nodes. If not provided, looks up an available reservation. | `cloudtpu-20260521143000-1388945208` (fallback)
 `--no_cleanup`            | If set, resources will NOT be deleted after the test.            | `False`
 `--iterations`            | Number of iterations for the benchmark.                          | `20`
 `--performance_threshold_gbps` | Minimum throughput in GB/s for a successful iteration.      | `13.0`
