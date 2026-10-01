@@ -55,7 +55,7 @@ type baseDirInode struct {
 	// for each method.
 	mu locker.RWLocker
 
-	lc lookupCount
+	lookupCount
 
 	// GUARDED_BY(mu)
 	bucketManager gcsx.BucketManager
@@ -85,7 +85,6 @@ func NewBaseDirInode(
 		metricHandle:                 metricHandle,
 		isEnableTypeCacheDeprecation: isEnableTypeCacheDeprecation,
 	}
-	typed.lc.Init(id)
 	typed.mu = locker.NewRW("BaseDirInode"+name.GcsObjectName(), func() {})
 
 	d = typed
@@ -133,19 +132,8 @@ func (d *baseDirInode) Name() Name {
 }
 
 // LOCKS_REQUIRED(d)
-func (d *baseDirInode) IncrementLookupCount() {
-	d.lc.Inc()
-}
-
-// LOCKS_REQUIRED(d)
-func (d *baseDirInode) DecrementLookupCount(n uint64) (destroy bool) {
-	destroy = d.lc.Dec(n)
-	return
-}
-
-// LOCKS_REQUIRED(d)
 func (d *baseDirInode) Destroy() (err error) {
-	// Nothing interesting to do.
+	d.lookupCount.Destroy()
 	return
 }
 
