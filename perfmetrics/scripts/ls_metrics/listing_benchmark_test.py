@@ -275,7 +275,7 @@ class ListingBenchmarkTest(unittest.TestCase):
     listing_benchmark._export_to_gsheet(
         WORKSHEET_NAME, DIRECTORY_STRUCTURE_2_VALUES)
     self.assertEqual(mock_sheet.call_args_list, [
-        call('ls_metrics_gcsfuse', DIRECTORY_STRUCTURE_2_VALUES)
+        call('ls_metrics_gcsfuse', DIRECTORY_STRUCTURE_2_VALUES, clear_sheet=False)
     ])
 
   def test_parse_results_double_level_dir(self):
