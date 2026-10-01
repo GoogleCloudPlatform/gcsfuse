@@ -131,7 +131,7 @@ operations:
             same_zone: true
             different_zone: false
         run_on_gke: false
-        run: TestWriteOperationsRapidWritesEnabled
+        run: TestOperationsRapidWritesEnabled
       - flags:
           - "--rapid-write=disabled,--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
           - "--rapid-write=disabled,--kernel-list-cache-ttl-secs=-1,--enable-metadata-prefetch"
@@ -1039,8 +1039,8 @@ unfinalized_object:
         run: TestUnfinalizedObjectReadTest
         run_on_gke: true
       - flags:
-          - "--metadata-cache-ttl-secs=-1"
-          - "--metadata-cache-ttl-secs=-1,--enable-kernel-reader=false"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=-1"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=-1,--enable-kernel-reader=false"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1057,8 +1057,8 @@ unfinalized_object:
         run: TestUnfinalizedObjectOperationTest
         run_on_gke: true
       - flags:
-          - "--metadata-cache-ttl-secs=0"
-          - "--metadata-cache-ttl-secs=0,--enable-kernel-reader=false"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0,--enable-kernel-reader=false"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1075,8 +1075,8 @@ unfinalized_object:
         run: TestUnfinalizedObjectTailingReadTest
         run_on_gke: true
       - flags:
-          - "--metadata-cache-ttl-secs=2"
-          - "--metadata-cache-ttl-secs=2,--enable-kernel-reader=false"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=2"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=2,--enable-kernel-reader=false"
         run_on_rcu:
           hns:
             same_zone: true

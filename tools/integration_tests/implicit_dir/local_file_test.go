@@ -17,7 +17,6 @@ import (
 	"io/fs"
 	"path"
 	"path/filepath"
-	"testing"
 
 	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
@@ -38,15 +37,6 @@ type implicitDirLocalFileTest struct {
 
 func (i *implicitDirLocalFileTest) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(i.T())
-}
-
-func TestImplicitDirRapidWritesEnabled(t *testing.T) {
-	if !setup.IsRcuBucketRun() {
-		t.Skip("Rapid writes tests are only applicable to Rapid Cache Ultra buckets")
-	}
-	runImplicitDirSuite(t, func() {
-		suite.Run(t, &implicitDirLocalFileTest{isRapidWritesEnabled: true})
-	})
 }
 
 // //////////////////////////////////////////////////////////////////////
