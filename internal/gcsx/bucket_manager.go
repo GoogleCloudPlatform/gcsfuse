@@ -36,11 +36,14 @@ import (
 )
 
 type BucketConfig struct {
-	BillingProject                     string
-	OnlyDir                            string
+	BillingProject string
+	OnlyDir        string
+	// Download (GCS -> client) bandwidth limit; <= 0 disables.
 	EgressBandwidthLimitBytesPerSecond float64
-	OpRateLimitHz                      float64
-	StatCacheMaxSizeMB                 uint64
+	// Upload (client -> GCS) bandwidth limit; <= 0 disables.
+	IngressBandwidthLimitBytesPerSecond float64
+	OpRateLimitHz                       float64
+	StatCacheMaxSizeMB                  uint64
 	// Config for TTL of entries for existing file in stat cache
 	StatCacheTTL time.Duration
 	// Config for TTL of entries for non-existing file in stat cache
@@ -119,9 +122,10 @@ func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) 
 func setUpRateLimiting(
 	in gcs.Bucket,
 	opRateLimitHz float64,
-	egressBandwidthLimit float64) (out gcs.Bucket, err error) {
+	egressBandwidthLimit float64,
+	ingressBandwidthLimit float64) (out gcs.Bucket, err error) {
 	// If no rate limiting has been requested, just return the bucket.
-	if !(opRateLimitHz > 0 || egressBandwidthLimit > 0) {
+	if !(opRateLimitHz > 0 || egressBandwidthLimit > 0 || ingressBandwidthLimit > 0) {
 		out = in
 		return
 	}
@@ -133,6 +137,10 @@ func setUpRateLimiting(
 
 	if !(egressBandwidthLimit > 0) {
 		egressBandwidthLimit = 1e15
+	}
+
+	if !(ingressBandwidthLimit > 0) {
+		ingressBandwidthLimit = 1e15
 	}
 
 	// Choose token bucket capacities, targeting only a few percent error in each
@@ -157,14 +165,25 @@ func setUpRateLimiting(
 		return
 	}
 
+	ingressCapacity, err := ratelimit.ChooseLimiterCapacity(
+		ingressBandwidthLimit,
+		window)
+
+	if err != nil {
+		err = fmt.Errorf("choosing ingress bandwidth token bucket capacity: %w", err)
+		return
+	}
+
 	// Create the throttles.
 	opThrottle := ratelimit.NewThrottle(opRateLimitHz, opCapacity)
 	egressThrottle := ratelimit.NewThrottle(egressBandwidthLimit, egressCapacity)
+	ingressThrottle := ratelimit.NewThrottle(ingressBandwidthLimit, ingressCapacity)
 
 	// And the bucket.
 	out = ratelimit.NewThrottledBucket(
 		opThrottle,
 		egressThrottle,
+		ingressThrottle,
 		in)
 
 	return
@@ -218,7 +237,8 @@ func (bm *bucketManager) SetUpBucket(
 	b, err = setUpRateLimiting(
 		b,
 		bm.config.OpRateLimitHz,
-		bm.config.EgressBandwidthLimitBytesPerSecond)
+		bm.config.EgressBandwidthLimitBytesPerSecond,
+		bm.config.IngressBandwidthLimitBytesPerSecond)
 
 	if err != nil {
 		err = fmt.Errorf("setUpRateLimiting: %w", err)

@@ -199,3 +199,33 @@ func TestSetUpBucketWhenBucketDoesNotExist_IsMultiBucketMountTrue(t *testing.T) 
 	assert.Contains(t, err.Error(), "code = NotFound desc = The specified bucket does not exist.")
 	assert.Nil(t, bucket.Syncer)
 }
+
+func TestSetUpRateLimiting(t *testing.T) {
+	in, _, _ := setupTest(t)
+	testCases := []struct {
+		name            string
+		opRateLimitHz   float64
+		egressLimit     float64
+		ingressLimit    float64
+		expectThrottled bool
+	}{
+		{name: "no limits returns input bucket", opRateLimitHz: -1, egressLimit: -1, ingressLimit: -1, expectThrottled: false},
+		{name: "only write limit set", opRateLimitHz: -1, egressLimit: -1, ingressLimit: 2048, expectThrottled: true},
+		{name: "read limit set with write limit disabled", opRateLimitHz: -1, egressLimit: 4096, ingressLimit: -1, expectThrottled: true},
+		{name: "all limits set", opRateLimitHz: 5, egressLimit: 4096, ingressLimit: 2048, expectThrottled: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := setUpRateLimiting(in, tc.opRateLimitHz, tc.egressLimit, tc.ingressLimit)
+
+			require.NoError(t, err)
+			require.NotNil(t, out)
+			if tc.expectThrottled {
+				assert.NotSame(t, in, out)
+			} else {
+				assert.Same(t, in, out)
+			}
+		})
+	}
+}
