@@ -15,6 +15,7 @@
 """Common utilities for GKE tests."""
 
 import asyncio
+import json
 import os
 import shlex
 import subprocess
@@ -72,16 +73,18 @@ async def run_command_async(command_list, check=True, cwd=None):
   return stdout_decoded, stderr_decoded, process.returncode
 
 
-async def check_prerequisites():
-  """Checks for required command-line tools.
-
-  Verifies that gcloud, git, make, and kubectl are installed. If kubectl is
-  missing, it attempts to install it using 'gcloud components install'.
-  Exits the script if any other required tool is not found.
-  """
-  await run_command_async(
-      ["sudo","apt","install","-y","apt-transport-https","ca-certificates","gnupg","curl"]
-  )
+async def _setup_gcloud_apt_repo():
+  """Sets up the Google Cloud SDK apt repository."""
+  await run_command_async([
+      "sudo",
+      "apt",
+      "install",
+      "-y",
+      "apt-transport-https",
+      "ca-certificates",
+      "gnupg",
+      "curl",
+  ])
 
   # Pipe curl output to gpg
   curl_process = await asyncio.create_subprocess_exec(
@@ -90,7 +93,12 @@ async def check_prerequisites():
       stdout=asyncio.subprocess.PIPE,
   )
   gpg_process = await asyncio.create_subprocess_exec(
-      "sudo", "gpg", "--yes", "--dearmor", "-o", "/usr/share/keyrings/cloud.google.gpg",
+      "sudo",
+      "gpg",
+      "--yes",
+      "--dearmor",
+      "-o",
+      "/usr/share/keyrings/cloud.google.gpg",
       stdin=asyncio.subprocess.PIPE,
   )
   await gpg_process.communicate(input=await curl_process.stdout.read())
@@ -98,7 +106,8 @@ async def check_prerequisites():
   # Pipe echo output to tee
   echo_process = await asyncio.create_subprocess_exec(
       "echo",
-      "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main",
+      "deb [signed-by=/usr/share/keyrings/cloud.google.gpg]"
+      " https://packages.cloud.google.com/apt cloud-sdk main",
       stdout=asyncio.subprocess.PIPE,
   )
   tee_process = await asyncio.create_subprocess_exec(
@@ -111,6 +120,14 @@ async def check_prerequisites():
 
   await run_command_async(["sudo", "apt", "update", "-y"])
 
+
+async def check_prerequisites():
+  """Checks for required command-line tools.
+
+  Verifies that gcloud, git, make, and kubectl are installed. If a tool is
+  missing, it attempts to install it.
+  Exits the script if any required tool cannot be installed.
+  """
   print("Checking for required tools...")
   tools = {
       "gcloud": ["gcloud", "--version"],
@@ -119,6 +136,7 @@ async def check_prerequisites():
       "kubectl": ["kubectl", "version", "--client=true"],
       "gke-gcloud-auth-plugin": ["gke-gcloud-auth-plugin", "--version"],
   }
+  gcloud_apt_repo_configured = False
 
   for tool, version_cmd in tools.items():
     try:
@@ -127,6 +145,9 @@ async def check_prerequisites():
       if tool == "gcloud":
         print("gcloud not found. Attempting to install...")
         try:
+          if not gcloud_apt_repo_configured:
+            await _setup_gcloud_apt_repo()
+            gcloud_apt_repo_configured = True
           await run_command_async(
               ["sudo", "apt", "install", "-y", "google-cloud-sdk"]
           )
@@ -141,7 +162,7 @@ async def check_prerequisites():
           )
           sys.exit(1)
 
-      if tool == "make":
+      elif tool == "make":
         print("make not found. Attempting to install...")
         try:
           await run_command_async(["sudo", "apt", "install", "-y", "make"])
@@ -153,7 +174,7 @@ async def check_prerequisites():
           print(f"Error: Failed to install make: {install_e}", file=sys.stderr)
           sys.exit(1)
 
-      if tool == "kubectl":
+      elif tool == "kubectl":
         print("kubectl not found. Attempting to install...")
         try:
           await run_command_async(
@@ -166,6 +187,9 @@ async def check_prerequisites():
       elif tool == "gke-gcloud-auth-plugin":
         print("gke-gcloud-auth-plugin not found. Attempting to install...")
         try:
+          if not gcloud_apt_repo_configured:
+            await _setup_gcloud_apt_repo()
+            gcloud_apt_repo_configured = True
           await run_command_async([
               "sudo",
               "apt",
@@ -372,6 +396,93 @@ async def is_node_pool_healthy_async(
   ]
   status, _, returncode = await run_command_async(cmd, check=False)
   return returncode == 0 and status == "RUNNING"
+
+
+async def get_available_reservation(project_id, zone, machine_type):
+  """Looks up an available reservation for the given zone and machine type.
+
+  Filters reservations by zone, machine_type, status=READY, and available
+  capacity (count > inUseCount), returning the first match. Supports both
+  specificReservation (standard/GPU VMs) and aggregateReservation (TPU VMs).
+  Falls back to DEFAULT_RESERVATION_NAME if no available reservation is found.
+
+  Args:
+      project_id: The Google Cloud project ID.
+      zone: The GCP zone for the node pool.
+      machine_type: The machine type for the nodes in the pool.
+
+  Returns:
+      The name of the available reservation, or DEFAULT_RESERVATION_NAME if
+      none is found.
+  """
+  print(
+      f"Looking up available reservations in zone '{zone}' for machine type"
+      f" '{machine_type}'..."
+  )
+  cmd = [
+      "gcloud",
+      "compute",
+      "reservations",
+      "list",
+      f"--project={project_id}",
+      f"--filter=zone:({zone}) AND status=READY",
+      "--format=json",
+  ]
+  stdout, _, returncode = await run_command_async(cmd, check=False)
+  if returncode == 0 and stdout:
+    try:
+      reservations = json.loads(stdout)
+      tpu_prefix = machine_type.split("-")[0]
+      for res in reservations:
+        if res.get("status") != "READY" or not res.get("name"):
+          continue
+
+        specific_res = res.get("specificReservation")
+        if specific_res:
+          res_mt = (specific_res.get("instanceProperties") or {}).get(
+              "machineType", ""
+          )
+          if res_mt == machine_type or res_mt.endswith(f"/{machine_type}"):
+            count = int(specific_res.get("count") or 0)
+            in_use_count = int(specific_res.get("inUseCount") or 0)
+            if count > in_use_count:
+              reservation_name = res["name"]
+              print(f"Found available reservation: {reservation_name}")
+              return reservation_name
+
+        agg_res = res.get("aggregateReservation")
+        if agg_res:
+          reserved_resources = agg_res.get("reservedResources") or []
+          in_use_resources = agg_res.get("inUseResources") or []
+          reserved_count = sum(
+              int((r.get("accelerator") or {}).get("acceleratorCount") or 0)
+              for r in reserved_resources
+              if (r.get("accelerator") or {})
+              .get("acceleratorType", "")
+              .endswith(f"/{tpu_prefix}")
+          )
+          in_use_count = sum(
+              int((r.get("accelerator") or {}).get("acceleratorCount") or 0)
+              for r in in_use_resources
+              if (r.get("accelerator") or {})
+              .get("acceleratorType", "")
+              .endswith(f"/{tpu_prefix}")
+          )
+          if reserved_count > in_use_count:
+            reservation_name = res["name"]
+            print(f"Found available reservation: {reservation_name}")
+            return reservation_name
+    except (json.JSONDecodeError, ValueError, TypeError) as e:
+      print(
+          f"Warning: Failed to parse reservations output: {e}", file=sys.stderr
+      )
+
+  print(
+      f"No available reservation found for machine type '{machine_type}' in"
+      f" zone '{zone}'. Falling back to default reservation:"
+      f" {DEFAULT_RESERVATION_NAME}"
+  )
+  return DEFAULT_RESERVATION_NAME
 
 
 async def create_node_pool_async(
