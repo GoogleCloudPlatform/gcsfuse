@@ -16,7 +16,6 @@ package gcs
 
 import (
 	"testing"
-	"time"
 
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/stretchr/testify/assert"
@@ -36,8 +35,8 @@ func TestGetFolderName(t *testing.T) {
 
 func TestGCSFolder(t *testing.T) {
 	timestamp := &timestamppb.Timestamp{
-		Seconds: time.Now().Unix(),              // Number of seconds since Unix epoch (1970-01-01T00:00:00Z)
-		Nanos:   int32(time.Now().Nanosecond()), // Nanoseconds (0 to 999,999,999)
+		Seconds: 123456789,
+		Nanos:   987654321,
 	}
 	attrs := controlpb.Folder{
 		Name:           TestFolderName,
@@ -47,6 +46,34 @@ func TestGCSFolder(t *testing.T) {
 
 	gcsFolder := GCSFolder(TestBucketName, &attrs)
 
-	assert.Equal(t, attrs.Name, gcsFolder.Name)
-	assert.Equal(t, attrs.UpdateTime.AsTime(), gcsFolder.UpdateTime)
+	assert.Equal(t, TestFolderName, gcsFolder.Name)
+	assert.Equal(t, int64(123456789987654321), gcsFolder.UpdateTime)
+}
+
+func TestGCSFolder_UninitializedTime(t *testing.T) {
+	attrs := controlpb.Folder{
+		Name:           TestFolderName,
+		Metageneration: 10,
+	}
+
+	gcsFolder := GCSFolder(TestBucketName, &attrs)
+
+	assert.EqualValues(t, int64(0), gcsFolder.UpdateTime)
+}
+
+func BenchmarkGCSFolder(b *testing.B) {
+	timestamp := &timestamppb.Timestamp{
+		Seconds: 1234567890,
+	}
+	attrs := controlpb.Folder{
+		Name:       "projects/_/buckets/testBucket/folders/testFolder",
+		UpdateTime: timestamp,
+	}
+
+	for b.Loop() {
+		// this triggers 2 allocations
+		// the string creation inside getFolderName()
+		// and the &Folder{} heap allocation
+		_ = GCSFolder("testBucket", &attrs)
+	}
 }
