@@ -698,6 +698,8 @@ type GcsConnectionConfig struct {
 
 	LimitOpsPerSec float64 `yaml:"limit-ops-per-sec"`
 
+	LimitWriteBytesPerSec float64 `yaml:"limit-write-bytes-per-sec"`
+
 	MaxConnsPerHost int64 `yaml:"max-conns-per-host"`
 
 	MaxIdleConnsPerHost int64 `yaml:"max-idle-conns-per-host"`
@@ -1318,6 +1320,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.Float64P("limit-bytes-per-sec", "", -1, "Bandwidth limit for reading data, measured over a 30-second window. (use -1 for no limit)")
 
 	flagSet.Float64P("limit-ops-per-sec", "", -1, "Operations per second limit, measured over a 30-second window (use -1 for no limit)")
+
+	flagSet.Float64P("limit-write-bytes-per-sec", "", -1, "Bandwidth limit for writing data to GCS, in bytes per second (use -1 for no limit). Applies to object uploads; server-side copy and compose operations are not throttled.")
 
 	flagSet.StringP("log-file", "", "", "The file for storing logs that can be parsed by fluentd. When not provided, plain text logs are printed to stdout when Cloud Storage FUSE is run in the foreground, or to syslog when Cloud Storage FUSE is run in the background.")
 
@@ -1961,6 +1965,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("gcs-connection.limit-ops-per-sec", flagSet.Lookup("limit-ops-per-sec")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-connection.limit-write-bytes-per-sec", flagSet.Lookup("limit-write-bytes-per-sec")); err != nil {
 		return err
 	}
 
