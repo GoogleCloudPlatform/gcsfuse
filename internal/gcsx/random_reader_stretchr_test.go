@@ -528,6 +528,48 @@ func (t *RandomReaderStretchrTest) Test_IsSeekNeeded() {
 			expectedOffset: 100,
 			want:           false,
 		},
+		{
+			name:           "Parallel read type",
+			readType:       metrics.ReadTypeParallel,
+			offset:         200,
+			expectedOffset: 100,
+			want:           false,
+		},
+		{
+			name:           "Random read, expectedOffset is 0",
+			readType:       metrics.ReadTypeRandom,
+			offset:         100,
+			expectedOffset: 0,
+			want:           false,
+		},
+		{
+			name:           "Sequential read, offset is exactly expectedOffset + maxReadSize + 1",
+			readType:       metrics.ReadTypeSequential,
+			offset:         100 + maxReadSize + 1,
+			expectedOffset: 100,
+			want:           true,
+		},
+		{
+			name:           "Sequential read, offset is exactly expectedOffset - 1",
+			readType:       metrics.ReadTypeSequential,
+			offset:         99,
+			expectedOffset: 100,
+			want:           true,
+		},
+		{
+			name:           "Sequential read, very large offsets",
+			readType:       metrics.ReadTypeSequential,
+			offset:         1<<62 + 100,
+			expectedOffset: 1 << 62,
+			want:           false,
+		},
+		{
+			name:           "Random read, very large offsets",
+			readType:       metrics.ReadTypeRandom,
+			offset:         1<<62 + 100,
+			expectedOffset: 1 << 62,
+			want:           true,
+		},
 	}
 
 	for _, tc := range testCases {
