@@ -95,6 +95,15 @@ const (
 	// StatCacheMaxSizeConfigKey is the Viper configuration key for the maximum
 	//size of the metadata stat cache in megabytes.
 	StatCacheMaxSizeConfigKey = "metadata-cache.stat-cache-max-size-mb"
+	// StatCacheMaxSizePercentConfigKey is the Viper configuration key for the
+	// maximum size of the metadata stat cache as a percentage of total system memory.
+	StatCacheMaxSizePercentConfigKey = "metadata-cache.stat-cache-max-size-percent"
+	// TypeCacheMaxSizeConfigKey is the Viper configuration key for the maximum
+	// size of the metadata type cache in megabytes.
+	TypeCacheMaxSizeConfigKey = "metadata-cache.type-cache-max-size-mb"
+	// TypeCacheMaxSizePercentConfigKey is the Viper configuration key for the
+	// maximum size of the metadata type cache as a percentage of total system memory.
+	TypeCacheMaxSizePercentConfigKey = "metadata-cache.type-cache-max-size-percent"
 	// FileCacheParallelDownloadsConfigKey is the Viper configuration key for the
 	//parallel-downloads enablement.
 	FileCacheParallelDownloadsConfigKey = "file-cache.enable-parallel-downloads"
