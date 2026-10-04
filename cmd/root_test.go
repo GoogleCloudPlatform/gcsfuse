@@ -857,7 +857,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 	}{
 		{
 			name: "Test gcs connection flags.",
-			args: []string{"gcsfuse", "--billing-project=abc", "--client-protocol=http2", "--custom-endpoint=www.abc.com", "--experimental-enable-json-read", "--experimental-grpc-conn-pool-size=20", "--http-client-timeout=20s", "--limit-bytes-per-sec=30", "--limit-ops-per-sec=10", "--max-conns-per-host=1000", "--max-idle-conns-per-host=20", "--sequential-read-size-mb=70", "abc", "pqr", "--grpc-path-strategy=direct-path-only"},
+			args: []string{"gcsfuse", "--billing-project=abc", "--client-protocol=http2", "--custom-endpoint=www.abc.com", "--experimental-enable-json-read", "--experimental-grpc-conn-pool-size=20", "--http-client-timeout=20s", "--limit-bytes-per-sec=30", "--limit-ops-per-sec=10", "--limit-write-bytes-per-sec=1048576", "--max-conns-per-host=1000", "--max-idle-conns-per-host=20", "--sequential-read-size-mb=70", "abc", "pqr", "--grpc-path-strategy=direct-path-only"},
 			expectedConfig: &cfg.Config{
 				GcsConnection: cfg.GcsConnectionConfig{
 					BillingProject:             "abc",
@@ -869,6 +869,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					HttpClientTimeout:          20 * time.Second,
 					LimitBytesPerSec:           30,
 					LimitOpsPerSec:             10,
+					LimitWriteBytesPerSec:      1048576,
 					MaxConnsPerHost:            1000,
 					MaxIdleConnsPerHost:        20,
 					SequentialReadSizeMb:       70,
@@ -890,6 +891,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					HttpClientTimeout:          0,
 					LimitBytesPerSec:           -1,
 					LimitOpsPerSec:             -1,
+					LimitWriteBytesPerSec:      -1,
 					MaxConnsPerHost:            0,
 					MaxIdleConnsPerHost:        100,
 					SequentialReadSizeMb:       200,
@@ -911,6 +913,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					HttpClientTimeout:          0,
 					LimitBytesPerSec:           -1,
 					LimitOpsPerSec:             -1,
+					LimitWriteBytesPerSec:      -1,
 					MaxConnsPerHost:            0,
 					MaxIdleConnsPerHost:        100,
 					SequentialReadSizeMb:       200,
