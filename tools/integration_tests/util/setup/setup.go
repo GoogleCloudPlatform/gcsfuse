@@ -139,10 +139,6 @@ func IsRcuSameZone() bool {
 	return *isRcuSameZone
 }
 
-func SetIsRcuSameZone(val bool) {
-	*isRcuSameZone = val
-}
-
 func TestBucket() string {
 	if *testBucket == "" {
 		*testBucket = os.Getenv("BUCKET_NAME")
