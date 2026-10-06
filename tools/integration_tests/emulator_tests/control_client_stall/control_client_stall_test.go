@@ -44,7 +44,6 @@ type controlClientStallBase struct {
 const maxOperationDuration = 32 * time.Second
 
 func (c *controlClientStallBase) SetupTest() {
-	c.testDirPath = setup.SetupTestDirectory(c.T().Name())
 	c.proxyServerLogFile = setup.CreateProxyServerLogFile(c.T())
 	var err error
 	c.port, c.proxyProcessId, err = emulator_tests.StartProxyServer(c.configFileName, c.proxyServerLogFile)
@@ -62,6 +61,11 @@ func (c *controlClientStallBase) SetupTest() {
 	if c.maxMountDurationSecs != -1 {
 		assert.True(c.T(), mountTime < time.Duration(c.maxMountDurationSecs)*time.Second, "Mount time %v should be less than %ds", mountTime, c.maxMountDurationSecs)
 	}
+
+	// Create the test directory only after mounting. Creating it before would
+	// make the mount point non-empty, which libfuse2's fusermount (used on RHEL)
+	// rejects with "mountpoint is not empty".
+	c.testDirPath = setup.SetupTestDirectory(c.T().Name())
 }
 
 func (c *controlClientStallBase) TearDownTest() {
