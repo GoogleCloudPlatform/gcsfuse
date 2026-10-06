@@ -22,6 +22,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -208,6 +209,7 @@ func (testSuite *StorageHandleTest) TestBucketHandle_DisableGrpcReadChecksums() 
 			testSuite.fakeStorage = NewFakeStorageWithMockClient(testSuite.mockClient, cfg.HTTP2)
 			storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 			sh := storageHandle.(*storageClient)
+			sh.grpcClient = &storage.Client{}
 			sh.clientConfig.EnableGrpcReadChecksums = tc.enableGrpcReadChecksums
 			sh.clientConfig.ClientProtocol = tc.clientProtocol
 			bucketType := gcs.BucketType{
@@ -304,15 +306,15 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_RapidCacheInfo() {
 		expectedIsRapid bool
 	}{
 		{
-			name:            "rapid-cache-ultra with EnableRapidWrites true",
-			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			name:            "rapid-cache-ultra with RapidWrite enabled",
+			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
 			expectedRCU:     gcs.RCUStateRapidWritesEnabled,
 			expectedIsRapid: true,
 		},
 		{
-			name:            "rapid-cache-ultra with EnableRapidWrites false",
-			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: false},
+			name:            "rapid-cache-ultra with RapidWrite disabled",
+			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyDisabled},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
 			expectedRCU:     gcs.RCUStateRapidWritesDisabled,
 			expectedIsRapid: true,
@@ -326,21 +328,21 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_RapidCacheInfo() {
 		},
 		{
 			name:            "non-ultra rapid-cache is not rcu",
-			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: "rapid-cache"},
 			expectedRCU:     gcs.RCUStateNone,
 			expectedIsRapid: false,
 		},
 		{
 			name:            "empty CacheType is not rcu",
-			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: ""},
 			expectedRCU:     gcs.RCUStateNone,
 			expectedIsRapid: false,
 		},
 		{
 			name:            "nil RapidCacheInfo is not rcu",
-			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
 			rapidCacheInfo:  nil,
 			expectedRCU:     gcs.RCUStateNone,
 			expectedIsRapid: false,
@@ -993,6 +995,50 @@ func (testSuite *StorageHandleTest) Test_CreateHTTPClientHandle_WithoutGoogleLib
 	assert.NotNil(testSuite.T(), httpClient)
 }
 
+func (testSuite *StorageHandleTest) Test_CreateHTTPClientHandle_WithS2A() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.S2AAddress = "localhost:8080"
+	sc.S2ASpiffeID = "spiffe://example.com/sa/test-sa"
+
+	httpClient, err := createHTTPClientHandle(context.TODO(), &sc, sc.ClientProtocol)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), httpClient)
+}
+
+func (testSuite *StorageHandleTest) Test_CreateHTTPClientHandle_WithoutS2A_EmptyAddress() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.S2AAddress = ""
+	sc.S2ASpiffeID = ""
+
+	httpClient, err := createHTTPClientHandle(context.TODO(), &sc, sc.ClientProtocol)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), httpClient)
+}
+
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithS2A() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.S2AAddress = "localhost:8080"
+	sc.S2ASpiffeID = "spiffe://example.com/sa/test-sa"
+
+	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), clientOption)
+}
+
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithoutS2A_EmptyAddress() {
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	sc.S2AAddress = ""
+	sc.S2ASpiffeID = ""
+
+	clientOption, err := createClientOptionForGRPCClient(context.TODO(), &sc, false)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), clientOption)
+}
+
 func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithTracing() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 	sc.TracingEnabled = true
@@ -1285,6 +1331,14 @@ func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_AccessCheck_WithPref
 }
 
 func (testSuite *StorageHandleTest) TestGetClient_ProtocolSelection() {
+	var lastReqClose atomic.Bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		lastReqClose.Store(r.Close)
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error": {"code": 404, "message": "Not Found"}}`))
+	}))
+	defer server.Close()
+
 	testCases := []struct {
 		name                string
 		isBucketRapid       bool
@@ -1292,7 +1346,8 @@ func (testSuite *StorageHandleTest) TestGetClient_ProtocolSelection() {
 		enableGrpcByDefault bool
 		grpcPathStrategy    cfg.DirectPathStrategy
 		expectErr           bool
-		expectHTTPClient    bool
+		expectHTTP1Client   bool
+		expectHTTP2Client   bool
 		expectGRPCClient    bool
 		expectBidiClient    bool
 	}{
@@ -1301,21 +1356,21 @@ func (testSuite *StorageHandleTest) TestGetClient_ProtocolSelection() {
 			isBucketRapid:       false,
 			clientProtocol:      "",
 			enableGrpcByDefault: false,
-			expectHTTPClient:    true,
+			expectHTTP1Client:   true,
 		},
 		{
 			name:                "Regional_ExplicitHTTP1_OverridesEnableGrpcByDefault",
 			isBucketRapid:       false,
 			clientProtocol:      cfg.HTTP1,
 			enableGrpcByDefault: true,
-			expectHTTPClient:    true,
+			expectHTTP1Client:   true,
 		},
 		{
 			name:                "Regional_ExplicitHTTP2_OverridesEnableGrpcByDefault",
 			isBucketRapid:       false,
 			clientProtocol:      cfg.HTTP2,
 			enableGrpcByDefault: true,
-			expectHTTPClient:    true,
+			expectHTTP2Client:   true,
 		},
 		{
 			name:                "Regional_ExplicitGRPC_SkipsDirectPathEnforcement",
@@ -1344,7 +1399,7 @@ func (testSuite *StorageHandleTest) TestGetClient_ProtocolSelection() {
 			clientProtocol:      "",
 			enableGrpcByDefault: true,
 			grpcPathStrategy:    cfg.DirectPathWithFallback,
-			expectHTTPClient:    true,
+			expectHTTP1Client:   true,
 		},
 		{
 			name:                "Regional_EnableGrpcByDefault_DirectPathOnly_ReturnsError",
@@ -1364,6 +1419,7 @@ func (testSuite *StorageHandleTest) TestGetClient_ProtocolSelection() {
 					EnableGrpcByDefault: tc.enableGrpcByDefault,
 					GrpcPathStrategy:    tc.grpcPathStrategy,
 					AnonymousAccess:     true,
+					CustomEndpoint:      server.URL,
 				},
 			}
 			defer func() {
@@ -1390,9 +1446,17 @@ func (testSuite *StorageHandleTest) TestGetClient_ProtocolSelection() {
 			}
 			require.NoError(testSuite.T(), err)
 			require.NotNil(testSuite.T(), client)
-			if tc.expectHTTPClient {
+			if tc.expectHTTP1Client {
 				assert.Equal(testSuite.T(), sh.httpClient, client)
 				assert.Nil(testSuite.T(), sh.grpcClient)
+				_, _ = client.Bucket(TestBucketName).Object("test-obj").Attrs(testSuite.ctx)
+				assert.False(testSuite.T(), lastReqClose.Load(), "HTTP/1.1 transport should keep connections alive (DisableKeepAlives=false)")
+			}
+			if tc.expectHTTP2Client {
+				assert.Equal(testSuite.T(), sh.httpClient, client)
+				assert.Nil(testSuite.T(), sh.grpcClient)
+				_, _ = client.Bucket(TestBucketName).Object("test-obj").Attrs(testSuite.ctx)
+				assert.True(testSuite.T(), lastReqClose.Load(), "HTTP/2 transport should set DisableKeepAlives=true")
 			}
 			if tc.expectGRPCClient {
 				assert.Equal(testSuite.T(), sh.grpcClient, client)

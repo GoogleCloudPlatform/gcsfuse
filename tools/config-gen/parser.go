@@ -82,7 +82,7 @@ func parseParamsYAMLStr(paramsYAMLStr string) (paramsYAML ParamsYAML, err error)
 
 var supportedDataTypes = []string{
 	"int", "float64", "bool", "string", "duration", "octal", "[]int",
-	"[]string", "logSeverity", "protocol", "resolvedPath", "directPathStrategy",
+	"[]string", "logSeverity", "protocol", "resolvedPath", "directPathStrategy", "rapidWriteStrategy",
 }
 
 func isValidDataType(dt string) bool {
@@ -116,7 +116,7 @@ func computeProtoMetadata(configPath string, paramType string) (protoType, proto
 		return "int64", name, nil // Mapped as nanoseconds
 	case "float64":
 		return "double", name, nil
-	case "string", "protocol", "directPathStrategy", "logSeverity":
+	case "string", "protocol", "directPathStrategy", "logSeverity", "rapidWriteStrategy":
 		return "string", name, nil
 	case "[]int":
 		return "repeated sint64", name, nil
@@ -209,9 +209,9 @@ func checkFlagName(name string) error {
 		return fmt.Errorf("flag-name cannot be empty")
 	}
 
-	// A valid name should contain only lower-case characters with hyphens as
-	// separators. It must start and end with an alphabet.
-	regex := `^[a-z]+([-_][a-z]+)*$`
+	// A valid name should contain only lower-case characters and numbers with hyphens as
+	// separators. It must start with an alphabet and end with an alphanumeric character.
+	regex := `^[a-z][a-z0-9]*([-_][a-z0-9]+)*$`
 	if matched, _ := regexp.MatchString(regex, name); !matched {
 		return fmt.Errorf("flag-name %q does not conform to the regex: %s", name, regex)
 	}

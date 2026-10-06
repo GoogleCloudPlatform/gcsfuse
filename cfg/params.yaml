@@ -35,7 +35,7 @@
 
 # Add retired proto-tag numbers here when deleted from active params list.
 # Preserves tag reservation for Protobuf schema generation.
-retired-params: [47]
+retired-params: [47, 154]
 # Example of retired parameters entry:
 #   retired-params: [28, 42]
 
@@ -691,6 +691,20 @@ params:
     type: "bool"
     usage: "If false, the token acquired from token-url is not reused."
     default: "true"
+
+  - config-path: "gcs-auth.s2a-address"
+    proto-tag: 160
+    flag-name: "s2a-address"
+    type: "string"
+    usage: "S2A daemon address for direct S2A authentication."
+    default: ""
+
+  - config-path: "gcs-auth.s2a-spiffe-id"
+    proto-tag: 161
+    flag-name: "s2a-spiffe-id"
+    type: "string"
+    usage: "Local SPIFFE ID to assume for direct S2A authentication."
+    default: ""
 
   - config-path: "gcs-auth.token-url"
     proto-tag: 69
@@ -1533,13 +1547,6 @@ params:
     usage: "Enables support for appends to unfinalized object using streaming writes"
     default: true
 
-  - config-path: "write.enable-rapid-writes"
-    proto-tag: 154
-    flag-name: "enable-rapid-writes"
-    type: "bool"
-    usage: "For Rapid Cache Ultra, toggles between using STANDARD class and RAPID class for writes."
-    default: false
-
   - config-path: "write.enable-streaming-writes"
     proto-tag: 155
     flag-name: "enable-streaming-writes"
@@ -1584,6 +1591,13 @@ params:
       streaming writes. The value should be >= 1 or -1 (for infinite blocks).
     default: 1
     hide-flag: true
+
+  - config-path: "write.rapid-write"
+    proto-tag: 162
+    flag-name: "rapid-write"
+    type: "rapidWriteStrategy"
+    usage: "For Rapid Cache Ultra, toggles between using bucket default storage class and RAPID storage class for writes."
+    default: "disabled"
 
   - flag-name: "debug_fs"
     type: "bool"

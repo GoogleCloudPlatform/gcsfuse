@@ -26,7 +26,7 @@ message ConfigPayload {
 }
 
 message Config {
-  reserved 47;
+  reserved 47, 154;
   bool is_app_name_set = 1;
   bool is_cache_dir_set = 2;
   bool cloud_profiler_allocated_heap = 3;
@@ -179,10 +179,12 @@ message Config {
   double write_block_size_mb = 151;
   bool write_create_empty_file = 152;
   bool write_enable_rapid_appends = 153;
-  bool write_enable_rapid_writes = 154;
   bool write_enable_streaming_writes = 155;
   bool write_finalize_file_for_rapid = 156;
   sint64 write_global_max_blocks = 157;
   sint64 write_max_blocks_per_file = 158;
   bool gcs_connection_enable_grpc_by_default = 159;
+  bool is_gcs_auth_s2a_address_set = 160;
+  bool is_gcs_auth_s2a_spiffe_id_set = 161;
+  string write_rapid_write = 162;
 }

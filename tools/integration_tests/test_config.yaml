@@ -38,7 +38,7 @@ implicit_dir:
         run_on_gke: true
         run: TestImplicitDirBase
       - flags:
-          - "--implicit-dirs,--enable-rapid-writes=true"
+          - "--implicit-dirs,--rapid-write=enabled"
         run_on_rcu:
           hns:
             same_zone: true
@@ -46,7 +46,7 @@ implicit_dir:
         run_on_gke: false
         run: TestImplicitDirRapidWritesEnabled
       - flags:
-          - "--implicit-dirs,--enable-rapid-writes=false"
+          - "--implicit-dirs,--rapid-write=disabled"
         run_on_rcu:
           hns:
             same_zone: true
@@ -124,17 +124,17 @@ operations:
         run_on_gke: true
         run: TestOperationsBase
       - flags:
-          - "--enable-rapid-writes=true,--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
-          - "--enable-rapid-writes=true,--kernel-list-cache-ttl-secs=-1,--enable-metadata-prefetch"
+          - "--rapid-write=enabled,--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
+          - "--rapid-write=enabled,--kernel-list-cache-ttl-secs=-1,--enable-metadata-prefetch"
         run_on_rcu:
           hns:
             same_zone: true
             different_zone: false
         run_on_gke: false
-        run: TestWriteOperationsRapidWritesEnabled
+        run: TestOperationsRapidWritesEnabled
       - flags:
-          - "--enable-rapid-writes=false,--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
-          - "--enable-rapid-writes=false,--kernel-list-cache-ttl-secs=-1,--enable-metadata-prefetch"
+          - "--rapid-write=disabled,--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
+          - "--rapid-write=disabled,--kernel-list-cache-ttl-secs=-1,--enable-metadata-prefetch"
         run_on_rcu:
           hns:
             same_zone: true
@@ -172,16 +172,16 @@ write_large_files:
           zonal: true
         run_on_gke: true
       - flags:
-          - "--enable-rapid-writes=true,--enable-streaming-writes=false"
-          - "--enable-rapid-writes=true,--write-max-blocks-per-file=2,--write-global-max-blocks=5"
+          - "--rapid-write=enabled,--enable-streaming-writes=false"
+          - "--rapid-write=enabled,--write-max-blocks-per-file=2,--write-global-max-blocks=5"
         run_on_rcu:
           hns:
             same_zone: true
             different_zone: true
         run_on_gke: true
       - flags:
-          - "--enable-rapid-writes=false,--enable-streaming-writes=false"
-          - "--enable-rapid-writes=false,--write-max-blocks-per-file=2,--write-global-max-blocks=5"
+          - "--rapid-write=disabled,--enable-streaming-writes=false"
+          - "--rapid-write=disabled,--write-max-blocks-per-file=2,--write-global-max-blocks=5"
         run_on_rcu:
           hns:
             same_zone: true
@@ -318,12 +318,11 @@ local_file:
           zonal: false
         run_on_gke: true
       - flags:
-          - "--enable-rapid-writes=true,--rename-dir-limit=3,--enable-streaming-writes=false"
-          - "--enable-rapid-writes=false,--rename-dir-limit=3,--enable-streaming-writes=false"
-          - "--enable-rapid-writes=true,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=0"
-          - "--enable-rapid-writes=false,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=0"
-          - "--enable-rapid-writes=true,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
-          - "--enable-rapid-writes=false,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
+          - "--rapid-write=enabled,--rename-dir-limit=3,--enable-streaming-writes=false"
+          - "--rapid-write=disabled,--rename-dir-limit=3,--enable-streaming-writes=false"
+          - "--rapid-write=enabled,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=0"
+          - "--rapid-write=disabled,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=0"
+          - "--rapid-write=disabled,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
         run_on_rcu:
           hns:
             same_zone: true
@@ -343,8 +342,8 @@ streaming_writes:
           zonal: true
         run_on_gke: true
       - flags:
-          - "--enable-rapid-writes=true,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
-          - "--enable-rapid-writes=false,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
+          - "--rapid-write=enabled,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
+          - "--rapid-write=disabled,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
         run_on_rcu:
           hns:
             same_zone: true
@@ -789,8 +788,8 @@ stale_handle:
         run: "TestStaleHandleStreamingWritesEnabled"
         run_on_gke: true
       - flags:
-          - "--enable-rapid-writes=true,--metadata-cache-ttl-secs=0,--write-block-size-mb=1,--write-max-blocks-per-file=1"
-          - "--enable-rapid-writes=false,--metadata-cache-ttl-secs=0,--write-block-size-mb=1,--write-max-blocks-per-file=1"
+          - "--rapid-write=enabled,--metadata-cache-ttl-secs=0,--write-block-size-mb=1,--write-max-blocks-per-file=1"
+          - "--rapid-write=disabled,--metadata-cache-ttl-secs=0,--write-block-size-mb=1,--write-max-blocks-per-file=1"
         run_on_rcu:
           hns:
             same_zone: true
@@ -807,8 +806,8 @@ stale_handle:
         run: "TestStaleHandleStreamingWritesDisabled"
         run_on_gke: true
       - flags:
-          - "--enable-rapid-writes=true,--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
-          - "--enable-rapid-writes=false,--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
+          - "--rapid-write=enabled,--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
+          - "--rapid-write=disabled,--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1040,8 +1039,8 @@ unfinalized_object:
         run: TestUnfinalizedObjectReadTest
         run_on_gke: true
       - flags:
-          - "--metadata-cache-ttl-secs=-1"
-          - "--metadata-cache-ttl-secs=-1,--enable-kernel-reader=false"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=-1"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=-1,--enable-kernel-reader=false"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1058,8 +1057,8 @@ unfinalized_object:
         run: TestUnfinalizedObjectOperationTest
         run_on_gke: true
       - flags:
-          - "--metadata-cache-ttl-secs=0"
-          - "--metadata-cache-ttl-secs=0,--enable-kernel-reader=false"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0,--enable-kernel-reader=false"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1076,8 +1075,8 @@ unfinalized_object:
         run: TestUnfinalizedObjectTailingReadTest
         run_on_gke: true
       - flags:
-          - "--metadata-cache-ttl-secs=2"
-          - "--metadata-cache-ttl-secs=2,--enable-kernel-reader=false"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=2"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=2,--enable-kernel-reader=false"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1107,14 +1106,14 @@ interrupt:
           zonal: true
         run_on_gke: true
       - flags:
-          - "--enable-rapid-writes=true,--enable-streaming-writes"
-          - "--enable-rapid-writes=false,--enable-streaming-writes"
-          - "--enable-rapid-writes=true,--enable-streaming-writes=false"
-          - "--enable-rapid-writes=false,--enable-streaming-writes=false"
-          - "--enable-rapid-writes=true,--ignore-interrupts,--enable-streaming-writes=false"
-          - "--enable-rapid-writes=false,--ignore-interrupts,--enable-streaming-writes=false"
-          - "--enable-rapid-writes=true,--ignore-interrupts=false,--enable-streaming-writes=false"
-          - "--enable-rapid-writes=false,--ignore-interrupts=false,--enable-streaming-writes=false"
+          - "--rapid-write=enabled,--enable-streaming-writes"
+          - "--rapid-write=disabled,--enable-streaming-writes"
+          - "--rapid-write=enabled,--enable-streaming-writes=false"
+          - "--rapid-write=disabled,--enable-streaming-writes=false"
+          - "--rapid-write=enabled,--ignore-interrupts,--enable-streaming-writes=false"
+          - "--rapid-write=disabled,--ignore-interrupts,--enable-streaming-writes=false"
+          - "--rapid-write=enabled,--ignore-interrupts=false,--enable-streaming-writes=false"
+          - "--rapid-write=disabled,--ignore-interrupts=false,--enable-streaming-writes=false"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1158,7 +1157,7 @@ readonly_creds:
         run_on_gke: false
         run: TestReadOnlyCredsBase
       - flags:
-          - "--enable-rapid-writes=true"
+          - "--rapid-write=enabled"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1166,7 +1165,7 @@ readonly_creds:
         run_on_gke: false
         run: TestReadOnlyCredsRapidWritesEnabled
       - flags:
-          - "--enable-rapid-writes=false"
+          - "--rapid-write=disabled"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1551,7 +1550,7 @@ rapid_operations:
         run_on_gke: true
       - run: TestSingleMountAppendsTestSuite
         flags:
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--write-block-size-mb=1"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1569,9 +1568,9 @@ rapid_operations:
         run_on_gke: true
       - run: TestDualMountAppendsTestSuite
         flags:
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--write-block-size-mb=1"
         secondary_flags:
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--write-block-size-mb=1"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1594,14 +1593,14 @@ rapid_operations:
         run_on_gke: true
       - run: TestSingleMountReadsTestSuite
         flags:
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0" # NoCache
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70" # MetadataCache
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache,--metadata-cache-ttl-secs=0" # FileCache
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache" # MetadataAndFileCache
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0,--enable-kernel-reader=false" # NoCacheWithoutKernelReader
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70,--enable-kernel-reader=false" # MetadataCacheWithMRDWrapperWithoutKernelReader
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache,--metadata-cache-ttl-secs=0,--enable-kernel-reader=false" # FileCacheWithoutKernelReader
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache,--enable-kernel-reader=false" # MetadataAndFileCacheWithoutKernelReader
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0" # NoCache
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70" # MetadataCache
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache,--metadata-cache-ttl-secs=0" # FileCache
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache" # MetadataAndFileCache
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0,--enable-kernel-reader=false" # NoCacheWithoutKernelReader
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70,--enable-kernel-reader=false" # MetadataCacheWithMRDWrapperWithoutKernelReader
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache,--metadata-cache-ttl-secs=0,--enable-kernel-reader=false" # FileCacheWithoutKernelReader
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache,--enable-kernel-reader=false" # MetadataAndFileCacheWithoutKernelReader
         run_on_rcu:
           hns:
             same_zone: true
@@ -1625,15 +1624,15 @@ rapid_operations:
         run_on_gke: true
       - run: TestDualMountReadsTestSuiteWithMetadataCache
         flags:
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70"
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache-primary"
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70,--enable-kernel-reader=false"
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache-primary,--enable-kernel-reader=false"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache-primary"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70,--enable-kernel-reader=false"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=70,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache-primary,--enable-kernel-reader=false"
         secondary_flags:
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--write-block-size-mb=1"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--write-block-size-mb=1"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--write-block-size-mb=1"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--write-block-size-mb=1"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1657,15 +1656,15 @@ rapid_operations:
         run_on_gke: true
       - run: TestDualMountReadsTestSuiteWithoutMetadataCache
         flags:
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0"
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache-primary,--metadata-cache-ttl-secs=0"
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0,--enable-kernel-reader=false"
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache-primary,--metadata-cache-ttl-secs=0,--enable-kernel-reader=false"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache-primary,--metadata-cache-ttl-secs=0"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0,--enable-kernel-reader=false"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--file-cache-max-size-mb=-1,--cache-dir=/gcsfuse-tmp/cache-primary,--metadata-cache-ttl-secs=0,--enable-kernel-reader=false"
         secondary_flags:
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--write-block-size-mb=1"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--write-block-size-mb=1"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--write-block-size-mb=1"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--write-block-size-mb=1"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--write-block-size-mb=1"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1689,7 +1688,7 @@ rapid_operations:
         run_on_gke: true
       - run: TestFinalizeRapidWritesEnabledSuite
         flags:
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=true"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=true"
         run_on_rcu:
           flat:
             same_zone: true
@@ -1700,7 +1699,7 @@ rapid_operations:
         run_on_gke: true
       - run: TestFinalizeRapidWritesDisabledSuite
         flags:
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1716,7 +1715,7 @@ rapid_operations:
         run_on_gke: true
       - run: TestStatAndListTestSuite
         flags:
-          - "--enable-rapid-writes=true,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0"
+          - "--rapid-write=enabled,--finalize-file-for-rapid=false,--metadata-cache-ttl-secs=0"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1839,8 +1838,8 @@ symlink_handling:
         run_on_gke: true
       - run: TestStandardSymlinksTestSuite
         flags:
-          - "--enable-rapid-writes=true,--enable-standard-symlinks=true"
-          - "--enable-rapid-writes=false,--enable-standard-symlinks=true"
+          - "--rapid-write=enabled,--enable-standard-symlinks=true"
+          - "--rapid-write=disabled,--enable-standard-symlinks=true"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1857,8 +1856,8 @@ symlink_handling:
         run_on_gke: true
       - run: TestLegacySymlinksTestSuite
         flags:
-          - "--enable-rapid-writes=true,--enable-standard-symlinks=false"
-          - "--enable-rapid-writes=false,--enable-standard-symlinks=false"
+          - "--rapid-write=enabled,--enable-standard-symlinks=false"
+          - "--rapid-write=disabled,--enable-standard-symlinks=false"
         run_on_rcu:
           hns:
             same_zone: true
@@ -1993,8 +1992,8 @@ managed_folders:
         run_on_gke: false
       - run: TestManagedFolders_FolderViewPermission
         flags:
-          - "--enable-rapid-writes=true,--key-file=${KEY_FILE},--rename-dir-limit=3"
-          - "--enable-rapid-writes=false,--key-file=${KEY_FILE},--rename-dir-limit=3"
+          - "--rapid-write=enabled,--key-file=${KEY_FILE},--rename-dir-limit=3"
+          - "--rapid-write=disabled,--key-file=${KEY_FILE},--rename-dir-limit=3"
         run_on_rcu:
           hns:
             same_zone: true
@@ -2010,8 +2009,8 @@ managed_folders:
         run_on_gke: false
       - run: TestEnableEmptyManagedFoldersTrue
         flags:
-          - "--enable-rapid-writes=true,--enable-empty-managed-folders"
-          - "--enable-rapid-writes=false,--enable-empty-managed-folders"
+          - "--rapid-write=enabled,--enable-empty-managed-folders"
+          - "--rapid-write=disabled,--enable-empty-managed-folders"
         run_on_rcu:
           hns:
             same_zone: true
@@ -2027,8 +2026,8 @@ managed_folders:
         run_on_gke: false
       - run: TestManagedFolders_FolderAdminPermission
         flags:
-          - "--enable-rapid-writes=true,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0"
-          - "--enable-rapid-writes=false,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0"
+          - "--rapid-write=enabled,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0"
+          - "--rapid-write=disabled,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0"
         run_on_rcu:
           hns:
             same_zone: true
@@ -2044,8 +2043,8 @@ managed_folders:
         run_on_gke: false
       - run: TestManagedFolders_RestrictedPermission
         flags:
-          - "--enable-rapid-writes=true,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0"
-          - "--enable-rapid-writes=false,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0"
+          - "--rapid-write=enabled,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0"
+          - "--rapid-write=disabled,--key-file=${KEY_FILE},--rename-dir-limit=5,--stat-cache-ttl=0"
         run_on_rcu:
           hns:
             same_zone: true

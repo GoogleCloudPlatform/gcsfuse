@@ -93,6 +93,16 @@ func TestImplicitDirBase(t *testing.T) {
 	})
 }
 
+func TestImplicitDirRapidWritesEnabled(t *testing.T) {
+	if !setup.IsRcuBucketRun() {
+		t.Skip("Rapid writes tests are only applicable to Rapid Cache Ultra buckets")
+	}
+	runImplicitDirSuite(t, func() {
+		suite.Run(t, new(implicitDirTestSuite))
+		suite.Run(t, &implicitDirLocalFileTest{isRapidWritesEnabled: true})
+	})
+}
+
 func setupTestDir(dirName string) string {
 	dir := setup.SetupTestDirectory(DirForImplicitDirTests)
 	dirPath := path.Join(dir, dirName)

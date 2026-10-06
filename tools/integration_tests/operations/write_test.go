@@ -21,7 +21,6 @@ import (
 	"path"
 	"reflect"
 	"syscall"
-	"testing"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -42,15 +41,6 @@ type writeOperationsTest struct {
 
 func (w *writeOperationsTest) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(w.T())
-}
-
-func TestWriteOperationsRapidWritesEnabled(t *testing.T) {
-	if !setup.IsRcuBucketRun() {
-		t.Skip("Rapid writes tests are only applicable to Rapid Cache Ultra buckets")
-	}
-	runOperationsSuite(t, func() {
-		suite.Run(t, &writeOperationsTest{isRapidWritesEnabled: true})
-	})
 }
 
 const tempFileName = "tmpFile"
