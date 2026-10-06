@@ -26,12 +26,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"golang.org/x/oauth2"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -62,7 +62,7 @@ func newInMemoryExporter(t *testing.T) *tracetest.InMemoryExporter {
 func (t *clientTest) TestCreateHttpClientWithHttp1() {
 	sc := GetDefaultStorageClientConfig(keyFile) // By default http1 enabled
 
-	httpClient, err := CreateHttpClient(&sc, nil)
+	httpClient, err := CreateHttpClient(&sc, nil, cfg.HTTP1)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), httpClient)
@@ -72,7 +72,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp1() {
 func (t *clientTest) TestCreateHttpClientWithHttp2() {
 	sc := GetDefaultStorageClientConfig(keyFile)
 
-	httpClient, err := CreateHttpClient(&sc, nil)
+	httpClient, err := CreateHttpClient(&sc, nil, cfg.HTTP2)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), httpClient)
@@ -84,7 +84,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp1AndAuthEnabled() {
 	sc.AnonymousAccess = false
 
 	// Act: this method add tokenSource and clientOptions.
-	httpClient, err := CreateHttpClient(&sc, nil)
+	httpClient, err := CreateHttpClient(&sc, nil, cfg.HTTP1)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), httpClient)
@@ -94,7 +94,7 @@ func (t *clientTest) TestCreateHttpClientWithHttp2AndAuthEnabled() {
 	sc := GetDefaultStorageClientConfig(keyFile)
 	sc.AnonymousAccess = false
 	// Act: this method add tokenSource and clientOptions.
-	httpClient, err := CreateHttpClient(&sc, nil)
+	httpClient, err := CreateHttpClient(&sc, nil, cfg.HTTP2)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), httpClient)
@@ -167,7 +167,7 @@ func (t *clientTest) TestCreateHttpClientWithHttpTracing() {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
-	httpClient, err := CreateHttpClient(&sc, tokenSrc)
+	httpClient, err := CreateHttpClient(&sc, tokenSrc, cfg.HTTP1)
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), httpClient)
 
@@ -198,7 +198,7 @@ func (t *clientTest) TestCreateHttpClientWithSocketAddress() {
 	sc.LocalSocketAddress = "127.0.0.1"
 	// Use a static token to avoid network calls for token acquisition.
 	var tokenSrc = oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"})
-	httpClient, err := CreateHttpClient(&sc, tokenSrc)
+	httpClient, err := CreateHttpClient(&sc, tokenSrc, cfg.HTTP1)
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), httpClient)
 
@@ -219,7 +219,7 @@ func (t *clientTest) TestCreateHttpClientWithInvalidSocketAddress() {
 	// Use a static token to avoid network calls for token acquisition.
 	var tokenSrc = oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"})
 
-	httpClient, err := CreateHttpClient(&sc, tokenSrc)
+	httpClient, err := CreateHttpClient(&sc, tokenSrc, cfg.HTTP1)
 
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), httpClient)
@@ -230,7 +230,7 @@ func (t *clientTest) TestCreateHttpClientWithS2A_HTTP1() {
 	sc.ClientProtocol = cfg.HTTP1
 	sc.S2AAddress = "localhost:8080"
 
-	httpClient, err := CreateHttpClient(&sc, nil)
+	httpClient, err := CreateHttpClient(&sc, nil, sc.ClientProtocol)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), httpClient)
@@ -243,7 +243,7 @@ func (t *clientTest) TestCreateHttpClientWithS2A_HTTP2() {
 	sc.S2AAddress = "localhost:8080"
 	sc.S2ASpiffeID = "spiffe://example.com/sa/my-sa"
 
-	httpClient, err := CreateHttpClient(&sc, nil)
+	httpClient, err := CreateHttpClient(&sc, nil, sc.ClientProtocol)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), httpClient)
@@ -256,7 +256,7 @@ func (t *clientTest) TestCreateHttpClientWithoutS2A_EmptyAddress() {
 	sc.S2AAddress = ""
 
 	// When S2AAddress is empty, it uses token/credential flow from keyFile.
-	httpClient, err := CreateHttpClient(&sc, nil)
+	httpClient, err := CreateHttpClient(&sc, nil, sc.ClientProtocol)
 
 	assert.NoError(t.T(), err)
 	assert.NotNil(t.T(), httpClient)
@@ -304,7 +304,7 @@ func (t *clientTest) TestCreateHttpClientWithS2A_DialVerification() {
 
 	// Supply a static token so the OAuth2 wrapper does not attempt a real token
 	// fetch, which would fail before the transport ever dials S2A.
-	httpClient, err := CreateHttpClient(&sc, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"}))
+	httpClient, err := CreateHttpClient(&sc, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"}), sc.ClientProtocol)
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), httpClient)
 
@@ -325,7 +325,7 @@ func (t *clientTest) TestCreateHttpClientWithS2A_AttachesOAuthTransport() {
 	sc.S2AAddress = "localhost:8080"
 	sc.S2ASpiffeID = "spiffe://example.com/sa/my-sa"
 
-	httpClient, err := CreateHttpClient(&sc, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"}))
+	httpClient, err := CreateHttpClient(&sc, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"}), sc.ClientProtocol)
 
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), httpClient)
@@ -342,7 +342,7 @@ func (t *clientTest) TestCreateHttpClientWithAnonymousAccess_NoOAuthTransport() 
 	sc.ClientProtocol = cfg.HTTP1
 	sc.AnonymousAccess = true
 
-	httpClient, err := CreateHttpClient(&sc, nil)
+	httpClient, err := CreateHttpClient(&sc, nil, sc.ClientProtocol)
 
 	require.NoError(t.T(), err)
 	require.NotNil(t.T(), httpClient)
