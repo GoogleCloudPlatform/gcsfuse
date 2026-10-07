@@ -34,7 +34,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 
 	"cloud.google.com/go/storage"
-	"cloud.google.com/go/storage/experimental"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -115,7 +114,7 @@ func CreateStorageClient(ctx context.Context) (client *storage.Client, err error
 		client, err = storage.NewClient(ctx, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithTokenSource(ts))
 	} else if setup.IsZonalBucketRun() || setup.IsRcuBucketRun() {
 		var opts []option.ClientOption
-		opts = append(opts, experimental.WithGRPCBidiReads())
+		opts = append(opts, storage.WithGRPCBidiReads())
 		if kf := setup.KeyFile(); kf != "" {
 			ts, err := getTokenSrc(kf)
 			if err != nil {

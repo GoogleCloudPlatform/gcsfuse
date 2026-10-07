@@ -32,7 +32,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"cloud.google.com/go/storage/experimental"
 	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
@@ -589,7 +588,7 @@ func bucketType(ctx context.Context, testBucket string) (bType string, err error
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	var opts []option.ClientOption
-	opts = append(opts, experimental.WithGRPCBidiReads())
+	opts = append(opts, storage.WithGRPCBidiReads())
 	if TestOnTPCEndPoint() {
 		cred, err := auth2.GetCredentials("/tmp/sa.key.json")
 		if err != nil {
