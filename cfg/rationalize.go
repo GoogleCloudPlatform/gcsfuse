@@ -190,9 +190,11 @@ func resolveKernelReadAhead(v *viper.Viper, c *Config) {
 
 // resolveFinalizeFileForRapid sets finalize-file-for-rapid to true when rapid-write
 // is enabled, unless finalize-file-for-rapid was explicitly configured by the user.
-// It is safe to do this here for this flag since rapid-write is explicitly
-// applicable to RCU buckets and finalize-file-for-rapid is only honored by the Go SDK
-// when appendable writes are used.
+// For non-rapid buckets, finalize-file-for-rapid is ignored by the Go SDK since
+// appendable writes are not used. However, since zonal buckets also use appendable
+// writes, if rapid-write is enabled when mounting a zonal bucket (or on a dynamic
+// mount that accesses both RCU and zonal buckets), files in the zonal bucket will
+// also be finalized on close.
 //
 // NOTE: If some other value is used to indicate appendable writes in the future,
 // use that value instead of RapidWriteStrategyEnabled.

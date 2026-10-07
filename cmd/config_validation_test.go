@@ -283,7 +283,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 					GlobalMaxBlocks:       20,
 					MaxBlocksPerFile:      2,
 					RapidWrite:            cfg.RapidWriteStrategyEnabled,
-					FinalizeFileForRapid:  true, // changed due to enabled rapid writes.
+					FinalizeFileForRapid:  true, // changed due to rapid write enabled.
 				},
 			},
 		},
