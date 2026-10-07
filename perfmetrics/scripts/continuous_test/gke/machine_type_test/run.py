@@ -277,8 +277,24 @@ async def execute_test_workload(
       await asyncio.sleep(5)
 
     if status == "Succeeded":
-      print(f"Pod {pod_name} succeeded.")
-      success = True
+      print(f"Pod {pod_name} succeeded. Verifying sidecar DirectPath logs...")
+      sidecar_logs, _, _ = await utils.run_command_async(
+          ["kubectl", "logs", pod_name, "-c", "gke-gcsfuse-sidecar"],
+          check=False,
+      )
+      expected_dp_msg = (
+          "DirectPath verification succeeded, continuing with DirectPath."
+      )
+      if expected_dp_msg in sidecar_logs:
+        print(f"Verified sidecar DirectPath connection: '{expected_dp_msg}'")
+        success = True
+      else:
+        print(
+            f"Error: Expected sidecar log '{expected_dp_msg}' not found in"
+            " gke-gcsfuse-sidecar logs.",
+            file=sys.stderr,
+        )
+        success = False
     elif status == "Failed":
       print(f"Pod {pod_name} failed.")
       success = False
