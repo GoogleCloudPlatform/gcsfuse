@@ -34,7 +34,6 @@ import (
 	"cloud.google.com/go/storage"
 	control "cloud.google.com/go/storage/control/apiv2"
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
-	"cloud.google.com/go/storage/experimental"
 	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
@@ -44,7 +43,7 @@ import (
 
 var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
 var isZonalBucketRun = flag.Bool("zonal", false, "Boolean flag to indicate if test-run should use a zonal bucket.")
-var isRcuBucketRun = flag.Bool("rcu", false, "Boolean flag to indicate if test-run is for a Rapid Cache Ultra bucket.")
+var isRcuBucketRun bool
 var isRcuDifferentZone = flag.Bool("rcu-different-zone", false, "Boolean flag to indicate if test-run is in a different zone than the Rapid Cache Ultra cache.")
 
 // Note: testBucket and mountedDirectory can also be set via BUCKET_NAME and MOUNTED_DIR
@@ -128,11 +127,11 @@ func SetIsZonalBucketRun(val bool) {
 }
 
 func IsRcuBucketRun() bool {
-	return *isRcuBucketRun
+	return isRcuBucketRun
 }
 
 func SetIsRcuBucketRun(val bool) {
-	*isRcuBucketRun = val
+	isRcuBucketRun = val
 }
 
 func IsRcuDifferentZone() bool {
@@ -653,14 +652,14 @@ func bucketType(ctx context.Context, testBucket string) (bType string, err error
 	return FlatBucket, nil
 }
 
-// isRcuBucket reports whether testBucket is a Rapid Cache Ultra bucket.
-// A successful GetStorageLayout response is authoritative; the --rcu flag is
-// used only as a fallback when the control-plane call cannot be made.
+// isRcuBucket reports whether testBucket is a Rapid Cache Ultra bucket, based on
+// its GetStorageLayout response. If the control-plane call fails, the bucket is
+// treated as non-RCU.
 func isRcuBucket(ctx context.Context, testBucket string, opts []option.ClientOption) bool {
 	controlClient, err := control.NewStorageControlClient(ctx, opts...)
 	if err != nil {
-		log.Printf("control.NewStorageControlClient failed, falling back to --rcu=%t: %v", IsRcuBucketRun(), err)
-		return IsRcuBucketRun()
+		log.Printf("control.NewStorageControlClient failed, treating %q as non-RCU: %v", testBucket, err)
+		return false
 	}
 	defer func() {
 		if cErr := controlClient.Close(); cErr != nil {
@@ -672,8 +671,8 @@ func isRcuBucket(ctx context.Context, testBucket string, opts []option.ClientOpt
 		Name: fmt.Sprintf("projects/_/buckets/%s/storageLayout", testBucket),
 	})
 	if err != nil {
-		log.Printf("GetStorageLayout(%q) failed, falling back to --rcu=%t: %v", testBucket, IsRcuBucketRun(), err)
-		return IsRcuBucketRun()
+		log.Printf("GetStorageLayout(%q) failed, treating bucket as non-RCU: %v", testBucket, err)
+		return false
 	}
 	return layout.GetRapidCacheInfo().GetCacheType() == rapidCacheUltraType
 }
