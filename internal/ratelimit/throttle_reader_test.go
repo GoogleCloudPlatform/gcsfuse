@@ -333,3 +333,99 @@ func (t *ThrottledReaderTest) TestReadSizeIsAboveThrottleCapacity() {
 	assert.Equal(t.T(), "", err.Error())
 	assert.True(t.T(), readCalled)
 }
+
+////////////////////////////////////////////////////////////////////////
+// throttledUploadPayloadReader
+////////////////////////////////////////////////////////////////////////
+
+type ThrottledUploadPayloadReaderTest struct {
+	suite.Suite
+	ctx context.Context
+
+	wrapped  funcReader
+	throttle funcThrottle
+
+	reader io.Reader
+}
+
+func TestThrottledUploadPayloadReaderSuite(t *testing.T) {
+	suite.Run(t, new(ThrottledUploadPayloadReaderTest))
+}
+
+func (t *ThrottledUploadPayloadReaderTest) SetupTest() {
+	t.ctx = context.Background()
+	t.throttle.f = func(ctx context.Context, tokens uint64) (err error) {
+		return
+	}
+	t.reader = newThrottledUploadPayloadReader(t.ctx, &t.wrapped, &t.throttle)
+}
+
+func (t *ThrottledUploadPayloadReaderTest) TestChargesBytesActuallyRead() {
+	const readSize = 100
+	buf := make([]byte, 32*1024)
+	assert.Greater(t.T(), uint64(len(buf)), t.throttle.Capacity())
+	t.wrapped.f = func(p []byte) (int, error) {
+		return readSize, nil
+	}
+	var waits []uint64
+	t.throttle.f = func(ctx context.Context, tokens uint64) (err error) {
+		assert.Equal(t.T(), t.ctx.Done(), ctx.Done())
+		waits = append(waits, tokens)
+		return
+	}
+
+	n, err := t.reader.Read(buf)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), readSize, n)
+	assert.Equal(t.T(), []uint64{readSize}, waits)
+}
+
+func (t *ThrottledUploadPayloadReaderTest) TestEmptyReaderDoesNotWait() {
+	t.wrapped.f = func(p []byte) (int, error) {
+		return 0, io.EOF
+	}
+	var waitCalled bool
+	t.throttle.f = func(ctx context.Context, tokens uint64) (err error) {
+		waitCalled = true
+		return
+	}
+
+	n, err := t.reader.Read(make([]byte, 16))
+
+	assert.Equal(t.T(), 0, n)
+	assert.ErrorIs(t.T(), err, io.EOF)
+	assert.False(t.T(), waitCalled)
+}
+
+func (t *ThrottledUploadPayloadReaderTest) TestThrottleErrorReturnedWithBytesRead() {
+	expectedErr := errors.New("taco")
+	t.wrapped.f = func(p []byte) (int, error) {
+		return 11, nil
+	}
+	t.throttle.f = func(ctx context.Context, tokens uint64) (err error) {
+		return expectedErr
+	}
+
+	n, err := t.reader.Read(make([]byte, 16))
+
+	assert.Equal(t.T(), 11, n)
+	assert.EqualError(t.T(), err, expectedErr.Error())
+}
+
+func (t *ThrottledUploadPayloadReaderTest) TestBufferClampedToCapacity() {
+	buf := make([]byte, 2048)
+	assert.Greater(t.T(), uint64(len(buf)), t.throttle.Capacity())
+	var readLen int
+	t.wrapped.f = func(p []byte) (int, error) {
+		assert.Equal(t.T(), &buf[0], &p[0])
+		readLen = len(p)
+		return len(p), nil
+	}
+
+	n, err := t.reader.Read(buf)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), t.throttle.Capacity(), uint64(readLen))
+	assert.Equal(t.T(), readLen, n)
+}

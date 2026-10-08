@@ -42,6 +42,7 @@ gcs-connection:
   http-client-timeout: 400s
   limit-bytes-per-sec: 20
   limit-ops-per-sec: 30
+  limit-write-bytes-per-sec: 40
   max-conns-per-host: 400
   max-idle-conns-per-host: 20
   sequential-read-size-mb: 450
