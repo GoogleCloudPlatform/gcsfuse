@@ -1409,7 +1409,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.IntP("prometheus-port", "", 0, "Expose Prometheus metrics endpoint on this port and a path of /metrics.")
 
-	flagSet.StringP("rapid-write", "", "disabled", "For Rapid Cache Ultra, toggles between using bucket default storage class and RAPID storage class for writes.")
+	flagSet.StringP("rapid-write", "", "disabled", "For Rapid Cache Ultra, toggles between using bucket default storage class and RAPID storage class for writes. Value can be 'enabled' or 'disabled'.")
 
 	flagSet.IntP("read-block-size-mb", "", 16, "Specifies the block size for buffered reads. The value should be more than 0. This is used to read data in chunks from GCS.")
 
