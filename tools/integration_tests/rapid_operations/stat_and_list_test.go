@@ -21,21 +21,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
 func (t *StatAndListTestSuite) TestStatOfNewFile() {
-	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
-	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
+	t.createUnfinalizedObject()
 	defer t.deleteUnfinalizedObject()
-	expectedSize := int64(len("test content"))
-	client.CreateFinalizedObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, "test content", t.T())
+	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
+	expectedSize := int64(len(t.fileContent))
 
-	size := operations.RetryUntil(testEnv.ctx, t.T(), 2*time.Second, defaultMetadataCacheTTL, func() (int64, error) {
+	size := operations.RetryUntil(testEnv.ctx, t.T(), 2*time.Second, time.Minute, func() (int64, error) {
 		fi, err := os.Stat(filePath)
 		if err != nil {
 			return 0, err
@@ -50,12 +47,11 @@ func (t *StatAndListTestSuite) TestStatOfNewFile() {
 }
 
 func (t *StatAndListTestSuite) TestListOfNewFile() {
-	t.fileName = fileNamePrefix + setup.GenerateRandomString(5)
+	t.createUnfinalizedObject()
 	defer t.deleteUnfinalizedObject()
-	expectedSize := int64(len("test content"))
-	client.CreateFinalizedObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, t.fileName, "test content", t.T())
+	expectedSize := int64(len(t.fileContent))
 
-	size := operations.RetryUntil(testEnv.ctx, t.T(), 2*time.Second, defaultMetadataCacheTTL, func() (int64, error) {
+	size := operations.RetryUntil(testEnv.ctx, t.T(), 2*time.Second, time.Minute, func() (int64, error) {
 		entries, err := os.ReadDir(t.primaryMount.testDirPath)
 		if err != nil {
 			return 0, err
