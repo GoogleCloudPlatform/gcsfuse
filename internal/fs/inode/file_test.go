@@ -417,6 +417,21 @@ func (t *FileTest) TestCheckClobbered_NotClobbered() {
 	assert.NoError(t.T(), err)
 }
 
+func (t *FileTest) TestCheckClobbered_LocalFile() {
+	t.createInodeWithLocalParam("local_file", true)
+
+	// For a local unbacked file, GCS returns NotFoundError. clobbered()
+	// expects this for local files and does not report it as clobbered.
+	err := t.in.CheckClobbered(t.ctx)
+	assert.NoError(t.T(), err)
+
+	// Attributes with clobberedCheck=true should succeed with nlink=1.
+	size, _, nlink, err := t.in.Attributes(t.ctx, true)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), uint64(0), size)
+	assert.Equal(t.T(), uint32(1), nlink)
+}
+
 func (t *FileTest) TestCheckClobbered_Clobbered() {
 	// Simulate a clobbered file by creating a new object with the same name,
 	// which will have a new generation.
