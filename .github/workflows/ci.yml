@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - '*'
+  workflow_dispatch:
 permissions:
   contents: read
 
@@ -57,10 +58,40 @@ jobs:
         go mod tidy
         git diff --exit-code --name-only
 
-  linux-tests:
+  build:
+    name: Build
     needs: filter
+    if: ${{ needs.filter.outputs.run_tests == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - name: Set up Go
+      uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+      with:
+        go-version-file: '.go-version'
+    - name: Build
+      run: |
+        CGO_ENABLED=0 go build ./...
+        go install ./tools/build_gcsfuse
+        build_gcsfuse . /tmp ${GITHUB_SHA}
+
+  linux-tests-matrix:
+    name: Linux tests (${{ matrix.suite }})
+    needs: filter
+    if: ${{ needs.filter.outputs.run_tests == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: unit
+            test-cmd: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v 'tools/integration_tests'`
+            upload-coverage: true
+          - suite: race
+            test-cmd: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
+            upload-coverage: false
 
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -70,19 +101,10 @@ jobs:
         go-version-file: '.go-version'
     - name: Install fuse
       run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
-    - name: Build
-      if: ${{ needs.filter.outputs.run_tests == 'true' }}
-      run: |
-        CGO_ENABLED=0 go build ./...
-        go install ./tools/build_gcsfuse
-        build_gcsfuse . /tmp ${GITHUB_SHA}
-    - name: Test all
-      if: ${{ needs.filter.outputs.run_tests == 'true' }}
-      run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v 'tools/integration_tests'`
-    - name: RaceDetector Test
-      if: ${{ needs.filter.outputs.run_tests == 'true' }}
-      run: go test -p 1 -count 1 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
+    - name: Run Test (${{ matrix.suite }})
+      run: ${{ matrix.test-cmd }}
     - name: Upload coverage reports to Codecov
+      if: matrix.upload-coverage
       uses: codecov/codecov-action@5ecb98a3c6b747ed38dc09f787459979aebb39be # v4.3.1
       timeout-minutes: 5
       with:
@@ -90,10 +112,72 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: unittests
 
+  linux-tests:
+    name: Linux tests
+    needs: [filter, build, linux-tests-matrix]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - name: Verify build and test status
+      run: |
+        # 1. Ensure filter job completed successfully
+        if [ "${{ needs.filter.result }}" != "success" ]; then
+          echo "::error::Upstream 'filter' job did not succeed. Status: ${{ needs.filter.result }}"
+          exit 1
+        fi
+
+        # 2. Allow clean pass on docs-only changes
+        if [ "${{ needs.filter.outputs.run_tests }}" != "true" ]; then
+          echo "Notice: Tests bypassed via path filter (doc/non-code changes)."
+          exit 0
+        fi
+
+        # 3. Enforce build succeeded
+        if [ "${{ needs.build.result }}" != "success" ]; then
+          echo "::error::'build' job did not succeed. Status: ${{ needs.build.result }}"
+          exit 1
+        fi
+
+        # 4. Enforce test matrix succeeded
+        if [ "${{ needs.linux-tests-matrix.result }}" != "success" ]; then
+          echo "::error::'linux-tests-matrix' did not succeed. Status: ${{ needs.linux-tests-matrix.result }}"
+          exit 1
+        fi
+
+        echo "SUCCESS: All required build and test checks passed."
+
+  flake-detector:
+    name: Flake detector (${{ matrix.suite }})
+    needs: filter
+    if: (github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch') && needs.filter.outputs.run_tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: unit
+            test-cmd: CGO_ENABLED=0 go test -p 1 -count 5 -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v 'tools/integration_tests'`
+          - suite: race
+            test-cmd: go test -p 1 -count 5 -v -race -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` ./internal/cache/... ./internal/gcsx/...
+
+    steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - name: Set up Go
+      uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+      with:
+        go-version-file: '.go-version'
+    - name: Install fuse
+      run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
+    - name: Deflake Test (${{ matrix.suite }})
+      run: ${{ matrix.test-cmd }}
+
   lint:
     name: Lint
     if: github.ref != 'refs/heads/master'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
     - name: checkout code
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
