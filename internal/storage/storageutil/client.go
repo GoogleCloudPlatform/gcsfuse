@@ -99,6 +99,9 @@ type StorageClientConfig struct {
 	// IsGKE inspects the mountPoint and indicates if running in a GKE environment.
 	IsGKE bool
 
+	// EnableGrpcByDefault enforces DirectPath connectivity for gRPC and falls back to HTTP if unavailable.
+	EnableGrpcByDefault bool
+
 	WriteConfig *cfg.WriteConfig
 }
 
@@ -138,7 +141,7 @@ func newS2ADialTLSContextForHTTP1(opts *s2a.ClientOptions, baseDialer *net.Diale
 	}, nil
 }
 
-func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource) (httpClient *http.Client, err error) {
+func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource, clientProtocol cfg.Protocol) (httpClient *http.Client, err error) {
 	dialer := net.Dialer{}
 	if storageClientConfig.LocalSocketAddress != "" {
 		if err := ConfigureDialerWithLocalAddr(&dialer, storageClientConfig.LocalSocketAddress); err != nil {
@@ -165,7 +168,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 			// certificate for not being a SPIFFE SVID.
 			VerificationMode: s2a.ConnectToGoogle,
 		}
-		if storageClientConfig.ClientProtocol == cfg.HTTP1 {
+		if clientProtocol == cfg.HTTP1 {
 			dialTLSContext, err = newS2ADialTLSContextForHTTP1(s2aClientOptions, &dialer)
 			if err != nil {
 				return nil, fmt.Errorf("while creating S2A dialer for http1: %w", err)
@@ -177,7 +180,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 
 	var transport *http.Transport
 	// Using http1 makes the client more performant.
-	if storageClientConfig.ClientProtocol == cfg.HTTP1 {
+	if clientProtocol == cfg.HTTP1 {
 		transport = &http.Transport{
 			DialContext:         dialer.DialContext,
 			DialTLSContext:      dialTLSContext,

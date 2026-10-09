@@ -22,6 +22,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -39,7 +40,9 @@ import (
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 )
 
 const invalidBucketName string = "will-not-be-present-in-fake-server"
@@ -206,6 +209,7 @@ func (testSuite *StorageHandleTest) TestBucketHandle_DisableGrpcReadChecksums() 
 			testSuite.fakeStorage = NewFakeStorageWithMockClient(testSuite.mockClient, cfg.HTTP2)
 			storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 			sh := storageHandle.(*storageClient)
+			sh.grpcClient = &storage.Client{}
 			sh.clientConfig.EnableGrpcReadChecksums = tc.enableGrpcReadChecksums
 			sh.clientConfig.ClientProtocol = tc.clientProtocol
 			bucketType := gcs.BucketType{
@@ -302,15 +306,15 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_RapidCacheInfo() {
 		expectedIsRapid bool
 	}{
 		{
-			name:            "rapid-cache-ultra with EnableRapidWrites true",
-			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			name:            "rapid-cache-ultra with RapidWrite enabled",
+			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
 			expectedRCU:     gcs.RCUStateRapidWritesEnabled,
 			expectedIsRapid: true,
 		},
 		{
-			name:            "rapid-cache-ultra with EnableRapidWrites false",
-			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: false},
+			name:            "rapid-cache-ultra with RapidWrite disabled",
+			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyDisabled},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
 			expectedRCU:     gcs.RCUStateRapidWritesDisabled,
 			expectedIsRapid: true,
@@ -324,21 +328,21 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_RapidCacheInfo() {
 		},
 		{
 			name:            "non-ultra rapid-cache is not rcu",
-			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: "rapid-cache"},
 			expectedRCU:     gcs.RCUStateNone,
 			expectedIsRapid: false,
 		},
 		{
 			name:            "empty CacheType is not rcu",
-			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: ""},
 			expectedRCU:     gcs.RCUStateNone,
 			expectedIsRapid: false,
 		},
 		{
 			name:            "nil RapidCacheInfo is not rcu",
-			writeConfig:     &cfg.WriteConfig{EnableRapidWrites: true},
+			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
 			rapidCacheInfo:  nil,
 			expectedRCU:     gcs.RCUStateNone,
 			expectedIsRapid: false,
@@ -585,7 +589,7 @@ func (testSuite *StorageHandleTest) TestUnSetDirectPathEnvVariable() {
 func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 
-	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
+	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc, sc.ClientProtocol)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), storageClient)
@@ -595,7 +599,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithAnonymousAcces
 	sc := storageutil.GetDefaultStorageClientConfig("incorrect_path")
 	sc.AnonymousAccess = true
 
-	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
+	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc, sc.ClientProtocol)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), storageClient)
@@ -606,7 +610,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithHTTPMtls_LibAu
 	sc.ClientProtocol = cfg.HTTPMtls
 	sc.EnableGoogleLibAuth = true
 
-	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
+	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc, sc.ClientProtocol)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), storageClient)
@@ -617,7 +621,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithHTTPMtls_LibAu
 	sc.ClientProtocol = cfg.HTTPMtls
 	sc.EnableGoogleLibAuth = false
 
-	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
+	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc, sc.ClientProtocol)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), storageClient)
@@ -628,7 +632,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithHTTPMtls_LibAu
 	sc.ClientProtocol = cfg.HTTPMtls
 	sc.EnableGoogleLibAuth = false
 
-	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
+	storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc, sc.ClientProtocol)
 
 	assert.NotNil(testSuite.T(), err)
 	assert.Contains(testSuite.T(), err.Error(), "while fetching tokenSource")
@@ -720,7 +724,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_WithReadStallRetr
 			sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 			sc.ReadStallRetryConfig.Enable = tc.enableReadStallRetry
 
-			storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
+			storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc, sc.ClientProtocol)
 
 			assert.Nil(testSuite.T(), err)
 			assert.NotNil(testSuite.T(), storageClient)
@@ -749,7 +753,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallInitialR
 			sc.ReadStallRetryConfig.Enable = true
 			sc.ReadStallRetryConfig.InitialReqTimeout = tc.initialReqTimeout
 
-			storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
+			storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc, sc.ClientProtocol)
 
 			assert.Nil(testSuite.T(), err)
 			assert.NotNil(testSuite.T(), storageClient)
@@ -778,7 +782,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallMinReqTi
 			sc.ReadStallRetryConfig.Enable = true
 			sc.ReadStallRetryConfig.MinReqTimeout = tc.minReqTimeout
 
-			storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
+			storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc, sc.ClientProtocol)
 
 			assert.Nil(testSuite.T(), err)
 			assert.NotNil(testSuite.T(), storageClient)
@@ -815,7 +819,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallReqIncre
 			sc.ReadStallRetryConfig.Enable = true
 			sc.ReadStallRetryConfig.ReqIncreaseRate = tc.reqIncreaseRate
 
-			storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
+			storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc, sc.ClientProtocol)
 
 			if tc.expectErr {
 				assert.NotNil(testSuite.T(), err)
@@ -866,7 +870,7 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandle_ReadStallReqTarge
 			sc.ReadStallRetryConfig.Enable = true
 			sc.ReadStallRetryConfig.ReqTargetPercentile = tc.reqTargetPercentile
 
-			storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc)
+			storageClient, err := createHTTPClientHandle(testSuite.ctx, &sc, sc.ClientProtocol)
 
 			if tc.expectErr {
 				assert.NotNil(testSuite.T(), err)
@@ -985,7 +989,7 @@ func (testSuite *StorageHandleTest) Test_CreateHTTPClientHandle_WithoutGoogleLib
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 	sc.EnableGoogleLibAuth = false
 
-	httpClient, err := createHTTPClientHandle(context.TODO(), &sc)
+	httpClient, err := createHTTPClientHandle(context.TODO(), &sc, sc.ClientProtocol)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), httpClient)
@@ -996,7 +1000,7 @@ func (testSuite *StorageHandleTest) Test_CreateHTTPClientHandle_WithS2A() {
 	sc.S2AAddress = "localhost:8080"
 	sc.S2ASpiffeID = "spiffe://example.com/sa/test-sa"
 
-	httpClient, err := createHTTPClientHandle(context.TODO(), &sc)
+	httpClient, err := createHTTPClientHandle(context.TODO(), &sc, sc.ClientProtocol)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), httpClient)
@@ -1007,7 +1011,7 @@ func (testSuite *StorageHandleTest) Test_CreateHTTPClientHandle_WithoutS2A_Empty
 	sc.S2AAddress = ""
 	sc.S2ASpiffeID = ""
 
-	httpClient, err := createHTTPClientHandle(context.TODO(), &sc)
+	httpClient, err := createHTTPClientHandle(context.TODO(), &sc, sc.ClientProtocol)
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), httpClient)
@@ -1058,6 +1062,119 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithTra
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), optsWithTracing)
 	assert.Len(testSuite.T(), optsWithTracing, len(optsWithoutTracing)+1, "Enabling tracing should add exactly one client option.")
+}
+
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithReadStallRetryAddsOneOption() {
+	scWithoutReadStall := storageutil.GetDefaultStorageClientConfig(keyFile)
+	scWithoutReadStall.ReadStallRetryConfig.Enable = false
+	optsWithoutReadStall, err := createClientOptionForGRPCClient(context.TODO(), &scWithoutReadStall, false)
+	assert.Nil(testSuite.T(), err)
+	scWithReadStall := storageutil.GetDefaultStorageClientConfig(keyFile)
+	scWithReadStall.ReadStallRetryConfig.Enable = true
+
+	optsWithReadStall, err := createClientOptionForGRPCClient(context.TODO(), &scWithReadStall, false)
+
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), optsWithReadStall)
+	assert.Len(testSuite.T(), optsWithReadStall, len(optsWithoutReadStall)+1, "Enabling read stall retry should add exactly one client option.")
+}
+
+func (testSuite *StorageHandleTest) TestCreateGRPCClientHandle_WithReadStallRetry() {
+	testCases := []struct {
+		name      string
+		modifyCfg func(*cfg.ReadStallGcsRetriesConfig)
+		expectErr bool
+	}{
+		{
+			name:      "ReadStallRetryDisabled",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) { c.Enable = false },
+			expectErr: false,
+		},
+		{
+			name:      "ReadStallRetryEnabled",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) { c.Enable = true },
+			expectErr: false,
+		},
+		{
+			name: "ShortTimeouts",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.InitialReqTimeout = 1 * time.Millisecond
+				c.MinReqTimeout = 1 * time.Millisecond
+			},
+			expectErr: false,
+		},
+		{
+			name: "LongTimeouts",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.InitialReqTimeout = 10 * time.Second
+				c.MinReqTimeout = 10 * time.Second
+			},
+			expectErr: false,
+		},
+		{
+			name: "PositiveIncreaseRate",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.ReqIncreaseRate = 1.5
+			},
+			expectErr: false,
+		},
+		{
+			name: "NegativeIncreaseRate",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.ReqIncreaseRate = -0.5
+			},
+			expectErr: true,
+		},
+		{
+			name: "ZeroIncreaseRate",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.ReqIncreaseRate = 0.0
+			},
+			expectErr: true,
+		},
+		{
+			name: "ValidTargetPercentile",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.ReqTargetPercentile = 0.50
+			},
+			expectErr: false,
+		},
+		{
+			name: "InvalidTargetPercentile_Low",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.ReqTargetPercentile = -0.5
+			},
+			expectErr: true,
+		},
+		{
+			name: "InvalidTargetPercentile_High",
+			modifyCfg: func(c *cfg.ReadStallGcsRetriesConfig) {
+				c.ReqTargetPercentile = 1.5
+			},
+			expectErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+			sc.ClientProtocol = cfg.GRPC
+			sc.ReadStallRetryConfig.Enable = true
+			tc.modifyCfg(&sc.ReadStallRetryConfig)
+
+			storageClient, err := createGRPCClientHandle(testSuite.ctx, &sc, false, false, TestBucketName, "")
+			if storageClient != nil {
+				defer func() { _ = storageClient.Close() }()
+			}
+
+			if tc.expectErr {
+				assert.NotNil(testSuite.T(), err)
+			} else {
+				assert.Nil(testSuite.T(), err)
+				assert.NotNil(testSuite.T(), storageClient)
+			}
+		})
+	}
 }
 
 func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithGrpcMetrics() {
@@ -1180,7 +1297,7 @@ func (testSuite *StorageHandleTest) Test_CreateHTTPClientHandle_AuthFailures() {
 			sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 			tt.modifyConfig(&sc)
 
-			httpClient, err := createHTTPClientHandle(context.TODO(), &sc)
+			httpClient, err := createHTTPClientHandle(context.TODO(), &sc, sc.ClientProtocol)
 
 			assert.Error(t, err)
 			assert.Nil(t, httpClient)
@@ -1324,4 +1441,207 @@ func (testSuite *StorageHandleTest) TestBucketHandle_NonHNS_AccessCheck_WithPref
 	case <-time.After(time.Second):
 		testSuite.T().Fatal("Timeout waiting for request")
 	}
+}
+
+func (testSuite *StorageHandleTest) TestGetClient_ProtocolSelection() {
+	var lastReqClose atomic.Bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		lastReqClose.Store(r.Close)
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error": {"code": 404, "message": "Not Found"}}`))
+	}))
+	defer server.Close()
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST", server.Listener.Addr().String())
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST_GRPC", server.Listener.Addr().String())
+
+	testCases := []struct {
+		name                string
+		isBucketRapid       bool
+		clientProtocol      cfg.Protocol
+		enableGrpcByDefault bool
+		grpcPathStrategy    cfg.DirectPathStrategy
+		customEndpoint      string
+		expectErr           bool
+		expectHTTP1Client   bool
+		expectHTTP2Client   bool
+		expectGRPCClient    bool
+		expectBidiClient    bool
+	}{
+		{
+			name:                "Regional_DefaultUnsetProtocol_UsesHTTP1",
+			isBucketRapid:       false,
+			clientProtocol:      "",
+			enableGrpcByDefault: false,
+			expectHTTP1Client:   true,
+		},
+		{
+			name:                "Regional_ExplicitHTTP1_OverridesEnableGrpcByDefault",
+			isBucketRapid:       false,
+			clientProtocol:      cfg.HTTP1,
+			enableGrpcByDefault: true,
+			expectHTTP1Client:   true,
+		},
+		{
+			name:                "Regional_ExplicitHTTP2_OverridesEnableGrpcByDefault",
+			isBucketRapid:       false,
+			clientProtocol:      cfg.HTTP2,
+			enableGrpcByDefault: true,
+			expectHTTP2Client:   true,
+		},
+		{
+			name:                "Regional_ExplicitGRPC_SkipsDirectPathEnforcement",
+			isBucketRapid:       false,
+			clientProtocol:      cfg.GRPC,
+			enableGrpcByDefault: false,
+			expectGRPCClient:    true,
+		},
+		{
+			name:                "Regional_ExplicitGRPC_WithEnableGrpcByDefault_SkipsDirectPathEnforcement",
+			isBucketRapid:       false,
+			clientProtocol:      cfg.GRPC,
+			enableGrpcByDefault: true,
+			expectGRPCClient:    true,
+		},
+		{
+			name:                "Rapid_AlwaysUsesBidiGRPC",
+			isBucketRapid:       true,
+			clientProtocol:      cfg.HTTP1,
+			enableGrpcByDefault: false,
+			expectBidiClient:    true,
+		},
+		{
+			name:                "Regional_EnableGrpcByDefault_DirectPathFails_FallsBackToHTTP1",
+			isBucketRapid:       false,
+			clientProtocol:      "",
+			enableGrpcByDefault: true,
+			grpcPathStrategy:    cfg.DirectPathWithFallback,
+			expectHTTP1Client:   true,
+		},
+		{
+			name:                "Regional_EnableGrpcByDefault_DirectPathOnly_ReturnsError",
+			isBucketRapid:       false,
+			clientProtocol:      "",
+			enableGrpcByDefault: true,
+			grpcPathStrategy:    cfg.DirectPathOnly,
+			expectErr:           true,
+		},
+		{
+			name:                "Regional_EnableGrpcByDefault_CustomEndpointBypassesGRPC_UsesHTTP1",
+			isBucketRapid:       false,
+			clientProtocol:      "",
+			enableGrpcByDefault: true,
+			grpcPathStrategy:    cfg.DirectPathOnly,
+			customEndpoint:      server.URL,
+			expectHTTP1Client:   true,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			sh := &storageClient{
+				clientConfig: storageutil.StorageClientConfig{
+					ClientProtocol:      tc.clientProtocol,
+					EnableGrpcByDefault: tc.enableGrpcByDefault,
+					GrpcPathStrategy:    tc.grpcPathStrategy,
+					AnonymousAccess:     true,
+					CustomEndpoint:      tc.customEndpoint,
+				},
+			}
+			defer func() {
+				if sh.httpClient != nil {
+					_ = sh.httpClient.Close()
+				}
+				if sh.grpcClient != nil {
+					_ = sh.grpcClient.Close()
+				}
+				if sh.grpcClientWithBidiConfig != nil {
+					_ = sh.grpcClientWithBidiConfig.Close()
+				}
+			}()
+
+			// Empty bucket name makes verifyDirectPathConnectivity fail immediately without retry backoff.
+			client, err := sh.getClient(testSuite.ctx, tc.isBucketRapid, "", "")
+
+			assert.Equal(testSuite.T(), tc.clientProtocol, sh.clientConfig.ClientProtocol)
+			if tc.expectErr {
+				require.Error(testSuite.T(), err)
+				assert.Nil(testSuite.T(), client)
+				assert.Nil(testSuite.T(), sh.httpClient)
+				return
+			}
+			require.NoError(testSuite.T(), err)
+			require.NotNil(testSuite.T(), client)
+			if tc.expectHTTP1Client {
+				assert.Equal(testSuite.T(), sh.httpClient, client)
+				assert.Nil(testSuite.T(), sh.grpcClient)
+				_, _ = client.Bucket(TestBucketName).Object("test-obj").Attrs(testSuite.ctx)
+				assert.False(testSuite.T(), lastReqClose.Load(), "HTTP/1.1 transport should keep connections alive (DisableKeepAlives=false)")
+			}
+			if tc.expectHTTP2Client {
+				assert.Equal(testSuite.T(), sh.httpClient, client)
+				assert.Nil(testSuite.T(), sh.grpcClient)
+				_, _ = client.Bucket(TestBucketName).Object("test-obj").Attrs(testSuite.ctx)
+				assert.True(testSuite.T(), lastReqClose.Load(), "HTTP/2 transport should set DisableKeepAlives=true")
+			}
+			if tc.expectGRPCClient {
+				assert.Equal(testSuite.T(), sh.grpcClient, client)
+				assert.Nil(testSuite.T(), sh.httpClient)
+			}
+			if tc.expectBidiClient {
+				assert.Equal(testSuite.T(), sh.grpcClientWithBidiConfig, client)
+				assert.Nil(testSuite.T(), sh.httpClient)
+			}
+		})
+	}
+}
+
+func (testSuite *StorageHandleTest) TestGetClient_Regional_EnableGrpcByDefault_DirectPathSucceeds_UsesGRPC() {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(testSuite.T(), err)
+	grpcServer := grpc.NewServer(grpc.UnknownServiceHandler(func(srv any, stream grpc.ServerStream) error {
+		return status.Error(codes.NotFound, "object not found")
+	}))
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST_GRPC", listener.Addr().String())
+	sh := &storageClient{
+		clientConfig: storageutil.StorageClientConfig{
+			ClientProtocol:      "",
+			EnableGrpcByDefault: true,
+			AnonymousAccess:     true,
+		},
+	}
+	defer func() {
+		if sh.grpcClient != nil {
+			_ = sh.grpcClient.Close()
+		}
+	}()
+
+	client, err := sh.getClient(testSuite.ctx, false, TestBucketName, "")
+
+	require.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), sh.grpcClient)
+	assert.Equal(testSuite.T(), sh.grpcClient, client)
+	assert.Equal(testSuite.T(), cfg.Protocol(""), sh.clientConfig.ClientProtocol)
+	assert.Nil(testSuite.T(), sh.httpClient)
+}
+
+func (testSuite *StorageHandleTest) TestGetClient_Regional_EnableGrpcByDefault_ReusesCachedGRPCClient() {
+	cachedClient := &storage.Client{}
+	sh := &storageClient{
+		grpcClient: cachedClient,
+		clientConfig: storageutil.StorageClientConfig{
+			ClientProtocol:      "",
+			EnableGrpcByDefault: true,
+			AnonymousAccess:     true,
+		},
+	}
+
+	client, err := sh.getClient(testSuite.ctx, false, "another-bucket", "")
+
+	require.NoError(testSuite.T(), err)
+	assert.Same(testSuite.T(), cachedClient, client)
+	assert.Nil(testSuite.T(), sh.httpClient)
 }

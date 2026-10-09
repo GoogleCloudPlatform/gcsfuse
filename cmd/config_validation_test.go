@@ -268,6 +268,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 					GlobalMaxBlocks:       4,
 					MaxBlocksPerFile:      1,
 					EnableRapidAppends:    true,
+					RapidWrite:            cfg.RapidWriteStrategyDisabled,
 				},
 			},
 		},
@@ -281,6 +282,7 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 					EnableStreamingWrites: true,
 					GlobalMaxBlocks:       20,
 					MaxBlocksPerFile:      2,
+					RapidWrite:            cfg.RapidWriteStrategyEnabled,
 				},
 			},
 		},
@@ -575,7 +577,7 @@ func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				GcsConnection: cfg.GcsConnectionConfig{
 					BillingProject:             "",
-					ClientProtocol:             "http1",
+					ClientProtocol:             "",
 					CustomEndpoint:             "",
 					ExperimentalEnableJsonRead: false,
 					GrpcPathStrategy:           "direct-path-with-fallback",

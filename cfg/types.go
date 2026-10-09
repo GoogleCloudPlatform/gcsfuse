@@ -52,6 +52,10 @@ const (
 func (p *Protocol) UnmarshalText(text []byte) error {
 	txtStr := string(text)
 	protocol := strings.ToLower(txtStr)
+	if protocol == "" {
+		*p = ""
+		return nil
+	}
 	v := []string{"http1", "http2", "grpc", "httpmtls"}
 	if !slices.Contains(v, protocol) {
 		return fmt.Errorf("invalid protocol value: %s. It can only accept values in the list: %v", txtStr, v)
@@ -79,6 +83,28 @@ func (d *DirectPathStrategy) UnmarshalText(text []byte) error {
 	default:
 		validValues := []string{string(DirectPathOnly), string(DirectPathWithFallback)}
 		return fmt.Errorf("invalid direct-path strategy value: %s. It can only accept values in the list: %v", string(text), validValues)
+	}
+}
+
+// RapidWriteStrategy specifies whether writes use RAPID or bucket default storage class for Rapid Cache Ultra.
+type RapidWriteStrategy string
+
+const (
+	// RapidWriteStrategyEnabled uses RAPID storage class for writes.
+	RapidWriteStrategyEnabled RapidWriteStrategy = "enabled"
+	// RapidWriteStrategyDisabled uses bucket default storage class for writes.
+	RapidWriteStrategyDisabled RapidWriteStrategy = "disabled"
+)
+
+func (r *RapidWriteStrategy) UnmarshalText(text []byte) error {
+	strategy := RapidWriteStrategy(strings.ToLower(string(text)))
+	switch strategy {
+	case RapidWriteStrategyEnabled, RapidWriteStrategyDisabled:
+		*r = strategy
+		return nil
+	default:
+		validValues := []string{string(RapidWriteStrategyEnabled), string(RapidWriteStrategyDisabled)}
+		return fmt.Errorf("invalid rapid-write strategy value: %s. It can only accept values in the list: %v", string(text), validValues)
 	}
 }
 

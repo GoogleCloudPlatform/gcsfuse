@@ -35,7 +35,7 @@
 
 # Add retired proto-tag numbers here when deleted from active params list.
 # Preserves tag reservation for Protobuf schema generation.
-retired-params: [47]
+retired-params: [47, 154]
 # Example of retired parameters entry:
 #   retired-params: [28, 42]
 
@@ -730,7 +730,7 @@ params:
       The protocol used for communicating with the GCS backend.
       Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2), 'grpc', or 'httpmtls'.
       'httpmtls' delegates connection creation to the SDK (enabling mTLS) and uses HTTP/2 by default, falling back to HTTP/1.1 if the server doesn't support it.
-    default: "http1"
+    default: ""
 
   - config-path: "gcs-connection.custom-endpoint"
     proto-tag: 72
@@ -1547,13 +1547,6 @@ params:
     usage: "Enables support for appends to unfinalized object using streaming writes"
     default: true
 
-  - config-path: "write.enable-rapid-writes"
-    proto-tag: 154
-    flag-name: "enable-rapid-writes"
-    type: "bool"
-    usage: "For Rapid Cache Ultra, toggles between using STANDARD class and RAPID class for writes."
-    default: false
-
   - config-path: "write.enable-streaming-writes"
     proto-tag: 155
     flag-name: "enable-streaming-writes"
@@ -1598,6 +1591,13 @@ params:
       streaming writes. The value should be >= 1 or -1 (for infinite blocks).
     default: 1
     hide-flag: true
+
+  - config-path: "write.rapid-write"
+    proto-tag: 162
+    flag-name: "rapid-write"
+    type: "rapidWriteStrategy"
+    usage: "For Rapid Cache Ultra, toggles between using bucket default storage class and RAPID storage class for writes."
+    default: "disabled"
 
   - flag-name: "debug_fs"
     type: "bool"

@@ -92,6 +92,16 @@ func TestOperationsBase(t *testing.T) {
 	})
 }
 
+func TestOperationsRapidWritesEnabled(t *testing.T) {
+	if !setup.IsRcuBucketRun() {
+		t.Skip("Rapid writes tests are only applicable to Rapid Cache Ultra buckets")
+	}
+	runOperationsSuite(t, func() {
+		suite.Run(t, new(operationsTestSuite))
+		suite.Run(t, &writeOperationsTest{isRapidWritesEnabled: true})
+	})
+}
+
 const DirForOperationTests = "dirForOperationsTest"
 const MoveFile = "move.txt"
 const MoveFileContent = "This is from move file in Test directory.\n"

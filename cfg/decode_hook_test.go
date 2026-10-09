@@ -245,6 +245,7 @@ func TestParsingError(t *testing.T) {
 		LogSeverityParam        LogSeverity
 		ProtocolParam           Protocol
 		DirectPathStrategyParam DirectPathStrategy
+		RapidWriteStrategyParam RapidWriteStrategy
 	}
 	declareFlags := func() *flag.FlagSet {
 		fs := flag.NewFlagSet("test", flag.ExitOnError)
@@ -252,6 +253,7 @@ func TestParsingError(t *testing.T) {
 		fs.String("logSeverityParam", "INFO", "")
 		fs.String("protocolParam", "http1", "")
 		fs.String("directPathStrategyParam", "direct-path-with-fallback", "")
+		fs.String("rapidWriteStrategyParam", "disabled", "")
 		return fs
 	}
 	bindFlags := func(fs *flag.FlagSet) *viper.Viper {
@@ -261,6 +263,7 @@ func TestParsingError(t *testing.T) {
 		bindFlag(t, v, "LogSeverityParam", fs.Lookup("logSeverityParam"))
 		bindFlag(t, v, "ProtocolParam", fs.Lookup("protocolParam"))
 		bindFlag(t, v, "DirectPathStrategyParam", fs.Lookup("directPathStrategyParam"))
+		bindFlag(t, v, "RapidWriteStrategyParam", fs.Lookup("rapidWriteStrategyParam"))
 		return v
 	}
 	tests := []struct {
@@ -287,6 +290,11 @@ func TestParsingError(t *testing.T) {
 			name:   "DirectPathStrategy",
 			args:   []string{"--directPathStrategyParam=invalid-strategy"},
 			errMsg: "invalid direct-path strategy value: invalid-strategy. It can only accept values in the list: [direct-path-only direct-path-with-fallback]",
+		},
+		{
+			name:   "RapidWriteStrategy",
+			args:   []string{"--rapidWriteStrategyParam=invalid-strategy"},
+			errMsg: "invalid rapid-write strategy value: invalid-strategy. It can only accept values in the list: [enabled disabled]",
 		},
 	}
 	for _, tc := range tests {
