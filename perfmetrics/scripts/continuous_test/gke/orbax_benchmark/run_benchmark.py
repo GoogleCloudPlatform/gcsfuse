@@ -143,7 +143,7 @@ async def main():
     parser.add_argument("--machine_type", default=os.environ.get("MACHINE_TYPE", "ct6e-standard-4t"), help="Machine type. Can also be set with MACHINE_TYPE env var.")
     parser.add_argument("--node_pool_name", default=os.environ.get("NODE_POOL_NAME", "ct6e-pool"), help="Node pool name. Can also be set with NODE_POOL_NAME env var.")
     parser.add_argument("--gcsfuse_branch", default=os.environ.get("GCSFUSE_BRANCH", "master"), help="GCSFuse branch or tag to build. Can also be set with GCSFUSE_BRANCH env var.")
-    parser.add_argument("--reservation_name", default=os.environ.get("RESERVATION_NAME", utils.DEFAULT_RESERVATION_NAME), help="The specific reservation to use for the nodes. Can also be set with RESERVATION_NAME env var.")
+    parser.add_argument("--reservation_name", default=os.environ.get("RESERVATION_NAME"), help="The specific reservation to use for the nodes. Can also be set with RESERVATION_NAME env var. If not provided, an available reservation will be looked up.")
     parser.add_argument("--no_cleanup", action="store_true", default=os.environ.get("NO_CLEANUP", "False").lower() in ("true", "1"), help="Don't clean up resources after. Can also be set with NO_CLEANUP=true env var.")
     parser.add_argument("--iterations", type=int, default=int(os.environ.get("ITERATIONS", 20)), help="Number of iterations for the benchmark. Can also be set with ITERATIONS env var.")
     parser.add_argument("--performance_threshold_gbps", type=float, default=float(os.environ.get("PERFORMANCE_THRESHOLD_GBPS", 13.0)), help="Minimum throughput in GB/s for a successful iteration. Can also be set with PERFORMANCE_THRESHOLD_GBPS env var.")
@@ -159,6 +159,9 @@ async def main():
         args.subnet_name = f"{args.subnet_name}-{args.zone}"
 
     await utils.check_prerequisites()
+
+    if not args.reservation_name:
+        args.reservation_name = await utils.get_available_reservation(args.project_id, args.zone, args.machine_type)
 
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     with tempfile.TemporaryDirectory() as temp_dir:
