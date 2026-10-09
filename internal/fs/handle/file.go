@@ -400,14 +400,11 @@ func (fh *FileHandle) destroyReadManager() {
 // LOCKS_REQUIRED(fh.mu.RLock)
 // LOCKS_REQUIRED(fh.inode.mu)
 func (fh *FileHandle) isValidReadManager() bool {
-	// If we already have a readManager, and it's at the appropriate generation, we
-	// can use it otherwise we must throw it away.
-	if fh.readManager != nil && fh.readManager.Object().Generation == fh.inode.SourceGeneration().Object {
-		// Update reader object size to source object size.
-		fh.readManager.Object().Size = fh.inode.SourceGeneration().Size
-		return true
-	}
-	return false
+	// If we already have a readManager, and it's at the appropriate generation and size,
+	// we can use it otherwise we must throw it away and recreate it under a write lock.
+	return fh.readManager != nil &&
+		fh.readManager.Object().Generation == fh.inode.SourceGeneration().Object &&
+		fh.readManager.Object().Size == fh.inode.SourceGeneration().Size
 }
 
 // destroyReader is a helper function to safely destroy the reader and set it to nil.
@@ -426,14 +423,11 @@ func (fh *FileHandle) destroyReader() {
 // LOCKS_REQUIRED(fh.mu.RLock)
 // LOCKS_REQUIRED(fh.inode.mu)
 func (fh *FileHandle) isValidReader() bool {
-	// If we already have a reader, and it's at the appropriate generation, we
-	// can use it otherwise we must throw it away.
-	if fh.reader != nil && fh.reader.Object().Generation == fh.inode.SourceGeneration().Object {
-		// Update reader object size to source object size.
-		fh.reader.Object().Size = fh.inode.SourceGeneration().Size
-		return true
-	}
-	return false
+	// If we already have a reader, and it's at the appropriate generation and size,
+	// we can use it otherwise we must throw it away and recreate it under a write lock.
+	return fh.reader != nil &&
+		fh.reader.Object().Generation == fh.inode.SourceGeneration().Object &&
+		fh.reader.Object().Size == fh.inode.SourceGeneration().Size
 }
 
 func (fh *FileHandle) OpenMode() util.OpenMode {

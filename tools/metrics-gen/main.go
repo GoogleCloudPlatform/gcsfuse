@@ -18,8 +18,10 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"go/format"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -587,7 +589,14 @@ func main() {
 }
 
 func createFile(data *TemplateData, fName string, templateName string) {
-	tmpl, err := template.New(templateName).Funcs(funcMap).ParseFiles(templateName)
+	tplPath := templateName
+	if _, err := os.Stat(tplPath); os.IsNotExist(err) {
+		candidate := filepath.Join("tools", "metrics-gen", templateName)
+		if _, err2 := os.Stat(candidate); err2 == nil {
+			tplPath = candidate
+		}
+	}
+	tmpl, err := template.New(templateName).Funcs(funcMap).ParseFiles(tplPath)
 	if err != nil {
 		log.Fatalf("error parsing template: %v", err)
 	}
@@ -597,7 +606,14 @@ func createFile(data *TemplateData, fName string, templateName string) {
 		log.Fatalf("error executing template: %v", err)
 	}
 
-	if err := os.WriteFile(fName, buf.Bytes(), 0644); err != nil {
+	outBytes := buf.Bytes()
+	formatted, err := format.Source(outBytes)
+	if err != nil {
+		log.Fatalf("error formatting generated source: %v", err)
+	}
+	outBytes = formatted
+
+	if err := os.WriteFile(fName, outBytes, 0644); err != nil {
 		log.Fatalf("error writing output file: %v", err)
 	}
 }

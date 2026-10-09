@@ -4406,7 +4406,7 @@ func TestFsOpsErrorCount(t *testing.T) {
 	}
 }
 
-func TestFsOpsLatency(t *testing.T) {
+func TestFsOpsLatencies(t *testing.T) {
 	tests := []struct {
 		name      string
 		latencies []time.Duration
@@ -4547,14 +4547,14 @@ func TestFsOpsLatency(t *testing.T) {
 			var totalLatency time.Duration
 
 			for _, latency := range tc.latencies {
-				m.FsOpsLatency(ctx, latency, tc.fsOp)
+				m.FsOpsLatencies(ctx, latency, tc.fsOp)
 				totalLatency += latency
 			}
 			waitForMetricsProcessing()
 
 			metrics := gatherHistogramMetrics(ctx, t, rd)
-			metric, ok := metrics["fs/ops_latency"]
-			require.True(t, ok, "fs/ops_latency metric not found")
+			metric, ok := metrics["fs/ops_latencies"]
+			require.True(t, ok, "fs/ops_latencies metric not found")
 
 			var attrs []attribute.KeyValue
 			if tc.fsOp != "" {

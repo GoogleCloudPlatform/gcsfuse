@@ -233,7 +233,7 @@ func recordOp(ctx context.Context, metricHandle metrics.MetricHandle, method met
 		errCategory := categorize(fsErr)
 		metricHandle.FsOpsErrorCount(1, errCategory, method)
 	}
-	metricHandle.FsOpsLatency(ctx, time.Since(start), method)
+	metricHandle.FsOpsLatencies(ctx, time.Since(start), method)
 }
 
 // WithMonitoring takes a FileSystem, returns a FileSystem with monitoring
