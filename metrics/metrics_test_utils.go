@@ -101,7 +101,7 @@ func VerifyCounterMetric(t *testing.T, ctx context.Context, reader *metric.Manua
 	}
 
 	require.True(t, foundMetric, "metric %s not found", metricName)
-	require.Fail(t, "Data point for attributes %v not found in %s metric", attrs, metricName)
+	require.Failf(t, "data point not found", "no data point matching attributes %v in metric %s", attrs, metricName)
 }
 
 // VerifyHistogramMetric finds a histogram metric across all scopes and verifies its count.
@@ -140,13 +140,13 @@ func VerifyHistogramMetric(t *testing.T, ctx context.Context, reader *metric.Man
 						}
 					}
 				default:
-					require.Fail(t, "metric %s is not an expected histogram type, but %T", metricName, m.Data)
+					require.Failf(t, "unexpected histogram type", "metric %s is not an expected histogram type, but %T", metricName, m.Data)
 				}
 			}
 		}
 	}
 	require.True(t, foundMetric, "metric %s not found", metricName)
-	require.Fail(t, "Data point for attributes %v not found in %s metric", attrs, metricName)
+	require.Failf(t, "data point not found", "no data point matching attributes %v in metric %s", attrs, metricName)
 }
 
 // VerifyHistogramFull finds a histogram metric and fully verifies its state including total count, sum, and bucket distribution.
@@ -200,5 +200,5 @@ func VerifyHistogramFull[T int64 | float64](t *testing.T, ctx context.Context, r
 		}
 	}
 	require.True(t, foundMetric, "metric %s not found", metricName)
-	require.Fail(t, "Data point for attributes %v not found in %s metric", attrs, metricName)
+	require.Failf(t, "data point not found", "no data point matching attributes %v in metric %s", attrs, metricName)
 }
