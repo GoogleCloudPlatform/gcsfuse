@@ -16,21 +16,25 @@ package gcs
 
 import (
 	"strings"
-	"time"
 
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 )
 
 type Folder struct {
 	Name       string
-	UpdateTime time.Time
+	UpdateTime int64
 }
 
 func GCSFolder(bucketName string, attrs *controlpb.Folder) *Folder {
 	// Setting the parameters in Folder and doing conversions as necessary.
+	var updateTime int64
+	if ts := attrs.GetUpdateTime(); ts != nil {
+		updateTime = ts.GetSeconds()*1e9 + int64(ts.GetNanos())
+	}
+
 	return &Folder{
 		Name:       getFolderName(bucketName, attrs.Name),
-		UpdateTime: attrs.GetUpdateTime().AsTime(),
+		UpdateTime: updateTime,
 	}
 }
 
