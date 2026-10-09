@@ -32,6 +32,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	control "cloud.google.com/go/storage/control/apiv2"
+	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	auth2 "github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
@@ -41,7 +43,8 @@ import (
 
 var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
 var isZonalBucketRun = flag.Bool("zonal", false, "Boolean flag to indicate if test-run should use a zonal bucket.")
-var isRcuBucketRun = flag.Bool("rcu", false, "Boolean flag to indicate if test-run is for a Rapid Cache Ultra bucket.")
+var isRcuBucketRun bool
+var isRcuDifferentZone = flag.Bool("rcu-different-zone", false, "Boolean flag to indicate if test-run is in a different zone than the Rapid Cache Ultra cache.")
 
 // Note: testBucket and mountedDirectory can also be set via BUCKET_NAME and MOUNTED_DIR
 // environment variables respectively. However, command-line flags take precedence.
@@ -124,11 +127,15 @@ func SetIsZonalBucketRun(val bool) {
 }
 
 func IsRcuBucketRun() bool {
-	return *isRcuBucketRun
+	return isRcuBucketRun
 }
 
 func SetIsRcuBucketRun(val bool) {
-	*isRcuBucketRun = val
+	isRcuBucketRun = val
+}
+
+func IsRcuDifferentZone() bool {
+	return *isRcuDifferentZone
 }
 
 func TestBucket() string {
@@ -572,6 +579,9 @@ func TestEnvironment(ctx context.Context, cfg *test_suite.TestConfig) string {
 	if bType == ZonalBucket {
 		SetIsZonalBucketRun(true)
 	}
+	if bType == HNSRcuBucket || bType == FlatRcuBucket {
+		SetIsRcuBucketRun(true)
+	}
 
 	return bType
 }
@@ -581,6 +591,10 @@ const HNSBucket = "hns"
 const ZonalBucket = "zonal"
 const FlatRcuBucket = "flat_rcu"
 const HNSRcuBucket = "hns_rcu"
+
+// rapidCacheUltraType is the StorageLayout.RapidCacheInfo.CacheType value for
+// Rapid Cache Ultra buckets. Mirrors rapidCacheUltraType in internal/storage.
+const rapidCacheUltraType = "rapid-cache-ultra"
 
 func bucketType(ctx context.Context, testBucket string) (bType string, err error) {
 	// For only-dir mounts bucket name is passed as <test_bucket>/<only_dir> by GKE.
@@ -623,18 +637,44 @@ func bucketType(ctx context.Context, testBucket string) (bType string, err error
 	if attrs.LocationType == "zone" {
 		return ZonalBucket, nil
 	}
-	// TODO(b/483608308): Once GetStorageLayout starts returning Rapid Cache Ultra bucket type,
-	// update this logic to use the response instead of inferring from IsRcuBucketRun().
-	if attrs.HierarchicalNamespace != nil && attrs.HierarchicalNamespace.Enabled {
-		if IsRcuBucketRun() {
+
+	isRcu := isRcuBucket(ctx, testBucket, opts)
+	isHns := attrs.HierarchicalNamespace != nil && attrs.HierarchicalNamespace.Enabled
+	if isHns {
+		if isRcu {
 			return HNSRcuBucket, nil
 		}
 		return HNSBucket, nil
 	}
-	if IsRcuBucketRun() {
+	if isRcu {
 		return FlatRcuBucket, nil
 	}
 	return FlatBucket, nil
+}
+
+// isRcuBucket reports whether testBucket is a Rapid Cache Ultra bucket, based on
+// its GetStorageLayout response. If the control-plane call fails, the bucket is
+// treated as non-RCU.
+func isRcuBucket(ctx context.Context, testBucket string, opts []option.ClientOption) bool {
+	controlClient, err := control.NewStorageControlClient(ctx, opts...)
+	if err != nil {
+		log.Printf("control.NewStorageControlClient failed, treating %q as non-RCU: %v", testBucket, err)
+		return false
+	}
+	defer func() {
+		if cErr := controlClient.Close(); cErr != nil {
+			log.Printf("Failed to close storage control client: %v", cErr)
+		}
+	}()
+
+	layout, err := controlClient.GetStorageLayout(ctx, &controlpb.GetStorageLayoutRequest{
+		Name: fmt.Sprintf("projects/_/buckets/%s/storageLayout", testBucket),
+	})
+	if err != nil {
+		log.Printf("GetStorageLayout(%q) failed, treating bucket as non-RCU: %v", testBucket, err)
+		return false
+	}
+	return layout.GetRapidCacheInfo().GetCacheType() == rapidCacheUltraType
 }
 
 // DualMountFlags holds a paired set of primary and secondary mount flags.
@@ -643,13 +683,22 @@ type DualMountFlags struct {
 	Secondary []string
 }
 
+// isRcuZoneCompatible reports whether zoneCfg enables the current RCU run, which
+// is a cross-zone run only when --rcu-different-zone is set.
+func isRcuZoneCompatible(zoneCfg test_suite.RcuZoneConfig) bool {
+	if IsRcuDifferentZone() {
+		return zoneCfg.DifferentZone
+	}
+	return zoneCfg.SameZone
+}
+
 func isConfigCompatible(testConfig *test_suite.ConfigItem, bucketType string, testName string) bool {
 	isBucketCompatible := false
 	switch bucketType {
 	case FlatRcuBucket:
-		isBucketCompatible = testConfig.RunOnRcu.Flat.SameZone || testConfig.RunOnRcu.Flat.DifferentZone
+		isBucketCompatible = isRcuZoneCompatible(testConfig.RunOnRcu.Flat)
 	case HNSRcuBucket:
-		isBucketCompatible = testConfig.RunOnRcu.Hns.SameZone || testConfig.RunOnRcu.Hns.DifferentZone
+		isBucketCompatible = isRcuZoneCompatible(testConfig.RunOnRcu.Hns)
 	default:
 		var ok bool
 		isBucketCompatible, ok = testConfig.Compatible[bucketType]
