@@ -149,3 +149,43 @@ func TestParentNameReturnsErrorOnBucketRoot(t *testing.T) {
 		require.ErrorContains(t, err, "root has no parent")
 	}
 }
+
+func TestIsDescendantOf(t *testing.T) {
+	for _, bucketName := range []string{"", "bucketx"} {
+		root := inode.NewRootName(bucketName)
+		anotherRoot := inode.NewRootName("other-bucket")
+		foo := inode.NewDirName(root, "foo")
+		bar := inode.NewDirName(foo, "bar")
+		baz := inode.NewFileName(root, "baz")
+		qux := inode.NewFileName(bar, "qux")
+		siblingDir := inode.NewDirName(root, "foobar")
+		siblingFile := inode.NewFileName(siblingDir, "baz")
+
+		assert.False(t, root.IsDescendantOf(root))
+		assert.False(t, root.IsDescendantOf(foo))
+		assert.False(t, root.IsDescendantOf(anotherRoot))
+
+		assert.True(t, foo.IsDescendantOf(root))
+		assert.False(t, foo.IsDescendantOf(foo))
+		assert.False(t, foo.IsDescendantOf(bar))
+		assert.False(t, foo.IsDescendantOf(anotherRoot))
+
+		assert.True(t, bar.IsDescendantOf(root))
+		assert.True(t, bar.IsDescendantOf(foo))
+		assert.False(t, bar.IsDescendantOf(bar))
+
+		assert.True(t, baz.IsDescendantOf(root))
+		assert.False(t, baz.IsDescendantOf(foo))
+		assert.False(t, baz.IsDescendantOf(baz))
+
+		assert.True(t, qux.IsDescendantOf(root))
+		assert.True(t, qux.IsDescendantOf(foo))
+		assert.True(t, qux.IsDescendantOf(bar))
+
+		assert.False(t, siblingDir.IsDescendantOf(foo))
+		assert.False(t, siblingFile.IsDescendantOf(foo))
+
+		assert.False(t, qux.IsDescendantOf(baz))
+		assert.False(t, foo.IsDescendantOf(baz))
+	}
+}

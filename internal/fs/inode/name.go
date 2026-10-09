@@ -130,6 +130,22 @@ func (name Name) IsDirectChildOf(parent Name) bool {
 	return !strings.Contains(cleanDiff, "/")
 }
 
+// IsDescendantOf returns true if the name is a descendant file or directory
+// of another directory at any depth.
+func (name Name) IsDescendantOf(ancestor Name) bool {
+	if !ancestor.IsDir() || name.IsBucketRoot() {
+		return false
+	}
+	if name.bucketName != ancestor.bucketName {
+		return false
+	}
+	if !strings.HasPrefix(name.objectName, ancestor.objectName) {
+		return false
+	}
+	diff := strings.TrimPrefix(name.objectName, ancestor.objectName)
+	return diff != ""
+}
+
 // ParentName returns the Name of the parent directory of the current Name.
 func (name Name) ParentName() (Name, error) {
 	if name.IsBucketRoot() {
