@@ -72,7 +72,6 @@ func TestGRPCDefaultOn(t *testing.T) {
 		name                  string
 		flags                 []string
 		useDirectPathProxy    bool
-		induceDirectPathError bool
 		expectedLogSubstrings []string
 		unexpectedLogString   string
 	}{
@@ -80,8 +79,6 @@ func TestGRPCDefaultOn(t *testing.T) {
 			name: "DirectPathAvailable_ConnectsViaGRPC",
 			flags: []string{
 				"--enable-grpc-by-default=true",
-				"--enable-hns=false",
-				"--anonymous-access",
 			},
 			useDirectPathProxy: true,
 			expectedLogSubstrings: []string{
@@ -93,21 +90,14 @@ func TestGRPCDefaultOn(t *testing.T) {
 			name: "DirectPathUnavailable_FallsBackToHTTP",
 			flags: []string{
 				"--enable-grpc-by-default=true",
-				"--enable-hns=false",
-				"--anonymous-access",
 			},
-			induceDirectPathError: true,
 			expectedLogSubstrings: []string{
 				"DirectPath verification failed with error:",
 				"Grpc dp is not available and falling back to Http.",
 			},
 		},
 		{
-			name: "DisabledByDefault_UsesHTTPWithoutDirectPathProbe",
-			flags: []string{
-				"--enable-hns=false",
-				"--anonymous-access",
-			},
+			name:                "DisabledByDefault_UsesHTTPWithoutDirectPathProbe",
 			unexpectedLogString: "Verifying DirectPath connectivity",
 		},
 		{
@@ -115,8 +105,6 @@ func TestGRPCDefaultOn(t *testing.T) {
 			flags: []string{
 				"--enable-grpc-by-default=true",
 				"--client-protocol=http1",
-				"--enable-hns=false",
-				"--anonymous-access",
 			},
 			unexpectedLogString: "Verifying DirectPath connectivity",
 		},
@@ -124,11 +112,7 @@ func TestGRPCDefaultOn(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.induceDirectPathError {
-				t.Setenv("STORAGE_EMULATOR_HOST_GRPC", startRejectingLocalListener(t))
-			}
-
-			mountFlags := append([]string{}, tc.flags...)
+			mountFlags := append([]string{"--enable-hns=false", "--anonymous-access"}, tc.flags...)
 			var (
 				proxyPid           int
 				proxyServerLogFile string
@@ -148,6 +132,8 @@ func TestGRPCDefaultOn(t *testing.T) {
 				proxyPid = pid
 				defer stopProxy()
 				t.Setenv("STORAGE_EMULATOR_HOST_GRPC", fmt.Sprintf("localhost:%d", port))
+			} else {
+				t.Setenv("STORAGE_EMULATOR_HOST_GRPC", startRejectingLocalListener(t))
 			}
 
 			logFile := path.Join(setup.TestDir(), fmt.Sprintf("grpc_default_on_%s.log", setup.GenerateRandomString(5)))
@@ -178,6 +164,7 @@ func TestGRPCDefaultOn(t *testing.T) {
 
 			testDirPath := setup.SetupTestDirectory(t.Name())
 			verifyFileReadWrite(t, testDirPath)
+			setup.CleanUpDir(testDirPath)
 
 			// Unmount GCSFuse and stop proxy server before inspecting logs so all log buffers are flushed.
 			unmount()
