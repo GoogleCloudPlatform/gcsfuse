@@ -521,12 +521,13 @@ func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, buck
 	clientProtocol := sh.clientConfig.ClientProtocol
 
 	if clientProtocol == "" {
-		// When client-protocol is not explicitly set and gRPC is enabled by default,
-		// attempt gRPC via DirectPath and fall back to HTTP if DirectPath is unavailable.
-		if sh.clientConfig.EnableGrpcByDefault {
+		// Attempt gRPC via DirectPath (with HTTP fallback) only when:
+		// 1. client-protocol is not explicitly set.
+		// 2. gRPC is enabled by default.
+		// 3. No custom endpoint (e.g., regional endpoint) is configured.
+		if sh.clientConfig.EnableGrpcByDefault && sh.clientConfig.CustomEndpoint == "" {
 			return sh.createNonBidiGRPCClientWithHttpFallback(ctx, bucketName, billingProject)
 		}
-		// Default to HTTP1 when client-protocol is unset and gRPC is not enabled by default.
 		clientProtocol = cfg.HTTP1
 	}
 

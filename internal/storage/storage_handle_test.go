@@ -1451,6 +1451,8 @@ func (testSuite *StorageHandleTest) TestGetClient_ProtocolSelection() {
 		_, _ = w.Write([]byte(`{"error": {"code": 404, "message": "Not Found"}}`))
 	}))
 	defer server.Close()
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST", server.Listener.Addr().String())
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST_GRPC", server.Listener.Addr().String())
 
 	testCases := []struct {
 		name                string
@@ -1458,6 +1460,7 @@ func (testSuite *StorageHandleTest) TestGetClient_ProtocolSelection() {
 		clientProtocol      cfg.Protocol
 		enableGrpcByDefault bool
 		grpcPathStrategy    cfg.DirectPathStrategy
+		customEndpoint      string
 		expectErr           bool
 		expectHTTP1Client   bool
 		expectHTTP2Client   bool
@@ -1522,6 +1525,15 @@ func (testSuite *StorageHandleTest) TestGetClient_ProtocolSelection() {
 			grpcPathStrategy:    cfg.DirectPathOnly,
 			expectErr:           true,
 		},
+		{
+			name:                "Regional_EnableGrpcByDefault_CustomEndpointBypassesGRPC_UsesHTTP1",
+			isBucketRapid:       false,
+			clientProtocol:      "",
+			enableGrpcByDefault: true,
+			grpcPathStrategy:    cfg.DirectPathOnly,
+			customEndpoint:      server.URL,
+			expectHTTP1Client:   true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -1532,7 +1544,7 @@ func (testSuite *StorageHandleTest) TestGetClient_ProtocolSelection() {
 					EnableGrpcByDefault: tc.enableGrpcByDefault,
 					GrpcPathStrategy:    tc.grpcPathStrategy,
 					AnonymousAccess:     true,
-					CustomEndpoint:      server.URL,
+					CustomEndpoint:      tc.customEndpoint,
 				},
 			}
 			defer func() {
@@ -1593,12 +1605,12 @@ func (testSuite *StorageHandleTest) TestGetClient_Regional_EnableGrpcByDefault_D
 		_ = grpcServer.Serve(listener)
 	}()
 	defer grpcServer.Stop()
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST_GRPC", listener.Addr().String())
 	sh := &storageClient{
 		clientConfig: storageutil.StorageClientConfig{
 			ClientProtocol:      "",
 			EnableGrpcByDefault: true,
 			AnonymousAccess:     true,
-			CustomEndpoint:      listener.Addr().String(),
 		},
 	}
 	defer func() {
