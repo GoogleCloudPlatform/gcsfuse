@@ -1,3 +1,8 @@
+---
+name: gcsfuse-pull-request
+description: Automated step-by-step workflow to construct, format, push, and create pull requests in the GCSFuse repository following Conventional Commits and repository PR templates.
+---
+
 # GCSFuse Pull Request Creation Skill
 
 This skill provides a highly automated, step-by-step workflow for Antigravity agents to construct, format, push, and create pull requests for their changes in the GCSFuse repository. Executing this runbook ensures that commits and pull requests strictly follow the repository's standardized templates, author identity alignments, and style checking procedures before PR creation.
