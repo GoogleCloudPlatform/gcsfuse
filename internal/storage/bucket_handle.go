@@ -721,6 +721,12 @@ func (bh *bucketHandle) NewMultiRangeDownloader(
 	if bh.disableGrpcReadChecksums {
 		opts = append(opts, storage.WithDisableMRDReadChecksum())
 	}
+	if req.MinConnections > 0 {
+		opts = append(opts, storage.WithMinConnections(req.MinConnections))
+	}
+	if req.MaxConnections > 0 {
+		opts = append(opts, storage.WithMaxConnections(req.MaxConnections))
+	}
 
 	mrd, err = obj.NewMultiRangeDownloader(ctx, opts...)
 	return

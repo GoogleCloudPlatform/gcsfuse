@@ -244,6 +244,14 @@ type MultiRangeDownloaderRequest struct {
 
 	// ReadHandle associated with the object. This would be periodically refreshed.
 	ReadHandle []byte
+
+	// MinConnections is the minimum number of gRPC streams the MultiRangeDownloader
+	// will open for reading.
+	MinConnections int
+
+	// MaxConnections is the maximum number of gRPC streams the MultiRangeDownloader
+	// may open for reading.
+	MaxConnections int
 }
 
 type StatObjectRequest struct {

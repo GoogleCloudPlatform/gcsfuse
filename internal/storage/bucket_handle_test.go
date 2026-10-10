@@ -1918,3 +1918,22 @@ func (testSuite *BucketHandleTest) TestCreateFolderWithGivenName() {
 	assert.NoError(testSuite.T(), err)
 	assert.Equal(testSuite.T(), gcs.GCSFolder(TestBucketName, &mockFolder), folder)
 }
+
+func (testSuite *BucketHandleTest) TestNewMultiRangeDownloader_WithConnectionOptions() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{})
+	testSuite.bucketHandle.disableGrpcReadChecksums = true
+
+	mrd, err := testSuite.bucketHandle.NewMultiRangeDownloader(context.Background(), &gcs.MultiRangeDownloaderRequest{
+		Name:           TestObjectName,
+		Generation:     TestObjectGeneration,
+		ReadCompressed: true,
+		ReadHandle:     []byte("test-handle"),
+		MinConnections: 4,
+		MaxConnections: 4,
+	})
+
+	// Fake storage uses an HTTP client, so NewMultiRangeDownloader returns an error from the SDK
+	// after applying all request parameters and MRDOptions.
+	assert.Error(testSuite.T(), err)
+	assert.Nil(testSuite.T(), mrd)
+}

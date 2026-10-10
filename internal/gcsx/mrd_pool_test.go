@@ -58,48 +58,53 @@ func (t *mrdPoolTest) TestNewMRDPool_SmallFile() {
 	t.object.Size = 100 * MiB
 	t.poolConfig.PoolSize = 4
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
-	// Two MRD instances will be created for [100MB to 500MB) files.
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Times(2)
+	// A single MultiRangeDownloader with MinConnections=2, MaxConnections=2 is created for [100MiB, 500MiB) files.
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.MatchedBy(func(req *gcs.MultiRangeDownloaderRequest) bool {
+		return req.MinConnections == 2 && req.MaxConnections == 2
+	})).Return(fakeMRD, nil).Once()
 
 	pool, err := NewMRDPool(t.poolConfig, nil)
 
 	assert.NoError(t.T(), err)
 	assert.Equal(t.T(), 2, pool.poolConfig.PoolSize)
-	assert.Len(t.T(), pool.entries, 2)
+	assert.Equal(t.T(), uint64(2), pool.Size())
+	assert.Len(t.T(), pool.entries, 1)
 	assert.NotNil(t.T(), pool.entries[0].mrd)
+	t.bucket.AssertExpectations(t.T())
 }
 
 func (t *mrdPoolTest) TestNewMRDPool_LargeFile() {
 	t.object.Size = 1024 * MiB
-	t.poolConfig.PoolSize = 2
+	t.poolConfig.PoolSize = 4
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
-	// Expect calls for initial + async creation
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Times(2)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.MatchedBy(func(req *gcs.MultiRangeDownloaderRequest) bool {
+		return req.MinConnections == 4 && req.MaxConnections == 4
+	})).Return(fakeMRD, nil).Once()
 
 	pool, err := NewMRDPool(t.poolConfig, nil)
 
 	assert.NoError(t.T(), err)
-	assert.Equal(t.T(), 2, pool.poolConfig.PoolSize)
-	pool.creationWg.Wait() // Wait for async creation to finish
-	assert.Equal(t.T(), uint64(2), pool.currentSize.Load())
+	assert.Equal(t.T(), 4, pool.poolConfig.PoolSize)
+	assert.Equal(t.T(), uint64(4), pool.Size())
+	assert.Len(t.T(), pool.entries, 1)
 	assert.NotNil(t.T(), pool.entries[0].mrd)
-	assert.NotNil(t.T(), pool.entries[1].mrd)
+	t.bucket.AssertExpectations(t.T())
 }
 
-func (t *mrdPoolTest) TestNewMRDPool_AsyncCreationFailure() {
+func (t *mrdPoolTest) TestNewMRDPool_PassesReadHandle() {
 	t.object.Size = 1024 * MiB
-	t.poolConfig.PoolSize = 2
+	t.poolConfig.PoolSize = 4
+	expectedHandle := []byte("cached-handle")
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()                   // First succeeds
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("async error")).Once() // Second fails
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.MatchedBy(func(req *gcs.MultiRangeDownloaderRequest) bool {
+		return string(req.ReadHandle) == "cached-handle" && req.MinConnections == 4 && req.MaxConnections == 4
+	})).Return(fakeMRD, nil).Once()
 
-	pool, err := NewMRDPool(t.poolConfig, nil)
+	pool, err := NewMRDPool(t.poolConfig, expectedHandle)
 
 	assert.NoError(t.T(), err)
-	pool.creationWg.Wait() // Wait for async creation to finish
-	assert.Equal(t.T(), uint64(2), pool.currentSize.Load())
 	assert.NotNil(t.T(), pool.entries[0].mrd)
-	assert.Nil(t.T(), pool.entries[1].mrd)
+	t.bucket.AssertExpectations(t.T())
 }
 
 func (t *mrdPoolTest) TestNewMRDPool_FileClobbered() {
@@ -132,27 +137,18 @@ func (t *mrdPoolTest) TestNewMRDPool_Error() {
 
 func (t *mrdPoolTest) TestNext() {
 	t.poolConfig.PoolSize = 3
-	// Return a new downloader for each call to ensure we get different instances.
-	fakeMRD1 := fake.NewFakeMultiRangeDownloader(t.object, nil)
-	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, nil)
-	fakeMRD3 := fake.NewFakeMultiRangeDownloader(t.object, nil)
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD3, nil).Once()
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.MatchedBy(func(req *gcs.MultiRangeDownloaderRequest) bool {
+		return req.MinConnections == 3 && req.MaxConnections == 3
+	})).Return(fakeMRD, nil).Once()
 	pool, err := NewMRDPool(t.poolConfig, nil)
 	assert.NoError(t.T(), err)
-	pool.creationWg.Wait()
 
-	// Verify round robin
 	e1 := pool.Next()
 	e2 := pool.Next()
-	e3 := pool.Next()
-	e4 := pool.Next()
 
-	assert.Same(t.T(), e1.mrd, fakeMRD1)
-	assert.Same(t.T(), e2.mrd, fakeMRD2)
-	assert.Same(t.T(), e3.mrd, fakeMRD3)
-	assert.Same(t.T(), e4.mrd, fakeMRD1)
+	assert.Same(t.T(), e1.mrd, fakeMRD)
+	assert.Same(t.T(), e2.mrd, fakeMRD)
 }
 
 func (t *mrdPoolTest) TestDeterminePoolSize() {
@@ -213,11 +209,16 @@ func (t *mrdPoolTest) TestDeterminePoolSize() {
 }
 
 func (t *mrdPoolTest) TestRecreateMRD() {
-	t.poolConfig.PoolSize = 1
-	fakeMRD1 := fake.NewFakeMultiRangeDownloader(t.object, nil)
+	t.poolConfig.PoolSize = 4
+	existingHandle := []byte("existing_handle")
+	fakeMRD1 := fake.NewFakeMultiRangeDownloaderWithHandle(t.object, nil, existingHandle)
 	fakeMRD2 := fake.NewFakeMultiRangeDownloader(t.object, nil)
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.MatchedBy(func(req *gcs.MultiRangeDownloaderRequest) bool {
+		return req.ReadHandle == nil && req.MinConnections == 4 && req.MaxConnections == 4
+	})).Return(fakeMRD1, nil).Once()
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.MatchedBy(func(req *gcs.MultiRangeDownloaderRequest) bool {
+		return string(req.ReadHandle) == "existing_handle" && req.MinConnections == 4 && req.MaxConnections == 4
+	})).Return(fakeMRD2, nil).Once()
 	pool, err := NewMRDPool(t.poolConfig, nil)
 	assert.NoError(t.T(), err)
 	entry := pool.Next()
@@ -227,10 +228,11 @@ func (t *mrdPoolTest) TestRecreateMRD() {
 
 	assert.NoError(t.T(), err)
 	assert.NotSame(t.T(), oldMRD, entry.mrd)
+	t.bucket.AssertExpectations(t.T())
 }
 
 func (t *mrdPoolTest) TestRecreateMRD_UsesFallbackHandle() {
-	t.poolConfig.PoolSize = 1
+	t.poolConfig.PoolSize = 2
 	// Initial creation
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
@@ -242,42 +244,12 @@ func (t *mrdPoolTest) TestRecreateMRD_UsesFallbackHandle() {
 	entry.mrd = nil
 	entry.mu.Unlock()
 	fallbackHandle := []byte("fallback")
-	// Expectation: Recreate uses fallback handle
+	// Expectation: Recreate uses fallback handle and configured pool size
 	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.MatchedBy(func(req *gcs.MultiRangeDownloaderRequest) bool {
-		return string(req.ReadHandle) == "fallback"
+		return string(req.ReadHandle) == "fallback" && req.MinConnections == 2 && req.MaxConnections == 2
 	})).Return(fakeMRD, nil).Once()
 
 	err = pool.RecreateMRD(entry, fallbackHandle)
-
-	assert.NoError(t.T(), err)
-	t.bucket.AssertExpectations(t.T())
-}
-
-func (t *mrdPoolTest) TestRecreateMRD_UsesPeerHandle() {
-	t.poolConfig.PoolSize = 2
-	// Initial creation
-	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Times(2)
-	pool, err := NewMRDPool(t.poolConfig, nil)
-	require.NoError(t.T(), err)
-	pool.creationWg.Wait()
-	// Inject a mock MRD into entry 0 that returns a specific handle
-	peerHandle := []byte("peer_handle")
-	mockMRD := fake.NewFakeMultiRangeDownloaderWithHandle(t.object, nil, peerHandle)
-	pool.entries[0].mu.Lock()
-	pool.entries[0].mrd = mockMRD
-	pool.entries[0].mu.Unlock()
-	// Entry 1 is the one we want to recreate
-	entryToRecreate := &pool.entries[1]
-	entryToRecreate.mu.Lock()
-	entryToRecreate.mrd = nil
-	entryToRecreate.mu.Unlock()
-	// Expectation: Recreate uses peer handle from entry 0
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.MatchedBy(func(req *gcs.MultiRangeDownloaderRequest) bool {
-		return string(req.ReadHandle) == "peer_handle"
-	})).Return(fakeMRD, nil).Once()
-
-	err = pool.RecreateMRD(entryToRecreate, nil)
 
 	assert.NoError(t.T(), err)
 	t.bucket.AssertExpectations(t.T())
@@ -302,7 +274,7 @@ func (t *mrdPoolTest) TestRecreateMRD_Error() {
 func (t *mrdPoolTest) TestClose() {
 	t.poolConfig.PoolSize = 2
 	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, nil)
-	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Times(2)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
 	pool, err := NewMRDPool(t.poolConfig, nil)
 	assert.NoError(t.T(), err)
 
