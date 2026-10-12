@@ -22,7 +22,7 @@ set -euo pipefail
 if [[ $# -ne 1 ]]; then
     echo "This script requires exactly one argument."
     echo "Usage: $0 <go-version>"
-    echo "Example: $0 1.26.7"
+    echo "Example: $0 1.26.9"
     exit 1
 fi
 
