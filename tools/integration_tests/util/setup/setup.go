@@ -39,6 +39,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc/metadata"
 )
 
 var isPresubmitRun = flag.Bool("presubmit", false, "Boolean flag to indicate if test-run is a presubmit run.")
@@ -596,85 +597,82 @@ const HNSRcuBucket = "hns_rcu"
 // Rapid Cache Ultra buckets. Mirrors rapidCacheUltraType in internal/storage.
 const rapidCacheUltraType = "rapid-cache-ultra"
 
-func bucketType(ctx context.Context, testBucket string) (bType string, err error) {
+func bucketType(ctx context.Context, testBucket string) (string, error) {
 	// For only-dir mounts bucket name is passed as <test_bucket>/<only_dir> by GKE.
 	testBucket = strings.Split(testBucket, "/")[0]
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	var opts []option.ClientOption
-	opts = append(opts, storage.WithGRPCBidiReads())
-	if TestOnTPCEndPoint() {
-		cred, err := auth2.GetCredentials("/tmp/sa.key.json")
-		if err != nil {
-			return "", fmt.Errorf("failed to get credentials for TPC: %w", err)
-		}
-		opts = append(opts, option.WithEndpoint("storage.apis-tpczero.goog:443"), option.WithAuthCredentials(cred), option.WithUniverseDomain("apis-tpczero.goog"))
-	} else if keyFile != "" {
-		cred, err := auth2.GetCredentials(keyFile)
-		if err != nil {
-			return "", fmt.Errorf("failed to get credentials: %w", err)
-		}
-		opts = append(opts, option.WithAuthCredentials(cred))
-	}
-	var storageClient *storage.Client
-	if TestOnTPCEndPoint() {
-		storageClient, err = storage.NewClient(ctx, opts...)
-	} else {
-		storageClient, err = storage.NewGRPCClient(ctx, opts...)
-	}
-
+	layout, err := getStorageLayout(ctx, testBucket)
 	if err != nil {
-		return "", fmt.Errorf("failed to create storage client: %w", err)
+		return "", fmt.Errorf("GetStorageLayout(%q): %w", testBucket, err)
 	}
-	bucket := storageClient.Bucket(testBucket)
-	if billingProject != "" {
-		bucket = bucket.UserProject(billingProject)
-	}
-	attrs, err := bucket.Attrs(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to get bucket attributes: %w", err)
-	}
-	if attrs.LocationType == "zone" {
-		return ZonalBucket, nil
-	}
-
-	isRcu := isRcuBucket(ctx, testBucket, opts)
-	isHns := attrs.HierarchicalNamespace != nil && attrs.HierarchicalNamespace.Enabled
-	if isHns {
-		if isRcu {
-			return HNSRcuBucket, nil
-		}
-		return HNSBucket, nil
-	}
-	if isRcu {
-		return FlatRcuBucket, nil
-	}
-	return FlatBucket, nil
+	return classifyBucketLayout(layout), nil
 }
 
-// isRcuBucket reports whether testBucket is a Rapid Cache Ultra bucket, based on
-// its GetStorageLayout response. If the control-plane call fails, the bucket is
-// treated as non-RCU.
-func isRcuBucket(ctx context.Context, testBucket string, opts []option.ClientOption) bool {
+func classifyBucketLayout(layout *controlpb.StorageLayout) string {
+	if layout.GetLocationType() == "zone" {
+		return ZonalBucket
+	}
+	isHNS := layout.GetHierarchicalNamespace().GetEnabled()
+	isRCU := layout.GetRapidCacheInfo().GetCacheType() == rapidCacheUltraType
+	switch {
+	case isRCU && isHNS:
+		return HNSRcuBucket
+	case isRCU:
+		return FlatRcuBucket
+	case isHNS:
+		return HNSBucket
+	default:
+		return FlatBucket
+	}
+}
+
+// getStorageLayout fetches the bucket's storage layout with a short-lived gRPC
+// control client (also works on TPC). Default CallOptions already apply a
+// timeout and retries to GetStorageLayout.
+func getStorageLayout(ctx context.Context, testBucket string) (*controlpb.StorageLayout, error) {
+	opts, err := controlClientOptions()
+	if err != nil {
+		return nil, err
+	}
 	controlClient, err := control.NewStorageControlClient(ctx, opts...)
 	if err != nil {
-		log.Printf("control.NewStorageControlClient failed, treating %q as non-RCU: %v", testBucket, err)
-		return false
+		return nil, fmt.Errorf("failed to create storage control client: %w", err)
 	}
 	defer func() {
 		if cErr := controlClient.Close(); cErr != nil {
 			log.Printf("Failed to close storage control client: %v", cErr)
 		}
 	}()
-
-	layout, err := controlClient.GetStorageLayout(ctx, &controlpb.GetStorageLayoutRequest{
+	if billingProject != "" {
+		// Mirrors storageControlClientWithBillingProject in internal/storage.
+		ctx = metadata.AppendToOutgoingContext(ctx, "x-goog-user-project", billingProject)
+	}
+	return controlClient.GetStorageLayout(ctx, &controlpb.GetStorageLayoutRequest{
 		Name: fmt.Sprintf("projects/_/buckets/%s/storageLayout", testBucket),
 	})
-	if err != nil {
-		log.Printf("GetStorageLayout(%q) failed, treating bucket as non-RCU: %v", testBucket, err)
-		return false
+}
+
+// controlClientOptions returns the auth/endpoint options for the test control client.
+func controlClientOptions() ([]option.ClientOption, error) {
+	switch {
+	case TestOnTPCEndPoint():
+		cred, err := auth2.GetCredentials("/tmp/sa.key.json")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get credentials for TPC: %w", err)
+		}
+		return []option.ClientOption{
+			option.WithEndpoint("storage.apis-tpczero.goog:443"),
+			option.WithAuthCredentials(cred),
+			option.WithUniverseDomain("apis-tpczero.goog"),
+		}, nil
+	case keyFile != "":
+		cred, err := auth2.GetCredentials(keyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get credentials: %w", err)
+		}
+		return []option.ClientOption{option.WithAuthCredentials(cred)}, nil
+	default:
+		return nil, nil
 	}
-	return layout.GetRapidCacheInfo().GetCacheType() == rapidCacheUltraType
 }
 
 // DualMountFlags holds a paired set of primary and secondary mount flags.
