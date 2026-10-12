@@ -1,3 +1,8 @@
+---
+name: gcsfuse-dep-upgrade
+description: Step-by-step workflow to identify, upgrade, and verify external Go module dependencies and Go toolchain versions in the GCSFuse repository, including CVE and security vulnerability remediation.
+---
+
 # GCSFuse Dependency Upgrading Skill
 
 This skill provides a comprehensive, step-by-step workflow for Antigravity agents to identify, upgrade, and verify external dependencies and Go toolchain versions in the GCSFuse repository, specifically targeting the remediation of CVEs and security vulnerabilities.
