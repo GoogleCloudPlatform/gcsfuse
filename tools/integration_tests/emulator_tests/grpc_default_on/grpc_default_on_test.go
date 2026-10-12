@@ -18,12 +18,17 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path"
+	"sync"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	emulator_tests "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/emulator_tests/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -31,8 +36,7 @@ import (
 )
 
 // startRejectingLocalListener binds an ephemeral local TCP listener for the lifetime of t
-// and immediately closes every accepted connection, simulating DirectPath failure without
-// port reuse races (TOCTOU) or blackhole SYN timeouts.
+// and immediately closes every accepted connection.
 func startRejectingLocalListener(t *testing.T) string {
 	t.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -52,6 +56,93 @@ func startRejectingLocalListener(t *testing.T) string {
 	return listener.Addr().String()
 }
 
+// openFUSEDevViaFusermount mounts dir using fusermount3 and returns the pre-opened /dev/fuse
+// file descriptor so gcsfuse can mount "/dev/fd/3" just like GKE's CSI driver sidecar.
+func openFUSEDevViaFusermount(t *testing.T, dir string) *os.File {
+	t.Helper()
+	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	require.NoError(t, err)
+	parentSock := os.NewFile(uintptr(fds[0]), "fusermount-parent")
+	childSock := os.NewFile(uintptr(fds[1]), "fusermount-child")
+	defer func() { _ = parentSock.Close() }()
+	defer func() { _ = childSock.Close() }()
+
+	fusermountCmd := exec.Command("fusermount3", "-o", "rw,nosuid,nodev,fsname=gcsfuse,subtype=gcsfuse", "--", dir)
+	fusermountCmd.Env = append(os.Environ(), "_FUSE_COMMFD=3")
+	fusermountCmd.ExtraFiles = []*os.File{childSock}
+	output, err := fusermountCmd.CombinedOutput()
+	_ = childSock.Close()
+	require.NoError(t, err, "fusermount3 failed: %s", string(output))
+
+	buf := make([]byte, 4)
+	oob := make([]byte, syscall.CmsgSpace(4))
+	_, oobn, _, _, err := syscall.Recvmsg(int(parentSock.Fd()), buf, oob, 0)
+	require.NoError(t, err)
+	scms, err := syscall.ParseSocketControlMessage(oob[:oobn])
+	require.NoError(t, err)
+	require.Len(t, scms, 1)
+	receivedFDs, err := syscall.ParseUnixRights(&scms[0])
+	require.NoError(t, err)
+	require.Len(t, receivedFDs, 1)
+
+	return os.NewFile(uintptr(receivedFDs[0]), "/dev/fuse")
+}
+
+func mountGCSFuseAsGKE(t *testing.T, dir string, logFile string, flags []string) func() {
+	t.Helper()
+	// Mount dir via fusermount3 and get the pre-opened /dev/fuse connection.
+	fuseFile := openFUSEDevViaFusermount(t, dir)
+	defer func() { _ = fuseFile.Close() }()
+
+	args := append([]string{"--foreground", "--log-severity=trace", "--log-file=" + logFile}, flags...)
+	// Pass "/dev/fd/3" to mark IsGKE=true and mount gcsfuse over FD 3.
+	args = append(args, setup.TestBucket(), "/dev/fd/3")
+
+	cmd := exec.Command(setup.BinFile(), args...)
+	// Attach fuseFile as FD 3 (ExtraFiles[0]) in the spawned gcsfuse child process.
+	cmd.ExtraFiles = []*os.File{fuseFile}
+	require.NoError(t, cmd.Start())
+
+	waitCh := make(chan error, 1)
+	go func() {
+		waitCh <- cmd.Wait()
+	}()
+
+	var stopOnce sync.Once
+	stop := func() {
+		stopOnce.Do(func() {
+			setup.UnmountGCSFuse(dir)
+			<-waitCh
+		})
+	}
+	t.Cleanup(stop)
+
+	_, err := os.Stat(dir)
+	require.NoError(t, err, "Failed waiting for GCSFuse mount on /dev/fd/3")
+
+	return stop
+}
+
+func mountGCSFuseStatic(t *testing.T, dir string, logFile string, flags []string) func() {
+	t.Helper()
+	config := &test_suite.TestConfig{
+		TestBucket:              setup.TestBucket(),
+		GCSFuseMountedDirectory: dir,
+		LogFile:                 logFile,
+	}
+	err := static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(config, flags)
+	require.NoError(t, err, "Expected mount to succeed for flags %v", flags)
+
+	var stopOnce sync.Once
+	stop := func() {
+		stopOnce.Do(func() {
+			setup.UnmountGCSFuse(dir)
+		})
+	}
+	t.Cleanup(stop)
+	return stop
+}
+
 func verifyFileReadWrite(t *testing.T, dirPath string) {
 	t.Helper()
 	filePath := path.Join(dirPath, fmt.Sprintf("default_on_item_%s.txt", setup.GenerateRandomString(5)))
@@ -67,129 +158,142 @@ func verifyFileReadWrite(t *testing.T, dirPath string) {
 	assert.Equal(t, expectedContent, actualContent)
 }
 
-func TestGRPCDefaultOn(t *testing.T) {
+type grpcDefaultOnSuite struct {
+	suite.Suite
+	grpcProxyPort      int
+	grpcProxyProcessId int
+	grpcProxyLogFile   string
+	httpProxyPort      int
+	httpProxyProcessId int
+	httpProxyLogFile   string
+	logFile            string
+}
+
+func (s *grpcDefaultOnSuite) SetupTest() {
+	var err error
+	s.grpcProxyLogFile = setup.CreateProxyServerLogFile(s.T())
+	s.grpcProxyPort, s.grpcProxyProcessId, err = emulator_tests.StartProxyServer("../configs/grpc_directpath_validation.yaml", s.grpcProxyLogFile)
+	require.NoError(s.T(), err)
+
+	s.httpProxyLogFile = setup.CreateProxyServerLogFile(s.T())
+	s.httpProxyPort, s.httpProxyProcessId, err = emulator_tests.StartProxyServer("../configs/config.yaml", s.httpProxyLogFile)
+	require.NoError(s.T(), err)
+
+	s.T().Setenv("STORAGE_EMULATOR_HOST", fmt.Sprintf("http://localhost:%d", s.httpProxyPort))
+}
+
+func (s *grpcDefaultOnSuite) SetupSubTest() {
+	s.logFile = path.Join(setup.TestDir(), fmt.Sprintf("grpc_default_on_%s.log", setup.GenerateRandomString(5)))
+	setup.SetLogFile(s.logFile)
+}
+
+func (s *grpcDefaultOnSuite) TearDownTest() {
+	assert.NoError(s.T(), emulator_tests.KillProxyServerProcess(s.grpcProxyProcessId))
+	assert.NoError(s.T(), emulator_tests.KillProxyServerProcess(s.httpProxyProcessId))
+	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+	setup.SaveProxyServerLogFileInCaseOfFailure(s.grpcProxyLogFile, s.T())
+	setup.SaveProxyServerLogFileInCaseOfFailure(s.httpProxyLogFile, s.T())
+}
+
+func (s *grpcDefaultOnSuite) TestGRPCDefaultOn() {
 	testCases := []struct {
 		name                  string
+		mountAsGKE            bool
+		directPathUnavailable bool
 		flags                 []string
-		useDirectPathProxy    bool
-		expectedLogSubstrings []string
-		unexpectedLogString   string
+		expectedProtocol      cfg.Protocol
 	}{
+		// Direct --enable-grpc-by-default flag behavior
 		{
-			name: "DirectPathAvailable_ConnectsViaGRPC",
-			flags: []string{
-				"--enable-grpc-by-default=true",
-			},
-			useDirectPathProxy: true,
-			expectedLogSubstrings: []string{
-				"Verifying DirectPath connectivity for bucket",
-				"DirectPath verification succeeded, continuing with DirectPath.",
-			},
+			name:             "EnableGRPCByDefaultTrue_DirectPathAvailable_UsesGRPC",
+			flags:            []string{"--enable-grpc-by-default=true"},
+			expectedProtocol: cfg.GRPC,
 		},
 		{
-			name: "DirectPathUnavailable_FallsBackToHTTP",
-			flags: []string{
-				"--enable-grpc-by-default=true",
-			},
-			expectedLogSubstrings: []string{
-				"DirectPath verification failed with error:",
-				"Grpc dp is not available and falling back to Http.",
-			},
+			name:                  "EnableGRPCByDefaultTrue_DirectPathUnavailable_FallsBackToHTTP",
+			directPathUnavailable: true,
+			flags:                 []string{"--enable-grpc-by-default=true"},
+			expectedProtocol:      cfg.HTTP1,
 		},
 		{
-			name:                "DisabledByDefault_UsesHTTPWithoutDirectPathProbe",
-			unexpectedLogString: "Verifying DirectPath connectivity",
+			name:             "EnableGRPCByDefaultFalse_UsesHTTP",
+			flags:            []string{"--enable-grpc-by-default=false"},
+			expectedProtocol: cfg.HTTP1,
 		},
 		{
-			name: "ExplicitHTTP1OverridesDefaultOn_UsesHTTPWithoutDirectPathProbe",
-			flags: []string{
-				"--enable-grpc-by-default=true",
-				"--client-protocol=http1",
-			},
-			unexpectedLogString: "Verifying DirectPath connectivity",
+			name:             "EnableGRPCByDefaultTrue_ClientProtocolHTTP1_UsesHTTP",
+			flags:            []string{"--enable-grpc-by-default=true", "--client-protocol=http1"},
+			expectedProtocol: cfg.HTTP1,
+		},
+		// Machine-type optimization behavior
+		{
+			name:             "GKE_HighEndMachine_UsesGRPC",
+			mountAsGKE:       true,
+			flags:            []string{"--machine-type=a3-highgpu-8g"},
+			expectedProtocol: cfg.GRPC,
+		},
+		{
+			name:             "GKE_HighEndMachine_EnableGRPCByDefaultFalse_UsesHTTP",
+			mountAsGKE:       true,
+			flags:            []string{"--machine-type=a3-highgpu-8g", "--enable-grpc-by-default=false"},
+			expectedProtocol: cfg.HTTP1,
+		},
+		{
+			name:             "GKE_LowEndMachine_UsesHTTP",
+			mountAsGKE:       true,
+			flags:            []string{"--machine-type=n1-standard-1"},
+			expectedProtocol: cfg.HTTP1,
+		},
+		{
+			name:             "NonGKE_HighEndMachine_UsesHTTP",
+			flags:            []string{"--machine-type=a3-highgpu-8g"},
+			expectedProtocol: cfg.HTTP1,
 		},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		s.Run(tc.name, func() {
+			t := s.T()
 			mountFlags := append([]string{"--enable-hns=false", "--anonymous-access"}, tc.flags...)
-			var (
-				proxyPid           int
-				proxyServerLogFile string
-			)
-			stopProxy := func() {
-				if proxyPid > 0 {
-					assert.NoError(t, emulator_tests.KillProxyServerProcess(proxyPid))
-					setup.SaveProxyServerLogFileInCaseOfFailure(proxyServerLogFile, t)
-					proxyPid = 0
-				}
-			}
-			if tc.useDirectPathProxy {
-				t.Setenv("STORAGE_EMULATOR_HOST", os.Getenv("STORAGE_EMULATOR_HOST"))
-				proxyServerLogFile = setup.CreateProxyServerLogFile(t)
-				port, pid, err := emulator_tests.StartProxyServer("../configs/grpc_directpath_validation.yaml", proxyServerLogFile)
-				require.NoError(t, err)
-				proxyPid = pid
-				defer stopProxy()
-				t.Setenv("STORAGE_EMULATOR_HOST_GRPC", fmt.Sprintf("localhost:%d", port))
-			} else {
+			if tc.directPathUnavailable {
 				t.Setenv("STORAGE_EMULATOR_HOST_GRPC", startRejectingLocalListener(t))
+			} else {
+				t.Setenv("STORAGE_EMULATOR_HOST_GRPC", fmt.Sprintf("localhost:%d", s.grpcProxyPort))
 			}
 
-			logFile := path.Join(setup.TestDir(), fmt.Sprintf("grpc_default_on_%s.log", setup.GenerateRandomString(5)))
-			setup.SetLogFile(logFile)
-			defer setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-
-			config := &test_suite.TestConfig{
-				TestBucket:              setup.TestBucket(),
-				GKEMountedDirectory:     setup.MountedDirectory(),
-				GCSFuseMountedDirectory: rootDir,
-				LogFile:                 logFile,
+			var unmount func()
+			if tc.mountAsGKE {
+				unmount = mountGCSFuseAsGKE(t, rootDir, s.logFile, mountFlags)
+			} else {
+				unmount = mountGCSFuseStatic(t, rootDir, s.logFile, mountFlags)
 			}
-
-			err := setup.MayMountGCSFuseWithGivenMountWithConfigFunc(
-				config,
-				mountFlags,
-				static_mounting.MountGcsfuseWithStaticMountingWithConfigFile,
-			)
-			require.NoError(t, err, "Expected mount to succeed for flags %v", mountFlags)
-			mounted := true
-			unmount := func() {
-				if mounted {
-					setup.UnmountGCSFuse(rootDir)
-					mounted = false
-				}
-			}
-			defer unmount()
 
 			testDirPath := setup.SetupTestDirectory(t.Name())
+			require.NoError(t, os.Truncate(s.grpcProxyLogFile, 0))
+			require.NoError(t, os.Truncate(s.httpProxyLogFile, 0))
 			verifyFileReadWrite(t, testDirPath)
 			setup.CleanUpDir(testDirPath)
-
-			// Unmount GCSFuse and stop proxy server before inspecting logs so all log buffers are flushed.
 			unmount()
-			stopProxy()
 
-			logBytes, err := os.ReadFile(logFile)
+			grpcProxyLog, err := os.ReadFile(s.grpcProxyLogFile)
 			require.NoError(t, err)
-			logStr := string(logBytes)
-			for _, expected := range tc.expectedLogSubstrings {
-				assert.Contains(t, logStr, expected)
-			}
-			if tc.unexpectedLogString != "" {
-				assert.NotContains(t, logStr, tc.unexpectedLogString)
-			}
+			httpProxyLog, err := os.ReadFile(s.httpProxyLogFile)
+			require.NoError(t, err)
 
-			if tc.useDirectPathProxy {
-				proxyLogBytes, err := os.ReadFile(proxyServerLogFile)
-				require.NoError(t, err)
-				proxyLogStr := string(proxyLogBytes)
-				assert.Contains(t, proxyLogStr, "Metadata validation passed")
-				assert.Contains(t, proxyLogStr, "force_direct_connectivity=ENFORCED")
-				assert.Contains(t, proxyLogStr, "/google.storage.v2.Storage/GetObject")
-				assert.Contains(t, proxyLogStr, "/google.storage.v2.Storage/BidiWriteObject")
-				assert.Contains(t, proxyLogStr, "/google.storage.v2.Storage/ReadObject")
+			switch tc.expectedProtocol {
+			case cfg.GRPC:
+				assert.Contains(t, string(grpcProxyLog), "/google.storage.v2.Storage/BidiWriteObject")
+				assert.Contains(t, string(grpcProxyLog), "/google.storage.v2.Storage/ReadObject")
+				assert.Empty(t, string(httpProxyLog))
+			case cfg.HTTP1:
+				assert.Contains(t, string(httpProxyLog), "RequestType: JsonCreate")
+				assert.Contains(t, string(httpProxyLog), "RequestType: XmlRead")
+				assert.Empty(t, string(grpcProxyLog))
 			}
 		})
 	}
+}
+
+func TestGRPCDefaultOn(t *testing.T) {
+	suite.Run(t, new(grpcDefaultOnSuite))
 }

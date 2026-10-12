@@ -32,15 +32,12 @@ func TestMain(m *testing.M) {
 	setup.ParseSetUpFlags()
 
 	if setup.MountedDirectory() != "" {
-		log.Printf("These tests will not run with mounted directory..")
+		log.Printf("These tests will not run with mounted directory.")
 		return
 	}
 
 	cfg := &test_suite.TestConfig{
-		GKEMountedDirectory:     setup.MountedDirectory(),
-		GCSFuseMountedDirectory: setup.MntDir(),
-		TestBucket:              setup.TestBucket(),
-		LogFile:                 setup.LogFile(),
+		TestBucket: setup.TestBucket(),
 	}
 	setup.SetUpTestDirForTestBucket(cfg)
 
