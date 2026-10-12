@@ -7,6 +7,10 @@ description: Step-by-step workflow to identify, upgrade, and verify external Go 
 
 This skill provides a comprehensive, step-by-step workflow for Antigravity agents to identify, upgrade, and verify external dependencies and Go toolchain versions in the GCSFuse repository, specifically targeting the remediation of CVEs and security vulnerabilities.
 
+> [!TIP]
+> **Patching CVEs Across Release Branches (`<version>_release`)**:
+> If the task involves patching CVEs across one or more GCSFuse release streams (creating `vX.Y.(N+1)_release` from `vX.Y.N_release`, verifying with target-toolchain `govulncheck -mode=binary`, and opening labeled release PRs), also load and follow the [GCSFuse Release Branch CVE Patching Skill](../cve-patching/SKILL.md).
+
 ---
 
 ## 1. Parsing Input & Discovering Vulnerabilities
