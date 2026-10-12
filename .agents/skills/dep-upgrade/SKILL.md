@@ -109,13 +109,16 @@ Standard library vulnerabilities (e.g., in `net/http` or `html/template`) cannot
 
 ### Core Directives for Go Version Upgrades
 
-1. **Target Go Version Rule**:
+1. **Mandatory User Confirmation Before Upgrading Go**:
+   *Unless the user explicitly requested a Go version upgrade in their prompt*, **always ask the user for confirmation before upgrading the Golang version** (specifying the current Go version and the proposed target Go version). Proceed with the Go toolchain upgrade only after the user confirms.
+
+2. **Target Go Version Rule**:
    * **Default Target**: When upgrading the Go compiler/toolchain (whether for standard library CVE fixes, general feature upgrades, or dependency requirements), **always upgrade to the latest stable available version of Golang**, unless a specific target version is explicitly requested by the user or hardcoded in the bug description.
    * > [!IMPORTANT]
    * > If the upgrade involves a major/minor version change (e.g., moving the repository from Go `1.23.x` to a newer series like `1.26.x`), **upgrade to the latest available stable release of that new series** (e.g., the absolute latest stable release `1.26.3` or newer), instead of just targetting the baseline first release of the series (e.g., `1.26.0`), unless explicitly specified otherwise by the user or the bug.
    * Verify the latest stable version of Go via the web search tool or Go's official download site before finalizing the target version.
 
-2. **Absolute Go Version Consistency**:
+3. **Absolute Go Version Consistency**:
    * **Strict Consistency Requirement**: The **exact same** three-part (patch-level) Go version string (e.g., `1.26.3`) must be applied globally across the entire repository. There must be absolutely no version mismatch or inconsistency.
     * **Consistency in [go.mod](../../../go.mod)**: The `go` directive in [go.mod](../../../go.mod) **MUST be updated to match the exact patch-level version string** (e.g., `go 1.26.3`), aligning it completely with [.go-version](../../../.go-version). Do NOT use minor-only shorthand (e.g., `go 1.26`) in [go.mod](../../../go.mod) while using a three-part version string elsewhere.
     * Every single reference to the Go compiler in main builder images, packaging Dockerfiles, presubmit checks, performance suites, and CD scripts must be kept strictly uniform.
