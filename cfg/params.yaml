@@ -1597,8 +1597,8 @@ params:
     flag-name: "rapid-write"
     type: "rapidWriteStrategy"
     usage: >-
-      For Rapid Cache Ultra, toggles between using bucket default storage class and RAPID storage class for writes.
-      Value can be 'enabled' or 'disabled'.
+      For Rapid Cache Ultra, controls the storage class used for writes.
+      Value can be 'enabled' (RAPID storage class) or 'disabled' (bucket default storage class).
     default: "disabled"
 
   - flag-name: "debug_fs"
