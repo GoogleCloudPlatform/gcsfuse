@@ -245,6 +245,7 @@ type Config struct {
 	IsGcsAuthS2AAddressSet                                bool                   `protobuf:"varint,160,opt,name=is_gcs_auth_s2a_address_set,json=isGcsAuthS2aAddressSet,proto3" json:"is_gcs_auth_s2a_address_set,omitempty"`
 	IsGcsAuthS2ASpiffeIdSet                               bool                   `protobuf:"varint,161,opt,name=is_gcs_auth_s2a_spiffe_id_set,json=isGcsAuthS2aSpiffeIdSet,proto3" json:"is_gcs_auth_s2a_spiffe_id_set,omitempty"`
 	WriteRapidWrite                                       string                 `protobuf:"bytes,162,opt,name=write_rapid_write,json=writeRapidWrite,proto3" json:"write_rapid_write,omitempty"`
+	GcsConnectionLimitWriteBytesPerSec                    float64                `protobuf:"fixed64,163,opt,name=gcs_connection_limit_write_bytes_per_sec,json=gcsConnectionLimitWriteBytesPerSec,proto3" json:"gcs_connection_limit_write_bytes_per_sec,omitempty"`
 	unknownFields                                         protoimpl.UnknownFields
 	sizeCache                                             protoimpl.SizeCache
 }
@@ -1399,13 +1400,20 @@ func (x *Config) GetWriteRapidWrite() string {
 	return ""
 }
 
+func (x *Config) GetGcsConnectionLimitWriteBytesPerSec() float64 {
+	if x != nil {
+		return x.GcsConnectionLimitWriteBytesPerSec
+	}
+	return 0
+}
+
 var File_cfg_config_proto protoreflect.FileDescriptor
 
 const file_cfg_config_proto_rawDesc = "" +
 	"\n" +
 	"\x10cfg/config.proto\x12\x0egcsfuse.cfg.v1\"?\n" +
 	"\rConfigPayload\x12.\n" +
-	"\x06config\x18\x01 \x01(\v2\x16.gcsfuse.cfg.v1.ConfigR\x06config\"\xe3U\n" +
+	"\x06config\x18\x01 \x01(\v2\x16.gcsfuse.cfg.v1.ConfigR\x06config\"\xbaV\n" +
 	"\x06Config\x12%\n" +
 	"\x0fis_app_name_set\x18\x01 \x01(\bR\fisAppNameSet\x12'\n" +
 	"\x10is_cache_dir_set\x18\x02 \x01(\bR\risCacheDirSet\x12A\n" +
@@ -1571,7 +1579,8 @@ const file_cfg_config_proto_rawDesc = "" +
 	"%gcs_connection_enable_grpc_by_default\x18\x9f\x01 \x01(\bR gcsConnectionEnableGrpcByDefault\x12<\n" +
 	"\x1bis_gcs_auth_s2a_address_set\x18\xa0\x01 \x01(\bR\x16isGcsAuthS2aAddressSet\x12?\n" +
 	"\x1dis_gcs_auth_s2a_spiffe_id_set\x18\xa1\x01 \x01(\bR\x17isGcsAuthS2aSpiffeIdSet\x12+\n" +
-	"\x11write_rapid_write\x18\xa2\x01 \x01(\tR\x0fwriteRapidWriteJ\x04\b/\x100J\x06\b\x9a\x01\x10\x9b\x01B2Z0github.com/googlecloudplatform/gcsfuse/v3/cfg/pbb\x06proto3"
+	"\x11write_rapid_write\x18\xa2\x01 \x01(\tR\x0fwriteRapidWrite\x12U\n" +
+	"(gcs_connection_limit_write_bytes_per_sec\x18\xa3\x01 \x01(\x01R\"gcsConnectionLimitWriteBytesPerSecJ\x04\b/\x100J\x06\b\x9a\x01\x10\x9b\x01B2Z0github.com/googlecloudplatform/gcsfuse/v3/cfg/pbb\x06proto3"
 
 var (
 	file_cfg_config_proto_rawDescOnce sync.Once

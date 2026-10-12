@@ -94,23 +94,24 @@ be interacting with the file system.`)
 	}
 
 	bucketCfg := gcsx.BucketConfig{
-		BillingProject:                     newConfig.GcsConnection.BillingProject,
-		OnlyDir:                            newConfig.OnlyDir,
-		EgressBandwidthLimitBytesPerSecond: newConfig.GcsConnection.LimitBytesPerSec,
-		OpRateLimitHz:                      newConfig.GcsConnection.LimitOpsPerSec,
-		StatCacheMaxSizeMB:                 uint64(newConfig.MetadataCache.StatCacheMaxSizeMb),
-		StatCacheTTL:                       time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second,
-		NegativeStatCacheTTL:               time.Duration(newConfig.MetadataCache.NegativeTtlSecs) * time.Second,
-		EnableMonitoring:                   cfg.IsMetricsEnabled(&newConfig.Metrics),
-		LogSeverity:                        newConfig.Logging.Severity,
-		AppendThreshold:                    1 << 21, // 2 MiB, a total guess.
-		ChunkRetryDeadlineSecs:             newConfig.GcsRetries.ChunkRetryDeadlineSecs,
-		ChunkTransferTimeoutSecs:           newConfig.GcsRetries.ChunkTransferTimeoutSecs,
-		TmpObjectPrefix:                    ".gcsfuse_tmp/",
-		DummyIOCfg:                         newConfig.DummyIo,
-		IsTypeCacheDeprecated:              newConfig.EnableTypeCacheDeprecation,
-		ImplicitDir:                        newConfig.ImplicitDirs,
-		EnableEmptyManagedFolders:          newConfig.List.EnableEmptyManagedFolders,
+		BillingProject:                      newConfig.GcsConnection.BillingProject,
+		OnlyDir:                             newConfig.OnlyDir,
+		EgressBandwidthLimitBytesPerSecond:  newConfig.GcsConnection.LimitBytesPerSec,
+		IngressBandwidthLimitBytesPerSecond: newConfig.GcsConnection.LimitWriteBytesPerSec,
+		OpRateLimitHz:                       newConfig.GcsConnection.LimitOpsPerSec,
+		StatCacheMaxSizeMB:                  uint64(newConfig.MetadataCache.StatCacheMaxSizeMb),
+		StatCacheTTL:                        time.Duration(newConfig.MetadataCache.TtlSecs) * time.Second,
+		NegativeStatCacheTTL:                time.Duration(newConfig.MetadataCache.NegativeTtlSecs) * time.Second,
+		EnableMonitoring:                    cfg.IsMetricsEnabled(&newConfig.Metrics),
+		LogSeverity:                         newConfig.Logging.Severity,
+		AppendThreshold:                     1 << 21, // 2 MiB, a total guess.
+		ChunkRetryDeadlineSecs:              newConfig.GcsRetries.ChunkRetryDeadlineSecs,
+		ChunkTransferTimeoutSecs:            newConfig.GcsRetries.ChunkTransferTimeoutSecs,
+		TmpObjectPrefix:                     ".gcsfuse_tmp/",
+		DummyIOCfg:                          newConfig.DummyIo,
+		IsTypeCacheDeprecated:               newConfig.EnableTypeCacheDeprecation,
+		ImplicitDir:                         newConfig.ImplicitDirs,
+		EnableEmptyManagedFolders:           newConfig.List.EnableEmptyManagedFolders,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 

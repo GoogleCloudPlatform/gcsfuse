@@ -823,6 +823,13 @@ params:
     usage: "Operations per second limit, measured over a 30-second window (use -1 for no limit)"
     default: "-1"
 
+  - config-path: "gcs-connection.limit-write-bytes-per-sec"
+    proto-tag: 163
+    flag-name: "limit-write-bytes-per-sec"
+    type: "float64"
+    usage: "Bandwidth limit for writing data to GCS, in bytes per second (use -1 for no limit). Server-side copy and compose are not throttled."
+    default: "-1"
+
   - config-path: "gcs-connection.max-conns-per-host"
     proto-tag: 81
     flag-name: "max-conns-per-host"

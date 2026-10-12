@@ -24,16 +24,19 @@ import (
 )
 
 // Create a bucket that limits the rate at which it calls the wrapped bucket
-// using opThrottle, and limits the bandwidth with which it reads from the
-// wrapped bucket using egressThrottle.
+// using opThrottle, limits the bandwidth with which it reads from the
+// wrapped bucket using egressThrottle, and limits the bandwidth with which it
+// writes to the wrapped bucket using ingressThrottle.
 func NewThrottledBucket(
 	opThrottle Throttle,
 	egressThrottle Throttle,
+	ingressThrottle Throttle,
 	wrapped gcs.Bucket) (b gcs.Bucket) {
 	b = &throttledBucket{
-		opThrottle:     opThrottle,
-		egressThrottle: egressThrottle,
-		wrapped:        wrapped,
+		opThrottle:      opThrottle,
+		egressThrottle:  egressThrottle,
+		ingressThrottle: ingressThrottle,
+		wrapped:         wrapped,
 	}
 	return
 }
@@ -43,9 +46,10 @@ func NewThrottledBucket(
 ////////////////////////////////////////////////////////////////////////
 
 type throttledBucket struct {
-	opThrottle     Throttle
-	egressThrottle Throttle
-	wrapped        gcs.Bucket
+	opThrottle      Throttle
+	egressThrottle  Throttle
+	ingressThrottle Throttle
+	wrapped         gcs.Bucket
 }
 
 func (b *throttledBucket) Name() string {
@@ -89,6 +93,15 @@ func (b *throttledBucket) CreateObject(
 		return
 	}
 
+	// The wrapped bucket consumes req.Contents to perform the upload, so pacing
+	// reads from it bounds upload bandwidth. Copy the request so the caller's
+	// struct is not mutated.
+	if req.Contents != nil {
+		reqCopy := *req
+		reqCopy.Contents = newThrottledUploadPayloadReader(ctx, req.Contents, b.ingressThrottle)
+		req = &reqCopy
+	}
+
 	// Call through.
 	o, err = b.wrapped.CreateObject(ctx, req)
 
@@ -104,6 +117,12 @@ func (b *throttledBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.
 
 	// Call through.
 	wc, err = b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
+	if err != nil {
+		return
+	}
+
+	// Wrap the result in a throttled layer.
+	wc = b.throttleWriter(ctx, wc)
 
 	return
 }
@@ -117,6 +136,12 @@ func (b *throttledBucket) CreateAppendableObjectWriter(ctx context.Context, req 
 
 	// Call through.
 	wc, err = b.wrapped.CreateAppendableObjectWriter(ctx, req)
+	if err != nil {
+		return
+	}
+
+	// Wrap the result in a throttled layer.
+	wc = b.throttleWriter(ctx, wc)
 
 	return
 }
@@ -126,7 +151,7 @@ func (b *throttledBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gc
 	// limiter's burst size is exceeded.
 	// Note: CreateObjectChunkWriter, a prerequisite for FinalizeUpload,
 	// is throttled.
-	return b.wrapped.FinalizeUpload(ctx, w)
+	return b.wrapped.FinalizeUpload(ctx, unwrapThrottledWriter(w))
 }
 
 func (b *throttledBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
@@ -134,7 +159,27 @@ func (b *throttledBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) 
 	// limiter's burst size is exceeded.
 	// Note: CreateObjectChunkWriter, a prerequisite for FlushPendingWrites,
 	// is throttled.
-	return b.wrapped.FlushPendingWrites(ctx, w)
+	return b.wrapped.FlushPendingWrites(ctx, unwrapThrottledWriter(w))
+}
+
+// Wrap wc so that its Writes are paced by the ingress throttle. Subsequent
+// Writes wait on ctx, so ctx must outlive the returned writer, not just this
+// call.
+func (b *throttledBucket) throttleWriter(ctx context.Context, wc gcs.Writer) gcs.Writer {
+	return &throttledGCSWriter{
+		Writer:    wc,
+		throttled: ThrottledWriter(ctx, wc, b.ingressThrottle),
+	}
+}
+
+// Return the writer the wrapped bucket originally handed out. Lower layers
+// must see their own writer: the fake bucket, for example, type-asserts
+// *FakeObjectWriter in FinalizeUpload and FlushPendingWrites.
+func unwrapThrottledWriter(w gcs.Writer) gcs.Writer {
+	if tw, ok := w.(*throttledGCSWriter); ok {
+		return tw.Writer
+	}
+	return w
 }
 
 func (b *throttledBucket) CopyObject(
@@ -325,5 +370,21 @@ func (rc *throttledGCSReader) Close() (err error) {
 
 func (rc *throttledGCSReader) ReadHandle() (rh storagev2.ReadHandle) {
 	rh = rc.Closer.ReadHandle()
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// throttledGCSWriter
+////////////////////////////////////////////////////////////////////////
+
+// A gcs.Writer that forwards Write to a throttled io.Writer and every other
+// method to the wrapped gcs.Writer.
+type throttledGCSWriter struct {
+	gcs.Writer
+	throttled io.Writer
+}
+
+func (tw *throttledGCSWriter) Write(p []byte) (n int, err error) {
+	n, err = tw.throttled.Write(p)
 	return
 }

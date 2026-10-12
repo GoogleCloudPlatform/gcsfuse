@@ -187,4 +187,5 @@ message Config {
   bool is_gcs_auth_s2a_address_set = 160;
   bool is_gcs_auth_s2a_spiffe_id_set = 161;
   string write_rapid_write = 162;
+  double gcs_connection_limit_write_bytes_per_sec = 163;
 }

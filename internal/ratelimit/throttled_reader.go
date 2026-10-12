@@ -64,3 +64,43 @@ func (tr *throttledReader) Read(p []byte) (n int, err error) {
 
 	return
 }
+
+// Create a reader for an upload request body that limits bandwidth according
+// to the supplied throttler. Unlike ThrottledReader, which charges the clamped
+// buffer size before reading, it charges the bytes actually read afterwards.
+//
+// REQUIRES: throttle.Capacity() > 0
+func newThrottledUploadPayloadReader(
+	ctx context.Context,
+	r io.Reader,
+	throttle Throttle) io.Reader {
+	return &throttledUploadPayloadReader{
+		ctx:      ctx,
+		wrapped:  r,
+		throttle: throttle,
+	}
+}
+
+type throttledUploadPayloadReader struct {
+	ctx      context.Context
+	wrapped  io.Reader
+	throttle Throttle
+}
+
+func (tpr *throttledUploadPayloadReader) Read(p []byte) (n int, err error) {
+	// We can't serve a read larger than the throttle's capacity.
+	if uint64(len(p)) > tpr.throttle.Capacity() {
+		p = p[:tpr.throttle.Capacity()]
+	}
+
+	n, err = tpr.wrapped.Read(p)
+
+	// Charge for what we actually read.
+	if n > 0 {
+		if werr := tpr.throttle.Wait(tpr.ctx, uint64(n)); werr != nil {
+			return n, werr
+		}
+	}
+
+	return
+}
