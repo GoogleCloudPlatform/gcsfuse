@@ -348,11 +348,6 @@ func (sc *statCacheBucketView) LookUpFolderDetail(
 	return false, nil, entryStatus, detail
 }
 
-func (sc *statCacheBucketView) sharedCacheLookup(key string, now time.Time) (bool, *entry) {
-	hit, entry, _, _ := sc.sharedCacheLookupDetail(key, now)
-	return hit, entry
-}
-
 func (sc *statCacheBucketView) sharedCacheLookupDetail(key string, now time.Time) (bool, *entry, metrics.EntryStatus, metrics.LookupDetail) {
 	value := sc.sharedCache.LookUp(sc.key(key))
 	if value == nil {
