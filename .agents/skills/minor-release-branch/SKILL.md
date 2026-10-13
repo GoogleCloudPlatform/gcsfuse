@@ -143,9 +143,9 @@ make build
 > ```
 
 ### 3.2 Run Unit Tests
-Run the unit test suite across the repository (excluding `tools/integration_tests`):
+Run the unit test suite across the repository:
 ```bash
-CGO_ENABLED=0 go test ./cmd/... ./internal/... ./cfg/... ./common/... ./metrics/...
+CGO_ENABLED=0 go test ./...
 ```
 
 ### 3.3 Gate Action: If Unit Tests Fail, Raise a PR to Fix `master` First
