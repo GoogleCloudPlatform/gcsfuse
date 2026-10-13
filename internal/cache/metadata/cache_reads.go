@@ -51,8 +51,8 @@ type CacheReads struct {
 	reads atomic.Uint32
 }
 
-// NewCacheReads returns a context derived from parent that collects the
-// stat-cache reads made with it, or with any context derived from it.
+// NewCacheReads returns a context from parent that collects the
+// stat-cache reads made with it
 func NewCacheReads(parent context.Context) *CacheReads {
 	return &CacheReads{Context: parent}
 }

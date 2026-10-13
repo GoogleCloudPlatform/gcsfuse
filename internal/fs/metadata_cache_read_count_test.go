@@ -43,7 +43,11 @@ const metadataCacheTTL = 120 * time.Second
 // metadataCacheFSOptions configures newProductionLikeMetadataCacheFS.
 type metadataCacheFSOptions struct {
 	// ttl of the metadata cache entries. Zero disables the metadata cache.
-	ttl                       time.Duration
+	ttl time.Duration
+	// negativeTTL of the negative entries. Zero disables negative caching.
+	negativeTTL time.Duration
+	// hierarchical makes the bucket an HNS bucket, whose directories are folders.
+	hierarchical              bool
 	implicitDirs              bool
 	enableEmptyManagedFolders bool
 }
@@ -63,24 +67,25 @@ func newProductionLikeMetadataCacheFS(ctx context.Context, t *testing.T, opts me
 	clock := &timeutil.SimulatedClock{}
 	clock.SetTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	const bucketName = "test-bucket"
-	uncachedBucket := fake.NewFakeBucket(clock, bucketName, gcs.BucketType{})
+	uncachedBucket := fake.NewFakeBucket(clock, bucketName, gcs.BucketType{Hierarchical: opts.hierarchical})
 	// Like the bucket manager, only put the stat cache in front of the bucket
 	// when the metadata cache is enabled.
 	bucket := uncachedBucket
 	if opts.ttl != 0 {
 		statCache := metadata.NewStatCacheBucketView(lru.NewCache(uint64(1000*cfg.AverageSizeOfPositiveStatCacheEntry)), "")
-		bucket = caching.NewFastStatBucket(opts.ttl, statCache, clock, uncachedBucket, opts.ttl, true, opts.implicitDirs, opts.enableEmptyManagedFolders)
+		bucket = caching.NewFastStatBucket(opts.ttl, statCache, clock, uncachedBucket, opts.negativeTTL, true, opts.implicitDirs, opts.enableEmptyManagedFolders)
 	}
 
 	server, err := fs.NewFileSystem(ctx, &fs.ServerConfig{
 		NewConfig: &cfg.Config{
+			EnableHns:                  true,
 			EnableTypeCacheDeprecation: true,
 			FileSystem:                 cfg.FileSystemConfig{IgnoreInterrupts: true},
 			ImplicitDirs:               opts.implicitDirs,
 			List:                       cfg.ListConfig{EnableEmptyManagedFolders: opts.enableEmptyManagedFolders},
 			MetadataCache: cfg.MetadataCacheConfig{
 				TtlSecs:            int64(opts.ttl.Seconds()),
-				NegativeTtlSecs:    int64(opts.ttl.Seconds()),
+				NegativeTtlSecs:    int64(opts.negativeTTL.Seconds()),
 				TypeCacheMaxSizeMb: 4,
 				StatCacheMaxSizeMb: 32,
 			},
@@ -106,7 +111,7 @@ func newProductionLikeMetadataCacheFS(ctx context.Context, t *testing.T, opts me
 // request's. Their metadata cache reads must still be counted.
 func TestMetadataCacheReadCount_IgnoreInterrupts(t *testing.T) {
 	ctx := context.Background()
-	env := newProductionLikeMetadataCacheFS(ctx, t, metadataCacheFSOptions{ttl: metadataCacheTTL})
+	env := newProductionLikeMetadataCacheFS(ctx, t, metadataCacheFSOptions{ttl: metadataCacheTTL, negativeTTL: metadataCacheTTL})
 	env.putObject(ctx, t, "existing_file.txt")
 
 	for range 2 {
@@ -124,7 +129,7 @@ func TestMetadataCacheReadCount_IgnoreInterrupts(t *testing.T) {
 // and so records a single event.
 func TestMetadataCacheReadCount_RenameRecordsOneEvent(t *testing.T) {
 	ctx := context.Background()
-	env := newProductionLikeMetadataCacheFS(ctx, t, metadataCacheFSOptions{ttl: metadataCacheTTL})
+	env := newProductionLikeMetadataCacheFS(ctx, t, metadataCacheFSOptions{ttl: metadataCacheTTL, negativeTTL: metadataCacheTTL})
 	env.putObject(ctx, t, "old.txt")
 	_, err := env.lookUp(ctx, fuseops.RootInodeID, "old.txt")
 	require.NoError(t, err)
@@ -153,7 +158,7 @@ func TestMetadataCacheReadCount_ImplicitDirs(t *testing.T) {
 		// lookup of a missing name lists it, although from the second lookup
 		// on the stat cache answers for the file.
 		env := newProductionLikeMetadataCacheFS(ctx, t, metadataCacheFSOptions{
-			ttl: metadataCacheTTL, implicitDirs: true, enableEmptyManagedFolders: true,
+			ttl: metadataCacheTTL, negativeTTL: metadataCacheTTL, implicitDirs: true, enableEmptyManagedFolders: true,
 		})
 
 		for range 3 {
@@ -165,7 +170,7 @@ func TestMetadataCacheReadCount_ImplicitDirs(t *testing.T) {
 	})
 
 	t.Run("listing after the directory entry expired is a TTL miss", func(t *testing.T) {
-		env := newProductionLikeMetadataCacheFS(ctx, t, metadataCacheFSOptions{ttl: metadataCacheTTL, implicitDirs: true})
+		env := newProductionLikeMetadataCacheFS(ctx, t, metadataCacheFSOptions{ttl: metadataCacheTTL, negativeTTL: metadataCacheTTL, implicitDirs: true})
 		env.putObject(ctx, t, "deleted")
 		_, err := env.lookUp(ctx, fuseops.RootInodeID, "deleted")
 		require.NoError(t, err)
@@ -185,7 +190,7 @@ func TestMetadataCacheReadCount_ImplicitDirs(t *testing.T) {
 	})
 
 	t.Run("implicit directory answered by the stat cache is a hit", func(t *testing.T) {
-		env := newProductionLikeMetadataCacheFS(ctx, t, metadataCacheFSOptions{ttl: metadataCacheTTL, implicitDirs: true})
+		env := newProductionLikeMetadataCacheFS(ctx, t, metadataCacheFSOptions{ttl: metadataCacheTTL, negativeTTL: metadataCacheTTL, implicitDirs: true})
 		env.putObject(ctx, t, "dir/file")
 
 		for range 2 {

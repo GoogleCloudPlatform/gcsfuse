@@ -19,24 +19,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/wrappers"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
@@ -54,65 +45,6 @@ const (
 )
 
 const metadataCacheReadCount = "metadata_cache/read_count"
-
-func createTestFileSystemWithMetadataCache(
-	ctx context.Context,
-	t *testing.T,
-	ttl time.Duration,
-	clock timeutil.Clock,
-) (gcs.Bucket, fuseutil.FileSystem, metrics.MetricHandle, *metric.ManualReader) {
-	t.Helper()
-	origProvider := otel.GetMeterProvider()
-	t.Cleanup(func() { otel.SetMeterProvider(origProvider) })
-	reader := metric.NewManualReader()
-	provider := metric.NewMeterProvider(metric.WithReader(reader))
-	otel.SetMeterProvider(provider)
-
-	mh, err := metrics.NewOTelMetrics(ctx, 1, 100)
-	require.NoError(t, err, "metrics.NewOTelMetrics")
-	bucketName := "test-bucket"
-	bucketType := gcs.BucketType{Hierarchical: false}
-	uncachedBucket := fake.NewFakeBucket(clock, bucketName, bucketType)
-
-	lruCache := lru.NewCache(uint64(1000 * cfg.AverageSizeOfPositiveStatCacheEntry))
-	statCache := metadata.NewStatCacheBucketView(lruCache, "")
-	cachedBucket := caching.NewFastStatBucket(
-		ttl,
-		statCache,
-		clock,
-		uncachedBucket,
-		ttl,
-		true,
-		true,
-		false,
-	)
-
-	serverCfg := &fs.ServerConfig{
-		NewConfig: &cfg.Config{
-			EnableTypeCacheDeprecation: true,
-			MetadataCache: cfg.MetadataCacheConfig{
-				TtlSecs:                int64(ttl.Seconds()),
-				TypeCacheMaxSizeMb:     4,
-				StatCacheMaxSizeMb:     32,
-				NegativeTtlSecs:        int64(ttl.Seconds()),
-				EnableMetadataPrefetch: false,
-			},
-		},
-		MetricHandle: mh,
-		TraceHandle:  tracing.NewNoopTracer(),
-		CacheClock:   clock,
-		BucketName:   bucketName,
-		BucketManager: &fakeBucketManagerWithMetrics{
-			buckets: map[string]gcs.Bucket{
-				bucketName: cachedBucket,
-			},
-		},
-	}
-
-	server, err := fs.NewFileSystem(ctx, serverCfg)
-	require.NoError(t, err, "NewFileSystem")
-	return uncachedBucket, server, mh, reader
-}
 
 func verifyMetadataCacheMetric(
 	t *testing.T,
@@ -185,20 +117,7 @@ type metadataCacheTestEnv struct {
 
 func newMetadataCacheTestEnv(ctx context.Context, t *testing.T) *metadataCacheTestEnv {
 	t.Helper()
-
-	clock := &timeutil.SimulatedClock{}
-	clock.SetTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
-
-	const ttl = 120 * time.Second
-	bucket, server, mh, reader := createTestFileSystemWithMetadataCache(ctx, t, ttl, clock)
-
-	return &metadataCacheTestEnv{
-		bucket: bucket,
-		server: wrappers.WithMonitoring(server, mh),
-		reader: reader,
-		clock:  clock,
-		ttl:    ttl,
-	}
+	return newProductionLikeMetadataCacheFS(ctx, t, metadataCacheFSOptions{ttl: metadataCacheTTL, negativeTTL: metadataCacheTTL})
 }
 
 // putObject writes an object straight to the backing bucket, bypassing gcsfuse.
@@ -635,4 +554,215 @@ func TestMetadataCache_EndToEndScenarios(t *testing.T) {
 			wantRead{false, statusPositive, detailTTLExpired, 1},
 		)
 	})
+}
+
+func TestMetadataCache_HNSBucketScenarios(t *testing.T) {
+	ctx := context.Background()
+	newHNSEnv := func(t *testing.T) *metadataCacheTestEnv {
+		t.Helper()
+		return newProductionLikeMetadataCacheFS(ctx, t, metadataCacheFSOptions{
+			ttl: metadataCacheTTL, negativeTTL: metadataCacheTTL, hierarchical: true,
+		})
+	}
+
+	t.Run("Cold Folder Lookup", func(t *testing.T) {
+		// Arrange
+		env := newHNSEnv(t)
+		_, err := env.bucket.CreateFolder(ctx, "existing_dir/")
+		require.NoError(t, err)
+
+		// Act
+		_, err = env.lookUp(ctx, fuseops.RootInodeID, "existing_dir")
+
+		// Assert
+		require.NoError(t, err)
+		env.assertReads(ctx, t, wantRead{false, statusNone, detailNotFound, 1})
+	})
+
+	t.Run("Warm Folder Lookup", func(t *testing.T) {
+		// Arrange
+		env := newHNSEnv(t)
+		_, err := env.bucket.CreateFolder(ctx, "existing_dir/")
+		require.NoError(t, err)
+		_, err = env.lookUp(ctx, fuseops.RootInodeID, "existing_dir")
+		require.NoError(t, err)
+
+		// Act
+		_, err = env.lookUp(ctx, fuseops.RootInodeID, "existing_dir")
+
+		// Assert
+		require.NoError(t, err)
+		env.assertReads(ctx, t,
+			wantRead{false, statusNone, detailNotFound, 1},
+			wantRead{true, statusPositive, detailFound, 1},
+		)
+	})
+
+	t.Run("Folder TTL Expiration", func(t *testing.T) {
+		// Arrange
+		env := newHNSEnv(t)
+		_, err := env.bucket.CreateFolder(ctx, "existing_dir/")
+		require.NoError(t, err)
+		_, err = env.lookUp(ctx, fuseops.RootInodeID, "existing_dir")
+		require.NoError(t, err)
+		env.clock.AdvanceTime(env.ttl + 10*time.Second)
+
+		// Act
+		_, err = env.lookUp(ctx, fuseops.RootInodeID, "existing_dir")
+
+		// Assert
+		require.NoError(t, err)
+		env.assertReads(ctx, t,
+			wantRead{false, statusNone, detailNotFound, 1},
+			wantRead{false, statusPositive, detailTTLExpired, 1},
+		)
+	})
+
+	// MkDir caches the folder, so the follow-up lookup is a positive hit.
+	t.Run("Folder Creation & Lookup", func(t *testing.T) {
+		// Arrange
+		env := newHNSEnv(t)
+		env.mkDir(ctx, t, fuseops.RootInodeID, "new_dir")
+
+		// Act
+		_, err := env.lookUp(ctx, fuseops.RootInodeID, "new_dir")
+
+		// Assert
+		require.NoError(t, err)
+		env.assertReads(ctx, t, wantRead{true, statusPositive, detailFound, 1})
+	})
+
+	// RmDir negatively caches only the folder, never the sibling file key, so
+	// the follow-up lookup cannot be resolved from cache alone.
+	t.Run("Folder Deletion & Negative Lookup", func(t *testing.T) {
+		// Arrange
+		env := newHNSEnv(t)
+		env.mkDir(ctx, t, fuseops.RootInodeID, "new_dir")
+		require.NoError(t, env.server.RmDir(ctx, &fuseops.RmDirOp{Parent: fuseops.RootInodeID, Name: "new_dir"}))
+
+		// Act
+		_, err := env.lookUp(ctx, fuseops.RootInodeID, "new_dir")
+
+		// Assert
+		assert.Equal(t, fuse.ENOENT, err)
+		env.assertReads(ctx, t,
+			wantRead{true, statusPositive, detailFound, 1},
+			wantRead{false, statusNone, detailNotFound, 1},
+		)
+	})
+
+	// The cold lookup negatively caches the folder and the file, so the second
+	// lookup is answered without contacting GCS.
+	t.Run("Warm Nonexistent Stat", func(t *testing.T) {
+		// Arrange
+		env := newHNSEnv(t)
+		_, err := env.lookUp(ctx, fuseops.RootInodeID, "nonexistent")
+		require.Equal(t, fuse.ENOENT, err)
+
+		// Act
+		_, err = env.lookUp(ctx, fuseops.RootInodeID, "nonexistent")
+
+		// Assert
+		assert.Equal(t, fuse.ENOENT, err)
+		env.assertReads(ctx, t,
+			wantRead{false, statusNone, detailNotFound, 1},
+			wantRead{true, statusNegative, detailFound, 1},
+		)
+	})
+
+	t.Run("Warm Stat on Existing File", func(t *testing.T) {
+		// Arrange
+		env := newHNSEnv(t)
+		env.putObject(ctx, t, "existing_file.txt")
+		_, err := env.lookUp(ctx, fuseops.RootInodeID, "existing_file.txt")
+		require.NoError(t, err)
+
+		// Act
+		_, err = env.lookUp(ctx, fuseops.RootInodeID, "existing_file.txt")
+
+		// Assert
+		require.NoError(t, err)
+		env.assertReads(ctx, t,
+			wantRead{false, statusNone, detailNotFound, 1},
+			wantRead{true, statusPositive, detailFound, 1},
+		)
+	})
+}
+
+func TestMetadataCache_NegativeTTLScenarios(t *testing.T) {
+	ctx := context.Background()
+	const ttl = 60 * time.Second
+	testCases := []struct {
+		name        string
+		negativeTTL time.Duration
+		fileExists  bool
+		// advance is the time between the cold lookup and the measured one.
+		advance time.Duration
+		// want is what the measured lookup records.
+		want wantRead
+	}{
+		{
+			name:        "Nonexistent file within the negative TTL",
+			negativeTTL: 5 * time.Second,
+			advance:     3 * time.Second,
+			want:        wantRead{true, statusNegative, detailFound, 1},
+		},
+		{
+			name:        "Nonexistent file after the negative TTL",
+			negativeTTL: 5 * time.Second,
+			advance:     6 * time.Second,
+			want:        wantRead{false, statusNegative, detailTTLExpired, 1},
+		},
+		{
+			// The negative entry for "file.txt/" expired, but the positive
+			// entry for "file.txt" answers the lookup without GCS.
+			name:        "Existing file after the negative TTL",
+			negativeTTL: 5 * time.Second,
+			fileExists:  true,
+			advance:     6 * time.Second,
+			want:        wantRead{true, statusPositive, detailFound, 1},
+		},
+		{
+			name:        "Existing file after the TTL",
+			negativeTTL: 5 * time.Second,
+			fileExists:  true,
+			advance:     ttl + time.Second,
+			want:        wantRead{false, statusPositive, detailTTLExpired, 1},
+		},
+		{
+			// Negative entries are still cached, with a zero TTL, so the next
+			// lookup finds them expired.
+			name:    "Nonexistent file without negative caching",
+			advance: time.Second,
+			want:    wantRead{false, statusNegative, detailTTLExpired, 1},
+		},
+		{
+			name:       "Existing file without negative caching",
+			fileExists: true,
+			advance:    time.Second,
+			want:       wantRead{true, statusPositive, detailFound, 1},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			env := newProductionLikeMetadataCacheFS(ctx, t, metadataCacheFSOptions{ttl: ttl, negativeTTL: tc.negativeTTL})
+			var wantErr error = fuse.ENOENT
+			if tc.fileExists {
+				env.putObject(ctx, t, "file.txt")
+				wantErr = nil
+			}
+			_, err := env.lookUp(ctx, fuseops.RootInodeID, "file.txt")
+			require.Equal(t, wantErr, err)
+			env.clock.AdvanceTime(tc.advance)
+
+			// Act
+			_, err = env.lookUp(ctx, fuseops.RootInodeID, "file.txt")
+
+			// Assert
+			assert.Equal(t, wantErr, err)
+			env.assertReads(ctx, t, wantRead{false, statusNone, detailNotFound, 1}, tc.want)
+		})
+	}
 }
