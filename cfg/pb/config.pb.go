@@ -213,7 +213,7 @@ type Config struct {
 	IsMetricsExperimentalOtelMetricsProjectIdSet          bool                   `protobuf:"varint,127,opt,name=is_metrics_experimental_otel_metrics_project_id_set,json=isMetricsExperimentalOtelMetricsProjectIdSet,proto3" json:"is_metrics_experimental_otel_metrics_project_id_set,omitempty"`
 	MetricsPrometheusPort                                 int64                  `protobuf:"zigzag64,128,opt,name=metrics_prometheus_port,json=metricsPrometheusPort,proto3" json:"metrics_prometheus_port,omitempty"`
 	MetricsStackdriverExportInterval                      int64                  `protobuf:"varint,129,opt,name=metrics_stackdriver_export_interval,json=metricsStackdriverExportInterval,proto3" json:"metrics_stackdriver_export_interval,omitempty"`
-	MetricsUseNewNames                                    bool                   `protobuf:"varint,130,opt,name=metrics_use_new_names,json=metricsUseNewNames,proto3" json:"metrics_use_new_names,omitempty"`
+	MetricsEnableNewMetricsSchema                         bool                   `protobuf:"varint,130,opt,name=metrics_enable_new_metrics_schema,json=metricsEnableNewMetricsSchema,proto3" json:"metrics_enable_new_metrics_schema,omitempty"`
 	MetricsWorkers                                        int64                  `protobuf:"zigzag64,131,opt,name=metrics_workers,json=metricsWorkers,proto3" json:"metrics_workers,omitempty"`
 	IsMountIdSet                                          bool                   `protobuf:"varint,132,opt,name=is_mount_id_set,json=isMountIdSet,proto3" json:"is_mount_id_set,omitempty"`
 	MrdPoolSize                                           int64                  `protobuf:"zigzag64,133,opt,name=mrd_pool_size,json=mrdPoolSize,proto3" json:"mrd_pool_size,omitempty"`
@@ -1175,9 +1175,9 @@ func (x *Config) GetMetricsStackdriverExportInterval() int64 {
 	return 0
 }
 
-func (x *Config) GetMetricsUseNewNames() bool {
+func (x *Config) GetMetricsEnableNewMetricsSchema() bool {
 	if x != nil {
-		return x.MetricsUseNewNames
+		return x.MetricsEnableNewMetricsSchema
 	}
 	return false
 }
@@ -1405,7 +1405,7 @@ const file_cfg_config_proto_rawDesc = "" +
 	"\n" +
 	"\x10cfg/config.proto\x12\x0egcsfuse.cfg.v1\"?\n" +
 	"\rConfigPayload\x12.\n" +
-	"\x06config\x18\x01 \x01(\v2\x16.gcsfuse.cfg.v1.ConfigR\x06config\"\xe3U\n" +
+	"\x06config\x18\x01 \x01(\v2\x16.gcsfuse.cfg.v1.ConfigR\x06config\"\xfaU\n" +
 	"\x06Config\x12%\n" +
 	"\x0fis_app_name_set\x18\x01 \x01(\bR\fisAppNameSet\x12'\n" +
 	"\x10is_cache_dir_set\x18\x02 \x01(\bR\risCacheDirSet\x12A\n" +
@@ -1539,8 +1539,8 @@ const file_cfg_config_proto_rawDesc = "" +
 	"1is_metrics_experimental_otel_metrics_endpoint_set\x18~ \x01(\bR+isMetricsExperimentalOtelMetricsEndpointSet\x12i\n" +
 	"3is_metrics_experimental_otel_metrics_project_id_set\x18\x7f \x01(\bR,isMetricsExperimentalOtelMetricsProjectIdSet\x127\n" +
 	"\x17metrics_prometheus_port\x18\x80\x01 \x01(\x12R\x15metricsPrometheusPort\x12N\n" +
-	"#metrics_stackdriver_export_interval\x18\x81\x01 \x01(\x03R metricsStackdriverExportInterval\x122\n" +
-	"\x15metrics_use_new_names\x18\x82\x01 \x01(\bR\x12metricsUseNewNames\x12(\n" +
+	"#metrics_stackdriver_export_interval\x18\x81\x01 \x01(\x03R metricsStackdriverExportInterval\x12I\n" +
+	"!metrics_enable_new_metrics_schema\x18\x82\x01 \x01(\bR\x1dmetricsEnableNewMetricsSchema\x12(\n" +
 	"\x0fmetrics_workers\x18\x83\x01 \x01(\x12R\x0emetricsWorkers\x12&\n" +
 	"\x0fis_mount_id_set\x18\x84\x01 \x01(\bR\fisMountIdSet\x12#\n" +
 	"\rmrd_pool_size\x18\x85\x01 \x01(\x12R\vmrdPoolSize\x12&\n" +

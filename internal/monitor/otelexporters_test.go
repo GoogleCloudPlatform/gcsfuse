@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	otelmetric "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
@@ -620,6 +621,76 @@ func TestGetOtelResource(t *testing.T) {
 			} else {
 				assert.False(t, found)
 			}
+		})
+	}
+}
+
+func TestGetMetricViews(t *testing.T) {
+	tests := []struct {
+		name                   string
+		enableNewMetricsSchema bool
+		wantLatencyMetricName  string
+		unexpectedMetricName   string
+	}{
+		{
+			name:                   "new metrics schema enabled renames fs/ops_latency to fs/ops_latencies via view",
+			enableNewMetricsSchema: true,
+			wantLatencyMetricName:  "fs/ops_latencies",
+			unexpectedMetricName:   "fs/ops_latency",
+		},
+		{
+			name:                   "new metrics schema disabled keeps legacy fs/ops_latency",
+			enableNewMetricsSchema: false,
+			wantLatencyMetricName:  "fs/ops_latency",
+			unexpectedMetricName:   "fs/ops_latencies",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			reader := metric.NewManualReader()
+			provider := metric.NewMeterProvider(
+				metric.WithReader(reader),
+				metric.WithView(getMetricViews(tc.enableNewMetricsSchema)...),
+			)
+			t.Cleanup(func() {
+				_ = provider.Shutdown(ctx)
+			})
+
+			meter := provider.Meter("gcsfuse")
+			hist, err := meter.Int64Histogram(
+				"fs/ops_latency",
+				otelmetric.WithUnit("us"),
+				otelmetric.WithExplicitBucketBoundaries(10, 100, 1000),
+			)
+			require.NoError(t, err)
+			hist.Record(ctx, 42)
+
+			disallowedCounter, err := meter.Int64Counter("disallowed/metric")
+			require.NoError(t, err)
+			disallowedCounter.Add(ctx, 1)
+
+			var rm metricdata.ResourceMetrics
+			require.NoError(t, reader.Collect(ctx, &rm))
+
+			collectedNames := make(map[string]metricdata.Metrics)
+			for _, sm := range rm.ScopeMetrics {
+				for _, m := range sm.Metrics {
+					collectedNames[m.Name] = m
+				}
+			}
+
+			gotMetric, ok := collectedNames[tc.wantLatencyMetricName]
+			require.True(t, ok, "expected metric %q to be exported, got %v", tc.wantLatencyMetricName, collectedNames)
+			assert.NotContains(t, collectedNames, tc.unexpectedMetricName)
+			assert.NotContains(t, collectedNames, "disallowed/metric")
+
+			histData, ok := gotMetric.Data.(metricdata.Histogram[int64])
+			require.True(t, ok, "expected Histogram[int64] data")
+			require.Len(t, histData.DataPoints, 1)
+			assert.Equal(t, []float64{10, 100, 1000}, histData.DataPoints[0].Bounds)
+			assert.Equal(t, uint64(1), histData.DataPoints[0].Count)
 		})
 	}
 }

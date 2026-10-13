@@ -764,6 +764,8 @@ type MetricsConfig struct {
 
 	CloudMetricsExportIntervalSecs int64 `yaml:"cloud-metrics-export-interval-secs"`
 
+	EnableNewMetricsSchema bool `yaml:"enable-new-metrics-schema"`
+
 	ExperimentalEnableGrpcMetrics bool `yaml:"experimental-enable-grpc-metrics"`
 
 	ExperimentalEnableOtelMetrics bool `yaml:"experimental-enable-otel-metrics"`
@@ -775,8 +777,6 @@ type MetricsConfig struct {
 	PrometheusPort int64 `yaml:"prometheus-port"`
 
 	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
-
-	UseNewNames bool `yaml:"use-new-names"`
 
 	Workers int64 `yaml:"workers"`
 }
@@ -1357,9 +1357,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("metrics-use-new-names", "", false, "Use the new metric names.")
+	flagSet.BoolP("metrics-enable-new-metrics-schema", "", true, "Enables the new metrics schema (e.g., pluralized fs/ops_latencies).")
 
-	if err := flagSet.MarkHidden("metrics-use-new-names"); err != nil {
+	if err := flagSet.MarkHidden("metrics-enable-new-metrics-schema"); err != nil {
 		return err
 	}
 
@@ -2016,7 +2016,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("metrics.use-new-names", flagSet.Lookup("metrics-use-new-names")); err != nil {
+	if err := v.BindPFlag("metrics.enable-new-metrics-schema", flagSet.Lookup("metrics-enable-new-metrics-schema")); err != nil {
 		return err
 	}
 

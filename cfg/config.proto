@@ -155,7 +155,7 @@ message Config {
   bool is_metrics_experimental_otel_metrics_project_id_set = 127;
   sint64 metrics_prometheus_port = 128;
   int64 metrics_stackdriver_export_interval = 129;
-  bool metrics_use_new_names = 130;
+  bool metrics_enable_new_metrics_schema = 130;
   sint64 metrics_workers = 131;
   bool is_mount_id_set = 132;
   sint64 mrd_pool_size = 133;

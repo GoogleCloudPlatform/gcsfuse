@@ -161,7 +161,7 @@ func (config *Config) ToProto() *pb.Config {
 		IsMetricsExperimentalOtelMetricsProjectIdSet:          config.Metrics.ExperimentalOtelMetricsProjectId != "",
 		MetricsPrometheusPort:                                 config.Metrics.PrometheusPort,
 		MetricsStackdriverExportInterval:                      int64(config.Metrics.StackdriverExportInterval),
-		MetricsUseNewNames:                                    config.Metrics.UseNewNames,
+		MetricsEnableNewMetricsSchema:                         config.Metrics.EnableNewMetricsSchema,
 		MetricsWorkers:                                        config.Metrics.Workers,
 		IsMountIdSet:                                          config.MountId != "",
 		MrdPoolSize:                                           config.Mrd.PoolSize,
