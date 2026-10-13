@@ -1,3 +1,8 @@
+---
+name: gcsfuse-build
+description: Streamlined workflow to compile the GCSFuse codebase, verify layout formats, resolve imports, and perform static analysis checks using make build.
+---
+
 # GCSFuse Build and Style Verification Skill
 
 This skill provides a highly streamlined workflow for Antigravity agents to compile the GCSFuse codebase, verify layout formats, resolve imports, and perform static analysis checks. Executing this unified validation runbook ensures all changes are cleanly compiled and formatted exactly to the repository's strict standards before proposing pull requests.
