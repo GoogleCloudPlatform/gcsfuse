@@ -15,12 +15,17 @@
 package wrappers
 
 import (
+	"context"
 	"fmt"
 	"syscall"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFsErrStrAndCategory(t *testing.T) {
@@ -98,4 +103,58 @@ func TestFsErrStrAndCategory(t *testing.T) {
 			assert.Equal(t, tc.expectedCategory, categorize(tc.fsErr))
 		})
 	}
+}
+
+// readCountEvent is one recorded metadata_cache/read_count event.
+type readCountEvent struct {
+	hit    bool
+	status metrics.EntryStatus
+	detail metrics.LookupDetail
+}
+
+// readCountRecorder records the metadata_cache/read_count events it receives
+// and ignores every other metric.
+type readCountRecorder struct {
+	metrics.MetricHandle
+	events []readCountEvent
+}
+
+func (r *readCountRecorder) MetadataCacheReadCount(inc int64, cacheHit bool, entryStatus metrics.EntryStatus, lookupDetail metrics.LookupDetail) {
+	r.events = append(r.events, readCountEvent{cacheHit, entryStatus, lookupDetail})
+}
+
+// cacheReadingFS is a file system whose lookups and attribute reads read the
+// metadata cache, and whose other ops read nothing.
+type cacheReadingFS struct {
+	fuseutil.NotImplementedFileSystem
+}
+
+func (*cacheReadingFS) LookUpInode(ctx context.Context, _ *fuseops.LookUpInodeOp) error {
+	// A lookup probing two keys, a negative hit and a miss, then fetching from
+	// GCS.
+	metadata.RecordCacheRead(ctx, true, metrics.EntryStatusNegativeAttr, metrics.LookupDetailFoundAttr)
+	metadata.RecordCacheRead(ctx, false, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr)
+	metadata.RecordGCSFetch(ctx)
+	return nil
+}
+
+func (*cacheReadingFS) GetInodeAttributes(ctx context.Context, _ *fuseops.GetInodeAttributesOp) error {
+	metadata.RecordCacheRead(ctx, true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr)
+	return nil
+}
+
+func TestMonitoring_RecordsOneMetadataCacheReadCountPerOp(t *testing.T) {
+	ctx := context.Background()
+	recorder := &readCountRecorder{MetricHandle: metrics.NewNoopMetrics()}
+	fs := WithMonitoring(&cacheReadingFS{}, recorder)
+
+	require.NoError(t, fs.LookUpInode(ctx, &fuseops.LookUpInodeOp{}))
+	require.NoError(t, fs.GetInodeAttributes(ctx, &fuseops.GetInodeAttributesOp{}))
+	// Reads nothing, so records nothing.
+	_ = fs.OpenDir(ctx, &fuseops.OpenDirOp{})
+
+	assert.Equal(t, []readCountEvent{
+		{false, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr},
+		{true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr},
+	}, recorder.events)
 }

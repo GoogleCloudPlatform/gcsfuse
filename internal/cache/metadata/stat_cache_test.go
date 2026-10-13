@@ -22,6 +22,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -677,4 +678,117 @@ func (t *StatCacheTest) Test_Insert_OverwritesImplicitDir() {
 	hit, result := t.statCache.LookUp(name, someTime)
 	assert.True(t.T(), hit)
 	assert.Equal(t.T(), m, result)
+}
+
+func (t *StatCacheTest) Test_LookUpDetail_AbsentEntry() {
+	hit, m, entryStatus, lookupDetail := t.statCache.LookUpDetail("taco", someTime)
+
+	assert.False(t.T(), hit)
+	assert.Nil(t.T(), m)
+	assert.Equal(t.T(), metrics.EntryStatusAttr, entryStatus)
+	assert.Equal(t.T(), metrics.LookupDetailNotFoundAttr, lookupDetail)
+}
+
+func (t *StatCacheTest) Test_LookUpDetail_PositiveEntry() {
+	m := &gcs.MinObject{Name: "taco"}
+	t.statCache.Insert(m, expiration)
+
+	hit, result, entryStatus, lookupDetail := t.statCache.LookUpDetail("taco", someTime)
+
+	assert.True(t.T(), hit)
+	assert.Equal(t.T(), m, result)
+	assert.Equal(t.T(), metrics.EntryStatusPositiveAttr, entryStatus)
+	assert.Equal(t.T(), metrics.LookupDetailFoundAttr, lookupDetail)
+}
+
+func (t *StatCacheTest) Test_LookUpDetail_NegativeEntry() {
+	t.statCache.AddNegativeEntry("taco", expiration)
+
+	hit, m, entryStatus, lookupDetail := t.statCache.LookUpDetail("taco", someTime)
+
+	assert.True(t.T(), hit)
+	assert.Nil(t.T(), m)
+	assert.Equal(t.T(), metrics.EntryStatusNegativeAttr, entryStatus)
+	assert.Equal(t.T(), metrics.LookupDetailFoundAttr, lookupDetail)
+}
+
+func (t *StatCacheTest) Test_LookUpDetail_ImplicitDirIsPositive() {
+	t.statCache.InsertImplicitDir("dir/", expiration)
+
+	hit, m, entryStatus, lookupDetail := t.statCache.LookUpDetail("dir/", someTime)
+
+	assert.True(t.T(), hit)
+	assert.Equal(t.T(), "dir/", m.Name)
+	assert.Equal(t.T(), metrics.EntryStatusPositiveAttr, entryStatus)
+	assert.Equal(t.T(), metrics.LookupDetailFoundAttr, lookupDetail)
+}
+
+func (t *StatCacheTest) Test_LookUpDetail_ExpiredPositiveEntryIsErased() {
+	t.statCache.Insert(&gcs.MinObject{Name: "taco"}, expiration)
+	afterExpiration := expiration.Add(time.Second)
+
+	hit, m, entryStatus, lookupDetail := t.statCache.LookUpDetail("taco", afterExpiration)
+
+	assert.False(t.T(), hit)
+	assert.Nil(t.T(), m)
+	assert.Equal(t.T(), metrics.EntryStatusPositiveAttr, entryStatus)
+	assert.Equal(t.T(), metrics.LookupDetailTtlExpiredAttr, lookupDetail)
+	// The expired entry was erased, so the next read finds nothing.
+	_, _, entryStatus, lookupDetail = t.statCache.LookUpDetail("taco", afterExpiration)
+	assert.Equal(t.T(), metrics.EntryStatusAttr, entryStatus)
+	assert.Equal(t.T(), metrics.LookupDetailNotFoundAttr, lookupDetail)
+}
+
+func (t *StatCacheTest) Test_LookUpDetail_ExpiredNegativeEntry() {
+	t.statCache.AddNegativeEntry("taco", expiration)
+
+	hit, m, entryStatus, lookupDetail := t.statCache.LookUpDetail("taco", expiration.Add(time.Second))
+
+	assert.False(t.T(), hit)
+	assert.Nil(t.T(), m)
+	assert.Equal(t.T(), metrics.EntryStatusNegativeAttr, entryStatus)
+	assert.Equal(t.T(), metrics.LookupDetailTtlExpiredAttr, lookupDetail)
+}
+
+func (t *StatCacheTest) Test_LookUpFolderDetail_AbsentEntry() {
+	hit, f, entryStatus, lookupDetail := t.statCache.LookUpFolderDetail("dir/", someTime)
+
+	assert.False(t.T(), hit)
+	assert.Nil(t.T(), f)
+	assert.Equal(t.T(), metrics.EntryStatusAttr, entryStatus)
+	assert.Equal(t.T(), metrics.LookupDetailNotFoundAttr, lookupDetail)
+}
+
+func (t *StatCacheTest) Test_LookUpFolderDetail_PositiveEntry() {
+	folder := &gcs.Folder{Name: "dir/"}
+	t.statCache.InsertFolder(folder, expiration)
+
+	hit, f, entryStatus, lookupDetail := t.statCache.LookUpFolderDetail("dir/", someTime)
+
+	assert.True(t.T(), hit)
+	assert.Equal(t.T(), folder, f)
+	assert.Equal(t.T(), metrics.EntryStatusPositiveAttr, entryStatus)
+	assert.Equal(t.T(), metrics.LookupDetailFoundAttr, lookupDetail)
+}
+
+func (t *StatCacheTest) Test_LookUpFolderDetail_NegativeEntry() {
+	t.statCache.AddNegativeEntryForFolder("dir/", expiration)
+
+	hit, f, entryStatus, lookupDetail := t.statCache.LookUpFolderDetail("dir/", someTime)
+
+	assert.True(t.T(), hit)
+	assert.Nil(t.T(), f)
+	assert.Equal(t.T(), metrics.EntryStatusNegativeAttr, entryStatus)
+	assert.Equal(t.T(), metrics.LookupDetailFoundAttr, lookupDetail)
+}
+
+func (t *StatCacheTest) Test_LookUpFolderDetail_ExpiredEntry() {
+	t.statCache.InsertFolder(&gcs.Folder{Name: "dir/"}, expiration)
+
+	hit, f, entryStatus, lookupDetail := t.statCache.LookUpFolderDetail("dir/", expiration.Add(time.Second))
+
+	assert.False(t.T(), hit)
+	assert.Nil(t.T(), f)
+	assert.Equal(t.T(), metrics.EntryStatusPositiveAttr, entryStatus)
+	assert.Equal(t.T(), metrics.LookupDetailTtlExpiredAttr, lookupDetail)
 }

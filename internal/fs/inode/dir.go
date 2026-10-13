@@ -508,6 +508,9 @@ func findDirInode(ctx context.Context, bucket *gcsx.SyncerBucket, name Name) (*C
 		Prefix:     name.GcsObjectName(),
 		MaxResults: 1,
 	}
+	// The listing goes to GCS without consulting the stat cache: record it so
+	// that the op counts as a metadata cache miss.
+	metadata.RecordGCSFetch(ctx)
 	listing, err := bucket.ListObjects(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("list objects: %w", err)
@@ -707,8 +710,10 @@ func (d *dirInode) LookUpChild(ctx context.Context, name string) (*Core, error) 
 			return fileResult, nil
 		}
 
-		// 3. Both lookups resulted in cache hits (no cacheMiss errors) with no results found,
-		// indicating a negative cache entry. Return nil to indicate the entry doesn't exist from cache.
+		// 3. Negative entry check:
+		// Both lookups must be cache hits (no cacheMiss errors) with no results found for us to
+		// conclude the entry does not exist. If only one candidate is a negative hit, the other
+		// candidate may still exist in GCS, so we must fall through and query GCS.
 		if dirErr == nil && fileErr == nil {
 			return nil, nil
 		}

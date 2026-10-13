@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -258,8 +259,12 @@ type wrappedCall func(ctx context.Context) error
 
 func (fs *monitoring) invokeWrapped(ctx context.Context, opName metrics.FsOp, w wrappedCall) error {
 	startTime := time.Now()
-	err := w(ctx)
+	// Collect the op's metadata cache reads, so that the op records exactly one
+	// metadata_cache/read_count event however many reads it makes.
+	cacheReads := metadata.NewCacheReads(ctx)
+	err := w(cacheReads)
 	recordOp(ctx, fs.metricHandle, opName, startTime, err)
+	cacheReads.Emit(fs.metricHandle)
 	return err
 }
 

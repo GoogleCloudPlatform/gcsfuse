@@ -14,6 +14,7 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	oglemock "github.com/jacobsa/oglemock"
 )
 
@@ -141,6 +142,17 @@ func (m *mockStatCache) LookUp(p0 string, p1 time.Time) (o0 bool, o1 *gcs.MinObj
 	return
 }
 
+func (m *mockStatCache) LookUpDetail(p0 string, p1 time.Time) (o0 bool, o1 *gcs.MinObject, o2 metrics.EntryStatus, o3 metrics.LookupDetail) {
+	hit, obj := m.LookUp(p0, p1)
+	if hit {
+		if obj == nil {
+			return true, nil, metrics.EntryStatusNegativeAttr, metrics.LookupDetailFoundAttr
+		}
+		return true, obj, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr
+	}
+	return false, nil, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr
+}
+
 func (m *mockStatCache) InsertFolder(p0 *gcs.Folder, p1 time.Time) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
@@ -185,6 +197,17 @@ func (m *mockStatCache) LookUpFolder(p0 string, p1 time.Time) (o0 bool, o1 *gcs.
 	}
 
 	return
+}
+
+func (m *mockStatCache) LookUpFolderDetail(p0 string, p1 time.Time) (o0 bool, o1 *gcs.Folder, o2 metrics.EntryStatus, o3 metrics.LookupDetail) {
+	hit, folder := m.LookUpFolder(p0, p1)
+	if hit {
+		if folder == nil {
+			return true, nil, metrics.EntryStatusNegativeAttr, metrics.LookupDetailFoundAttr
+		}
+		return true, folder, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr
+	}
+	return false, nil, metrics.EntryStatusAttr, metrics.LookupDetailNotFoundAttr
 }
 
 func (m *mockStatCache) EraseEntriesWithGivenPrefix(p0 string) {
