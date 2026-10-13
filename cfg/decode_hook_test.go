@@ -294,7 +294,7 @@ func TestParsingError(t *testing.T) {
 		{
 			name:   "RapidWriteStrategy",
 			args:   []string{"--rapidWriteStrategyParam=invalid-strategy"},
-			errMsg: "invalid rapid-write strategy value: invalid-strategy. It can only accept values in the list: [enabled disabled]",
+			errMsg: "invalid rapid-write strategy value: invalid-strategy. It can only accept values in the list: [enabled, disabled]",
 		},
 	}
 	for _, tc := range tests {

@@ -104,7 +104,7 @@ func (r *RapidWriteStrategy) UnmarshalText(text []byte) error {
 		return nil
 	default:
 		validValues := []string{string(RapidWriteStrategyEnabled), string(RapidWriteStrategyDisabled)}
-		return fmt.Errorf("invalid rapid-write strategy value: %s. It can only accept values in the list: %v", string(text), validValues)
+		return fmt.Errorf("invalid rapid-write strategy value: %s. It can only accept values in the list: [%s]", string(text), strings.Join(validValues, ", "))
 	}
 }
 
