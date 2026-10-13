@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func (t *StatAndListTestSuite) TestStatOfNewFile() {
+func (t *StatAndListTestSuite) TestStatOfNewUnfinalizedFile() {
 	t.createUnfinalizedObject()
 	defer t.deleteUnfinalizedObject()
 	filePath := path.Join(t.primaryMount.testDirPath, t.fileName)
@@ -46,7 +46,7 @@ func (t *StatAndListTestSuite) TestStatOfNewFile() {
 	require.Equal(t.T(), expectedSize, size)
 }
 
-func (t *StatAndListTestSuite) TestListOfNewFile() {
+func (t *StatAndListTestSuite) TestListOfNewUnfinalizedFile() {
 	t.createUnfinalizedObject()
 	defer t.deleteUnfinalizedObject()
 	expectedSize := int64(len(t.fileContent))
