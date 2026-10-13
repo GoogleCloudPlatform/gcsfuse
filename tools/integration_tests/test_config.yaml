@@ -124,8 +124,9 @@ operations:
         run_on_gke: true
         run: TestOperationsBase
       - flags:
-          - "--rapid-write=enabled,--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
-          - "--rapid-write=enabled,--kernel-list-cache-ttl-secs=-1,--enable-metadata-prefetch"
+          # TODO(b/569556864): Currently --finalize-file-for-rapid is not optimized for RCU on dynamic mounts, causing stale metadata even on closing files. Setting it explicitly; remove once dynamic mount optimization is supported.
+          - "--rapid-write=enabled,--finalize-file-for-rapid,--metadata-cache-ttl-secs=0,--enable-streaming-writes=false"
+          - "--rapid-write=enabled,--finalize-file-for-rapid,--kernel-list-cache-ttl-secs=-1,--enable-metadata-prefetch"
         run_on_rcu:
           hns:
             same_zone: true
@@ -318,9 +319,10 @@ local_file:
           zonal: false
         run_on_gke: true
       - flags:
-          - "--rapid-write=enabled,--rename-dir-limit=3,--enable-streaming-writes=false"
+          # TODO(b/569556864): Currently --finalize-file-for-rapid is not optimized for RCU on dynamic mounts, causing stale metadata even on closing files. Setting it explicitly; remove once dynamic mount optimization is supported.
+          - "--rapid-write=enabled,--finalize-file-for-rapid,--rename-dir-limit=3,--enable-streaming-writes=false"
           - "--rapid-write=disabled,--rename-dir-limit=3,--enable-streaming-writes=false"
-          - "--rapid-write=enabled,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=0"
+          - "--rapid-write=enabled,--finalize-file-for-rapid,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=0"
           - "--rapid-write=disabled,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=0"
           - "--rapid-write=disabled,--rename-dir-limit=3,--write-block-size-mb=1,--write-max-blocks-per-file=2,--write-global-max-blocks=-1"
         run_on_rcu:
@@ -1992,7 +1994,8 @@ managed_folders:
         run_on_gke: false
       - run: TestManagedFolders_FolderViewPermission
         flags:
-          - "--rapid-write=enabled,--key-file=${KEY_FILE},--rename-dir-limit=3"
+          # TODO(b/569556864): Currently --finalize-file-for-rapid is not optimized for RCU on dynamic mounts, causing stale metadata even on closing files. Setting it explicitly; remove once dynamic mount optimization is supported.
+          - "--rapid-write=enabled,--finalize-file-for-rapid,--key-file=${KEY_FILE},--rename-dir-limit=3"
           - "--rapid-write=disabled,--key-file=${KEY_FILE},--rename-dir-limit=3"
         run_on_rcu:
           hns:
@@ -2009,7 +2012,8 @@ managed_folders:
         run_on_gke: false
       - run: TestEnableEmptyManagedFoldersTrue
         flags:
-          - "--rapid-write=enabled,--enable-empty-managed-folders"
+          # TODO(b/569556864): Currently --finalize-file-for-rapid is not optimized for RCU on dynamic mounts, causing stale metadata even on closing files. Setting it explicitly; remove once dynamic mount optimization is supported.
+          - "--rapid-write=enabled,--finalize-file-for-rapid,--enable-empty-managed-folders"
           - "--rapid-write=disabled,--enable-empty-managed-folders"
         run_on_rcu:
           hns:
