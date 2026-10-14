@@ -316,7 +316,7 @@ func createTestFileSystemWithGrpcMetrics(ctx context.Context, t *testing.T, para
 		TmpObjectPrefix:      ".gcsfuse_tmp/",
 	}
 
-	bm := gcsx.NewBucketManager(bucketConfig, sh)
+	bm := gcsx.NewBucketManager(bucketConfig, sh, mh)
 
 	serverCfg := &fs.ServerConfig{
 		NewConfig: &cfg.Config{

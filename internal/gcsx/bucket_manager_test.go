@@ -75,7 +75,7 @@ func TestNewBucketManager(t *testing.T) {
 		TmpObjectPrefix:                    "TmpObjectPrefix",
 	}
 
-	bm := NewBucketManager(bucketConfig, storageHandle)
+	bm := NewBucketManager(bucketConfig, storageHandle, metrics.NewNoopMetrics())
 
 	assert.NotNil(t, bm)
 }

@@ -93,6 +93,25 @@ type StatCache interface {
 	EraseEntriesWithGivenPrefix(prefix string)
 }
 
+// NewSharedStatCache returns the LRU cache, of maxSize bytes, that backs the
+// stat caches of all the buckets of a mount: see NewStatCacheBucketView.
+//
+// It keeps metadata_cache/size up to date: every entry that enters or leaves
+// the cache - inserted, replaced, erased, expired or evicted, for any bucket -
+// adds or subtracts its size, as accounted by the cache, to the series of its
+// entry_status. Recording runs under the cache's lock, is one atomic add and
+// allocates nothing. A nil metricHandle records nothing.
+func NewSharedStatCache(maxSize uint64, metricHandle metrics.MetricHandle) *lru.Cache {
+	if metricHandle == nil {
+		return lru.NewCache(maxSize)
+	}
+	return lru.NewCache(maxSize, lru.WithSizeObserver(func(v lru.ValueType, delta int64) {
+		if e, ok := v.(entry); ok {
+			metricHandle.MetadataCacheSize(delta, e.status())
+		}
+	}))
+}
+
 // Create a new bucket-view to the passed shared-cache object.
 // For dynamic-mount (mount for multiple buckets), pass bn as bucket-name.
 // For static-mout (mount for single bucket), pass bn as "".
@@ -153,6 +172,16 @@ func (e entry) Size() uint64 {
 	size = uint64(math.Ceil(util.HeapSizeToRssConversionFactor * float64(size)))
 
 	return size
+}
+
+// status returns whether e is a positive entry, recording an object, a folder
+// or an implicit directory, or a negative one, recording that the name does
+// not exist. It is fixed for the lifetime of e.
+func (e entry) status() metrics.EntryStatus {
+	if e.m == nil && e.f == nil && !e.implicitDir {
+		return metrics.EntryStatusNegativeAttr
+	}
+	return metrics.EntryStatusPositiveAttr
 }
 
 // timeToUnixNano safely converts a time.Time to Unix nanoseconds.
@@ -355,10 +384,7 @@ func (sc *statCacheBucketView) sharedCacheLookupDetail(key string, now time.Time
 	}
 
 	e := value.(entry)
-	entryStatus := metrics.EntryStatusPositiveAttr
-	if e.m == nil && e.f == nil && !e.implicitDir {
-		entryStatus = metrics.EntryStatusNegativeAttr
-	}
+	entryStatus := e.status()
 
 	// Has this entry expired?
 	nowNano := timeToUnixNano(now)

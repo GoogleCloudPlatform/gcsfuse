@@ -42,6 +42,9 @@ type Cache struct {
 	// INVARIANT: maxSize > 0
 	maxSize uint64
 
+	// Notified of every value entering or leaving the cache, if not nil.
+	sizeObserver SizeObserver
+
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
@@ -70,6 +73,26 @@ type ValueType interface {
 	Size() uint64
 }
 
+// SizeObserver is notified of every change to the contents of a Cache: with
+// delta = +size when a value enters the cache, and with delta = -size when it
+// leaves it, whether erased, evicted or replaced by an Insert of the same key.
+// size is the one the cache accounts for the value, captured when the value
+// was inserted, so the deltas always add up to the cache's current size.
+//
+// It is called with the cache's lock held: it must be fast, must not block and
+// must not call into the cache.
+type SizeObserver func(value ValueType, delta int64)
+
+// Option configures a Cache when it is created.
+type Option func(*Cache)
+
+// WithSizeObserver makes the cache notify o of every change to its contents.
+func WithSizeObserver(o SizeObserver) Option {
+	return func(c *Cache) {
+		c.sizeObserver = o
+	}
+}
+
 type entry struct {
 	Key   string
 	Value ValueType
@@ -78,10 +101,13 @@ type entry struct {
 
 // NewCache returns the reference of cache object by initialising the cache with
 // the supplied maxSize, which must be greater than zero.
-func NewCache(maxSize uint64) *Cache {
+func NewCache(maxSize uint64, opts ...Option) *Cache {
 	c := &Cache{
 		maxSize: maxSize,
 		index:   make(map[string]*list.Element),
+	}
+	for _, opt := range opts {
+		opt(c)
 	}
 
 	// Set up invariant checking.
@@ -91,14 +117,27 @@ func NewCache(maxSize uint64) *Cache {
 
 // NewCacheWithOptions returns a Cache instance initialized with the
 // supplied maxSize and lock options.
-func NewCacheWithOptions(maxSize uint64, opts locker.Options) *Cache {
+func NewCacheWithOptions(maxSize uint64, lockOpts locker.Options, opts ...Option) *Cache {
 	c := &Cache{
 		maxSize: maxSize,
 		index:   make(map[string]*list.Element),
 	}
+	for _, opt := range opts {
+		opt(c)
+	}
 
-	c.mu = locker.NewRWWithOptions("LRUCache", c.checkInvariants, opts)
+	c.mu = locker.NewRWWithOptions("LRUCache", c.checkInvariants, lockOpts)
 	return c
+}
+
+// notifySizeChange tells the size observer, if any, that value entered
+// (delta > 0) or left (delta < 0) the cache.
+//
+// LOCKS_REQUIRED(c.mu)
+func (c *Cache) notifySizeChange(value ValueType, delta int64) {
+	if c.sizeObserver != nil {
+		c.sizeObserver(value, delta)
+	}
 }
 
 // checkInvariants panic if any internal invariants have been violated.
@@ -152,6 +191,7 @@ func (c *Cache) evictOne() ValueType {
 
 	c.entries.Remove(e)
 	delete(c.index, key)
+	c.notifySizeChange(evictedEntry.Value, -int64(evictedEntry.size))
 
 	return evictedEntry.Value
 }
@@ -181,16 +221,19 @@ func (c *Cache) Insert(
 	e, ok := c.index[key]
 	if ok {
 		// Update an entry if already exist.
-		c.currentSize -= e.Value.(entry).size
+		replaced := e.Value.(entry)
+		c.currentSize -= replaced.size
 		c.currentSize += valueSize
 		e.Value = entry{key, value, valueSize}
 		c.entries.MoveToFront(e)
+		c.notifySizeChange(replaced.Value, -int64(replaced.size))
 	} else {
 		// Add the entry if already doesn't exist.
 		e := c.entries.PushFront(entry{key, value, valueSize})
 		c.index[key] = e
 		c.currentSize += valueSize
 	}
+	c.notifySizeChange(value, int64(valueSize))
 
 	var evictedValues []ValueType
 	// Evict until we're at or below maxSize.
@@ -215,6 +258,7 @@ func (c *Cache) eraseInternal(key string) (value ValueType) {
 
 	delete(c.index, key)
 	c.entries.Remove(e)
+	c.notifySizeChange(deletedEntry.Value, -int64(deletedEntry.size))
 
 	return deletedEntry.Value
 }
@@ -301,6 +345,9 @@ func (c *Cache) UpdateWithoutChangingOrder(
 
 	e.Value = entry{key, value, ent.size}
 	c.index[key] = e
+	// The size stays the same, but the value it is accounted to changes.
+	c.notifySizeChange(ent.Value, -int64(ent.size))
+	c.notifySizeChange(value, int64(ent.size))
 
 	return nil
 }
@@ -326,6 +373,7 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 	// Note: This may temporarily violate currentSize <= maxSize invariant
 	// Eviction will happen on the next Insert() call
 	c.currentSize += sizeDelta
+	c.notifySizeChange(ent.Value, int64(sizeDelta))
 
 	return nil
 }
