@@ -110,7 +110,6 @@ TEST_DIR_PARALLEL=(
   "interrupt"
   "operations"
   "kernel_list_cache"
-  "concurrent_operations"
   "benchmarking"
   "mount_timeout"
   "stale_handle"
@@ -131,6 +130,7 @@ TEST_DIR_NON_PARALLEL=(
   "readonly"
   "managed_folders"
   "readonly_creds"
+  "concurrent_operations"
 )
 
 # Subset of TEST_DIR_PARALLEL,
