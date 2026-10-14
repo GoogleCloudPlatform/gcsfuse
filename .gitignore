@@ -42,4 +42,12 @@ _testmain.go
 .vscode
 
 # External folders
-vendor/
+vendor/*
+!vendor/cloud.google.com/
+vendor/cloud.google.com/*
+!vendor/cloud.google.com/go/
+vendor/cloud.google.com/go/*
+!vendor/cloud.google.com/go/storage/
+vendor/cloud.google.com/go/storage/*
+!vendor/cloud.google.com/go/storage/grpc_client.go
+!vendor/cloud.google.com/go/storage/grpc_reader_multi_range.go
