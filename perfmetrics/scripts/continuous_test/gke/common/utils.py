@@ -432,7 +432,7 @@ async def get_available_reservation(project_id, zone, machine_type):
       reservations = json.loads(stdout)
       tpu_prefix = machine_type.split("-")[0]
       for res in reservations:
-        if res.get("status") != "READY" or not res.get("name"):
+        if not res.get("name"):
           continue
 
         specific_res = res.get("specificReservation")
@@ -452,25 +452,30 @@ async def get_available_reservation(project_id, zone, machine_type):
         if agg_res:
           reserved_resources = agg_res.get("reservedResources") or []
           in_use_resources = agg_res.get("inUseResources") or []
+
+          def _matches_tpu(resource):
+            if not resource:
+              return False
+            acc_type = (resource.get("accelerator") or {}).get(
+                "acceleratorType", ""
+            )
+            return acc_type == tpu_prefix or acc_type.endswith(f"/{tpu_prefix}")
+
           reserved_count = sum(
               int((r.get("accelerator") or {}).get("acceleratorCount") or 0)
               for r in reserved_resources
-              if (r.get("accelerator") or {})
-              .get("acceleratorType", "")
-              .endswith(f"/{tpu_prefix}")
+              if _matches_tpu(r)
           )
           in_use_count = sum(
               int((r.get("accelerator") or {}).get("acceleratorCount") or 0)
               for r in in_use_resources
-              if (r.get("accelerator") or {})
-              .get("acceleratorType", "")
-              .endswith(f"/{tpu_prefix}")
+              if _matches_tpu(r)
           )
           if reserved_count > in_use_count:
             reservation_name = res["name"]
             print(f"Found available reservation: {reservation_name}")
             return reservation_name
-    except (json.JSONDecodeError, ValueError, TypeError) as e:
+    except (json.JSONDecodeError, ValueError, TypeError, AttributeError) as e:
       print(
           f"Warning: Failed to parse reservations output: {e}", file=sys.stderr
       )
