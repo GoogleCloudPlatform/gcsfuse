@@ -91,18 +91,19 @@ fi
 
 ### 2.2 Binary Scan with Target Go Toolchain (`.go-version`)
 Running `govulncheck` in source mode uses the host environment's default `go` binary, which can cause false-positive `stdlib` reports if the host Go version differs from `.go-version`. Always verify the compiled binary built with the branch's exact target Go toolchain:
-1. Read the target Go version from `[.go-version](../../../.go-version)` and build a temporary `gcsfuse` binary using that exact toolchain:
+1. Read the target Go version from `[.go-version](../../../.go-version)` and build a temporary `gcsfuse` binary in a temporary directory using that exact toolchain:
    ```bash
+   TMP_DIR=$(mktemp -d)
    TARGET_GO=$(tr -d '[:space:]' < .go-version)
-   GOTOOLCHAIN=go${TARGET_GO} go build -o /tmp/gcsfuse-release-vulncheck .
+   GOTOOLCHAIN=go${TARGET_GO} go build -o "${TMP_DIR}/gcsfuse-release-vulncheck" .
    ```
 2. Run `govulncheck` in binary mode:
    ```bash
-   govulncheck -mode=binary /tmp/gcsfuse-release-vulncheck
+   govulncheck -mode=binary "${TMP_DIR}/gcsfuse-release-vulncheck"
    ```
-3. Remove the temporary binary:
+3. Remove the temporary directory:
    ```bash
-   rm -f /tmp/gcsfuse-release-vulncheck
+   rm -rf "${TMP_DIR}"
    ```
 
 ### 2.3 Source / Module Dependency Scan
