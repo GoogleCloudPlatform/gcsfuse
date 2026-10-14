@@ -29,9 +29,9 @@ flax==0.10.4 \
     --hash=sha256:57ae44d3f111fc85cff9049adb9684ce8ebd44e87bd8ca776ed52422c2d85021 \
     --hash=sha256:8cc83d91654ff943909730e02e858b4cd4577531373f83abe6597c58c581032d
     # via -r requirements.in
-fsspec==2025.2.0 \
-    --hash=sha256:1c24b16eaa0a1798afa0337aa0db9b256718ab2a89c425371f5628d22c3b6afd \
-    --hash=sha256:9de2ad9ce1f85e1931858535bc882543171d197001a0a5eb2ddc04f1781ab95b
+fsspec==2026.6.0 \
+    --hash=sha256:02e0b71817df9b2169dc30a16832045764def1191b43dcff5bb85bdee212d2a1 \
+    --hash=sha256:f5bac145310fe30e16e1471bd6840b2d990d609e872251d7e674241822abf01a
     # via
     #   -r requirements.in
     #   etils
