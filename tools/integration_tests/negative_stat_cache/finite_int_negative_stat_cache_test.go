@@ -29,15 +29,18 @@ import (
 )
 
 type finiteNegativeStatCacheTest struct {
-	flags []string
+	flags   []string
+	testDir string
 	suite.Suite
 }
 
 func (s *finiteNegativeStatCacheTest) SetupTest() {
-	mountGCSFuseAndSetupTestDir(s.flags, testDirName)
+	s.testDir = testDirName + setup.GenerateRandomString(5)
+	mountGCSFuseAndSetupTestDir(s.flags, s.testDir)
 }
 
 func (s *finiteNegativeStatCacheTest) TearDownTest() {
+	setup.CleanUpDir(testEnv.testDirPath)
 	setup.UnmountGCSFuse(testEnv.rootDir)
 }
 
@@ -59,7 +62,7 @@ func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache() {
 	assert.ErrorContains(s.T(), err, "explicit_dir/file1.txt: no such file or directory")
 
 	// Adding the object with same name
-	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, testDirName, path.Join("explicit_dir", "file1.txt"), "some-content", s.T())
+	client.CreateObjectInGCSTestDir(testEnv.ctx, testEnv.storageClient, s.testDir, path.Join("explicit_dir", "file1.txt"), "some-content", s.T())
 
 	// Error should be returned again, as call will not be served from GCS due to finite gcsfuse stat cache
 	_, err = os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
@@ -69,7 +72,7 @@ func (s *finiteNegativeStatCacheTest) TestFiniteNegativeStatCache() {
 	assert.ErrorContains(s.T(), err, "explicit_dir/file1.txt: no such file or directory")
 
 	//Wait for Cache to expire
-	time.Sleep(3 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	// File should be returned, as call will be served from GCS and gcsfuse should not return from cache
 	f, err := os.OpenFile(targetFile, os.O_RDONLY, os.FileMode(0600))
@@ -94,7 +97,7 @@ func TestFiniteNegativeStatCacheTest(t *testing.T) {
 	}
 
 	// Define flag set to run the tests.
-	flagsSet := []string{"--metadata-cache-negative-ttl-secs=2"}
+	flagsSet := []string{"--metadata-cache-negative-ttl-secs=5"}
 
 	// Run tests.
 	ts.flags = flagsSet
