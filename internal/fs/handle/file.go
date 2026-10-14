@@ -135,7 +135,8 @@ func NewFileHandle(
 // LOCK_FUNCTION(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) Destroy() {
-	// Deregister the fileHandle with the inode.
+	// Deregister the fileHandle with the inode. If this is the last write
+	// handle for the inode, any unsynced staging temporary file is destroyed.
 	fh.inode.Lock()
 	fh.inode.DeRegisterFileHandle(fh.openMode.AccessMode() == util.ReadOnly)
 	fh.inode.Unlock()
