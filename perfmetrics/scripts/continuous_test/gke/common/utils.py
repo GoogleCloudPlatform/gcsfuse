@@ -26,7 +26,6 @@ DEFAULT_MTU = 8896
 # Default configuration for testing on TPU
 DEFAULT_PROJECT_ID = "gcs-fuse-test-ml"
 DEFAULT_ZONE = "europe-west4-a"
-DEFAULT_RESERVATION_NAME = "cloudtpu-20260521143000-1388945208"
 
 
 async def run_command_async(command_list, check=True, cwd=None):
@@ -404,7 +403,6 @@ async def get_available_reservation(project_id, zone, machine_type):
   Filters reservations by zone, machine_type, status=READY, and available
   capacity (count > inUseCount), returning the first match. Supports both
   specificReservation (standard/GPU VMs) and aggregateReservation (TPU VMs).
-  Falls back to DEFAULT_RESERVATION_NAME if no available reservation is found.
 
   Args:
       project_id: The Google Cloud project ID.
@@ -412,8 +410,8 @@ async def get_available_reservation(project_id, zone, machine_type):
       machine_type: The machine type for the nodes in the pool.
 
   Returns:
-      The name of the available reservation, or DEFAULT_RESERVATION_NAME if
-      none is found.
+      The name of the available reservation, or an empty string if none is
+      found.
   """
   print(
       f"Looking up available reservations in zone '{zone}' for machine type"
@@ -479,10 +477,9 @@ async def get_available_reservation(project_id, zone, machine_type):
 
   print(
       f"No available reservation found for machine type '{machine_type}' in"
-      f" zone '{zone}'. Falling back to default reservation:"
-      f" {DEFAULT_RESERVATION_NAME}"
+      f" zone '{zone}'."
   )
-  return DEFAULT_RESERVATION_NAME
+  return ""
 
 
 async def create_node_pool_async(
