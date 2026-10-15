@@ -88,6 +88,7 @@ metrics:
   cloud-metrics-export-interval-secs: 10
   workers: 10
   buffer-size: 128
+  enable-new-metrics-schema: false
 machine-type: "config-file-machine-type"
 dummy-io:
   enable: true

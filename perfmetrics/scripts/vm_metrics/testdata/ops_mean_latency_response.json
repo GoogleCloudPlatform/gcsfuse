@@ -1,6 +1,6 @@
 {
   "metric": {
-      "type": "custom.googleapis.com/gcsfuse/fs/ops_latency",
+      "type": "custom.googleapis.com/gcsfuse/fs/ops_latencies",
       "labels": {
         "key": "opencensus_task",
         "value": "go-1601078@drashti-load-test"

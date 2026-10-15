@@ -43,14 +43,6 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: int64(StorageClassStandard.DefaultCongestionThreshold()),
 		},
 	},
-}, "gcs-connection.enable-grpc-by-default": {
-	MachineBasedOptimization: []shared.MachineBasedOptimization{
-		{
-			Group:   "high-performance",
-			Value:   bool(true),
-			GkeOnly: true,
-		},
-	},
 }, "file-system.enable-kernel-reader": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
@@ -300,18 +292,6 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 				if c.FileSystem.CongestionThreshold != val {
 					c.FileSystem.CongestionThreshold = val
 					optimizedFlags["file-system.congestion-threshold"] = result
-				}
-			}
-		}
-	}
-	if !v.IsSet("gcs-connection.enable-grpc-by-default") {
-		rules := AllFlagOptimizationRules["gcs-connection.enable-grpc-by-default"]
-		result := getOptimizedValue(&rules, c.GcsConnection.EnableGrpcByDefault, profileName, machineType, input, machineTypeToGroupMap)
-		if result.Optimized {
-			if val, ok := result.FinalValue.(bool); ok {
-				if c.GcsConnection.EnableGrpcByDefault != val {
-					c.GcsConnection.EnableGrpcByDefault = val
-					optimizedFlags["gcs-connection.enable-grpc-by-default"] = result
 				}
 			}
 		}
@@ -784,6 +764,8 @@ type MetricsConfig struct {
 
 	CloudMetricsExportIntervalSecs int64 `yaml:"cloud-metrics-export-interval-secs"`
 
+	EnableNewMetricsSchema bool `yaml:"enable-new-metrics-schema"`
+
 	ExperimentalEnableGrpcMetrics bool `yaml:"experimental-enable-grpc-metrics"`
 
 	ExperimentalEnableOtelMetrics bool `yaml:"experimental-enable-otel-metrics"`
@@ -795,8 +777,6 @@ type MetricsConfig struct {
 	PrometheusPort int64 `yaml:"prometheus-port"`
 
 	StackdriverExportInterval time.Duration `yaml:"stackdriver-export-interval"`
-
-	UseNewNames bool `yaml:"use-new-names"`
 
 	Workers int64 `yaml:"workers"`
 }
@@ -895,7 +875,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.StringP("client-protocol", "", "", "The protocol used for communicating with the GCS backend. Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2), 'grpc', or 'httpmtls'. 'httpmtls' delegates connection creation to the SDK (enabling mTLS) and uses HTTP/2 by default, falling back to HTTP/1.1 if the server doesn't support it.")
+	flagSet.StringP("client-protocol", "", "http1", "The protocol used for communicating with the GCS backend. Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2), 'grpc', or 'httpmtls'. 'httpmtls' delegates connection creation to the SDK (enabling mTLS) and uses HTTP/2 by default, falling back to HTTP/1.1 if the server doesn't support it.")
 
 	flagSet.IntP("cloud-metrics-export-interval-secs", "", 0, "Specifies the interval at which the metrics are uploaded to cloud monitoring")
 
@@ -1377,9 +1357,9 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("metrics-use-new-names", "", false, "Use the new metric names.")
+	flagSet.BoolP("metrics-enable-new-metrics-schema", "", true, "Enables the new metrics schema (e.g., pluralized fs/ops_latencies).")
 
-	if err := flagSet.MarkHidden("metrics-use-new-names"); err != nil {
+	if err := flagSet.MarkHidden("metrics-enable-new-metrics-schema"); err != nil {
 		return err
 	}
 
@@ -2036,7 +2016,7 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	if err := v.BindPFlag("metrics.use-new-names", flagSet.Lookup("metrics-use-new-names")); err != nil {
+	if err := v.BindPFlag("metrics.enable-new-metrics-schema", flagSet.Lookup("metrics-enable-new-metrics-schema")); err != nil {
 		return err
 	}
 

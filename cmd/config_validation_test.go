@@ -577,7 +577,7 @@ func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				GcsConnection: cfg.GcsConnectionConfig{
 					BillingProject:             "",
-					ClientProtocol:             "",
+					ClientProtocol:             "http1",
 					CustomEndpoint:             "",
 					ExperimentalEnableJsonRead: false,
 					GrpcPathStrategy:           "direct-path-with-fallback",
@@ -959,6 +959,7 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 			expectedConfig: &cfg.MetricsConfig{
 				StackdriverExportInterval:      0,
 				CloudMetricsExportIntervalSecs: 0,
+				EnableNewMetricsSchema:         true,
 				PrometheusPort:                 0,
 				Workers:                        3,
 				BufferSize:                     256,
@@ -970,6 +971,7 @@ func TestValidateConfigFile_MetricsConfigSuccessful(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.MetricsConfig{
 				CloudMetricsExportIntervalSecs: 10,
+				EnableNewMetricsSchema:         false,
 				Workers:                        10,
 				BufferSize:                     128,
 				ExperimentalEnableGrpcMetrics:  true,
