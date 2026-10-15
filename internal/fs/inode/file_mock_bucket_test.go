@@ -338,7 +338,7 @@ func (t *FileMockBucketTest) TestAttributes_NoChangeInAttributes() {
 	assert.Equal(t.T(), gcs.TimeToNS(initialTime), f.Source().Updated)
 }
 
-func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_DoesNotFetchMetadataFromGCS_ForAppends() {
+func (t *FileMockBucketTest) TestInitWriteHandlerIfEligible_ZonalBucket_DoesNotFetchMetadataFromGCS_ForAppends() {
 	// Setup Mock Bucket for Zonal
 	t.bucket = new(storagemock.TestifyMockBucket)
 	t.bucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
@@ -353,7 +353,7 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_
 
 	// Call Method
 	// We do NOT expect StatObject to be called.
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.ReadWrite, util.O_APPEND), writeCtx)
+	initialized, err := t.in.InitWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.ReadWrite, util.O_APPEND), writeCtx)
 
 	// Assertions
 	require.NoError(t.T(), err)
@@ -362,7 +362,7 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_
 	t.bucket.AssertNotCalled(t.T(), "StatObject", mock.Anything, mock.Anything)
 }
 
-func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_FetchesLatestMetadataFromGCS_ForOverwrites() {
+func (t *FileMockBucketTest) TestInitWriteHandlerIfEligible_ZonalBucket_FetchesLatestMetadataFromGCS_ForOverwrites() {
 	// Setup Mock Bucket for Zonal
 	t.bucket = new(storagemock.TestifyMockBucket)
 	t.bucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
@@ -379,7 +379,7 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_
 		Return(&gcs.MinObject{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, &gcs.ExtendedObjectAttributes{}, nil)
 
 	// Call Method
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0), writeCtx)
+	initialized, err := t.in.InitWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0), writeCtx)
 
 	// Assertions
 	require.NoError(t.T(), err)
@@ -387,7 +387,7 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_
 	t.bucket.AssertExpectations(t.T())
 }
 
-func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_RegionalBucket_FetchesLatestMetadataFromGCS_Always() {
+func (t *FileMockBucketTest) TestInitWriteHandlerIfEligible_RegionalBucket_FetchesLatestMetadataFromGCS_Always() {
 	// Setup Mock Bucket for Non-Zonal
 	t.bucket = new(storagemock.TestifyMockBucket)
 	t.bucket.On("BucketType").Return(gcs.BucketType{Zonal: false})
@@ -404,7 +404,7 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_RegionalBuck
 		Return(&gcs.MinObject{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, &gcs.ExtendedObjectAttributes{}, nil)
 
 	// Call Method
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0), writeCtx)
+	initialized, err := t.in.InitWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0), writeCtx)
 
 	// Assertions
 	require.NoError(t.T(), err)

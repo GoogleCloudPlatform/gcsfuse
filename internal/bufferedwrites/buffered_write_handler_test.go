@@ -43,7 +43,7 @@ const (
 var errUploadFailure = errors.New("error while uploading object to GCS")
 
 type BufferedWriteTest struct {
-	bwh             BufferedWriteHandler
+	bwh             WriteHandler
 	globalSemaphore *semaphore.Weighted
 	suite.Suite
 }
@@ -60,7 +60,7 @@ func (testSuite *BufferedWriteTest) SetupTest() {
 func (testSuite *BufferedWriteTest) setupTestWithBucketType(bucketType gcs.BucketType) {
 	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", bucketType)
 	testSuite.globalSemaphore = semaphore.NewWeighted(10)
-	bwh, err := NewBWHandler(&CreateBWHandlerRequest{
+	bwh, err := NewWriteHandler(&CreateWriteHandlerRequest{
 		Object:                   nil,
 		ObjectName:               "testObject",
 		Bucket:                   bucket,
@@ -328,7 +328,7 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 			}
 			mockObj := &gcs.MinObject{Name: "testObject", Size: 0}
 			mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
-			bwh, err := NewBWHandler(&CreateBWHandlerRequest{
+			bwh, err := NewWriteHandler(&CreateWriteHandlerRequest{
 				Object:                   tc.obj,
 				ObjectName:               "testObject",
 				Bucket:                   mockBucket,
@@ -390,7 +390,7 @@ func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 			}
 			mockObj := &gcs.MinObject{Name: "testObject", Size: 0}
 			mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(mockObj, nil)
-			bwh, err := NewBWHandler(&CreateBWHandlerRequest{
+			bwh, err := NewWriteHandler(&CreateWriteHandlerRequest{
 				Object:                   tc.obj,
 				ObjectName:               "testObject",
 				Bucket:                   mockBucket,
