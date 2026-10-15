@@ -42,6 +42,7 @@ import (
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 
 	// Side effect to run grpc client with direct-path on gcp machine.
 	_ "google.golang.org/grpc/balancer/rls"
@@ -61,6 +62,12 @@ const (
 	directPathDetectionTimeout          = 15 * time.Second
 	directPathDetectionMaxBackoff       = 5 * time.Second
 	directPathDetectionMaxRetryDuration = 1 * time.Minute
+
+	// gRPC keepalive parameters to detect mid-stream stalls on active RPCs when
+	// the remote peer's OS kernel continues ACKing TCP keepalives while the L7
+	// stream is wedged.
+	grpcKeepaliveTime    = 30 * time.Second
+	grpcKeepaliveTimeout = 20 * time.Second
 )
 
 type StorageHandle interface {
@@ -140,6 +147,10 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
 	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
+	clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithKeepaliveParams(keepalive.ClientParameters{
+		Time:    grpcKeepaliveTime,
+		Timeout: grpcKeepaliveTimeout,
+	})))
 
 	if clientConfig.EnableGrpcMetrics && clientConfig.IsGKE {
 		// Pass the OpenTelemetry MeterProvider to the Go storage client,
