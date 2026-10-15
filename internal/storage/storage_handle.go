@@ -43,6 +43,7 @@ import (
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 
 	// Side effect to run grpc client with direct-path on gcp machine.
@@ -73,6 +74,14 @@ const (
 
 	// nonExistentObjectName is the object name used for bucket existence/access check when HNS feature is disabled by providing "--enable-hns:false". E.g. Using Regional Endpoints which do not support GRPC protocol.
 	nonExistentObjectName = "gcsfuse-nonexistent-object-check"
+)
+
+var (
+	// gRPC keepalive parameters to detect mid-stream stalls on active RPCs when
+	// the remote peer's OS kernel continues ACKing TCP keepalives while the L7
+	// stream is wedged. Defined as vars so unit tests can use shorter intervals.
+	grpcKeepaliveTime    = 30 * time.Second
+	grpcKeepaliveTimeout = 20 * time.Second
 )
 
 type StorageHandle interface {
@@ -177,6 +186,10 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
 	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
+	clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithKeepaliveParams(keepalive.ClientParameters{
+		Time:    grpcKeepaliveTime,
+		Timeout: grpcKeepaliveTimeout,
+	})))
 
 	if clientConfig.EnableGrpcMetrics && clientConfig.IsGKE {
 		// Pass the OpenTelemetry MeterProvider to the Go storage client,
