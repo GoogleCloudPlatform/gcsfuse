@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -88,4 +89,12 @@ func TestPermissionAwareExporter_ExportOtherError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.False(t, exporter.disabled.Load())
+}
+
+func TestGetResource(t *testing.T) {
+	res, err := getResource(context.Background(), "test-mount-id")
+
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, semconv.SchemaURL, res.SchemaURL())
 }
