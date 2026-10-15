@@ -130,8 +130,8 @@ func BenchmarkSizeMetric_InsertWithEviction(b *testing.B) {
 	})
 }
 
-// An insert then an invalidation, as on object updates and deletes: +size,
-// -size.
+// An insert and an erase of the same key, as when object writes (create,
+// update, copy, move) invalidate and re-cache an entry: +size, -size.
 func BenchmarkSizeMetric_InsertErase(b *testing.B) {
 	keys := sizeBenchKeys("", 10000)
 	objs := sizeBenchObjects(keys)
@@ -181,7 +181,8 @@ func BenchmarkSizeMetric_LookUpHit(b *testing.B) {
 	})
 }
 
-// A folder rename or delete erases a whole subtree: -size per entry.
+// An HNS folder rename erases the cached entries of a whole subtree: -size per
+// entry.
 func BenchmarkSizeMetric_EraseEntriesWithGivenPrefix(b *testing.B) {
 	const n = 10000
 	inside := sizeBenchObjects(sizeBenchKeys("dir/", n))
