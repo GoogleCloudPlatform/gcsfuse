@@ -128,7 +128,15 @@ func buildForwardContext(ctx context.Context, fullMethodName string, validations
 		if *fDebug {
 			log.Printf("Planting operation: %s for method: %s", plantOp, fullMethodName)
 		}
-		md = metadata.Join(md, metadata.Pairs("x-goog-emulator-instructions", plantOp))
+		if fullMethodName == storageServicePrefix+"BidiWriteObject" {
+			testID, err := CreateGRPCRetryTest("http://localhost:9000", map[string][]string{"storage.objects.insert": {plantOp}})
+			if err != nil {
+				return nil, err
+			}
+			md = metadata.Join(md, metadata.Pairs("x-retry-test-id", testID))
+		} else {
+			md = metadata.Join(md, metadata.Pairs("x-goog-emulator-instructions", plantOp))
+		}
 	}
 
 	return metadata.NewOutgoingContext(ctx, md), nil
