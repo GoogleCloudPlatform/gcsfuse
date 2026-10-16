@@ -579,6 +579,23 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 	return sh.httpClient, err
 }
 
+func (sh *storageClient) closeControlClient() {
+	if sh.rawStorageControlClient != nil {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					logger.Warnf("recovered panic during rawStorageControlClient.Close: %v", r)
+				}
+			}()
+			if err := sh.rawStorageControlClient.Close(); err != nil {
+				logger.Warnf("failed to close rawStorageControlClient: %v", err)
+			}
+		}()
+		sh.rawStorageControlClient = nil
+	}
+	sh.storageControlClient = nil
+}
+
 func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error) {
 	var client *storage.Client
 	bucketType, err := sh.lookupBucketType(bucketName)
@@ -603,11 +620,18 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	}
 
 	var controlClient StorageControlClient
-	if sh.rawStorageControlClient != nil {
-		controlClient = NewStorageControlClient(sh.rawStorageControlClient, &sh.clientConfig,
-			WithRetriesOnFolderAPI(),
-			WithBillingProject(billingProject),
-		)
+	if bucketType.Hierarchical && sh.clientConfig.EnableHNS {
+		if sh.rawStorageControlClient != nil {
+			controlClient = NewStorageControlClient(sh.rawStorageControlClient, &sh.clientConfig,
+				WithRetriesOnFolderAPI(),
+				WithBillingProject(billingProject),
+			)
+		}
+	} else {
+		// Close the control client if the bucket is flat or when HNS is disabled.
+		// We only needed the control client for GetStorageLayout (layout discovery & mount telemetry).
+		// Closing it here ensures no idle gRPC connection pool is leaked for the mount lifetime.
+		sh.closeControlClient()
 	}
 
 	// By default, follow the user's flag

@@ -264,9 +264,10 @@ func (testSuite *StorageHandleTest) TestBucketHandleWhenBucketDoesNotExistWithNo
 func (testSuite *StorageHandleTest) TestBucketHandle_ControlClientIsWrappedWithRetry() {
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	sh := storageHandle.(*storageClient)
+	sh.clientConfig.EnableHNS = true
 	mockRawControlClientWithoutRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithoutRetry()}
 	sh.rawStorageControlClient = mockRawControlClientWithoutRetries
-	testSuite.mockStorageLayout(gcs.BucketType{})
+	testSuite.mockStorageLayout(gcs.BucketType{Hierarchical: true})
 
 	bucketHandle, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
 
@@ -282,9 +283,10 @@ func (testSuite *StorageHandleTest) TestBucketHandle_ControlClientIsWrappedWithR
 func (testSuite *StorageHandleTest) TestBucketHandle_ControlClientIsWrappedWithBillingProject() {
 	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
 	sh := storageHandle.(*storageClient)
+	sh.clientConfig.EnableHNS = true
 	mockRawControlClientWithoutRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithoutRetry()}
 	sh.rawStorageControlClient = mockRawControlClientWithoutRetries
-	testSuite.mockStorageLayout(gcs.BucketType{})
+	testSuite.mockStorageLayout(gcs.BucketType{Hierarchical: true})
 
 	bucketHandle, err := sh.BucketHandle(testSuite.ctx, TestBucketName, projectID)
 
@@ -295,6 +297,56 @@ func (testSuite *StorageHandleTest) TestBucketHandle_ControlClientIsWrappedWithB
 	billingProjectWrapper, ok := controlClient.(*storageControlClientWithBillingProject)
 	require.True(testSuite.T(), ok, "Expected a billing project wrapper")
 	assert.Equal(testSuite.T(), projectID, billingProjectWrapper.billingProject)
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_FlatBucket_ClosesControlClient() {
+	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
+	sh := storageHandle.(*storageClient)
+	sh.clientConfig.EnableHNS = true
+	mockRawControlClientWithoutRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithoutRetry()}
+	sh.rawStorageControlClient = mockRawControlClientWithoutRetries
+	testSuite.mockStorageLayout(gcs.BucketType{Hierarchical: false})
+
+	bucketHandle, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+
+	assert.NotNil(testSuite.T(), bucketHandle)
+	assert.Nil(testSuite.T(), err)
+	assert.Nil(testSuite.T(), bucketHandle.controlClient, "Flat bucket handle should not retain a control client")
+	assert.Nil(testSuite.T(), sh.rawStorageControlClient, "Flat bucket mount should close and clear rawStorageControlClient")
+	assert.Nil(testSuite.T(), sh.storageControlClient, "Flat bucket mount should clear storageControlClient")
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_HNSBucket_EnableHNSFalse_ClosesControlClient() {
+	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
+	sh := storageHandle.(*storageClient)
+	sh.clientConfig.EnableHNS = false
+	mockRawControlClientWithoutRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithoutRetry()}
+	sh.rawStorageControlClient = mockRawControlClientWithoutRetries
+	testSuite.mockStorageLayout(gcs.BucketType{Hierarchical: true})
+
+	bucketHandle, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+
+	assert.NotNil(testSuite.T(), bucketHandle)
+	assert.Nil(testSuite.T(), err)
+	assert.Nil(testSuite.T(), bucketHandle.controlClient, "When EnableHNS is false, control client must not be retained")
+	assert.Nil(testSuite.T(), sh.rawStorageControlClient, "When EnableHNS is false, rawStorageControlClient must be closed and cleared")
+	assert.Nil(testSuite.T(), sh.storageControlClient, "When EnableHNS is false, storageControlClient must be cleared")
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_HNSBucket_RetainsControlClient() {
+	storageHandle := testSuite.fakeStorage.CreateStorageHandle()
+	sh := storageHandle.(*storageClient)
+	sh.clientConfig.EnableHNS = true
+	mockRawControlClientWithoutRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithoutRetry()}
+	sh.rawStorageControlClient = mockRawControlClientWithoutRetries
+	testSuite.mockStorageLayout(gcs.BucketType{Hierarchical: true})
+
+	bucketHandle, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+
+	assert.NotNil(testSuite.T(), bucketHandle)
+	assert.Nil(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), bucketHandle.controlClient, "HNS bucket handle must retain a control client")
+	assert.NotNil(testSuite.T(), sh.rawStorageControlClient, "HNS bucket mount must retain rawStorageControlClient")
 }
 
 func (testSuite *StorageHandleTest) TestLookupBucketType_RapidCacheInfo() {
