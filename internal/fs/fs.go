@@ -1463,6 +1463,7 @@ func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.
 		// 2. In case of non zonal bucket it's no-op as we don't have pending buffers to upload.
 		err = fs.syncFile(ctx, f)
 		if err != nil {
+			f.DestroyBufferedWriteHandler()
 			return err
 		}
 	}

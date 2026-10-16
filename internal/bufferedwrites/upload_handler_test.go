@@ -646,3 +646,40 @@ func (t *UploadHandlerTest) TestDestroyWithUploaderGoroutineInProgress() {
 	assert.Equal(t.T(), 1, t.uh.blockPool.TotalFreeBlocks())
 	assertAllBlocksProcessed(t.T(), t.uh)
 }
+
+func (t *UploadHandlerTest) TestEnsureWriter_StoresUploadErrorAndWrapsCause() {
+	t.createUploadHandlerWithObjectOfGivenSize(objectSize, time.Time{})
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	precondErr := &gcs.PreconditionError{Err: errors.New("takeover offset mismatch")}
+	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(nil, precondErr)
+
+	err := t.uh.ensureWriter(context.Background())
+
+	require.Error(t.T(), err)
+	var gotPrecondErr *gcs.PreconditionError
+	assert.ErrorAs(t.T(), err, &gotPrecondErr)
+	require.NotNil(t.T(), t.uh.UploadError())
+	assert.ErrorAs(t.T(), t.uh.UploadError(), &gotPrecondErr)
+}
+
+func (t *UploadHandlerTest) TestFinalize_RepeatedCallsDoNotPanicWhenEnsureWriterFails() {
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{})
+	precondErr := &gcs.PreconditionError{Err: errors.New("precondition failed")}
+	t.mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, precondErr)
+
+	obj1, err1 := t.uh.Finalize(context.Background())
+	require.Error(t.T(), err1)
+	assert.Nil(t.T(), obj1)
+	var gotPrecondErr *gcs.PreconditionError
+	assert.ErrorAs(t.T(), err1, &gotPrecondErr)
+
+	assert.NotPanics(t.T(), func() {
+		obj2, err2 := t.uh.Finalize(context.Background())
+		require.Error(t.T(), err2)
+		assert.Nil(t.T(), obj2)
+		assert.ErrorAs(t.T(), err2, &gotPrecondErr)
+	})
+	assert.NotPanics(t.T(), func() {
+		t.uh.Destroy()
+	})
+}

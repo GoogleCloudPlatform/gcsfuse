@@ -411,3 +411,65 @@ func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_RegionalBuck
 	assert.True(t.T(), initialized)
 	t.bucket.AssertExpectations(t.T())
 }
+
+func (t *FileMockBucketTest) TestInitBufferedWriteHandlerIfEligible_ZonalBucket_StaleStatSizeOnUnfinalizedObject_DoesNotInitBWHForOverwrite() {
+	// Setup Mock Bucket for Zonal
+	t.bucket = new(storagemock.TestifyMockBucket)
+	t.bucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	// Inode already synced 50 MiB to an unfinalized object at generation 1.
+	backingObj := &gcs.MinObject{
+		Name:           fileName,
+		Size:           50 * util.MiB,
+		Generation:     1,
+		MetaGeneration: 1,
+		Finalized:      0, // Unfinalized
+	}
+	f := t.createGCSBackedFileInode(backingObj)
+	defer f.Unlock()
+	writeCtx := getWriteContext()
+	writeCtx.Config.Write = *getWriteConfigWithEnabledRapidAppends()
+
+	// StatObject returns a stale size of 0 for the same unfinalized generation (b/520290147).
+	t.bucket.On("StatObject", t.ctx, mock.AnythingOfType("*gcs.StatObjectRequest")).
+		Return(&gcs.MinObject{
+			Name:           fileName,
+			Size:           0,
+			Generation:     1,
+			MetaGeneration: 1,
+			Finalized:      0,
+		}, &gcs.ExtendedObjectAttributes{}, nil)
+
+	// Overwrite (ReadWrite without O_APPEND) must not treat the 50 MiB file as size 0.
+	initialized, err := f.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.ReadWrite, 0), writeCtx)
+
+	require.NoError(t.T(), err)
+	assert.False(t.T(), initialized)
+	assert.False(t.T(), f.IsUsingBWH())
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *FileMockBucketTest) TestDestroyBufferedWriteHandler_ReleasesResourcesAndClearsBWH() {
+	t.in.content = nil
+	sem := semaphore.NewWeighted(5)
+	writeCtx := getWriteContext()
+	writeCtx.Config.Write = *getWriteConfig()
+	writeCtx.GlobalMaxBlocksSem = sem
+
+	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, util.NewOpenMode(util.WriteOnly, 0), writeCtx)
+	require.NoError(t.T(), err)
+	require.True(t.T(), initialized)
+	require.True(t.T(), t.in.IsUsingBWH())
+	// One block permit is reserved when BWH is created.
+	assert.False(t.T(), sem.TryAcquire(5))
+
+	t.in.DestroyBufferedWriteHandler()
+
+	assert.False(t.T(), t.in.IsUsingBWH())
+	// All 5 permits should now be free.
+	assert.True(t.T(), sem.TryAcquire(5))
+	sem.Release(5)
+	// Calling again when bwh is nil is a safe no-op.
+	assert.NotPanics(t.T(), func() {
+		t.in.DestroyBufferedWriteHandler()
+	})
+}
