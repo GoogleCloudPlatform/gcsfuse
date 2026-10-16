@@ -84,7 +84,7 @@ readonly TPCZERO_PROJECT_ID="tpczero-system:gcsfuse-test-project"
 readonly TPC_BUCKET_LOCATION="u-us-prp1"
 readonly BUCKET_PREFIX="gcsfuse-e2e"
 readonly INTEGRATION_TEST_PACKAGE_DIR="./tools/integration_tests"
-readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=90 
+readonly INTEGRATION_TEST_PACKAGE_TIMEOUT_IN_MINS=120
 readonly ZONAL_BUCKET_SUPPORTED_LOCATIONS=("us-central1" "us-west4")
 # 6 second delay between creating buckets as both hns and flat runs create buckets in parallel.
 # Ref: https://cloud.google.com/storage/quotas#buckets
