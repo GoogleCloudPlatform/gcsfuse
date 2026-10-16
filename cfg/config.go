@@ -844,6 +844,8 @@ type WriteConfig struct {
 
 	EnableStreamingWrites bool `yaml:"enable-streaming-writes"`
 
+	ExperimentalEnableParallelUpload bool `yaml:"experimental-enable-parallel-upload"`
+
 	FinalizeFileForRapid bool `yaml:"finalize-file-for-rapid"`
 
 	GlobalMaxBlocks int64 `yaml:"global-max-blocks"`
@@ -1128,6 +1130,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.BoolP("experimental-enable-otel-metrics", "", false, "Enable OpenTelemetry metrics exporting. Must also set cloud-metrics-export-interval-secs > 0 to take effect.")
 
 	if err := flagSet.MarkHidden("experimental-enable-otel-metrics"); err != nil {
+		return err
+	}
+
+	flagSet.BoolP("experimental-enable-parallel-upload", "", false, "Enables experimental parallel uploads for streaming writes on Rapid Cache Ultra buckets.")
+
+	if err := flagSet.MarkHidden("experimental-enable-parallel-upload"); err != nil {
 		return err
 	}
 
@@ -1781,6 +1789,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.experimental-enable-otel-metrics", flagSet.Lookup("experimental-enable-otel-metrics")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("write.experimental-enable-parallel-upload", flagSet.Lookup("experimental-enable-parallel-upload")); err != nil {
 		return err
 	}
 

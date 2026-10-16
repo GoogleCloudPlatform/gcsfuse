@@ -134,18 +134,18 @@ type FileInode struct {
 	// code.
 	MRDWrapper *gcsx.MultiRangeDownloaderWrapper
 
-	bwh bufferedwrites.BufferedWriteHandler
+	writeHandler bufferedwrites.WriteHandler
 
 	// mrdInstance manages the MultiRangeDownloader instances for this inode.
 	mrdInstance               *gcsx.MrdInstance
 	kernelRangeReaderInstance *kernel_readers.KernelRangeReaderInstance
 
-	// Once write is started on the file i.e, bwh is initialized, any fileHandles
+	// Once write is started on the file i.e, writeHandler is initialized, any fileHandles
 	// opened in write mode before or after this and not yet closed are considered
 	// as writing to the file even though they are not writing.
-	// In case of successful flush, we will set bwh to nil. But in case of error,
+	// In case of successful flush, we will set writeHandler to nil. But in case of error,
 	// we will keep returning that error to all the fileHandles open during that time
-	// and set bwh to nil after all fileHandlers are closed.
+	// and set writeHandler to nil after all fileHandlers are closed.
 	// writeHandleCount tracks the count of open fileHandles in write mode.
 	writeHandleCount int32
 
@@ -459,16 +459,16 @@ func (f *FileInode) IsUnlinked() bool {
 func (f *FileInode) Unlink() {
 	f.unlinked = true
 
-	if f.bwh != nil {
-		f.bwh.Unlink()
+	if f.writeHandler != nil {
+		f.writeHandler.Unlink()
 	}
 }
 
-// Returns true if the fileInode is using Buffered Write Handler.
+// Returns true if the fileInode is using Write Handler.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) IsUsingBWH() bool {
-	return f.bwh != nil
+func (f *FileInode) IsUsingWriteHandler() bool {
+	return f.writeHandler != nil
 }
 
 // Source returns a record for the GCS object from which this inode is branched. The
@@ -502,9 +502,9 @@ func (f *FileInode) GetKernelRangeReaderInstance() *kernel_readers.KernelRangeRe
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 	// Source generation is authoritative if:
-	//   1.  No pending writes exists on the inode (both content and bwh are nil).
+	//   1.  No pending writes exists on the inode (both content and writeHandler are nil).
 	//   2.  The bucket is rapid and there are no pending writes in the temporary file.
-	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().RapidWritesEnabled() && f.content == nil)
+	return (f.content == nil && f.writeHandler == nil) || (f.bucket.BucketType().RapidWritesEnabled() && f.content == nil)
 }
 
 // Equivalent to the generation returned by f.Source().
@@ -514,12 +514,12 @@ func (f *FileInode) SourceGeneration() (g Generation) {
 	g.Size = f.src.Size
 	g.Object = f.src.Generation
 	g.Metadata = f.src.MetaGeneration
-	// If bwh is not nil, it's size takes precedence as that is being actively
+	// If writeHandler is not nil, it's size takes precedence as that is being actively
 	// written to GCS.
 	// Since temporary file does not write to GCS on the go, it's size is not
 	// used as source object's size.
-	if f.bwh != nil {
-		writeFileInfo := f.bwh.WriteFileInfo()
+	if f.writeHandler != nil {
+		writeFileInfo := f.writeHandler.WriteFileInfo()
 		g.Size = uint64(writeFileInfo.TotalSize)
 	}
 	return
@@ -555,13 +555,13 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 
 	f.writeHandleCount--
 
-	// All write fileHandles associated with bwh are closed. So safe to set bwh to nil.
-	if f.writeHandleCount == 0 && f.bwh != nil {
-		err := f.bwh.Destroy()
+	// All write fileHandles associated with writeHandler are closed. So safe to set writeHandler to nil.
+	if f.writeHandleCount == 0 && f.writeHandler != nil {
+		err := f.writeHandler.Destroy()
 		if err != nil {
-			logger.Warnf("Error while destroying the bufferedWritesHandler: %v", err)
+			logger.Warnf("Error while destroying the writeHandler: %v", err)
 		}
-		f.bwh = nil
+		f.writeHandler = nil
 	}
 }
 
@@ -611,8 +611,8 @@ func (f *FileInode) Attributes(
 		}
 	}
 
-	if f.bwh != nil {
-		writeFileInfo := f.bwh.WriteFileInfo()
+	if f.writeHandler != nil {
+		writeFileInfo := f.writeHandler.WriteFileInfo()
 		mtime = writeFileInfo.Mtime
 		size = uint64(writeFileInfo.TotalSize)
 	}
@@ -667,7 +667,7 @@ func (f *FileInode) Bucket() *gcsx.SyncerBucket {
 func (f *FileInode) Read(
 	ctx context.Context,
 	req *gcsx.ReadRequest) (res gcsx.ReadResponse, err error) {
-	if f.bwh != nil {
+	if f.writeHandler != nil {
 		err = fmt.Errorf("unexpected read call for %q when streaming write is in progress for it", f.Name().LocalName())
 		return
 	}
@@ -746,8 +746,8 @@ func (f *FileInode) Write(
 	offset int64,
 	openMode util.OpenMode,
 	writeCtx *WriteContext) (bool, error) {
-	if f.bwh != nil {
-		return f.writeUsingBufferedWrites(ctx, data, offset, openMode, writeCtx)
+	if f.writeHandler != nil {
+		return f.writeUsingWriteHandler(ctx, data, offset, openMode, writeCtx)
 	}
 
 	return false, f.writeUsingTempFile(ctx, data, offset, writeCtx)
@@ -774,22 +774,22 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 	return
 }
 
-// Helper function to serve write for file using buffered writes handler.
+// Helper function to serve write for file using write handler.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64, openMode util.OpenMode, writeCtx *WriteContext) (_ bool, err error) {
+func (f *FileInode) writeUsingWriteHandler(ctx context.Context, data []byte, offset int64, openMode util.OpenMode, writeCtx *WriteContext) (_ bool, err error) {
 	bytes := int64(len(data))
 	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.WriteFileStreaming, f.src.Name, &bytes, &err)
 	defer finishSpan()
-	err = f.bwh.Write(ctx, data, offset)
-	if clobberedErr := f.wrapFileClobberedError(err, "f.bwh.Write()"); clobberedErr != nil {
+	err = f.writeHandler.Write(ctx, data, offset)
+	if clobberedErr := f.wrapFileClobberedError(err, "f.writeHandler.Write()"); clobberedErr != nil {
 		return false, clobberedErr
 	}
 	// Fall back to temp file for Out-Of-Order Writes.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		logger.Tracef("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
-		err = f.flushUsingBufferedWriteHandler(ctx)
+		err = f.flushUsingWriteHandler(ctx)
 		if err != nil {
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
@@ -797,43 +797,43 @@ func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, o
 		return true, f.writeUsingTempFile(ctx, data, offset, writeCtx)
 	}
 	if err != nil {
-		return false, fmt.Errorf("write to buffered write handler failed: %w", err)
+		return false, fmt.Errorf("write to write handler failed: %w", err)
 	}
 	return false, nil
 }
 
-// Helper function to flush buffered writes handler and update inode state with
+// Helper function to flush write handler and update inode state with
 // new object.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) flushUsingBufferedWriteHandler(ctx context.Context) error {
-	obj, err := f.bwh.Flush(ctx)
-	if clobberedErr := f.wrapFileClobberedError(err, "f.bwh.Flush()"); clobberedErr != nil {
+func (f *FileInode) flushUsingWriteHandler(ctx context.Context) error {
+	obj, err := f.writeHandler.Flush(ctx)
+	if clobberedErr := f.wrapFileClobberedError(err, "f.writeHandler.Flush()"); clobberedErr != nil {
 		return clobberedErr
 	}
 	if err != nil {
-		return fmt.Errorf("f.bwh.Flush(): %w", err)
+		return fmt.Errorf("f.writeHandler.Flush(): %w", err)
 	}
 	// If we finalized the object, we need to update our state.
 	f.updateInodeStateAfterFlush(obj)
 	return nil
 }
 
-// SyncPendingBufferedWrites flushes any pending writes on the bwh to GCS.
-// It is a no-op when bwh is nil.
+// SyncPendingWrites flushes any pending writes on the writeHandler to GCS.
+// It is a no-op when writeHandler is nil.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) SyncPendingBufferedWrites(ctx context.Context) (gcsSynced bool, err error) {
-	if f.bwh == nil {
+func (f *FileInode) SyncPendingWrites(ctx context.Context) (gcsSynced bool, err error) {
+	if f.writeHandler == nil {
 		return
 	}
-	minObj, err := f.bwh.Sync(ctx)
-	if clobberedErr := f.wrapFileClobberedError(err, "f.bwh.Sync(ctx)"); clobberedErr != nil {
+	minObj, err := f.writeHandler.Sync(ctx)
+	if clobberedErr := f.wrapFileClobberedError(err, "f.writeHandler.Sync(ctx)"); clobberedErr != nil {
 		err = clobberedErr
 		return
 	}
 	if err != nil {
-		err = fmt.Errorf("f.bwh.Sync(ctx): %w", err)
+		err = fmt.Errorf("f.writeHandler.Sync(ctx): %w", err)
 		return
 	}
 	// We return gcsSynced as true when we get minObject from Sync() for Zonal Buckets.
@@ -875,12 +875,12 @@ func (f *FileInode) SetMtime(
 		return
 	}
 
-	// When bufferedWritesHandler instance is not nil, set time on bwh.
-	// It will not be nil in 2 cases when bufferedWrites are enabled:
+	// When writeHandler instance is not nil, set time on writeHandler.
+	// It will not be nil in 2 cases when streaming writes are enabled:
 	// 1. local files
 	// 2. After first write on empty GCS files.
-	if f.bwh != nil {
-		f.bwh.SetMtime(mtime)
+	if f.writeHandler != nil {
+		f.writeHandler.SetMtime(mtime)
 		return
 	}
 
@@ -998,12 +998,12 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context, writeCtx *WriteContext) (gcsSynced bool, err error) {
 	// If we have not been dirtied, there is nothing to do.
-	if f.content == nil && f.bwh == nil {
+	if f.content == nil && f.writeHandler == nil {
 		return
 	}
 
-	if f.bwh != nil {
-		gcsSynced, err = f.SyncPendingBufferedWrites(ctx)
+	if f.writeHandler != nil {
+		gcsSynced, err = f.SyncPendingWrites(ctx)
 		if err != nil {
 			err = fmt.Errorf("could not sync what has been written so far: %w", err)
 		}
@@ -1089,23 +1089,23 @@ func (f *FileInode) syncUsingContent(ctx context.Context, writeCtx *WriteContext
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Flush(ctx context.Context, writeCtx *WriteContext) (err error) {
 	// If we have not been dirtied, there is nothing to do.
-	if f.content == nil && f.bwh == nil {
+	if f.content == nil && f.writeHandler == nil {
 		return
 	}
 
 	// Flush using the appropriate method based on whether we're using a
-	// buffered write handler.
-	if f.bwh != nil {
-		return f.flushUsingBufferedWriteHandler(ctx)
+	// write handler.
+	if f.writeHandler != nil {
+		return f.flushUsingWriteHandler(ctx)
 	}
 	return f.syncUsingContent(ctx, writeCtx)
 }
 
 func (f *FileInode) updateInodeStateAfterFlush(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
-		// Set BWH to nil as as object has been finalized.
-		if f.bwh != nil {
-			f.bwh = nil
+		// Set writeHandler to nil as object has been finalized.
+		if f.writeHandler != nil {
+			f.writeHandler = nil
 		}
 		f.updateInodeStateAfterSync(minObj)
 	}
@@ -1148,19 +1148,19 @@ func (f *FileInode) updateReaders() {
 	}
 }
 
-// truncateUsingBufferedWriteHandler attempts to truncate the file using the buffered
-// write handler. If the requested size is smaller than the file's current size,
+// truncateUsingWriteHandler attempts to truncate the file using the write
+// handler. If the requested size is smaller than the file's current size,
 // it finalizes the existing writes, falls back to using a temporary file for
 // the truncation, and returns true to indicate the file has been synced.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size int64, writeCtx *WriteContext) (bool, error) {
-	err := f.bwh.Truncate(size)
+func (f *FileInode) truncateUsingWriteHandler(ctx context.Context, size int64, writeCtx *WriteContext) (bool, error) {
+	err := f.writeHandler.Truncate(size)
 	// If truncate size is less than the total file size resulting in OutOfOrder write, finalize and fall back to temp file.
 	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
 		logger.Tracef("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
-		err = f.flushUsingBufferedWriteHandler(ctx)
+		err = f.flushUsingWriteHandler(ctx)
 		if err != nil {
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
@@ -1168,7 +1168,7 @@ func (f *FileInode) truncateUsingBufferedWriteHandler(ctx context.Context, size 
 		return true, f.truncateUsingTempFile(ctx, size)
 	}
 	if err != nil {
-		return false, fmt.Errorf("got unexpected error from bwh.Truncate(): %w", err)
+		return false, fmt.Errorf("got unexpected error from writeHandler.Truncate(): %w", err)
 	}
 	return false, nil
 }
@@ -1195,8 +1195,8 @@ func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64,
 	writeCtx *WriteContext) (bool, error) {
-	if f.IsUsingBWH() {
-		return f.truncateUsingBufferedWriteHandler(ctx, size, writeCtx)
+	if f.IsUsingWriteHandler() {
+		return f.truncateUsingWriteHandler(ctx, size, writeCtx)
 	}
 	return false, f.truncateUsingTempFile(ctx, size)
 }
@@ -1217,7 +1217,7 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 	// Skip creating empty temp file when streaming writes are enabled
 	// or temp file is already created.
-	if f.bwh != nil || f.content != nil {
+	if f.writeHandler != nil || f.content != nil {
 		return
 	}
 
@@ -1229,17 +1229,17 @@ func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 	return
 }
 
-// Initializes Buffered Write Handler if the file inode is eligible and returns
-// initialized as true when the new instance of buffered writer handler is created.
-func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, openMode util.OpenMode, writeCtx *WriteContext) (bool, error) {
-	// bwh already initialized, do nothing.
-	if f.bwh != nil {
+// Initializes Write Handler if the file inode is eligible and returns
+// initialized as true when the new instance of write handler is created.
+func (f *FileInode) InitWriteHandlerIfEligible(ctx context.Context, openMode util.OpenMode, writeCtx *WriteContext) (bool, error) {
+	// writeHandler already initialized, do nothing.
+	if f.writeHandler != nil {
 		return false, nil
 	}
 
 	tempFileInUse := f.content != nil
 	if !writeCtx.Config.Write.EnableStreamingWrites || tempFileInUse {
-		// bwh should not be initialized under these conditions.
+		// writeHandler should not be initialized under these conditions.
 		return false, nil
 	}
 
@@ -1263,12 +1263,12 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 		}
 	}
 
-	if !f.areBufferedWritesSupported(openMode, latestGcsObj, writeCtx) {
+	if !f.isWriteHandlerSupported(openMode, latestGcsObj, writeCtx) {
 		return false, nil
 	}
 
-	if f.bwh == nil {
-		f.bwh, err = bufferedwrites.NewBWHandler(&bufferedwrites.CreateBWHandlerRequest{
+	if f.writeHandler == nil {
+		f.writeHandler, err = bufferedwrites.NewWriteHandler(&bufferedwrites.CreateWriteHandlerRequest{
 			Object:                   latestGcsObj,
 			ObjectName:               f.name.GcsObjectName(),
 			Bucket:                   f.bucket,
@@ -1289,16 +1289,16 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 		}
 		if err != nil {
 			recordStreamingWriteFallbackMetric(writeCtx.MetricHandle, openMode, metrics.WriteFallbackReasonOtherAttr)
-			return false, fmt.Errorf("failed to create bufferedWriteHandler: %w", err)
+			return false, fmt.Errorf("failed to create writeHandler: %w", err)
 		}
-		f.bwh.SetMtime(f.mtimeClock.Now())
+		f.writeHandler.SetMtime(f.mtimeClock.Now())
 		return true, nil
 	}
 	return false, nil
 }
 
-func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.Object, writeCtx *WriteContext) bool {
-	// For new files and existing files of size 0, buffered writes are always supported.
+func (f *FileInode) isWriteHandlerSupported(openMode util.OpenMode, obj *gcs.Object, writeCtx *WriteContext) bool {
+	// For new files and existing files of size 0, streaming writes are always supported.
 	if f.local || obj.Size == 0 {
 		return true
 	}
