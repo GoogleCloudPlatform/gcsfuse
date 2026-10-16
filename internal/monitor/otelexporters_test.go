@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -92,7 +93,10 @@ func TestPermissionAwareExporter_ExportOtherError(t *testing.T) {
 }
 
 func TestGetResource(t *testing.T) {
-	res, err := getResource(context.Background(), "test-mount-id")
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	res, err := getResource(ctx, "test-mount-id")
 
 	require.NoError(t, err)
 	require.NotNil(t, res)
