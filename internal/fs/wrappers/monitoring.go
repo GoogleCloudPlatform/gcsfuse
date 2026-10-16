@@ -346,7 +346,14 @@ func (fs *monitoring) OpenFile(ctx context.Context, op *fuseops.OpenFileOp) erro
 
 func (fs *monitoring) ReadFile(ctx context.Context, op *fuseops.ReadFileOp) error {
 	fs.metricHandle.ReadBlockSizes(ctx, int64(len(op.Dst)))
-	return fs.invokeWrapped(ctx, metrics.FsOpReadFileAttr, func(ctx context.Context) error { return fs.wrapped.ReadFile(ctx, op) })
+	err := fs.invokeWrapped(ctx, metrics.FsOpReadFileAttr, func(ctx context.Context) error { return fs.wrapped.ReadFile(ctx, op) })
+	// Count only the bytes actually returned to the kernel. BytesRead (not
+	// len(op.Dst)) is exact for short reads at EOF and for vectored reads, where
+	// Dst is nil. A failed read returns no data, so it is not counted.
+	if err == nil && op.BytesRead > 0 {
+		fs.metricHandle.FsReadBytesCount(int64(op.BytesRead))
+	}
+	return err
 }
 
 func (fs *monitoring) WriteFile(ctx context.Context, op *fuseops.WriteFileOp) error {
