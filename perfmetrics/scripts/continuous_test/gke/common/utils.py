@@ -717,7 +717,8 @@ async def clone_and_log_branch_info(branch, temp_dir):
   
   commit_id = stdout.strip()
   print(f"GCSFuse branch: '{actual_branch}', commit ID: {commit_id} (initiator: {initiator})")
-  await run_command_async(["git", "checkout", commit_id], cwd=gcsfuse_dir)
+  # Use -f so workspace changes (e.g. Kokoro chmod on build_file) do not block checkout.
+  await run_command_async(["git", "checkout", "-f", commit_id], cwd=gcsfuse_dir)
   return actual_branch, commit_id, gcsfuse_dir
 
 # GCSFuse Build and Deploy
