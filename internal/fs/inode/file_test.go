@@ -87,7 +87,7 @@ func TestFileTestSuite(t *testing.T) {
 		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Zonal: true}})
 	})
 	t.Run("Pirlo", func(t *testing.T) {
-		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled}})
+		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Pirlo: true}})
 	})
 }
 
@@ -145,18 +145,22 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		NewRootName(""),
 		fileName,
 	)
+	t.writeCtx = getWriteContext()
+	if t.bucket != nil && t.bucket.BucketType().Pirlo {
+		t.writeCtx.Config.Write.EnableRapidWrites = true
+	}
+
 	syncerBucket := gcsx.NewSyncerBucket(
 		/*appendThreshold=*/ 1,
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
-		t.bucket)
+		t.bucket,
+		t.writeCtx.Config.Write.EnableRapidWrites)
 
 	if local {
 		t.backingObj = nil
 	}
-
-	t.writeCtx = getWriteContext()
 
 	t.in = NewFileInode(
 		fileInodeID,
@@ -242,12 +246,13 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 	unFinalizedTime := time.Time{}
 	nonNilContents := "taco"
 	testCases := []struct {
-		name       string
-		content    string
-		openMode   util.OpenMode
-		bucketType gcs.BucketType
-		finalized  time.Time
-		supported  bool
+		name              string
+		content           string
+		openMode          util.OpenMode
+		bucketType        gcs.BucketType
+		enableRapidWrites bool
+		finalized         time.Time
+		supported         bool
 	}{
 		{
 			name:       "AppendToFinalizedObjOnZB",
@@ -282,20 +287,22 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 			supported:  false,
 		},
 		{
-			name:       "AppendToUnfinalizedObjOnPirloWithRapidWritesEnabled",
-			content:    nonNilContents,
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
-			finalized:  unFinalizedTime,
-			openMode:   AppendMode,
-			supported:  true,
+			name:              "AppendToUnfinalizedObjOnPirloWithRapidWritesEnabled",
+			content:           nonNilContents,
+			bucketType:        gcs.BucketType{Pirlo: true},
+			enableRapidWrites: true,
+			finalized:         unFinalizedTime,
+			openMode:          AppendMode,
+			supported:         true,
 		},
 		{
-			name:       "AppendToUnfinalizedObjOnPirloWithRapidWritesDisabled",
-			content:    nonNilContents,
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
-			finalized:  unFinalizedTime,
-			openMode:   AppendMode,
-			supported:  false,
+			name:              "AppendToUnfinalizedObjOnPirloWithRapidWritesDisabled",
+			content:           nonNilContents,
+			bucketType:        gcs.BucketType{Pirlo: true},
+			enableRapidWrites: false,
+			finalized:         unFinalizedTime,
+			openMode:          AppendMode,
+			supported:         false,
 		},
 		{
 			name:       "WriteToEmptyObj",
@@ -320,6 +327,7 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 		object.Finalized = tc.finalized
 		t.backingObj = storageutil.ConvertObjToMinObject(object)
 		t.createInode()
+		t.writeCtx.Config.Write.EnableRapidWrites = tc.enableRapidWrites
 		t.writeCtx.Config.Write.EnableRapidAppends = true
 
 		isSupported := t.in.areBufferedWritesSupported(tc.openMode, object, t.writeCtx)

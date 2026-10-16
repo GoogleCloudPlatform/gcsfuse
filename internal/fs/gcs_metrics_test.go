@@ -67,6 +67,7 @@ func (bm *fakeBucketManagerWithMetrics) SetUpBucket(
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		gcsx.NewContentTypeBucket(monitor.NewMonitoringBucket(bucket, mh)),
+		false,
 	)
 	return sb, err
 }
@@ -478,7 +479,7 @@ type fakeBucketManagerForShortCircuit struct {
 }
 
 func (bm *fakeBucketManagerForShortCircuit) SetUpBucket(ctx context.Context, name string, _ bool, _ metrics.MetricHandle) (gcsx.SyncerBucket, error) {
-	return gcsx.NewSyncerBucket(0, 120, 10, bm.tempDir, gcsx.NewContentTypeBucket(bm.bucket)), nil
+	return gcsx.NewSyncerBucket(0, 120, 10, bm.tempDir, gcsx.NewContentTypeBucket(bm.bucket), false), nil
 }
 func (bm *fakeBucketManagerForShortCircuit) ShutDown() {}
 

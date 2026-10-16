@@ -22,32 +22,15 @@ import (
 	"cloud.google.com/go/storage"
 )
 
-type PirloState int
-
-const (
-	// PirloStateNone indicates the bucket is not a Pirlo bucket.
-	PirloStateNone PirloState = iota
-	// PirloStateRapidWritesEnabled indicates it is a Pirlo bucket with rapid writes enabled.
-	PirloStateRapidWritesEnabled
-	// PirloStateRapidWritesDisabled indicates it is a Pirlo bucket with rapid writes disabled.
-	PirloStateRapidWritesDisabled
-)
-
 // BucketType represents bucket features.
 type BucketType struct {
 	Hierarchical bool
 	Zonal        bool
-	Pirlo        PirloState
+	Pirlo        bool
 }
 
 func (bt BucketType) IsRapid() bool {
-	return bt.Zonal || bt.Pirlo != PirloStateNone
-}
-
-// RapidWritesEnabled returns true if the bucket supports rapid writes
-// and they are currently active.
-func (bt BucketType) RapidWritesEnabled() bool {
-	return bt.Zonal || bt.Pirlo == PirloStateRapidWritesEnabled
+	return bt.Zonal || bt.Pirlo
 }
 
 const (

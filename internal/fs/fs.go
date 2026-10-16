@@ -272,7 +272,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 			if bucketType.IsRapid() && serverCfg.ViperConfig.IsSet("file-system.fuse-max-request-size-kb") {
 				return nil, fmt.Errorf("fuse-max-request-size-kb flag is not supported for rapid buckets")
 			}
-			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.Pirlo != gcs.PirloStateNone)
+			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.Pirlo)
 			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.ViperConfig, &cfg.OptimizationInput{
 				BucketType: bucketTypeEnum,
 			})
@@ -3097,7 +3097,8 @@ func (fs *fileSystem) ReadFile(
 		// Hence, there is no need to finalize the object from here for rapid buckets.
 		// Hence, if FinalizeFileForRapid is set, then we will call syncFile otherwise
 		// we can call flushFile (as it will not finalize when FinalizeFileForRapid is false) itself.
-		if fh.Inode().Bucket().BucketType().RapidWritesEnabled() && fs.newConfig.Write.FinalizeFileForRapid {
+		writeMode := cfg.GetWriteMode(fh.Inode().Bucket().BucketType(), &fs.newConfig.Write)
+		if writeMode == cfg.WriteModeAppendable && fs.newConfig.Write.FinalizeFileForRapid {
 			err = fs.syncFile(ctx, fh.Inode())
 		} else {
 			err = fs.flushFile(ctx, fh.Inode())

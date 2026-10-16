@@ -111,6 +111,7 @@ be interacting with the file system.`)
 		IsTypeCacheDeprecated:              newConfig.EnableTypeCacheDeprecation,
 		ImplicitDir:                        newConfig.ImplicitDirs,
 		EnableEmptyManagedFolders:          newConfig.List.EnableEmptyManagedFolders,
+		EnableRapidWrites:                  newConfig.Write.EnableRapidWrites,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
 

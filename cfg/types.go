@@ -179,3 +179,17 @@ const (
 	// StorageClassStandard represents standard storage (e.g. regional/multi-regional flat and hierarchical buckets).
 	StorageClassStandard StorageClass = "standard"
 )
+
+// WriteMode represents the GCS upload mechanism used for writing objects.
+type WriteMode string
+
+const (
+	// WriteModeResumable represents standard single-stream resumable uploads.
+	WriteModeResumable WriteMode = "resumable"
+
+	// WriteModeAppendable represents uploads using the GCS Appendable Object API.
+	WriteModeAppendable WriteMode = "appendable"
+
+	// WriteModeParallel represents parallel multipart/chunk uploads.
+	WriteModeParallel WriteMode = "parallel"
+)

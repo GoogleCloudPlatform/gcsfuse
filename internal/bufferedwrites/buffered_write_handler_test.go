@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
@@ -57,9 +58,11 @@ func (testSuite *BufferedWriteTest) SetupTest() {
 	testSuite.setupTestWithBucketType(bucketType)
 }
 
-func (testSuite *BufferedWriteTest) setupTestWithBucketType(bucketType gcs.BucketType) {
+func (testSuite *BufferedWriteTest) setupTestWithBucketType(bucketType gcs.BucketType, enableRapidWrites ...bool) {
 	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", bucketType)
 	testSuite.globalSemaphore = semaphore.NewWeighted(10)
+	rapidWrites := len(enableRapidWrites) > 0 && enableRapidWrites[0]
+	writeMode := cfg.GetWriteMode(bucketType, &cfg.WriteConfig{EnableRapidWrites: rapidWrites})
 	bwh, err := NewBWHandler(&CreateBWHandlerRequest{
 		Object:                   nil,
 		ObjectName:               "testObject",
@@ -70,6 +73,7 @@ func (testSuite *BufferedWriteTest) setupTestWithBucketType(bucketType gcs.Bucke
 		ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
 		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 		TraceHandle:              tracing.NewNoopTracer(),
+		WriteMode:                writeMode,
 	})
 	require.Nil(testSuite.T(), err)
 	testSuite.bwh = bwh
@@ -288,9 +292,10 @@ func (testSuite *BufferedWriteTest) TestFlushWithSignalUploadFailureDuringWrite(
 
 func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 	testCases := []struct {
-		name       string
-		bucketType gcs.BucketType
-		obj        *gcs.Object
+		name              string
+		bucketType        gcs.BucketType
+		enableRapidWrites bool
+		obj               *gcs.Object
 	}{
 		{
 			name:       "non_zonal",
@@ -306,13 +311,15 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
 		{
-			name:       "pirlo_new_file_rapid_writes",
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			name:              "pirlo_new_file_rapid_writes",
+			bucketType:        gcs.BucketType{Pirlo: true},
+			enableRapidWrites: true,
 		},
 		{
-			name:       "pirlo_append_rapid_writes",
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
-			obj:        &gcs.Object{Name: "testObject", Size: 0},
+			name:              "pirlo_append_rapid_writes",
+			bucketType:        gcs.BucketType{Pirlo: true},
+			enableRapidWrites: true,
+			obj:               &gcs.Object{Name: "testObject", Size: 0},
 		},
 	}
 	for _, tc := range testCases {
@@ -321,7 +328,8 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 			mockBucket.On("BucketType").Return(tc.bucketType)
 			writer := &storagemock.Writer{}
 			writer.On("Write", mock.Anything).Return(2, nil)
-			if tc.bucketType.RapidWritesEnabled() && tc.obj != nil {
+			writeMode := cfg.GetWriteMode(tc.bucketType, &cfg.WriteConfig{EnableRapidWrites: tc.enableRapidWrites})
+			if writeMode == cfg.WriteModeAppendable && tc.obj != nil {
 				mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(writer, nil)
 			} else {
 				mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
@@ -338,6 +346,7 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 				ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
 				ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 				TraceHandle:              tracing.NewNoopTracer(),
+				WriteMode:                writeMode,
 			})
 			require.Nil(testSuite.T(), err)
 			err = bwh.Write(context.Background(), []byte("hi"), 0)
@@ -354,9 +363,10 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 
 func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 	testCases := []struct {
-		name       string
-		bucketType gcs.BucketType
-		obj        *gcs.Object
+		name              string
+		bucketType        gcs.BucketType
+		enableRapidWrites bool
+		obj               *gcs.Object
 	}{
 		{
 			name:       "zonal_new_file",
@@ -368,13 +378,15 @@ func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
 		{
-			name:       "pirlo_new_file_rapid_writes",
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			name:              "pirlo_new_file_rapid_writes",
+			bucketType:        gcs.BucketType{Pirlo: true},
+			enableRapidWrites: true,
 		},
 		{
-			name:       "pirlo_append_rapid_writes",
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
-			obj:        &gcs.Object{Name: "testObject", Size: 0},
+			name:              "pirlo_append_rapid_writes",
+			bucketType:        gcs.BucketType{Pirlo: true},
+			enableRapidWrites: true,
+			obj:               &gcs.Object{Name: "testObject", Size: 0},
 		},
 	}
 	for _, tc := range testCases {
@@ -383,7 +395,8 @@ func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 			mockBucket.On("BucketType").Return(tc.bucketType)
 			writer := &storagemock.Writer{}
 			writer.On("Write", mock.Anything).Return(2, nil)
-			if tc.bucketType.RapidWritesEnabled() && tc.obj != nil {
+			writeMode := cfg.GetWriteMode(tc.bucketType, &cfg.WriteConfig{EnableRapidWrites: tc.enableRapidWrites})
+			if writeMode == cfg.WriteModeAppendable && tc.obj != nil {
 				mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(writer, nil)
 			} else {
 				mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
@@ -400,6 +413,7 @@ func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 				ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
 				ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 				TraceHandle:              tracing.NewNoopTracer(),
+				WriteMode:                writeMode,
 			})
 			require.Nil(testSuite.T(), err)
 			err = bwh.Write(context.Background(), []byte("hi"), 0)
@@ -457,9 +471,10 @@ func (testSuite *BufferedWriteTest) TestSync5InProgressBlocks() {
 
 func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 	testCases := []struct {
-		name       string
-		bucketType gcs.BucketType
-		numBlocks  float32
+		name              string
+		bucketType        gcs.BucketType
+		enableRapidWrites bool
+		numBlocks         float32
 	}{
 		{
 			name:       "multi_regional_bucket_2.5_blocks",
@@ -482,20 +497,22 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			numBlocks:  .5,
 		},
 		{
-			name:       "pirlo_bucket_rapid_writes_2.5_blocks",
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
-			numBlocks:  2.5,
+			name:              "pirlo_bucket_rapid_writes_2.5_blocks",
+			bucketType:        gcs.BucketType{Pirlo: true},
+			enableRapidWrites: true,
+			numBlocks:         2.5,
 		},
 		{
-			name:       "pirlo_bucket_rapid_writes_.5_blocks",
-			bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
-			numBlocks:  .5,
+			name:              "pirlo_bucket_rapid_writes_.5_blocks",
+			bucketType:        gcs.BucketType{Pirlo: true},
+			enableRapidWrites: true,
+			numBlocks:         .5,
 		},
 	}
 
 	for _, tc := range testCases {
 		testSuite.Run(tc.name, func() {
-			testSuite.setupTestWithBucketType(tc.bucketType)
+			testSuite.setupTestWithBucketType(tc.bucketType, tc.enableRapidWrites)
 			buffer, err := operations.GenerateRandomData(int64(blockSize * tc.numBlocks))
 			assert.NoError(testSuite.T(), err)
 			err = testSuite.bwh.Write(context.Background(), buffer, 0)
@@ -512,7 +529,7 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
 			// Read the object from back door.
 			content, err := storageutil.ReadObject(context.Background(), bwhImpl.uploadHandler.bucket, bwhImpl.uploadHandler.objectName)
-			if tc.bucketType.RapidWritesEnabled() {
+			if testSuite.bwh.WriteMode() == cfg.WriteModeAppendable {
 				require.NotNil(testSuite.T(), o)
 				assert.EqualValues(testSuite.T(), int64(blockSize*tc.numBlocks), o.Size)
 				require.NoError(testSuite.T(), err)

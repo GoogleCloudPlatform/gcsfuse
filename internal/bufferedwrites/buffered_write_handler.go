@@ -24,6 +24,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"golang.org/x/sync/semaphore"
 )
@@ -60,6 +61,9 @@ type BufferedWriteHandler interface {
 
 	// Unlink cancels the ongoing upload and free up the buffers.
 	Unlink()
+
+	// WriteMode returns the write mode used by the upload handler.
+	WriteMode() cfg.WriteMode
 }
 
 // bufferedWriteHandlerImpl is responsible for filling up the buffers with the data
@@ -101,6 +105,7 @@ type CreateBWHandlerRequest struct {
 	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
 	TraceHandle              tracing.TraceHandle
+	WriteMode                cfg.WriteMode
 }
 
 // NewBWHandler creates the bufferedWriteHandler struct.
@@ -127,6 +132,7 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 			ChunkRetryDeadlineSecs:   req.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
 			TraceHandle:              req.TraceHandle,
+			WriteMode:                req.WriteMode,
 		}),
 		totalSize:     size,
 		mtime:         time.Now(),
@@ -216,8 +222,8 @@ func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject,
 	// The FlushPendingWrites method synchronizes all bytes currently residing in
 	// the Writer's buffer to Cloud Storage, thereby making them available for
 	// other operations like read.
-	// This functionality is exclusively supported on rapid buckets.
-	if wh.uploadHandler.bucket.BucketType().RapidWritesEnabled() {
+	// This functionality is exclusively supported on appendable streams.
+	if wh.uploadHandler.writeMode == cfg.WriteModeAppendable {
 		o, err = wh.uploadHandler.FlushPendingWrites(ctx)
 		if err != nil {
 			return nil, err
@@ -339,4 +345,8 @@ func (wh *bufferedWriteHandlerImpl) Unlink() {
 		// Only logging an error in case of resource leak.
 		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
 	}
+}
+
+func (wh *bufferedWriteHandlerImpl) WriteMode() cfg.WriteMode {
+	return wh.uploadHandler.writeMode
 }

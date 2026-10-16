@@ -637,6 +637,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 	tests := []struct {
 		name                 string
 		bucketType           gcs.BucketType
+		enableRapidWrites    bool
 		finalizeFileForRapid bool
 		expectedAppend       bool
 	}{
@@ -654,13 +655,15 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 		},
 		{
 			name:                 "PirloBucket_RapidEnabled",
-			bucketType:           gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			bucketType:           gcs.BucketType{Pirlo: true},
+			enableRapidWrites:    true,
 			finalizeFileForRapid: true,
 			expectedAppend:       true,
 		},
 		{
 			name:                 "PirloBucket_RapidDisabled",
-			bucketType:           gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
+			bucketType:           gcs.BucketType{Pirlo: true},
+			enableRapidWrites:    false,
 			finalizeFileForRapid: false,
 			expectedAppend:       false,
 		},
@@ -670,7 +673,10 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 		testSuite.T().Run(tt.name, func(t *testing.T) {
 			createBucketHandle(testSuite, &controlpb.StorageLayout{})
 			testSuite.bucketHandle.bucketType = &tt.bucketType
-			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{FinalizeFileForRapid: tt.finalizeFileForRapid}
+			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{
+				EnableRapidWrites:    tt.enableRapidWrites,
+				FinalizeFileForRapid: tt.finalizeFileForRapid,
+			}
 
 			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), &gcs.CreateObjectRequest{Name: "test_object"}, 1024, nil)
 
@@ -688,6 +694,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 	bucketScenarios := []struct {
 		name                        string
 		bucketType                  gcs.BucketType
+		enableRapidWrites           bool
 		initialStorageClass         string
 		expectedWriterStorageClass  string
 		expectedCreatedStorageClass string
@@ -695,7 +702,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 	}{
 		{
 			name:                        "StandardBucket",
-			bucketType:                  gcs.BucketType{Pirlo: gcs.PirloStateNone},
+			bucketType:                  gcs.BucketType{Pirlo: false},
 			initialStorageClass:         "",
 			expectedWriterStorageClass:  "",
 			expectedCreatedStorageClass: "STANDARD",
@@ -703,7 +710,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 		},
 		{
 			name:                        "StandardBucket_InheritsStorageClass",
-			bucketType:                  gcs.BucketType{Pirlo: gcs.PirloStateNone},
+			bucketType:                  gcs.BucketType{Pirlo: false},
 			initialStorageClass:         "COLDLINE",
 			expectedWriterStorageClass:  "COLDLINE",
 			expectedCreatedStorageClass: "COLDLINE",
@@ -718,14 +725,16 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 		},
 		{
 			name:                       "PirloBucket_RapidEnabled",
-			bucketType:                 gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled},
+			bucketType:                 gcs.BucketType{Pirlo: true},
+			enableRapidWrites:          true,
 			initialStorageClass:        "STANDARD", // Simulate inheriting from standard source
 			expectedWriterStorageClass: storageClassRapid,
 			canTestCreateObject:        false, // Fails on HTTP append.
 		},
 		{
 			name:                        "PirloBucket_RapidDisabled",
-			bucketType:                  gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled},
+			bucketType:                  gcs.BucketType{Pirlo: true},
+			enableRapidWrites:           false,
 			initialStorageClass:         storageClassRapid, // Simulate inheriting from rapid source
 			expectedWriterStorageClass:  "",
 			expectedCreatedStorageClass: "STANDARD",
@@ -737,7 +746,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 		testSuite.T().Run(scenario.name+"/CreateObjectChunkWriter", func(t *testing.T) {
 			createBucketHandle(testSuite, &controlpb.StorageLayout{})
 			testSuite.bucketHandle.bucketType = &scenario.bucketType
-			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{}
+			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{EnableRapidWrites: scenario.enableRapidWrites}
 			req := &gcs.CreateObjectRequest{Name: "test_object_2", StorageClass: scenario.initialStorageClass}
 
 			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), req, 1024, nil)
@@ -752,7 +761,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 			testSuite.T().Run(scenario.name+"/CreateObject", func(t *testing.T) {
 				createBucketHandle(testSuite, &controlpb.StorageLayout{})
 				testSuite.bucketHandle.bucketType = &scenario.bucketType
-				testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{}
+				testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{EnableRapidWrites: scenario.enableRapidWrites}
 				req := &gcs.CreateObjectRequest{Name: "test_object_1", Contents: strings.NewReader("data"), StorageClass: scenario.initialStorageClass}
 
 				o, err := testSuite.bucketHandle.CreateObject(context.Background(), req)

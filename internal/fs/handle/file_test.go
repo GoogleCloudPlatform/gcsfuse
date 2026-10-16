@@ -79,6 +79,7 @@ func (t *fileTest) SetupTest() {
 		/*chunkRetryDeadlineSecs=*/ 120,
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{}),
+		false,
 	)
 }
 
@@ -676,6 +677,7 @@ func (t *fileTest) Test_ReadWithKernelReader_Success() {
 				/*chunkRetryDeadlineSecs=*/ 120,
 				/*chunkTransferTimeoutSecs=*/ 10,
 				".gcsfuse_tmp/", mockBucket,
+				false,
 			)
 			parent := createDirInode(&mockSyncerBucket, &t.clock)
 			// Create the file inode and file handle. Setting EnableKernelReader to true initializes fh.kernelReader.
@@ -735,6 +737,7 @@ func (t *fileTest) Test_ReadWithKernelReader_NotAuthoritative() {
 				/*chunkRetryDeadlineSecs=*/ 120,
 				/*chunkTransferTimeoutSecs=*/ 10,
 				".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "test_bucket", gcs.BucketType{Zonal: tc.isZonal}),
+				false,
 			)
 			originalData := []byte("some data")
 			// Create file inode.
@@ -791,6 +794,7 @@ func (t *fileTest) Test_ReadWithKernelReader_NotAuthoritative_ReadError() {
 				/*chunkRetryDeadlineSecs=*/ 120,
 				/*chunkTransferTimeoutSecs=*/ 10,
 				".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "test_bucket", gcs.BucketType{Zonal: tc.isZonal}),
+				false,
 			)
 			originalData := []byte("some data")
 			// Create file inode.
@@ -846,12 +850,14 @@ func (t *fileTest) Test_ReadWithKernelReader_NilReader() {
 				/*chunkRetryDeadlineSecs=*/ 120,
 				/*chunkTransferTimeoutSecs=*/ 10,
 				".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "test_bucket", gcs.BucketType{Zonal: tc.isZonal}),
+				false,
 			)
 			// Create file inode.
 			parent := createDirInode(&bucket, &t.clock)
 			in := createFileInode(t.T(), &bucket, &t.clock, &cfg.Config{}, parent, "test_obj", []byte("data"), false)
 			// Create a file handle with EnableKernelReader set to false.
 			fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: false}}, nil, nil, 0)
+			require.NotNil(t.T(), fh)
 			require.Nil(t.T(), fh.kernelReader)
 			req := &gcsx.ReadRequest{
 				Buffer: make([]byte, 4),
@@ -900,6 +906,7 @@ func (t *fileTest) Test_ReadWithKernelReader_ReadAtError() {
 				/*chunkRetryDeadlineSecs=*/ 120,
 				/*chunkTransferTimeoutSecs=*/ 10,
 				".gcsfuse_tmp/", mockBucket,
+				false,
 			)
 			// Create file inode & file handle with kernel reader enabled.
 			parent := createDirInode(&mockSyncerBucket, &t.clock)
@@ -1357,14 +1364,15 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 		},
 	}
 	bucketTypes := []struct {
-		name       string
-		bucketType gcs.BucketType
-		isRapid    bool
+		name              string
+		bucketType        gcs.BucketType
+		enableRapidWrites bool
+		isAppendable      bool
 	}{
-		{name: "Zonal", bucketType: gcs.BucketType{Zonal: true}, isRapid: true},
-		{name: "PirloRapidWriteEnabled", bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesEnabled}, isRapid: true},
-		{name: "PirloRapidWriteDisabled", bucketType: gcs.BucketType{Pirlo: gcs.PirloStateRapidWritesDisabled}, isRapid: false},
-		{name: "Standard", bucketType: gcs.BucketType{}, isRapid: false},
+		{name: "Zonal", bucketType: gcs.BucketType{Zonal: true}, isAppendable: true},
+		{name: "PirloRapidWriteEnabled", bucketType: gcs.BucketType{Pirlo: true}, enableRapidWrites: true, isAppendable: true},
+		{name: "PirloRapidWriteDisabled", bucketType: gcs.BucketType{Pirlo: true}, enableRapidWrites: false, isAppendable: false},
+		{name: "Standard", bucketType: gcs.BucketType{}, isAppendable: false},
 	}
 
 	for _, bt := range bucketTypes {
@@ -1376,9 +1384,14 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 					/*chunkRetryDeadlineSecs=*/ 120,
 					/*chunkTransferTimeoutSecs=*/ 10,
 					".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", bt.bucketType),
+					bt.enableRapidWrites,
 				)
 				parent := createDirInode(&t.bucket, &t.clock)
-				config := &cfg.Config{}
+				config := &cfg.Config{
+					Write: cfg.WriteConfig{
+						EnableRapidWrites: bt.enableRapidWrites,
+					},
+				}
 				in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, tc.object.Name, nil, false)
 				fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), tc.openMode, config, nil, nil, 0)
 				if tc.useNilReadManager {
@@ -1393,7 +1406,7 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 
 				skip := fh.shouldSkipSizeChecks(req)
 
-				expected := tc.expectedForRapid && bt.isRapid
+				expected := tc.expectedForRapid && bt.isAppendable
 				assert.Equal(t.T(), expected, skip)
 			})
 		}

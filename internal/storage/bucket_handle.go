@@ -200,14 +200,13 @@ func (bh *bucketHandle) getStorageClassForCreateObject(defaultStorageClass strin
 	// If rapid writes are disabled, we explicitly clear the storage class to prevent
 	// inheriting the RAPID storage class from an overwritten object and write it to
 	// the bucket's default storage class.
-	switch bh.BucketType().Pirlo {
-	case gcs.PirloStateRapidWritesEnabled:
-		return storageClassRapid
-	case gcs.PirloStateRapidWritesDisabled:
+	if bh.BucketType().Pirlo {
+		if bh.writeConfig != nil && bh.writeConfig.EnableRapidWrites {
+			return storageClassRapid
+		}
 		return ""
-	default:
-		return defaultStorageClass
 	}
+	return defaultStorageClass
 }
 
 func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
@@ -232,7 +231,8 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
 	// to false, which allows further appends, but if they keep it unfinalized
 	// it never becomes regionally durable.
-	wc.Append = bh.BucketType().RapidWritesEnabled()
+	writeMode := cfg.GetWriteMode(bh.BucketType(), bh.writeConfig)
+	wc.Append = (writeMode == cfg.WriteModeAppendable)
 	// By default, objects in zonal buckets are not finalized on close, whereas objects in
 	// pirlo buckets are. This behavior is controlled by the finalizeFileForRapid flag.
 	// When writer.Append is false, then this parameter is anyways ignored.
@@ -275,7 +275,8 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
 	// to false, which allows further appends, but if they keep it unfinalized
 	// it never becomes regionally durable.
-	wc.Append = bh.BucketType().RapidWritesEnabled()
+	writeMode := cfg.GetWriteMode(bh.BucketType(), bh.writeConfig)
+	wc.Append = (writeMode == cfg.WriteModeAppendable)
 	// By default, objects in zonal buckets are not finalized on close, whereas objects in
 	// pirlo buckets are. This behavior is controlled by the finalizeFileForRapid flag.
 	// When writer.Append is false, then this parameter is anyways ignored.

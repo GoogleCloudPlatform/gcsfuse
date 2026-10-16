@@ -25,6 +25,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
@@ -59,6 +60,7 @@ type UploadHandler struct {
 	chunkRetryDeadline   int64
 	chunkTransferTimeout int64
 	blockSize            int64
+	writeMode            cfg.WriteMode
 
 	traceHandle tracing.TraceHandle
 }
@@ -73,6 +75,7 @@ type CreateUploadHandlerRequest struct {
 	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
 	TraceHandle              tracing.TraceHandle
+	WriteMode                cfg.WriteMode
 }
 
 // newUploadHandler creates the UploadHandler struct.
@@ -87,6 +90,7 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 		blockSize:            req.BlockSize,
 		chunkRetryDeadline:   req.ChunkRetryDeadlineSecs,
 		chunkTransferTimeout: req.ChunkTransferTimeoutSecs,
+		writeMode:            req.WriteMode,
 		traceHandle:          req.TraceHandle,
 	}
 	return uh
@@ -115,14 +119,22 @@ func (uh *UploadHandler) createObjectWriter(ctx context.Context) (err error) {
 	// We need a new context here, since the first writeFile() call will be complete
 	// (and context will be cancelled) by the time complete upload is done.
 	ctx, uh.cancelFunc = context.WithCancel(uh.traceHandle.PropagateTraceContext(context.Background(), ctx))
-	if uh.bucket.BucketType().RapidWritesEnabled() && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
-		chunkWriterReq := gcs.CreateObjectChunkWriterRequest{
-			CreateObjectRequest: *req,
-			ChunkSize:           int(uh.blockSize),
-			Offset:              int64(uh.obj.Size),
+	switch uh.writeMode {
+	case cfg.WriteModeAppendable:
+		if uh.obj != nil && uh.obj.Finalized.IsZero() {
+			chunkWriterReq := gcs.CreateObjectChunkWriterRequest{
+				CreateObjectRequest: *req,
+				ChunkSize:           int(uh.blockSize),
+				Offset:              int64(uh.obj.Size),
+			}
+			uh.writer, err = uh.bucket.CreateAppendableObjectWriter(ctx, &chunkWriterReq)
+		} else {
+			uh.writer, err = uh.bucket.CreateObjectChunkWriter(ctx, req, int(uh.blockSize), nil)
 		}
-		uh.writer, err = uh.bucket.CreateAppendableObjectWriter(ctx, &chunkWriterReq)
-	} else {
+	case cfg.WriteModeParallel:
+		// Parallel upload writer initialization goes here.
+		uh.writer, err = uh.bucket.CreateObjectChunkWriter(ctx, req, int(uh.blockSize), nil)
+	default: // cfg.WriteModeResumable
 		uh.writer, err = uh.bucket.CreateObjectChunkWriter(ctx, req, int(uh.blockSize), nil)
 	}
 	return

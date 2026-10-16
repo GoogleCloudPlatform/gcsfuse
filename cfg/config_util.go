@@ -20,6 +20,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
 // Rapid bucket defaults (zonal, pirlo)
@@ -138,4 +140,16 @@ func (bt BucketType) StorageClass() StorageClass {
 		return StorageClassRapid
 	}
 	return StorageClassStandard
+}
+
+// GetWriteMode determines the write mode (Resumable, Appendable, or Parallel)
+// based on bucket type and write configuration.
+func GetWriteMode(bucketType gcs.BucketType, wc *WriteConfig) WriteMode {
+	if bucketType.Zonal {
+		return WriteModeAppendable
+	}
+	if bucketType.Pirlo && wc != nil && wc.EnableRapidWrites {
+		return WriteModeAppendable
+	}
+	return WriteModeResumable
 }

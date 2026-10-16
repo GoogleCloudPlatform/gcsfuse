@@ -503,8 +503,8 @@ func (f *FileInode) GetKernelRangeReaderInstance() *kernel_readers.KernelRangeRe
 func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 	// Source generation is authoritative if:
 	//   1.  No pending writes exists on the inode (both content and bwh are nil).
-	//   2.  The bucket is rapid and there are no pending writes in the temporary file.
-	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().RapidWritesEnabled() && f.content == nil)
+	//   2.  Buffered writes are in appendable mode and there are no pending writes in the temporary file.
+	return f.content == nil && (f.bwh == nil || f.bwh.WriteMode() == cfg.WriteModeAppendable)
 }
 
 // Equivalent to the generation returned by f.Source().
@@ -1243,10 +1243,11 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 		return false, nil
 	}
 
+	writeMode := cfg.GetWriteMode(f.bucket.BucketType(), &writeCtx.Config.Write)
 	var latestGcsObj *gcs.Object
 	var err error
 	if !f.local {
-		if f.bucket.BucketType().RapidWritesEnabled() && openMode.IsAppend() {
+		if writeMode == cfg.WriteModeAppendable && openMode.IsAppend() {
 			// In case of rapid appends, we will rely on kernel's latest view of the object
 			// instead of reaching out to the server for latest metadata. This is done to avoid
 			// forceful overwrites of local and latest object metadata with possibly stale server
@@ -1278,6 +1279,7 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			ChunkRetryDeadlineSecs:   writeCtx.Config.GcsRetries.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: writeCtx.Config.GcsRetries.ChunkTransferTimeoutSecs,
 			TraceHandle:              writeCtx.TraceHandle,
+			WriteMode:                writeMode,
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			logger.Tracef("File %s will use legacy staged writes because concurrent streaming write "+
@@ -1302,7 +1304,8 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 	if f.local || obj.Size == 0 {
 		return true
 	}
-	if writeCtx.Config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().RapidWritesEnabled() && obj.Finalized.IsZero() {
+	writeMode := cfg.GetWriteMode(f.bucket.BucketType(), &writeCtx.Config.Write)
+	if writeCtx.Config.Write.EnableRapidAppends && writeMode == cfg.WriteModeAppendable && openMode.IsAppend() && obj.Finalized.IsZero() {
 		return true
 	}
 	logger.Tracef("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)

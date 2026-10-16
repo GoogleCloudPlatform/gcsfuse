@@ -79,6 +79,8 @@ type BucketConfig struct {
 	ImplicitDir bool
 
 	EnableEmptyManagedFolders bool
+
+	EnableRapidWrites bool
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -254,15 +256,15 @@ func (bm *bucketManager) SetUpBucket(
 		err = errors.New("you must set TmpObjectPrefix")
 		return
 	}
+	// Fetch bucket type from storage layout api and set bucket type.
+	b.BucketType()
 	sb = NewSyncerBucket(
 		bm.config.AppendThreshold,
 		bm.config.ChunkRetryDeadlineSecs,
 		bm.config.ChunkTransferTimeoutSecs,
 		bm.config.TmpObjectPrefix,
-		b)
-
-	// Fetch bucket type from storage layout api and set bucket type.
-	b.BucketType()
+		b,
+		bm.config.EnableRapidWrites)
 
 	// Periodically garbage collect temporary objects
 	go garbageCollect(bm.gcCtx, bm.config.TmpObjectPrefix, sb)

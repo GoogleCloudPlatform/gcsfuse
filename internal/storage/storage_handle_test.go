@@ -292,7 +292,6 @@ func (testSuite *StorageHandleTest) TestBucketHandle_ControlClientIsWrappedWithB
 func (testSuite *StorageHandleTest) TestLookupBucketType_PirloEnabled() {
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
 	sc.ExperimentalEnablePirlo = true
-	sc.WriteConfig = &cfg.WriteConfig{EnableRapidWrites: true}
 	sh, err := NewStorageHandle(testSuite.ctx, sc, "")
 	require.NoError(testSuite.T(), err)
 	client := sh.(*storageClient)
@@ -302,7 +301,7 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_PirloEnabled() {
 	bt, err := client.lookupBucketType(TestBucketName)
 
 	assert.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), gcs.PirloStateRapidWritesEnabled, bt.Pirlo)
+	assert.True(testSuite.T(), bt.Pirlo)
 }
 
 func (testSuite *StorageHandleTest) runLookupBucketTypeTest(onlyDirInput, expectedPrefixInRequest string) {

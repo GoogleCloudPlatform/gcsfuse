@@ -75,7 +75,8 @@ func (t *hnsDirTest) setupTestSuite(hierarchical bool) {
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
-		t.mockBucket)
+		t.mockBucket,
+		false)
 	t.bucket = &bucket
 	t.resetDirInode(false, false, true)
 }

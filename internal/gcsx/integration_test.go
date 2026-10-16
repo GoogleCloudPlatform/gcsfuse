@@ -96,7 +96,8 @@ func (t *IntegrationTest) SetUp(ti *TestInfo) {
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		tmpObjectPrefix,
-		t.bucket)
+		t.bucket,
+		false)
 }
 
 func (t *IntegrationTest) TearDown() {
