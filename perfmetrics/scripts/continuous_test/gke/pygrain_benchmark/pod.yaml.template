@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gcsfuse-test
+  annotations:
+    gke-gcsfuse/volumes: "true"
+    gke-gcsfuse/cpu-limit: "0"
+    gke-gcsfuse/memory-limit: "0"
+    gke-gcsfuse/ephemeral-storage-limit: "0"
+spec:
+  restartPolicy: Never
+  hostNetwork: true
+  dnsPolicy: ClusterFirstWithHostNet
+  nodeSelector:
+    cloud.google.com/gke-tpu-topology: 2x2
+    cloud.google.com/gke-tpu-accelerator: tpu-v6e-slice
+  tolerations:
+  - key: "google.com/tpu"
+    operator: "Exists"
+    effect: "NoSchedule"
+  initContainers:
+    - name: prep-caches
+      securityContext:
+        privileged: true
+      image: ubuntu:22.04
+      command: ["bash", "-c"]
+      args:
+      - |
+        echo always > /sys/kernel/mm/transparent_hugepage/enabled || true
+        echo 3 > /proc/sys/vm/drop_caches || true
+        sysctl -w net.core.rmem_max=134217728 || true
+        sysctl -w net.core.wmem_max=134217728 || true
+        sysctl -w net.ipv4.tcp_rmem="4096 87380 67108864" || true
+        sysctl -w net.ipv4.tcp_wmem="4096 65536 67108864" || true
+        sysctl -w net.core.netdev_max_backlog=250000 || true
+      volumeMounts:
+      - name: sys-mm
+        mountPath: /sys/kernel/mm
+  containers:
+  - name: gke-gcsfuse-sidecar
+    image: gcr.io/$project_id/cloudbuild-gcsfuse-csi/gcs-fuse-csi-driver-sidecar-mounter:$staging_version
+  - name: load-test
+    resources:
+      limits:
+        google.com/tpu: 4
+      requests:
+        google.com/tpu: 4
+    image: gcr.io/$project_id/kislayk_orbax_workload:latest
+    imagePullPolicy: IfNotPresent
+    command: ["bash", "-c"]
+    args:
+    - |
+      set -eo pipefail
+      echo "=== Starting MaxText + PyGrain Benchmark on TPU v6e-4 ==="
+      until ls /gcs/data >/dev/null 2>&1; do sleep 1; done
+      /env/bin/python3 -c "import glob; [open(p, 'w').write('512\n') for p in glob.glob('/sys/fs/fuse/connections/*/max_background') + glob.glob('/sys/fs/fuse/connections/*/congestion_threshold')]" 2>/dev/null || true
+      /env/bin/python3 -c "import glob; [open(p, 'w').write('4096\n') for p in glob.glob('/sys/class/bdi/*/read_ahead_kb')]" 2>/dev/null || true
+      /env/bin/python3 -c "import grain, array_record" 2>/dev/null || /env/bin/python3 -m pip install --quiet grain array-record
+      rm -rf /dev/shm/staging
+      /env/bin/python3 /app/generate_data.py \
+        --output-dir=/gcs/data \
+        --staging-dir=/dev/shm/staging \
+        --num-shards=128 \
+        --shard-size-mb=512 \
+        --record-size-mb=2.0 \
+        --seq-length=2048 \
+        --num-workers=32 \
+        --template-pool-size=8
+      rm -rf /dev/shm/staging
+      sync
+      echo 1 > /proc/sys/vm/drop_caches || true
+      /env/bin/python3 /app/maxtext_benchmark_runner.py \
+        --project=$project_id \
+        --bucket-name=$bucket_name \
+        --data-dir=/gcs/data \
+        --num-workers=48 \
+        --batch-size=64 \
+        --tiles-per-sample=12 \
+        --worker-buffer-size=32 \
+        --prefetch-buffer-size=128 \
+        --iterations=$iterations \
+        --iteration-duration-sec=8
+    securityContext:
+      privileged: true
+    volumeMounts:
+    - name: dshm
+      mountPath: /dev/shm
+    - name: sys-fuse
+      mountPath: /sys/fs/fuse
+    - name: python-script
+      mountPath: /app
+    - name: data-vol
+      mountPath: /gcs/data
+  serviceAccountName: default
+  volumes:
+  - name: dshm
+    emptyDir:
+      medium: Memory
+  - name: sys-fuse
+    hostPath:
+      path: /sys/fs/fuse
+      type: Directory
+  - name: sys-mm
+    hostPath:
+      path: /sys/kernel/mm
+      type: Directory
+  - name: python-script
+    configMap:
+      name: pygrain-benchmark
+  - name: data-vol
+    csi:
+      driver: gcsfuse.csi.storage.gke.io
+      volumeAttributes:
+        bucketName: "$bucket_name"
+        mountOptions: "client-protocol=$client_protocol,read_ahead_kb=4096,stat-cache-max-size-mb=-1,metadata-cache-ttl-secs=-1,type-cache-max-size-mb=-1,implicit-dirs"
+        hostNetworkPodKSA: "true"
