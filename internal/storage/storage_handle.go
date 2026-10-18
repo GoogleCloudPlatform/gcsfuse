@@ -91,6 +91,27 @@ type storageClient struct {
 }
 
 // Return clientOpts for both gRPC client and control client.
+// sdkMetricsOptions enables the Go SDK's standard and debug OpenTelemetry
+// client metrics and, when GCSFuse has an SDK MeterProvider configured, routes
+// them through it so they are exported alongside GCSFuse's own metrics.
+//
+// Metrics are skipped for anonymous access: with option.WithoutAuthentication()
+// the SDK (v1.69.0) dereferences nil credentials while initializing gRPC
+// client metrics and panics.
+func sdkMetricsOptions(clientConfig *storageutil.StorageClientConfig) []option.ClientOption {
+	if clientConfig.AnonymousAccess {
+		return nil
+	}
+	opts := []option.ClientOption{
+		experimental.WithOtelMetrics(),
+		experimental.WithOtelDebugMetrics(),
+	}
+	if sdkmp, ok := otel.GetMeterProvider().(*sdkmetric.MeterProvider); ok {
+		opts = append(opts, experimental.WithMeterProvider(sdkmp))
+	}
+	return opts
+}
+
 func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (clientOpts []option.ClientOption, err error) {
 	// Add custom endpoint if provided.
 	if clientConfig.CustomEndpoint != "" {
@@ -170,17 +191,7 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
 	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
 
-	if clientConfig.EnableGrpcMetrics && clientConfig.IsGKE {
-		// Pass the OpenTelemetry MeterProvider to the Go storage client,
-		// using the new WithMeterProvider client option.
-		mp := otel.GetMeterProvider()
-		if sdkmp, ok := mp.(*sdkmetric.MeterProvider); ok {
-			// pass in if sdkmp is of type *sdkmetric.MeterProvider (not a No-op)
-			clientOpts = append(clientOpts, experimental.WithMeterProvider(sdkmp))
-		}
-	} else if !clientConfig.EnableGrpcMetrics {
-		clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
-	}
+	clientOpts = append(clientOpts, sdkMetricsOptions(clientConfig)...)
 
 	clientOpts = addReadStallTimeoutOptions(clientConfig, clientOpts)
 
@@ -372,6 +383,7 @@ func createHTTPClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 
 	clientOpts = addReadStallTimeoutOptions(clientConfig, clientOpts)
+	clientOpts = append(clientOpts, sdkMetricsOptions(clientConfig)...)
 	sc, err = storage.NewClient(ctx, clientOpts...)
 	if err != nil {
 		err = fmt.Errorf("go http storage client creation failed: %w", err)

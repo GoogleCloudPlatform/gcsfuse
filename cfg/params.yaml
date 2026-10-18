@@ -1296,6 +1296,14 @@ params:
     default: "false"
     hide-flag: true
 
+  - config-path: "metrics.experimental-metrics-run-id"
+    proto-tag: 163
+    flag-name: "experimental-metrics-run-id"
+    type: "string"
+    usage: "If set, Cloud Monitoring metrics are exported as custom.googleapis.com/gcsfuse/<run-id>/<metric> so a benchmark run can be identified."
+    default: ""
+    hide-flag: true
+
   - config-path: "metrics.experimental-otel-metrics-endpoint"
     proto-tag: 126
     flag-name: "experimental-otel-metrics-endpoint"

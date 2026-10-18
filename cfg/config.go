@@ -788,6 +788,8 @@ type MetricsConfig struct {
 
 	ExperimentalEnableOtelMetrics bool `yaml:"experimental-enable-otel-metrics"`
 
+	ExperimentalMetricsRunId string `yaml:"experimental-metrics-run-id"`
+
 	ExperimentalOtelMetricsEndpoint string `yaml:"experimental-otel-metrics-endpoint"`
 
 	ExperimentalOtelMetricsProjectId string `yaml:"experimental-otel-metrics-project-id"`
@@ -1172,6 +1174,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	flagSet.StringP("experimental-metadata-prefetch-on-mount", "", "disabled", "Experimental: This indicates whether or not to prefetch the metadata (prefilling of metadata caches and creation of inodes) of the mounted bucket at the time of mounting the bucket. Supported values: \"disabled\", \"sync\" and \"async\". Any other values will return error on mounting. This is applicable only to static mounting, and not to dynamic mounting.")
 
 	if err := flagSet.MarkDeprecated("experimental-metadata-prefetch-on-mount", "Experimental flag: could be removed even in a minor release."); err != nil {
+		return err
+	}
+
+	flagSet.StringP("experimental-metrics-run-id", "", "", "If set, Cloud Monitoring metrics are exported as custom.googleapis.com/gcsfuse/<run-id>/<metric> so a benchmark run can be identified.")
+
+	if err := flagSet.MarkHidden("experimental-metrics-run-id"); err != nil {
 		return err
 	}
 
@@ -1817,6 +1825,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metadata-cache.experimental-metadata-prefetch-on-mount", flagSet.Lookup("experimental-metadata-prefetch-on-mount")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("metrics.experimental-metrics-run-id", flagSet.Lookup("experimental-metrics-run-id")); err != nil {
 		return err
 	}
 

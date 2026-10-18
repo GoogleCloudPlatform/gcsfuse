@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -58,7 +59,7 @@ import (
 const serviceName = "gcsfuse"
 const cloudMonitoringMetricPrefix = "custom.googleapis.com/gcsfuse/"
 
-var allowedMetricPrefixes = []string{"fs/", "gcs/", "file_cache/", "buffered_read/", "grpc.", "read/"}
+var allowedMetricPrefixes = []string{"fs/", "gcs/", "file_cache/", "buffered_read/", "grpc.", "read/", "gcp.storage.", "gcp.client.", "rpc.client.", "http.client."}
 
 // SetupOTelMetricExporters sets up the metrics exporters
 func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string) (shutdownFn common.ShutdownFn) {
@@ -79,7 +80,7 @@ func SetupOTelMetricExporters(ctx context.Context, c *cfg.Config, mountID string
 		}
 		projectID = getProjectID(ctx, c.GcsAuth, c.Metrics.ExperimentalOtelMetricsProjectId)
 	} else {
-		opts := setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs)
+		opts := setupCloudMonitoring(c.Metrics.CloudMetricsExportIntervalSecs, c.Metrics.ExperimentalMetricsRunId)
 		options = append(options, opts...)
 	}
 	res, err := getOtelResource(ctx, mountID, projectID)
@@ -112,12 +113,12 @@ func dropDisallowedMetricsView(i metric.Instrument) (metric.Stream, bool) {
 	return s, true
 }
 
-func setupCloudMonitoring(secs int64) []metric.Option {
+func setupCloudMonitoring(secs int64, runID string) []metric.Option {
 	if secs <= 0 {
 		return nil
 	}
 	options := []cloudmetric.Option{
-		cloudmetric.WithMetricDescriptorTypeFormatter(metricFormatter),
+		cloudmetric.WithMetricDescriptorTypeFormatter(metricFormatter(runID)),
 	}
 	exporter, err := cloudmetric.New(options...)
 	if err != nil {
@@ -234,8 +235,19 @@ func isPermissionDenied(err error) bool {
 		strings.Contains(msg, "\"code\":403")
 }
 
-func metricFormatter(m metricdata.Metrics) string {
-	return cloudMonitoringMetricPrefix + strings.ReplaceAll(m.Name, ".", "/")
+var unsafeRunIDChars = regexp.MustCompile(`[^A-Za-z0-9_-]`)
+
+// metricFormatter returns a formatter that exports metrics as
+// custom.googleapis.com/gcsfuse/[<run-id>/]<metric>. The run ID comes from
+// --experimental-metrics-run-id and lets a benchmark run be identified.
+func metricFormatter(runID string) func(metricdata.Metrics) string {
+	prefix := cloudMonitoringMetricPrefix
+	if id := unsafeRunIDChars.ReplaceAllString(runID, "_"); id != "" {
+		prefix += id + "/"
+	}
+	return func(m metricdata.Metrics) string {
+		return prefix + strings.ReplaceAll(m.Name, ".", "/")
+	}
 }
 
 func setupOtelMetricsEndpoint(ctx context.Context, endpoint string, authConfig cfg.GcsAuthConfig, intervalSecs int64) ([]metric.Option, error) {
