@@ -3,18 +3,18 @@ module github.com/googlecloudplatform/gcsfuse/v3
 go 1.27.2
 
 require (
-	cloud.google.com/go/auth v0.23.2
-	cloud.google.com/go/auth/oauth2adapt v0.2.8
-	cloud.google.com/go/compute/metadata v0.9.0
+	cloud.google.com/go/auth v0.24.1
+	cloud.google.com/go/auth/oauth2adapt v0.3.0
+	cloud.google.com/go/compute/metadata v0.10.0
 	cloud.google.com/go/iam v1.13.0
 	cloud.google.com/go/profiler v0.6.0
 	cloud.google.com/go/secretmanager v1.21.0
-	cloud.google.com/go/storage v1.69.0
+	cloud.google.com/go/storage v1.69.1-0.20261019043443-890144f6b6f8
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.60.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.36.0
 	github.com/fsouza/fake-gcs-server v1.54.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
-	github.com/google/s2a-go v0.1.10
+	github.com/google/s2a-go v0.1.11
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.26.2
 	github.com/jacobsa/daemonize v0.0.0-20240917082746-f35568b6c3ec
@@ -52,13 +52,13 @@ require (
 	go.opentelemetry.io/otel/sdk/log v0.22.0
 	go.opentelemetry.io/otel/sdk/metric v1.46.0
 	go.opentelemetry.io/otel/trace v1.46.0
-	golang.org/x/oauth2 v0.36.0
+	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sync v0.24.0
 	golang.org/x/sys v0.49.0
 	golang.org/x/text v0.43.0
-	golang.org/x/time v0.15.0
-	google.golang.org/api v0.295.0
-	google.golang.org/grpc v1.83.2
+	golang.org/x/time v0.16.0
+	google.golang.org/api v0.301.0
+	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -87,7 +87,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/pprof v0.0.0-20260402051712-545e8a4df936 // indirect
 	github.com/google/renameio/v2 v2.0.2 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.3.20 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.3.22 // indirect
 	github.com/gorilla/handlers v1.5.2 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
@@ -100,7 +100,7 @@ require (
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
-	github.com/spiffe/go-spiffe/v2 v2.7.0 // indirect
+	github.com/spiffe/go-spiffe/v2 v2.8.1 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
@@ -110,5 +110,5 @@ require (
 	golang.org/x/net v0.61.0 // indirect
 	google.golang.org/genproto v0.0.0-20260715232425-e75dac1f907d // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260819154853-08b0e4226688 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260825221802-da73d73af1c5 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260928230214-8a89bd6388cc // indirect
 )

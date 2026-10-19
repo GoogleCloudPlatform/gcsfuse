@@ -18,6 +18,7 @@ package storageutil
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -350,4 +351,70 @@ func (t *clientTest) TestCreateHttpClientWithAnonymousAccess_NoOAuthTransport() 
 	assert.False(t.T(), ok, "expected no userAgentRoundTripper for anonymous access")
 	_, ok = httpClient.Transport.(*oauth2.Transport)
 	assert.False(t.T(), ok, "expected no oauth2.Transport for anonymous access")
+}
+
+// Verifies that resumable upload chunk responses (with X-GUploader-No-308: yes)
+// remain readable even if the per-chunk context is canceled immediately after
+// RoundTrip returns (as google.golang.org/api v0.299.0+ does in transferChunk).
+func (t *clientTest) TestResumableUploadBodyBufferedBeforeContextCancel() {
+	expectedBody := `{"name":"test-obj","generation":"12345","metageneration":"1"}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		_, _ = w.Write([]byte(expectedBody))
+	}))
+	defer server.Close()
+
+	sc := GetDefaultStorageClientConfig(keyFile)
+	httpClient, err := CreateHttpClient(&sc, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"}), cfg.HTTP1)
+	require.NoError(t.T(), err)
+
+	rCtx, cancel := context.WithCancel(context.Background())
+	req, err := http.NewRequestWithContext(rCtx, http.MethodPost, server.URL, nil)
+	require.NoError(t.T(), err)
+	req.Header.Set("X-GUploader-No-308", "yes")
+
+	resp, err := httpClient.Do(req)
+	require.NoError(t.T(), err)
+	// Simulate google.golang.org/api v0.299.0+ transferChunk canceling rCtx
+	// immediately after doUploadRequest returns, before DecodeResponseBytes reads resp.Body.
+	cancel()
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), expectedBody, string(body))
+	assert.NoError(t.T(), resp.Body.Close())
+}
+
+// Verifies that if a resumable upload chunk stalls while reading the response body,
+// canceling the per-chunk context (e.g. via ChunkTransferTimeout) still aborts RoundTrip.
+func (t *clientTest) TestResumableUploadStallStillRespectsContextTimeout() {
+	unblockServer := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "100")
+		w.WriteHeader(http.StatusOK)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		<-unblockServer
+	}))
+	defer server.Close()
+	defer close(unblockServer)
+
+	sc := GetDefaultStorageClientConfig(keyFile)
+	sc.HttpClientTimeout = 0
+	httpClient, err := CreateHttpClient(&sc, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"}), cfg.HTTP1)
+	require.NoError(t.T(), err)
+
+	rCtx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	req, err := http.NewRequestWithContext(rCtx, http.MethodPost, server.URL, nil)
+	require.NoError(t.T(), err)
+	req.Header.Set("X-GUploader-No-308", "yes")
+
+	_, err = httpClient.Do(req)
+	require.ErrorIs(t.T(), err, context.DeadlineExceeded)
 }
