@@ -158,3 +158,62 @@ func TestMonitoring_RecordsOneMetadataCacheReadCountPerOp(t *testing.T) {
 		{true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr},
 	}, recorder.events)
 }
+
+// readBytesRecorder sums the fs/read_bytes_count increments it receives and
+// ignores every other metric.
+type readBytesRecorder struct {
+	metrics.MetricHandle
+	bytes int64
+}
+
+func (r *readBytesRecorder) FsReadBytesCount(inc int64) {
+	r.bytes += inc
+}
+
+// readFileFS is a file system whose reads return bytesRead bytes and err.
+type readFileFS struct {
+	fuseutil.NotImplementedFileSystem
+	bytesRead int
+	err       error
+}
+
+func (f *readFileFS) ReadFile(_ context.Context, op *fuseops.ReadFileOp) error {
+	op.BytesRead = f.bytesRead
+	return f.err
+}
+
+func TestMonitoring_ReadFileRecordsBytesReturnedToKernel(t *testing.T) {
+	tests := []struct {
+		name      string
+		bytesRead int
+		err       error
+		wantBytes int64
+	}{
+		{
+			// The kernel asks for 10 bytes, but only 4 remain before EOF.
+			name:      "short read at EOF counts bytes returned, not requested",
+			bytesRead: 4,
+			wantBytes: 4,
+		},
+		{
+			// FUSE replies to a failed read with just the error, so no data reaches
+			// the kernel even though the file system set BytesRead.
+			name:      "failed read is not counted",
+			bytesRead: 10,
+			err:       syscall.EIO,
+			wantBytes: 0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := &readBytesRecorder{MetricHandle: metrics.NewNoopMetrics()}
+			fs := WithMonitoring(&readFileFS{bytesRead: tc.bytesRead, err: tc.err}, recorder)
+
+			err := fs.ReadFile(context.Background(), &fuseops.ReadFileOp{Size: 10, Dst: make([]byte, 10)})
+
+			assert.ErrorIs(t, err, tc.err)
+			assert.Equal(t, tc.wantBytes, recorder.bytes)
+		})
+	}
+}

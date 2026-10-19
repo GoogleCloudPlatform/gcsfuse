@@ -1042,6 +1042,7 @@ type otelMetrics struct {
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAtomic                                      *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic                                        *atomic.Int64
 	fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic                                     *atomic.Int64
+	fsReadBytesCountAtomic                                                                                *atomic.Int64
 	fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonConcurrencyLimitBreachedAtomic           *atomic.Int64
 	fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonExistingFileAtomic                       *atomic.Int64
 	fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOtherAtomic                              *atomic.Int64
@@ -2263,6 +2264,15 @@ func (o *otelMetrics) FsOpsLatency(
 	}
 }
 
+func (o *otelMetrics) FsReadBytesCount(
+	inc int64) {
+	if inc < 0 {
+		logger.Errorf("Counter metric fs/read_bytes_count received a negative increment: %d", inc)
+		return
+	}
+	o.fsReadBytesCountAtomic.Add(inc)
+}
+
 func (o *otelMetrics) FsStreamingWriteFallbackCount(
 	inc int64, openMode OpenMode, writeFallbackReason WriteFallbackReason) {
 	if inc < 0 {
@@ -3132,6 +3142,8 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic atomic.Int64
 
+	var fsReadBytesCountAtomic atomic.Int64
+
 	var fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonConcurrencyLimitBreachedAtomic,
 		fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonExistingFileAtomic,
 		fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOtherAtomic,
@@ -3707,7 +3719,15 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithUnit("us"),
 		metric.WithExplicitBucketBoundaries(50, 100, 200, 400, 800, 1500, 3000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000, 20000000, 50000000, 100000000, 200000000, 500000000))
 
-	_, err8 := meter.Int64ObservableCounter("fs/streaming_write_fallback_count",
+	_, err8 := meter.Int64ObservableCounter("fs/read_bytes_count",
+		metric.WithDescription("The cumulative number of bytes GCSFuse returned for file read requests, regardless of where the data came from (e.g., GCS or the file cache). Its rate gives the read throughput served by GCSFuse. Reads served from the kernel page cache never reach GCSFuse and are not counted."),
+		metric.WithUnit("By"),
+		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			conditionallyObserve(obsrv, &fsReadBytesCountAtomic)
+			return nil
+		}))
+
+	_, err9 := meter.Int64ObservableCounter("fs/streaming_write_fallback_count",
 		metric.WithDescription("The cumulative number of streaming write fallbacks with reason attached"),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3734,7 +3754,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err9 := meter.Int64ObservableCounter("gcs/download_bytes_count",
+	_, err10 := meter.Int64ObservableCounter("gcs/download_bytes_count",
 		metric.WithDescription("The cumulative number of bytes downloaded from GCS along with type - Sequential/Random"),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3745,7 +3765,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err10 := meter.Int64ObservableCounter("gcs/read_bytes_count",
+	_, err11 := meter.Int64ObservableCounter("gcs/read_bytes_count",
 		metric.WithDescription("The cumulative number of bytes read from GCS objects."),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3753,7 +3773,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err11 := meter.Int64ObservableCounter("gcs/read_count",
+	_, err12 := meter.Int64ObservableCounter("gcs/read_count",
 		metric.WithDescription("Specifies the number of gcs reads made along with type - Sequential/Random"),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3764,7 +3784,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err12 := meter.Int64ObservableCounter("gcs/reader_count",
+	_, err13 := meter.Int64ObservableCounter("gcs/reader_count",
 		metric.WithDescription("The cumulative number of GCS object readers opened or closed."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3773,7 +3793,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err13 := meter.Int64ObservableCounter("gcs/request_count",
+	_, err14 := meter.Int64ObservableCounter("gcs/request_count",
 		metric.WithDescription("The cumulative number of GCS requests processed along with the GCS method."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3799,12 +3819,12 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	gcsRequestLatencies, err14 := meter.Int64Histogram("gcs/request_latencies",
+	gcsRequestLatencies, err15 := meter.Int64Histogram("gcs/request_latencies",
 		metric.WithDescription("The cumulative distribution of the GCS request latencies."),
 		metric.WithUnit("ms"),
 		metric.WithExplicitBucketBoundaries(100, 200, 400, 800, 1500, 3000, 5000, 10000, 20000, 50000, 100000, 200000, 500000))
 
-	_, err15 := meter.Int64ObservableCounter("gcs/retry_count",
+	_, err16 := meter.Int64ObservableCounter("gcs/retry_count",
 		metric.WithDescription("The cumulative number of retry requests made to GCS."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3813,7 +3833,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err16 := meter.Int64ObservableCounter("metadata_cache/read_count",
+	_, err17 := meter.Int64ObservableCounter("metadata_cache/read_count",
 		metric.WithDescription("Total number of read requests to the metadata cache. Use attributes to analyze hit/miss ratios, entry types, and specific lookup outcomes (e.g., expiration vs. total absence)."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3838,7 +3858,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err17 := meter.Int64ObservableUpDownCounter("metadata_cache/size",
+	_, err18 := meter.Int64ObservableUpDownCounter("metadata_cache/size",
 		metric.WithDescription("The total memory size (in bytes) of the entries in the metadata cache"),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3847,12 +3867,12 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	readBlockSizes, err18 := meter.Int64Histogram("read/block_sizes",
+	readBlockSizes, err19 := meter.Int64Histogram("read/block_sizes",
 		metric.WithDescription("The cumulative distribution of read block sizes across different bucket boundaries"),
 		metric.WithUnit("By"),
 		metric.WithExplicitBucketBoundaries(0, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, 67108864, 134217728))
 
-	_, err19 := meter.Int64ObservableUpDownCounter("test/updown_counter",
+	_, err20 := meter.Int64ObservableUpDownCounter("test/updown_counter",
 		metric.WithDescription("Test metric for updown counters."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3860,7 +3880,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	_, err20 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
+	_, err21 := meter.Int64ObservableUpDownCounter("test/updown_counter_with_attrs",
 		metric.WithDescription("Test metric for updown counters with attributes."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
@@ -3869,7 +3889,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 			return nil
 		}))
 
-	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16, err17, err18, err19, err20}
+	errs := []error{err0, err1, err2, err3, err4, err5, err6, err7, err8, err9, err10, err11, err12, err13, err14, err15, err16, err17, err18, err19, err20, err21}
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
@@ -4318,7 +4338,8 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAtomic:                   &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpSyncFileAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic:                     &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpUnlinkAtomic,
 		fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic:                  &fsOpsErrorCountFsErrorCategoryTOOMANYOPENFILESFsOpWriteFileAtomic,
-		fsOpsLatency: fsOpsLatency,
+		fsOpsLatency:           fsOpsLatency,
+		fsReadBytesCountAtomic: &fsReadBytesCountAtomic,
 		fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonConcurrencyLimitBreachedAtomic:           &fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonConcurrencyLimitBreachedAtomic,
 		fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonExistingFileAtomic:                       &fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonExistingFileAtomic,
 		fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOtherAtomic:                              &fsStreamingWriteFallbackCountOpenModeOtherWriteFallbackReasonOtherAtomic,
