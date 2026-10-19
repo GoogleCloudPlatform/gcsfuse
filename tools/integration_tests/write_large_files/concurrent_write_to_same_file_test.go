@@ -28,6 +28,13 @@ import (
 )
 
 func TestWriteToSameFileConcurrently(t *testing.T) {
+	// For zonal buckets, files are unfinalized, and for unfinalized objects the server
+	// can return stale metadata (so the returned file size can be zero), leading to a
+	// precondition error during concurrent writes.
+	// Once b/502552082 is fixed, stat calls will return a consistent size and this test can be re-enabled.
+	if setup.IsZonalBucketRun() {
+		t.Skip("Skipping test for zonal buckets due to stale metadata on unfinalized objects (b/502552082).")
+	}
 	// Setup Test directory and files to write to.
 	seqWriteDir := setup.SetupTestDirectory(DirForSeqWrite)
 	mountedDirFilePath := path.Join(seqWriteDir, setup.GenerateRandomString(5))
