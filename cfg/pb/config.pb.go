@@ -42,6 +42,8 @@ const (
 type ConfigPayload struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Config        *Config                `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	AppName       string                 `protobuf:"bytes,2,opt,name=app_name,json=appName,proto3" json:"app_name,omitempty"`
+	MountId       string                 `protobuf:"bytes,3,opt,name=mount_id,json=mountId,proto3" json:"mount_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -81,6 +83,20 @@ func (x *ConfigPayload) GetConfig() *Config {
 		return x.Config
 	}
 	return nil
+}
+
+func (x *ConfigPayload) GetAppName() string {
+	if x != nil {
+		return x.AppName
+	}
+	return ""
+}
+
+func (x *ConfigPayload) GetMountId() string {
+	if x != nil {
+		return x.MountId
+	}
+	return ""
 }
 
 type Config struct {
@@ -1403,9 +1419,11 @@ var File_cfg_config_proto protoreflect.FileDescriptor
 
 const file_cfg_config_proto_rawDesc = "" +
 	"\n" +
-	"\x10cfg/config.proto\x12\x0egcsfuse.cfg.v1\"?\n" +
+	"\x10cfg/config.proto\x12\x0egcsfuse.cfg.v1\"u\n" +
 	"\rConfigPayload\x12.\n" +
-	"\x06config\x18\x01 \x01(\v2\x16.gcsfuse.cfg.v1.ConfigR\x06config\"\xfaU\n" +
+	"\x06config\x18\x01 \x01(\v2\x16.gcsfuse.cfg.v1.ConfigR\x06config\x12\x19\n" +
+	"\bapp_name\x18\x02 \x01(\tR\aappName\x12\x19\n" +
+	"\bmount_id\x18\x03 \x01(\tR\amountId\"\xfaU\n" +
 	"\x06Config\x12%\n" +
 	"\x0fis_app_name_set\x18\x01 \x01(\bR\fisAppNameSet\x12'\n" +
 	"\x10is_cache_dir_set\x18\x02 \x01(\bR\risCacheDirSet\x12A\n" +

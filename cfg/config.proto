@@ -23,6 +23,8 @@ option go_package = "github.com/googlecloudplatform/gcsfuse/v3/cfg/pb";
 
 message ConfigPayload {
   Config config = 1;
+  string app_name = 2;
+  string mount_id = 3;
 }
 
 message Config {
