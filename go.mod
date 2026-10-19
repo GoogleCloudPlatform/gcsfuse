@@ -3,7 +3,7 @@ module github.com/googlecloudplatform/gcsfuse/v3
 go 1.27.2
 
 require (
-	cloud.google.com/go/auth v0.23.2
+	cloud.google.com/go/auth v0.24.1
 	cloud.google.com/go/auth/oauth2adapt v0.2.8
 	cloud.google.com/go/compute/metadata v0.9.0
 	cloud.google.com/go/iam v1.13.0
