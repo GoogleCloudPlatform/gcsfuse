@@ -51,7 +51,7 @@ RUN_READ_CACHE_TESTS_ONLY=$(get_metadata_attribute run-read-cache-only)
 RUN_LIGHT_TEST=$(get_metadata_attribute run-light-test)
 
 # If CUSTOM_BUCKET is empty, use the release-packages bucket as default. When a custom bucket is provided, this script
-# will use the provided bucket to fetch details.txt file for the runa nd will upload the results to that bucket,
+# will use the provided bucket to fetch details.txt file for the run and will upload the results to that bucket,
 # specially useful for testing.
 BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-release-packages"}
 
