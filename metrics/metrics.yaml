@@ -165,6 +165,11 @@
     - "concurrency_limit_breached"
     - "other" # tracks any other errors not from above
 
+- metric-name: "fs/write_bytes_count"
+  description: "The cumulative number of bytes written into GCSFuse from file write requests, regardless of where the data was stored (i.e., GCS or the file cache). Its rate gives the write throughput into GCSFuse. Writes served from the kernel page cache never reach GCSFuse and are not counted."
+  unit: "By"
+  type: "int_counter"
+
 - metric-name: "gcs/download_bytes_count"
   description: "The cumulative number of bytes downloaded from GCS along with type - Sequential/Random"
   unit: "By"
