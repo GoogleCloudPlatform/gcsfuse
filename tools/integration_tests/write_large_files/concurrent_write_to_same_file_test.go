@@ -43,6 +43,11 @@ func TestWriteToSameFileConcurrently(t *testing.T) {
 		offset := i * chunkSize
 		eG.Go(func() error {
 			writeToFileSequentially(t, []string{localFilePath, mountedDirFilePath}, offset, offset+chunkSize)
+			// For Zonal buckets and RCU buckets with rapid writes enabled, appendable
+			// objects are used and remain unfinalized mid-stream, so we wait for the
+			// object size metadata to update. Since we don't have visibility here into
+			// whether rapid writes are enabled for RCU, we wait for all RCU runs regardless.
+			operations.WaitForSizeUpdate(setup.IsZonalBucketRun() || setup.IsRcuBucketRun(), operations.WaitDurationAfterFlushRapid)
 			return nil
 		})
 	}
@@ -55,6 +60,11 @@ func TestWriteToSameFileConcurrently(t *testing.T) {
 	assert.True(t, identical)
 }
 
+// writeToFileSequentially writes random data sequentially to the given files from startOffset to endOffset.
+// Note: If this is called inside a goroutine for concurrent writes to the same file on Zonal buckets
+// or RCU buckets with rapid writes enabled, the appendable object can remain unfinalized mid-stream
+// when individual handles are closed, so the caller must wait for the object size metadata to update
+// (e.g., via operations.WaitForSizeUpdate).
 func writeToFileSequentially(t *testing.T, filePaths []string, startOffset int, endOffset int) {
 	t.Helper()
 	filesToWrite := operations.OpenFiles(t, filePaths)
