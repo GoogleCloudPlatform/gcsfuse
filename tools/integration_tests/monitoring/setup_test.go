@@ -24,10 +24,12 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
 	promclient "github.com/prometheus/client_model/go"
@@ -40,6 +42,9 @@ import (
 const (
 	testDirName = "monitoring"
 	gkeTempDir  = "/gcsfuse-tmp"
+	// Metrics are recorded asynchronously; poll scrapes for up to metricsTimeout.
+	metricsTimeout      = 5 * time.Second
+	metricsPollInterval = 200 * time.Millisecond
 )
 
 type env struct {
@@ -162,6 +167,42 @@ func assertNonZeroHistogramMetric(t *testing.T, metricName, labelName, labelValu
 		}
 	}
 	require.Fail(t, fmt.Sprintf("Metric %s with label %s=%s not found or zero", metricName, labelName, labelValue))
+}
+
+// waitForHistogramSamples returns the (attribute-less) histogram metricName once
+// it has at least minSamples samples, failing the test if that does not happen
+// within metricsTimeout. Metrics are recorded asynchronously, so a single scrape
+// right after the I/O may be too early.
+func waitForHistogramSamples(t *testing.T, metricName string, minSamples uint64, prometheusPort int) *promclient.Histogram {
+	t.Helper()
+	return operations.RetryUntil(testEnv.ctx, t, metricsPollInterval, metricsTimeout, func() (*promclient.Histogram, error) {
+		mf, err := parsePromFormat(t, prometheusPort)
+		if err != nil {
+			return nil, err
+		}
+		family, ok := mf[metricName]
+		if !ok || family.GetType() != promclient.MetricType_HISTOGRAM || len(family.GetMetric()) == 0 {
+			return nil, fmt.Errorf("histogram %s not exported yet", metricName)
+		}
+		hist := family.GetMetric()[0].GetHistogram()
+		if hist.GetSampleCount() < minSamples {
+			return nil, fmt.Errorf("histogram %s has %d samples, want at least %d", metricName, hist.GetSampleCount(), minSamples)
+		}
+		return hist, nil
+	})
+}
+
+// cumulativeBucketCount returns the number of samples <= upperBound, i.e. the
+// cumulative count of the bucket with exactly that upper bound.
+func cumulativeBucketCount(t *testing.T, hist *promclient.Histogram, upperBound float64) uint64 {
+	t.Helper()
+	for _, b := range hist.GetBucket() {
+		if b.GetUpperBound() == upperBound {
+			return b.GetCumulativeCount()
+		}
+	}
+	require.Failf(t, "bucket not found", "no histogram bucket with upper bound %v", upperBound)
+	return 0
 }
 
 func TestMain(m *testing.M) {

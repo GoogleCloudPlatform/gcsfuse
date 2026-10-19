@@ -1824,6 +1824,22 @@ monitoring:
             different_zone: false
         run: "TestPromKernelReaderSuite"
         run_on_gke: false
+      - flags:
+          - "--prometheus-port=9194,--enable-kernel-reader,--fuse-max-request-size-kb=16384,--log-file=/gcsfuse-tmp/TestPromVectoredReadSuite.log,--client-protocol=http1"
+        compatible:
+          flat: true
+          hns: false
+          zonal: false
+        run: "TestPromVectoredReadSuite"
+        run_on_gke: false
+      - flags:
+          - "--prometheus-port=10194,--enable-kernel-reader,--fuse-max-request-size-kb=16384,--log-file=/gcsfuse-tmp/TestPromVectoredReadSuite.log,--client-protocol=http1"
+        compatible:
+          flat: false
+          hns: true
+          zonal: false
+        run: "TestPromVectoredReadSuite"
+        run_on_gke: false
 
 symlink_handling:
   - mounted_directory: "${MOUNTED_DIR}"
