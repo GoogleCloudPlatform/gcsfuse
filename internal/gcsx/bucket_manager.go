@@ -101,10 +101,10 @@ type bucketManager struct {
 	stopGarbageCollecting func()
 }
 
-func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle) BucketManager {
+func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle, metricHandle metrics.MetricHandle) BucketManager {
 	var c *lru.Cache
 	if config.StatCacheMaxSizeMB > 0 {
-		c = lru.NewCache(util.MiBsToBytes(config.StatCacheMaxSizeMB))
+		c = metadata.NewSharedStatCache(util.MiBsToBytes(config.StatCacheMaxSizeMB), metricHandle)
 	}
 
 	bm := &bucketManager{

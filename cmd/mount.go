@@ -112,7 +112,7 @@ be interacting with the file system.`)
 		ImplicitDir:                        newConfig.ImplicitDirs,
 		EnableEmptyManagedFolders:          newConfig.List.EnableEmptyManagedFolders,
 	}
-	bm := gcsx.NewBucketManager(bucketCfg, storageHandle)
+	bm := gcsx.NewBucketManager(bucketCfg, storageHandle, metricHandle)
 
 	// Create a file system server.
 	serverCfg := &fs.ServerConfig{
