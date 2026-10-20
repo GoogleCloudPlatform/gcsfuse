@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/wrappers"
@@ -72,7 +71,7 @@ func newProductionLikeMetadataCacheFS(ctx context.Context, t *testing.T, opts me
 	// when the metadata cache is enabled.
 	bucket := uncachedBucket
 	if opts.ttl != 0 {
-		statCache := metadata.NewStatCacheBucketView(lru.NewCache(uint64(1000*cfg.AverageSizeOfPositiveStatCacheEntry)), "")
+		statCache := metadata.NewStatCacheBucketView(metadata.NewSharedStatCache(uint64(1000*cfg.AverageSizeOfPositiveStatCacheEntry), mh), "")
 		bucket = caching.NewFastStatBucket(opts.ttl, statCache, clock, uncachedBucket, opts.negativeTTL, true, opts.implicitDirs, opts.enableEmptyManagedFolders)
 	}
 

@@ -208,6 +208,9 @@ type MetricHandle interface {
 	// FsOpsLatency - The cumulative distribution of file system operation latencies
 	FsOpsLatency(ctx context.Context, latency time.Duration, fsOp FsOp)
 
+	// FsReadBytesCount - The cumulative number of bytes GCSFuse returned for file read requests, regardless of where the data came from (e.g., GCS or the file cache). Its rate gives the read throughput served by GCSFuse. Reads served from the kernel page cache never reach GCSFuse and are not counted.
+	FsReadBytesCount(inc int64)
+
 	// FsStreamingWriteFallbackCount - The cumulative number of streaming write fallbacks with reason attached
 	FsStreamingWriteFallbackCount(inc int64, openMode OpenMode, writeFallbackReason WriteFallbackReason)
 

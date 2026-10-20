@@ -15,12 +15,14 @@
 package cmd
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg/pb"
 	"github.com/googlecloudplatform/gcsfuse/v3/common"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
@@ -28,6 +30,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
 )
 
 func Test_Main(t *testing.T) {
@@ -48,7 +51,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false, false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "", metrics.NewNoopMetrics(), false, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -60,7 +63,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false, false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "", metrics.NewNoopMetrics(), false, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -72,7 +75,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPCIsGKE() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), true, false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "", metrics.NewNoopMetrics(), true, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -497,4 +500,68 @@ func (t *MainTest) TestForwardedEnvVars_NotPassedWhenUnset() {
 		require.True(t.T(), ok, "Invalid env var format: %s", forwardedVar)
 		assert.NotContains(t.T(), unexpectedForwardedEnvVars, name, "unexpected env var %q was forwarded", name)
 	}
+}
+
+func (t *MainTest) TestGetMountConfigsHeader() {
+	testCases := []struct {
+		name            string
+		mountConfig     *cfg.Config
+		mountInstanceID string
+		expectedAppName string
+		expectedMountID string
+	}{
+		{
+			name:            "DefaultConfig",
+			mountConfig:     &cfg.Config{},
+			mountInstanceID: "testFS-123",
+			expectedMountID: "testFS-123",
+		},
+		{
+			name: "AppNameAndConfigFieldsSet",
+			mountConfig: &cfg.Config{
+				AppName:   "my-app",
+				EnableHns: true,
+				FileCache: cfg.FileCacheConfig{EnableParallelDownloads: true},
+			},
+			mountInstanceID: "testFS-123",
+			expectedAppName: "my-app",
+			expectedMountID: "testFS-123",
+		},
+		{
+			name:            "NonPrintableAndNonASCIIAppNameIsKept",
+			mountConfig:     &cfg.Config{AppName: "app\nnamé"},
+			mountInstanceID: "testFS-123",
+			expectedAppName: "app\nnamé",
+			expectedMountID: "testFS-123",
+		},
+		{
+			name:            "InvalidUTF8IsReplaced",
+			mountConfig:     &cfg.Config{AppName: "app\xff"},
+			mountInstanceID: "testFS-\xfe",
+			expectedAppName: "app\uFFFD",
+			expectedMountID: "testFS-\uFFFD",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(t *testing.T) {
+			header := getMountConfigsHeader(tc.mountConfig, tc.mountInstanceID)
+
+			// GCS decodes this header with absl::WebSafeBase64Unescape, so it must be
+			// bare unpadded base64url that round-trips to the ConfigPayload.
+			decoded, err := base64.RawURLEncoding.DecodeString(header)
+			require.NoError(t, err)
+			payload := &pb.ConfigPayload{}
+			require.NoError(t, proto.Unmarshal(decoded, payload))
+			assert.True(t, proto.Equal(tc.mountConfig.ToProto(), payload.GetConfig()))
+			assert.Equal(t, tc.expectedAppName, payload.GetAppName())
+			assert.Equal(t, tc.expectedMountID, payload.GetMountId())
+		})
+	}
+}
+
+func (t *MainTest) TestGetMountConfigsHeaderIsEmptyForNilConfig() {
+	header := getMountConfigsHeader(nil, "testFS-123")
+
+	assert.Empty(t.T(), header)
 }

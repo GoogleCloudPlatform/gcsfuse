@@ -140,6 +140,11 @@
     attribute-type: string
     values: *fs_ops_list
 
+- metric-name: "fs/read_bytes_count"
+  description: "The cumulative number of bytes GCSFuse returned for file read requests, regardless of where the data came from (e.g., GCS or the file cache). Its rate gives the read throughput served by GCSFuse. Reads served from the kernel page cache never reach GCSFuse and are not counted."
+  unit: "By"
+  type: "int_counter"
+
 - metric-name: "fs/streaming_write_fallback_count"
   description: "The cumulative number of streaming write fallbacks with reason attached"
   type: "int_counter"

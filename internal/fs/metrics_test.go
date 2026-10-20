@@ -1120,6 +1120,7 @@ func TestReadFile_Metrics(t *testing.T) {
 	attrs := attribute.NewSet(attribute.String("fs_op", "ReadFile"))
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
 	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/read_bytes_count", attribute.NewSet(), int64(len(content)))
 }
 
 func TestOpenFile_Metrics(t *testing.T) {

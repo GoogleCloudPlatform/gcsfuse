@@ -80,6 +80,7 @@ func (p *PromTest) TestReadMetrics() {
 	assertNonZeroHistogramMetric(p.T(), "file_cache_read_latencies", "cache_hit", "false", prometheusPort)
 	assertNonZeroCountMetric(p.T(), "fs_ops_count", "fs_op", "OpenFile", prometheusPort)
 	assertNonZeroCountMetric(p.T(), "fs_ops_count", "fs_op", "ReadFile", prometheusPort)
+	assertNonZeroCountMetric(p.T(), "fs_read_bytes_count", "", "", prometheusPort)
 	assertNonZeroCountMetric(p.T(), "gcs_request_count", "gcs_method", "NewReader", prometheusPort)
 	assertNonZeroCountMetric(p.T(), "gcs_reader_count", "io_method", "opened", prometheusPort)
 	assertNonZeroCountMetric(p.T(), "gcs_reader_count", "io_method", "closed", prometheusPort)

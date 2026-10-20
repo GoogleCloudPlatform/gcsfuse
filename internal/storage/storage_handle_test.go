@@ -41,6 +41,7 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
@@ -401,6 +402,49 @@ func (testSuite *StorageHandleTest) runLookupBucketTypeTest(onlyDirInput, expect
 
 func (testSuite *StorageHandleTest) TestLookupBucketType_WithPrefix() {
 	testSuite.runLookupBucketTypeTest("foo/bar", "foo/bar/")
+}
+
+func (testSuite *StorageHandleTest) TestLookupBucketType_MountConfigsMetadata() {
+	testCases := []struct {
+		name     string
+		header   string
+		expected []string
+	}{
+		{
+			name:     "HeaderSet",
+			header:   "test-config-payload",
+			expected: []string{"test-config-payload"},
+		},
+		{
+			name:     "HeaderEmpty",
+			header:   "",
+			expected: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+			sc.MountConfigsHeader = tc.header
+			sh, err := NewStorageHandle(testSuite.ctx, sc, "")
+			require.NoError(testSuite.T(), err)
+			client := sh.(*storageClient)
+			mockClient := new(MockStorageControlClient)
+			client.storageControlClient = mockClient
+			var got []string
+			mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
+				Run(func(args mock.Arguments) {
+					md, _ := metadata.FromOutgoingContext(args.Get(0).(context.Context))
+					got = md.Get("x-goog-storage-go-features")
+				}).
+				Return(&controlpb.StorageLayout{}, nil)
+
+			_, err = client.lookupBucketType(TestBucketName)
+
+			assert.NoError(testSuite.T(), err)
+			assert.Equal(testSuite.T(), tc.expected, got)
+		})
+	}
 }
 
 func (testSuite *StorageHandleTest) TestNewStorageHandleHttp2Disabled() {
