@@ -15,6 +15,7 @@
 package monitoring
 
 import (
+	"errors"
 	"log"
 	"os"
 	"path"
@@ -54,25 +55,31 @@ type PromVectoredReadTest struct {
 	PromTestBase
 }
 
-// requireHostAllowsLargeFuseRequests asserts that GCSFuse managed to raise the
-// host's FUSE max_pages_limit to what --fuse-max-request-size-kb needs. Without
-// that, the kernel caps requests at 1 MiB, no vectored reads happen, and the
-// rest of the test would pass vacuously.
-func (p *PromVectoredReadTest) requireHostAllowsLargeFuseRequests() {
+// skipUnlessHostAllowsLargeFuseRequests skips the test when the host can't send
+// FUSE requests above 1 MiB. That happens when the kernel has no
+// max_pages_limit setting (older kernels cap requests at 256 pages), or when
+// GCSFuse could not raise it to what --fuse-max-request-size-kb needs (raising
+// it needs root or passwordless sudo). Without large requests no read is
+// vectored, so there is nothing for this test to check.
+func (p *PromVectoredReadTest) skipUnlessHostAllowsLargeFuseRequests() {
 	limitPath, err := kernelparams.PathForParam(kernelparams.MaxPagesLimit, 0, 0)
 	require.NoError(p.T(), err)
 	raw, err := os.ReadFile(limitPath)
-	require.NoError(p.T(), err, "host kernel does not expose %s; it cannot issue FUSE requests above 1 MiB", limitPath)
+	if errors.Is(err, os.ErrNotExist) {
+		p.T().Skipf("host kernel does not expose %s, so FUSE requests are capped at 1 MiB and no read can be vectored", limitPath)
+	}
+	require.NoError(p.T(), err)
 	limit, err := strconv.Atoi(strings.TrimSpace(string(raw)))
 	require.NoError(p.T(), err, "unexpected content in %s: %q", limitPath, raw)
 	required := cfg.MaxPagesForRequestSizeKb(vectoredReadMaxRequestSizeKb)
-	require.GreaterOrEqual(p.T(), limit, required,
-		"%s is %d pages but --fuse-max-request-size-kb=%d needs %d; GCSFuse could not raise it on this host",
-		limitPath, limit, vectoredReadMaxRequestSizeKb, required)
+	if limit < required {
+		p.T().Skipf("%s is %d pages but --fuse-max-request-size-kb=%d needs %d; GCSFuse could not raise it on this host (needs root or passwordless sudo)",
+			limitPath, limit, vectoredReadMaxRequestSizeKb, required)
+	}
 }
 
 func (p *PromVectoredReadTest) TestReadBlockSizesRecordsVectoredReads() {
-	p.requireHostAllowsLargeFuseRequests()
+	p.skipUnlessHostAllowsLargeFuseRequests()
 	// Arrange: an object created directly in GCS, so nothing is in the page cache.
 	testName := strings.ReplaceAll(p.T().Name(), "/", "_")
 	gcsDir := path.Join(testDirName, testName)
