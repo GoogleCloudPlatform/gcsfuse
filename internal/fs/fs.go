@@ -1559,12 +1559,13 @@ func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
 // LOCKS_REQUIRED(in)
 func (fs *fileSystem) getAttributes(
 	ctx context.Context,
-	in inode.Inode) (
+	in inode.Inode,
+	clobberedCheck bool) (
 	attr fuseops.InodeAttributes,
 	expiration time.Time,
 	err error) {
 	// Call through.
-	size, mtime, nlink, err := in.Attributes(ctx, true)
+	size, mtime, nlink, err := in.Attributes(ctx, clobberedCheck)
 	if err != nil {
 		return
 	}
@@ -1687,7 +1688,7 @@ func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name,
 	defer child.Unlock()
 
 	// Extract the child's attributes.
-	attributes, expiration, err := fs.getAttributes(ctx, child)
+	attributes, expiration, err := fs.getAttributes(ctx, child, true)
 	if err != nil {
 		// The inode is valid, but we couldn't get attributes.
 		return nil, fmt.Errorf("coreToDirentPlus: unable to fetch attributes for %s: %w", path.Base(fullName.LocalName()), err)
@@ -1765,7 +1766,7 @@ func (fs *fileSystem) lookupAndFetchAttributesForLocalFileEntriesPlus(parentName
 			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: local file %q disappeared", localEntryName)
 		}
 		// Fetch attributes from the child inode.
-		attrs, expiration, err := fs.getAttributes(context.Background(), child)
+		attrs, expiration, err := fs.getAttributes(context.Background(), child, true)
 		if err != nil {
 			child.Unlock()
 			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: unable to fetch attributes for %s: %w", localEntryName, err)
@@ -1915,7 +1916,7 @@ func (fs *fileSystem) LookUpInode(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, true)
 	if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
 		e.EntryExpiration = e.AttributesExpiration
 	}
@@ -1941,7 +1942,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	defer in.Unlock()
 
 	// Grab its attributes.
-	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
+	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in, true)
 	if err != nil {
 		return err
 	}
@@ -1994,7 +1995,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	// We silently ignore updates to mode and atime.
 
 	// Fill in the response.
-	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
+	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in, true)
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
 		return err
@@ -2065,7 +2066,7 @@ func (fs *fileSystem) MkDir(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, true)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
@@ -2095,7 +2096,7 @@ func (fs *fileSystem) MkNode(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, true)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
@@ -2262,7 +2263,7 @@ func (fs *fileSystem) CreateFile(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, false)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
@@ -2317,7 +2318,7 @@ func (fs *fileSystem) CreateSymlink(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, true)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
