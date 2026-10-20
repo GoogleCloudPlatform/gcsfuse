@@ -23,15 +23,18 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"golang.org/x/oauth2"
+	"google.golang.org/api/option"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -353,68 +356,103 @@ func (t *clientTest) TestCreateHttpClientWithAnonymousAccess_NoOAuthTransport() 
 	assert.False(t.T(), ok, "expected no oauth2.Transport for anonymous access")
 }
 
-// Verifies that resumable upload chunk responses (with X-GUploader-No-308: yes)
-// remain readable even if the per-chunk context is canceled immediately after
-// RoundTrip returns (as google.golang.org/api v0.299.0+ does in transferChunk).
-func (t *clientTest) TestResumableUploadBodyBufferedBeforeContextCancel() {
-	expectedBody := `{"name":"test-obj","generation":"12345","metageneration":"1"}`
+// Verifies end-to-end via storage.NewClient and storage.Writer that when
+// ChunkTransferTimeout > 0, multi-chunk resumable uploads succeed and decode the
+// final JSON object metadata without failing with context.Canceled (workaround for
+// google.golang.org/api v0.299.0+ transferChunk canceling rCtx before DecodeResponseBytes),
+// while still enforcing ChunkTransferTimeout and retrying when a chunk stalls.
+func (t *clientTest) TestResumableUploadWithChunkTransferTimeout() {
+	var stallNextChunk atomic.Bool
+	var unblocked atomic.Bool
+	var chunkAttempts atomic.Int32
+	var serverURL string
+	unblockStalledChunk := make(chan struct{})
+	releaseStalled := func() {
+		if unblocked.CompareAndSwap(false, true) {
+			close(unblockStalledChunk)
+		}
+	}
+	defer releaseStalled()
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("uploadType") == "resumable" && r.URL.Query().Get("upload_id") == "" {
+			w.Header().Set("Location", serverURL+"/upload/storage/v1/b/test-bucket/o?uploadType=resumable&upload_id=session-1")
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		_, _ = io.Copy(io.Discard, r.Body)
+		_ = r.Body.Close()
+		chunkAttempts.Add(1)
+
+		if stallNextChunk.CompareAndSwap(true, false) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Content-Length", "100")
+			w.WriteHeader(http.StatusOK)
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+			<-unblockStalledChunk
+			return
+		}
+		if chunkAttempts.Load() >= 2 {
+			releaseStalled()
+		}
+
+		contentRange := r.Header.Get("Content-Range")
+		if strings.HasSuffix(contentRange, "/*") {
+			w.Header().Set("X-Http-Status-Code-Override", "308")
+			w.Header().Set("Range", strings.Split(strings.TrimPrefix(contentRange, "bytes "), "/")[0])
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if flusher, ok := w.(http.Flusher); ok {
 			flusher.Flush()
 		}
-		_, _ = w.Write([]byte(expectedBody))
+		time.Sleep(5 * time.Millisecond)
+		_, _ = w.Write([]byte(`{"bucket":"test-bucket","name":"test-obj","generation":"987654321","metageneration":"1","size":"524288"}`))
 	}))
 	defer server.Close()
+	serverURL = server.URL
 
-	sc := GetDefaultStorageClientConfig(keyFile)
-	httpClient, err := CreateHttpClient(&sc, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"}), cfg.HTTP1)
-	require.NoError(t.T(), err)
-
-	rCtx, cancel := context.WithCancel(context.Background())
-	req, err := http.NewRequestWithContext(rCtx, http.MethodPost, server.URL, nil)
-	require.NoError(t.T(), err)
-	req.Header.Set("X-GUploader-No-308", "yes")
-
-	resp, err := httpClient.Do(req)
-	require.NoError(t.T(), err)
-	// Simulate google.golang.org/api v0.299.0+ transferChunk canceling rCtx
-	// immediately after doUploadRequest returns, before DecodeResponseBytes reads resp.Body.
-	cancel()
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t.T(), err)
-	assert.Equal(t.T(), expectedBody, string(body))
-	assert.NoError(t.T(), resp.Body.Close())
-}
-
-// Verifies that if a resumable upload chunk stalls while reading the response body,
-// canceling the per-chunk context (e.g. via ChunkTransferTimeout) still aborts RoundTrip.
-func (t *clientTest) TestResumableUploadStallStillRespectsContextTimeout() {
-	unblockServer := make(chan struct{})
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Length", "100")
-		w.WriteHeader(http.StatusOK)
-		if flusher, ok := w.(http.Flusher); ok {
-			flusher.Flush()
-		}
-		<-unblockServer
-	}))
-	defer server.Close()
-	defer close(unblockServer)
+	ctx := context.Background()
+	payload := make([]byte, 512*1024) // Two 256 KiB chunks
 
 	sc := GetDefaultStorageClientConfig(keyFile)
 	sc.HttpClientTimeout = 0
 	httpClient, err := CreateHttpClient(&sc, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"}), cfg.HTTP1)
 	require.NoError(t.T(), err)
 
-	rCtx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-	req, err := http.NewRequestWithContext(rCtx, http.MethodPost, server.URL, nil)
+	storageClient, err := storage.NewClient(ctx,
+		option.WithHTTPClient(httpClient),
+		option.WithEndpoint(server.URL+"/storage/v1/"),
+	)
 	require.NoError(t.T(), err)
-	req.Header.Set("X-GUploader-No-308", "yes")
+	defer func() { _ = storageClient.Close() }()
 
-	_, err = httpClient.Do(req)
-	require.ErrorIs(t.T(), err, context.DeadlineExceeded)
+	// 1. Normal multi-chunk resumable upload with ChunkTransferTimeout > 0 succeeds
+	// and decodes the response body after transferChunk cancels the per-chunk context.
+	w1 := storageClient.Bucket("test-bucket").Object("test-obj").NewWriter(ctx)
+	w1.ChunkSize = 256 * 1024
+	w1.ChunkTransferTimeout = 10 * time.Second
+	_, err = w1.Write(payload)
+	require.NoError(t.T(), err)
+	require.NoError(t.T(), w1.Close())
+	assert.Equal(t.T(), int64(987654321), w1.Attrs().Generation)
+	assert.Equal(t.T(), int64(len(payload)), w1.Attrs().Size)
+
+	// 2. Stalled chunk is still aborted by ChunkTransferTimeout and retried to completion.
+	chunkAttempts.Store(0)
+	stallNextChunk.Store(true)
+	w2 := storageClient.Bucket("test-bucket").Object("test-obj").NewWriter(ctx)
+	w2.ChunkSize = 256 * 1024
+	w2.ChunkTransferTimeout = 100 * time.Millisecond
+	_, err = w2.Write(payload)
+	require.NoError(t.T(), err)
+	require.NoError(t.T(), w2.Close())
+	assert.GreaterOrEqual(t.T(), chunkAttempts.Load(), int32(3), "expected stalled chunk to time out and retry")
+	assert.Equal(t.T(), int64(987654321), w2.Attrs().Generation)
 }
