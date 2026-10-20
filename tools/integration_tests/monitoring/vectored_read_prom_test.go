@@ -109,10 +109,10 @@ func (p *PromVectoredReadTest) TestReadBlockSizesRecordsVectoredReads() {
 }
 
 func TestPromVectoredReadSuite(t *testing.T) {
-	ts := &PromVectoredReadTest{}
-	ts.suiteName = "TestPromVectoredReadSuite"
 	flagSets := setup.BuildFlagSets(*testEnv.cfg, testEnv.bucketType, t.Name())
 	for _, flags := range flagSets {
+		ts := &PromVectoredReadTest{}
+		ts.suiteName = "TestPromVectoredReadSuite"
 		ts.flags = flags
 		ts.prometheusPort = parsePortFromFlags(flags)
 		log.Printf("Running prom vectored read tests with flags: %s", ts.flags)
