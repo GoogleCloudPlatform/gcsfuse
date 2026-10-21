@@ -22,32 +22,36 @@ import (
 	"cloud.google.com/go/storage"
 )
 
-type RCUState int
+// WriteMode is the GCS write API that GCSFuse uses to create objects in a bucket.
+// It is derived from the bucket type and the write config (see cfg.GetWriteMode)
+// when the bucket handle is created.
+type WriteMode int
 
 const (
-	// RCUStateNone indicates the bucket is not a Rapid Cache Ultra bucket.
-	RCUStateNone RCUState = iota
-	// RCUStateRapidWritesEnabled indicates it is a Rapid Cache Ultra bucket with rapid writes enabled.
-	RCUStateRapidWritesEnabled
-	// RCUStateRapidWritesDisabled indicates it is a Rapid Cache Ultra bucket with rapid writes disabled.
-	RCUStateRapidWritesDisabled
+	// WriteModeResumable writes objects with resumable uploads. It is used for
+	// non-rapid buckets and for Rapid Cache Ultra buckets with rapid writes disabled.
+	WriteModeResumable WriteMode = iota
+	// WriteModeAppendable writes appendable objects. It is used for zonal buckets
+	// and for Rapid Cache Ultra buckets with rapid writes enabled.
+	WriteModeAppendable
+	// WriteModeParallel writes objects with parallel uploads. It is used for Rapid
+	// Cache Ultra buckets with rapid writes enabled when the experimental parallel
+	// upload flag is set.
+	WriteModeParallel
 )
 
 // BucketType represents bucket features.
 type BucketType struct {
 	Hierarchical bool
 	Zonal        bool
-	RCU          RCUState
+	// RCU is true for Rapid Cache Ultra buckets.
+	RCU bool
+	// WriteMode is the write API that GCSFuse uses for objects in this bucket.
+	WriteMode WriteMode
 }
 
 func (bt BucketType) IsRapid() bool {
-	return bt.Zonal || bt.RCU != RCUStateNone
-}
-
-// RapidWritesEnabled returns true if the bucket supports rapid writes
-// and they are currently active.
-func (bt BucketType) RapidWritesEnabled() bool {
-	return bt.Zonal || bt.RCU == RCUStateRapidWritesEnabled
+	return bt.Zonal || bt.RCU
 }
 
 const (

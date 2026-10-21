@@ -24,31 +24,25 @@ func TestBucketType_IsRapid(t *testing.T) {
 	testCases := []struct {
 		name     string
 		zonal    bool
-		rcu      RCUState
+		rcu      bool
 		expected bool
 	}{
 		{
 			name:     "Neither Zonal nor Rapid Cache Ultra",
 			zonal:    false,
-			rcu:      RCUStateNone,
+			rcu:      false,
 			expected: false,
 		},
 		{
 			name:     "Only Zonal is true",
 			zonal:    true,
-			rcu:      RCUStateNone,
+			rcu:      false,
 			expected: true,
 		},
 		{
-			name:     "Rapid Cache Ultra, Rapid Writes Enabled",
+			name:     "Only Rapid Cache Ultra is true",
 			zonal:    false,
-			rcu:      RCUStateRapidWritesEnabled,
-			expected: true,
-		},
-		{
-			name:     "Rapid Cache Ultra, Rapid Writes Disabled",
-			zonal:    false,
-			rcu:      RCUStateRapidWritesDisabled,
+			rcu:      true,
 			expected: true,
 		},
 	}
@@ -64,46 +58,8 @@ func TestBucketType_IsRapid(t *testing.T) {
 	}
 }
 
-func TestBucketType_RapidWritesEnabled(t *testing.T) {
-	testCases := []struct {
-		name     string
-		zonal    bool
-		rcu      RCUState
-		expected bool
-	}{
-		{
-			name:     "Neither Zonal nor Rapid Cache Ultra",
-			zonal:    false,
-			rcu:      RCUStateNone,
-			expected: false,
-		},
-		{
-			name:     "Only Zonal is true",
-			zonal:    true,
-			rcu:      RCUStateNone,
-			expected: true,
-		},
-		{
-			name:     "Rapid Cache Ultra, Rapid Writes Enabled",
-			zonal:    false,
-			rcu:      RCUStateRapidWritesEnabled,
-			expected: true,
-		},
-		{
-			name:     "Rapid Cache Ultra, Rapid Writes Disabled",
-			zonal:    false,
-			rcu:      RCUStateRapidWritesDisabled,
-			expected: false,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			bt := BucketType{
-				Zonal: tc.zonal,
-				RCU:   tc.rcu,
-			}
+func TestBucketType_DefaultWriteModeIsResumable(t *testing.T) {
+	var bt BucketType
 
-			assert.Equal(t, tc.expected, bt.RapidWritesEnabled())
-		})
-	}
+	assert.Equal(t, WriteModeResumable, bt.WriteMode)
 }

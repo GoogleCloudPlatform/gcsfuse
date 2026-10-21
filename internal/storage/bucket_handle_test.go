@@ -648,20 +648,26 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 		},
 		{
 			name:                 "ZonalBucket",
-			bucketType:           gcs.BucketType{Zonal: true},
+			bucketType:           gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable},
 			finalizeFileForRapid: false,
 			expectedAppend:       true,
 		},
 		{
 			name:                 "RCUBucket_RapidEnabled",
-			bucketType:           gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType:           gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeAppendable},
 			finalizeFileForRapid: true,
 			expectedAppend:       true,
 		},
 		{
 			name:                 "RCUBucket_RapidDisabled",
-			bucketType:           gcs.BucketType{RCU: gcs.RCUStateRapidWritesDisabled},
+			bucketType:           gcs.BucketType{RCU: true},
 			finalizeFileForRapid: false,
+			expectedAppend:       false,
+		},
+		{
+			name:                 "RCUBucket_ParallelUpload",
+			bucketType:           gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeParallel},
+			finalizeFileForRapid: true,
 			expectedAppend:       false,
 		},
 	}
@@ -695,7 +701,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 	}{
 		{
 			name:                        "StandardBucket",
-			bucketType:                  gcs.BucketType{RCU: gcs.RCUStateNone},
+			bucketType:                  gcs.BucketType{},
 			initialStorageClass:         "",
 			expectedWriterStorageClass:  "",
 			expectedCreatedStorageClass: "STANDARD",
@@ -703,7 +709,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 		},
 		{
 			name:                        "StandardBucket_InheritsStorageClass",
-			bucketType:                  gcs.BucketType{RCU: gcs.RCUStateNone},
+			bucketType:                  gcs.BucketType{},
 			initialStorageClass:         "COLDLINE",
 			expectedWriterStorageClass:  "COLDLINE",
 			expectedCreatedStorageClass: "COLDLINE",
@@ -711,21 +717,28 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 		},
 		{
 			name:                       "ZonalBucket",
-			bucketType:                 gcs.BucketType{Zonal: true},
+			bucketType:                 gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable},
 			initialStorageClass:        "",
 			expectedWriterStorageClass: "",    // Zonal buckets do not use the RAPID storage class.
 			canTestCreateObject:        false, // Fails on HTTP append.
 		},
 		{
 			name:                       "RCUBucket_RapidEnabled",
-			bucketType:                 gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType:                 gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeAppendable},
 			initialStorageClass:        "STANDARD", // Simulate inheriting from standard source
 			expectedWriterStorageClass: storageClassRapid,
 			canTestCreateObject:        false, // Fails on HTTP append.
 		},
 		{
+			name:                       "RCUBucket_ParallelUpload",
+			bucketType:                 gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeParallel},
+			initialStorageClass:        "STANDARD", // Simulate inheriting from standard source
+			expectedWriterStorageClass: storageClassRapid,
+			canTestCreateObject:        false, // Storage class is only checked on the writer.
+		},
+		{
 			name:                        "RCUBucket_RapidDisabled",
-			bucketType:                  gcs.BucketType{RCU: gcs.RCUStateRapidWritesDisabled},
+			bucketType:                  gcs.BucketType{RCU: true},
 			initialStorageClass:         storageClassRapid, // Simulate inheriting from rapid source
 			expectedWriterStorageClass:  "",
 			expectedCreatedStorageClass: "STANDARD",
@@ -1716,7 +1729,7 @@ func (testSuite *BucketHandleTest) TestBucketTypeForZonalLocationType() {
 
 	testSuite.bucketHandle.BucketType()
 
-	assert.Equal(testSuite.T(), &gcs.BucketType{Zonal: true}, testSuite.bucketHandle.bucketType, "Expected Zonal bucket type")
+	assert.Equal(testSuite.T(), &gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable}, testSuite.bucketHandle.bucketType, "Expected Zonal bucket type")
 }
 
 func (testSuite *BucketHandleTest) TestBucketTypeForZonalLocationTypeAndHierarchicalNameSpaceTrue() {
@@ -1727,7 +1740,7 @@ func (testSuite *BucketHandleTest) TestBucketTypeForZonalLocationTypeAndHierarch
 
 	testSuite.bucketHandle.BucketType()
 
-	assert.Equal(testSuite.T(), &gcs.BucketType{Hierarchical: true, Zonal: true}, testSuite.bucketHandle.bucketType, "Expected Zonal bucket type")
+	assert.Equal(testSuite.T(), &gcs.BucketType{Hierarchical: true, Zonal: true, WriteMode: gcs.WriteModeAppendable}, testSuite.bucketHandle.bucketType, "Expected Zonal bucket type")
 }
 
 func (testSuite *BucketHandleTest) TestBucketTypeForHierarchicalNameSpaceFalse() {

@@ -35,7 +35,7 @@ func (t *ZonalBucketTests) SetupSuite() {
 	t.serverCfg.ImplicitDirectories = false
 	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
 	t.serverCfg.TraceHandle = tracing.NewNoopTracer()
-	bucketType = gcs.BucketType{Zonal: true}
+	bucketType = gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable}
 	t.fsTest.SetUpTestSuite()
 }
 

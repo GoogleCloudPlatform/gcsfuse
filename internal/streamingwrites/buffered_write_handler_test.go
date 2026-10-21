@@ -298,20 +298,20 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 		},
 		{
 			name:       "zonal_new_file",
-			bucketType: gcs.BucketType{Zonal: true},
+			bucketType: gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable},
 		},
 		{
 			name:       "zonal_append",
-			bucketType: gcs.BucketType{Zonal: true},
+			bucketType: gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable},
 			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
 		{
 			name:       "rcu_new_file_rapid_writes",
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType: gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeAppendable},
 		},
 		{
 			name:       "rcu_append_rapid_writes",
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType: gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeAppendable},
 			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
 	}
@@ -321,7 +321,7 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 			mockBucket.On("BucketType").Return(tc.bucketType)
 			writer := &storagemock.Writer{}
 			writer.On("Write", mock.Anything).Return(2, nil)
-			if tc.bucketType.RapidWritesEnabled() && tc.obj != nil {
+			if tc.bucketType.WriteMode == gcs.WriteModeAppendable && tc.obj != nil {
 				mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(writer, nil)
 			} else {
 				mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
@@ -360,20 +360,20 @@ func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 	}{
 		{
 			name:       "zonal_new_file",
-			bucketType: gcs.BucketType{Zonal: true},
+			bucketType: gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable},
 		},
 		{
 			name:       "zonal_append",
-			bucketType: gcs.BucketType{Zonal: true},
+			bucketType: gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable},
 			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
 		{
 			name:       "rcu_new_file_rapid_writes",
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType: gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeAppendable},
 		},
 		{
 			name:       "rcu_append_rapid_writes",
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType: gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeAppendable},
 			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
 	}
@@ -383,7 +383,7 @@ func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 			mockBucket.On("BucketType").Return(tc.bucketType)
 			writer := &storagemock.Writer{}
 			writer.On("Write", mock.Anything).Return(2, nil)
-			if tc.bucketType.RapidWritesEnabled() && tc.obj != nil {
+			if tc.bucketType.WriteMode == gcs.WriteModeAppendable && tc.obj != nil {
 				mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(writer, nil)
 			} else {
 				mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
@@ -473,23 +473,28 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 		},
 		{
 			name:       "zonal_bucket_2.5_blocks",
-			bucketType: gcs.BucketType{Zonal: true},
+			bucketType: gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable},
 			numBlocks:  2.5,
 		},
 		{
 			name:       "zonal_bucket_.5_blocks",
-			bucketType: gcs.BucketType{Zonal: true},
+			bucketType: gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable},
 			numBlocks:  .5,
 		},
 		{
 			name:       "rcu_bucket_rapid_writes_2.5_blocks",
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType: gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeAppendable},
 			numBlocks:  2.5,
 		},
 		{
 			name:       "rcu_bucket_rapid_writes_.5_blocks",
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType: gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeAppendable},
 			numBlocks:  .5,
+		},
+		{
+			name:       "rcu_bucket_parallel_upload_2.5_blocks",
+			bucketType: gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeParallel},
+			numBlocks:  2.5,
 		},
 	}
 
@@ -512,7 +517,7 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
 			// Read the object from back door.
 			content, err := storageutil.ReadObject(context.Background(), bwhImpl.uploadHandler.bucket, bwhImpl.uploadHandler.objectName)
-			if tc.bucketType.RapidWritesEnabled() {
+			if tc.bucketType.WriteMode == gcs.WriteModeAppendable {
 				require.NotNil(testSuite.T(), o)
 				assert.EqualValues(testSuite.T(), int64(blockSize*tc.numBlocks), o.Size)
 				require.NoError(testSuite.T(), err)

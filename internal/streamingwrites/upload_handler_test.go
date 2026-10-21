@@ -95,7 +95,7 @@ func (t *UploadHandlerTest) createUploadHandlerWithObjectOfGivenSize(size uint64
 
 func (t *UploadHandlerTest) TestCreateObjectWriter_CreateAppendableObjectWriterCalled() {
 	t.createUploadHandlerWithObjectOfGivenSize(objectSize, time.Time{})
-	t.mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable})
 	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
 
 	_ = t.uh.createObjectWriter(context.Background())
@@ -106,17 +106,22 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateAppendableObjectWriterC
 func (t *UploadHandlerTest) TestCreateObjectWriter_RCU() {
 	testCases := []struct {
 		name           string
-		rcuState       gcs.RCUState
+		writeMode      gcs.WriteMode
 		expectedMethod string
 	}{
 		{
 			name:           "RapidWritesEnabled",
-			rcuState:       gcs.RCUStateRapidWritesEnabled,
+			writeMode:      gcs.WriteModeAppendable,
 			expectedMethod: "CreateAppendableObjectWriter",
 		},
 		{
 			name:           "RapidWritesDisabled",
-			rcuState:       gcs.RCUStateRapidWritesDisabled,
+			writeMode:      gcs.WriteModeResumable,
+			expectedMethod: "CreateObjectChunkWriter",
+		},
+		{
+			name:           "ParallelUpload",
+			writeMode:      gcs.WriteModeParallel,
 			expectedMethod: "CreateObjectChunkWriter",
 		},
 	}
@@ -125,7 +130,7 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_RCU() {
 		t.Run(tc.name, func() {
 			t.SetupSubTest()
 			t.createUploadHandlerWithObjectOfGivenSize(objectSize, time.Time{})
-			t.mockBucket.On("BucketType").Return(gcs.BucketType{RCU: tc.rcuState})
+			t.mockBucket.On("BucketType").Return(gcs.BucketType{RCU: true, WriteMode: tc.writeMode})
 			if tc.expectedMethod == "CreateAppendableObjectWriter" {
 				t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
 			} else {
@@ -164,7 +169,7 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateObjectChunkWriterCalled
 
 func (t *UploadHandlerTest) TestEnsureWriter_CreateAppendableWriterIsSuccessful() {
 	t.createUploadHandlerWithObjectOfGivenSize(objectSize, time.Time{})
-	t.mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable})
 	writer := &storagemock.Writer{}
 	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
 
@@ -175,7 +180,7 @@ func (t *UploadHandlerTest) TestEnsureWriter_CreateAppendableWriterIsSuccessful(
 }
 func (t *UploadHandlerTest) TestEnsureWriter_CreateAppendableWriterReturnsError() {
 	t.createUploadHandlerWithObjectOfGivenSize(objectSize, time.Time{})
-	t.mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	t.mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable})
 	expectedErr := fmt.Errorf("createAppendableObjectWriter failed")
 	t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedErr)
 

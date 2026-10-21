@@ -81,7 +81,7 @@ func TestZonalFileCacheReaderTestSuite(t *testing.T) {
 
 func TestRCUFileCacheReaderTestSuite(t *testing.T) {
 	rcuBucketFileCacheReaderTestSuite := &fileCacheReaderTest{
-		bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled}}
+		bucketType: gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeAppendable}}
 	suite.Run(t, rcuBucketFileCacheReaderTestSuite)
 }
 

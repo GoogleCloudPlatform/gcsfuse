@@ -194,20 +194,20 @@ func (bh *bucketHandle) getObjectHandleWithPreconditionsSet(req *gcs.CreateObjec
 }
 
 func (bh *bucketHandle) getStorageClassForCreateObject(defaultStorageClass string) string {
-	// When rapid writes are enabled on a Rapid Cache Ultra bucket, objects should be explicitly
-	// created with the RAPID storage class in the zonal cache rather than
-	// defaulting to the bucket's default storage class.
-	// If rapid writes are disabled, we explicitly clear the storage class to prevent
+	// On a Rapid Cache Ultra bucket, objects written with rapid writes (appendable or
+	// parallel uploads) are explicitly created with the RAPID storage class in the zonal
+	// cache rather than defaulting to the bucket's default storage class.
+	// For resumable writes, we explicitly clear the storage class to prevent
 	// inheriting the RAPID storage class from an overwritten object and write it to
 	// the bucket's default storage class.
-	switch bh.BucketType().RCU {
-	case gcs.RCUStateRapidWritesEnabled:
-		return storageClassRapid
-	case gcs.RCUStateRapidWritesDisabled:
-		return ""
-	default:
+	bucketType := bh.BucketType()
+	if !bucketType.RCU {
 		return defaultStorageClass
 	}
+	if bucketType.WriteMode == gcs.WriteModeResumable {
+		return ""
+	}
+	return storageClassRapid
 }
 
 func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectRequest) (o *gcs.Object, err error) {
@@ -232,7 +232,7 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
 	// to false, which allows further appends, but if they keep it unfinalized
 	// it never becomes regionally durable.
-	wc.Append = bh.BucketType().RapidWritesEnabled()
+	wc.Append = bh.BucketType().WriteMode == gcs.WriteModeAppendable
 	// By default, objects in zonal buckets are not finalized on close, whereas objects in
 	// Rapid Cache Ultra buckets are. This behavior is controlled by the finalizeFileForRapid flag.
 	// When writer.Append is false, then this parameter is anyways ignored.
@@ -275,7 +275,7 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	// choose to keep objects unfinalized by setting the FinalizeFileForRapid flag
 	// to false, which allows further appends, but if they keep it unfinalized
 	// it never becomes regionally durable.
-	wc.Append = bh.BucketType().RapidWritesEnabled()
+	wc.Append = bh.BucketType().WriteMode == gcs.WriteModeAppendable
 	// By default, objects in zonal buckets are not finalized on close, whereas objects in
 	// Rapid Cache Ultra buckets are. This behavior is controlled by the finalizeFileForRapid flag.
 	// When writer.Append is false, then this parameter is anyways ignored.
