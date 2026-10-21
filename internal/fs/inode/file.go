@@ -460,7 +460,10 @@ func (f *FileInode) Unlink() {
 	f.unlinked = true
 
 	if f.writeHandler != nil {
-		f.writeHandler.Unlink()
+		if err := f.writeHandler.Unlink(); err != nil {
+			// Only logging an error in case of resource leak.
+			logger.Errorf("f.writeHandler.Unlink() failed for %s: %v", f.name.String(), err)
+		}
 	}
 }
 
@@ -495,7 +498,7 @@ func (f *FileInode) GetKernelRangeReaderInstance() *kernel_readers.KernelRangeRe
 // f.Source(), rather than calling f.ReadAt. Doing so may be more efficient,
 // because f.ReadAt may cause the entire object to be faulted in and requires
 // the inode to be locked during the read. SourceGenerationAuthoritative requires
-// SyncPendingBufferedWrites method has been called on f within same inode lock for
+// SyncPendingWrites method has been called on f within same inode lock for
 // streaming writes with zonal bucket.
 // TODO(b/406160290): Check if this can be improved.
 //
@@ -986,11 +989,11 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 // having been clobbered, failure is propagated back to the calling
 // function as an error.
 //
-// For buffered writes, this method only waits for any partial buffers to be
-// uploaded to GCS. It does not guarantee that the entire contents of the file
-// have been persisted.
+// For streaming writes (writeHandler), this method only syncs pending writes
+// through the write handler. It does not guarantee that the entire contents of
+// the file have been persisted.
 //
-// For non-buffered writes, this method writes the entire contents to GCS.
+// For staged writes (temp file), this method writes the entire contents to GCS.
 // If this method succeeds, SourceGeneration will return the new generation by
 // which this inode should be known (which may be the same as before). If it
 // fails, the generation will not change.

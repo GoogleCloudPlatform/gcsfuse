@@ -1430,7 +1430,7 @@ func (fs *fileSystem) syncFile(
 	return nil
 }
 
-// Initializes Buffered Write Handler if Eligible and synchronizes the file inode to GCS if initialization succeeds.
+// Initializes the write handler if eligible and synchronizes the file inode to GCS if initialization succeeds.
 // Otherwise creates an empty temp writer if temp file nil.
 //
 // LOCKS_EXCLUDED(fs.mu)
@@ -1447,7 +1447,7 @@ func (fs *fileSystem) createWriteHandlerAndSyncOrTempWriter(ctx context.Context,
 	return nil
 }
 
-// Initializes Buffered Write Handler if Eligible and synchronizes the file inode to GCS if initialization succeeds.
+// Initializes the write handler if eligible and synchronizes the file inode to GCS if initialization succeeds.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
@@ -1457,8 +1457,8 @@ func (fs *fileSystem) initWriteHandlerAndSyncFileIfEligible(ctx context.Context,
 		return err
 	}
 	if initialized {
-		// Calling syncFile is safe here as we have file inode lock and BWH is initialized.
-		// Thus sync method of BWH will be invoked.
+		// Calling syncFile is safe here as we have file inode lock and the write handler is initialized.
+		// Thus sync method of the write handler will be invoked.
 		// 1. In case of zonal bucket it creates unfinalized new generation object.
 		// 2. In case of non zonal bucket it's no-op as we don't have pending buffers to upload.
 		err = fs.syncFile(ctx, f)
@@ -1974,7 +1974,7 @@ func (fs *fileSystem) SetInodeAttributes(
 
 	// Truncate files.
 	if isFile && op.Size != nil {
-		// Initialize BWH if eligible and Sync file inode.
+		// Initialize the write handler if eligible and sync the file inode.
 		err = fs.initWriteHandlerAndSyncFileIfEligible(ctx, file, util.NewOpenMode(util.WriteOnly, 0))
 		if err != nil {
 			return

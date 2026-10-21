@@ -54,7 +54,8 @@ type WriteHandler interface {
 	Destroy() error
 
 	// Unlink cancels/aborts the ongoing upload and frees up any local buffers.
-	Unlink()
+	// The returned error is only logged; it doesn't fail the unlink.
+	Unlink() error
 }
 
 // WriteFileInfo is used as part of serving fileInode attributes (GetInodeAttributes call).

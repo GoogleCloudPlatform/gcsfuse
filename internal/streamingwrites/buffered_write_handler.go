@@ -278,13 +278,12 @@ func (wh *bufferedWriteHandlerImpl) writeDataForTruncatedSize(ctx context.Contex
 	return nil
 }
 
-func (wh *bufferedWriteHandlerImpl) Unlink() {
+func (wh *bufferedWriteHandlerImpl) Unlink() error {
 	wh.uploadHandler.CancelUpload()
 	// Since bwh is not cleared after unlink, we will not release last block yet.
 	// Last block will be released when file handle for this file is closed.
-	err := wh.blockPool.ClearFreeBlockChannel(false)
-	if err != nil {
-		// Only logging an error in case of resource leak.
-		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
+	if err := wh.blockPool.ClearFreeBlockChannel(false); err != nil {
+		return fmt.Errorf("blockPool.ClearFreeBlockChannel() failed: %w", err)
 	}
+	return nil
 }

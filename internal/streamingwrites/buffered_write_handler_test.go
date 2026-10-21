@@ -668,7 +668,7 @@ func (testSuite *BufferedWriteTest) TestDestroyWithMultiBlocksAndPartialBlockInC
 }
 
 func (testSuite *BufferedWriteTest) TestUnlinkBeforeWrite() {
-	testSuite.bwh.Unlink()
+	require.NoError(testSuite.T(), testSuite.bwh.Unlink())
 
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 	assert.Nil(testSuite.T(), bwhImpl.uploadHandler.cancelFunc)
@@ -691,7 +691,7 @@ func (testSuite *BufferedWriteTest) TestUnlinkAfterWrite() {
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 	bwhImpl.uploadHandler.cancelFunc = func() { cancelCalled = true }
 
-	testSuite.bwh.Unlink()
+	require.NoError(testSuite.T(), testSuite.bwh.Unlink())
 
 	assert.True(testSuite.T(), cancelCalled)
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))

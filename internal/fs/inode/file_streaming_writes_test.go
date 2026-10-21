@@ -808,46 +808,46 @@ func (t *FileStreamingWritesTest) TestDeRegisterFileHandle() {
 	}
 }
 
-// FakeBufferedWriteHandler is a test double for BufferedWriteHandler.
-type FakeBufferedWriteHandler struct {
+// FakeWriteHandler is a test double for streamingwrites.WriteHandler.
+type FakeWriteHandler struct {
 	WriteFunc func(data []byte, offset int64) error
 	FlushFunc func() (*gcs.MinObject, error)
 }
 
-func (t *FakeBufferedWriteHandler) Write(ctx context.Context, data []byte, offset int64) error {
+func (t *FakeWriteHandler) Write(ctx context.Context, data []byte, offset int64) error {
 	if t.WriteFunc != nil {
 		return t.WriteFunc(data, offset)
 	}
 	return nil
 }
 
-func (t *FakeBufferedWriteHandler) Flush(ctx context.Context) (*gcs.MinObject, error) {
+func (t *FakeWriteHandler) Flush(ctx context.Context) (*gcs.MinObject, error) {
 	if t.FlushFunc != nil {
 		return t.FlushFunc()
 	}
 	return nil, nil
 }
 
-func (t *FakeBufferedWriteHandler) WriteFileInfo() streamingwrites.WriteFileInfo {
+func (t *FakeWriteHandler) WriteFileInfo() streamingwrites.WriteFileInfo {
 	return streamingwrites.WriteFileInfo{
 		TotalSize: 0,
 		Mtime:     time.Time{},
 	}
 }
 
-func (t *FakeBufferedWriteHandler) Sync(ctx context.Context) (*gcs.MinObject, error) { return nil, nil }
-func (t *FakeBufferedWriteHandler) SetMtime(_ time.Time)                             {}
-func (t *FakeBufferedWriteHandler) Truncate(_ int64) error                           { return nil }
-func (t *FakeBufferedWriteHandler) Destroy() error                                   { return nil }
-func (t *FakeBufferedWriteHandler) Unlink()                                          {}
+func (t *FakeWriteHandler) Sync(ctx context.Context) (*gcs.MinObject, error) { return nil, nil }
+func (t *FakeWriteHandler) SetMtime(_ time.Time)                             {}
+func (t *FakeWriteHandler) Truncate(_ int64) error                           { return nil }
+func (t *FakeWriteHandler) Destroy() error                                   { return nil }
+func (t *FakeWriteHandler) Unlink() error                                    { return nil }
 
-func (t *FakeBufferedWriteHandler) SetTotalSize() {}
+func (t *FakeWriteHandler) SetTotalSize() {}
 
 func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesFails() {
 	t.createBufferedWriteHandler()
 	assert.True(t.T(), t.in.IsLocal())
 	writeErr := errors.New("write error")
-	t.in.writeHandler = &FakeBufferedWriteHandler{
+	t.in.writeHandler = &FakeWriteHandler{
 		WriteFunc: func(data []byte, offset int64) error {
 			return writeErr
 		},
