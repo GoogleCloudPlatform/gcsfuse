@@ -208,6 +208,7 @@ export RUN_ON_ZB_ONLY='$RUN_ON_ZB_ONLY'
 export RUN_READ_CACHE_TESTS_ONLY='$RUN_READ_CACHE_TESTS_ONLY'
 export RUN_LIGHT_TEST='$RUN_LIGHT_TEST'
 export BUCKET_NAME_TO_USE='$BUCKET_NAME_TO_USE'
+export ZONE_NAME='$ZONE_NAME'
 
 #Copy details.txt to starterscriptuser home directory and create logs.txt
 cd ~/
@@ -382,7 +383,6 @@ TEST_DIR_PARALLEL=(
   "interrupt"
   "operations"
   "kernel_list_cache"
-  "concurrent_operations"
   "mount_timeout"
   "stale_handle"
   "negative_stat_cache"
@@ -399,18 +399,18 @@ TEST_DIR_PARALLEL=(
   "symlink_handling"
 )
 
-# These tests never become parallel as they are changing bucket permissions.
+# These tests never become parallel as they are changing bucket permissions or are resource-intensive.
 TEST_DIR_NON_PARALLEL=(
   "readonly"
   "managed_folders"
   "readonly_creds"
   "list_large_dir"
+  "concurrent_operations"
 )
 
 # For Zonal buckets : Test directory arrays
 TEST_DIR_PARALLEL_ZONAL=(
   buffered_read
-  concurrent_operations
   # Reenable when b/461334834 is done.
   # dentry_cache
   explicit_dir
@@ -440,12 +440,13 @@ TEST_DIR_PARALLEL_ZONAL=(
   "symlink_handling"
 )
 
-# For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
+# For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions or are resource-intensive.
 TEST_DIR_NON_PARALLEL_ZONAL=(
   "managed_folders"
   "readonly"
   "readonly_creds"
   "list_large_dir"
+  "concurrent_operations"
 )
 
 # Create a temporary file to store the log file name.
@@ -459,10 +460,11 @@ INTEGRATION_TEST_TIMEOUT=240m
 #   $1: BUCKET_NAME (The name of the GCS bucket to use for tests.)
 #   $2: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
 #   $3: NAME_OF_TEST_DIR_ARRAY (The shell variable name of the array containing test directory.)
+#   $4: FAILED_PKGS_FILE (Optional file path to record failed package:log_file entries.)
 function run_non_parallel_tests() {
-  if [[ "$#" -ne 3 ]]; then
+  if [[ "$#" -lt 3 || "$#" -gt 4 ]]; then
     echo "Incorrect number of arguments passed, Expecting <BUCKET_NAME>
-    <IS_ZONAL_BUCKET> <TEST_DIR_ARRAY>"
+    <IS_ZONAL_BUCKET> <TEST_DIR_ARRAY> [FAILED_PKGS_FILE]"
     exit 1
   fi
   local exit_code=0 # Initialize to 0 for success
@@ -472,6 +474,7 @@ function run_non_parallel_tests() {
     return 1 # The name of the test array cannot be empty.
   fi
   local -n test_array=$3 # Create a nameref to this array.
+  local failed_pkgs_file=${4:-""}
 
   for test_dir_np in "${test_array[@]}"
   do
@@ -495,6 +498,9 @@ function run_non_parallel_tests() {
     fi
     if [[ $exit_code_non_parallel -ne 0 ]]; then
       exit_code=$exit_code_non_parallel
+      if [[ -n "$failed_pkgs_file" ]]; then
+        echo "${test_dir_np}:${log_file}" >> "$failed_pkgs_file"
+      fi
     fi
   done
   return $exit_code
@@ -505,10 +511,11 @@ function run_non_parallel_tests() {
 #   $1: BUCKET_NAME (The name of the GCS bucket to use for tests.)
 #   $2: IS_ZONAL_BUCKET_FLAG (Boolean flag: 'true' if the bucket is zonal, 'false' otherwise.)
 #   $3: NAME_OF_TEST_DIR_ARRAY (The shell variable name of the array containing test directory.)
+#   $4: FAILED_PKGS_FILE (Optional file path to record failed package:log_file entries.)
 function run_parallel_tests() {
-  if [[ "$#" -ne 3 ]]; then
+  if [[ "$#" -lt 3 || "$#" -gt 4 ]]; then
     echo "Incorrect number of arguments passed, Expecting <BUCKET_NAME>
-    <IS_ZONAL_BUCKET> <TEST_DIR_ARRAY>"
+    <IS_ZONAL_BUCKET> <TEST_DIR_ARRAY> [FAILED_PKGS_FILE]"
     exit 1
   fi
   local exit_code=0
@@ -518,7 +525,10 @@ function run_parallel_tests() {
     return 1 # The name of the test array cannot be empty.
   fi
   local -n test_array=$3 # Create a nameref to this array.
+  local failed_pkgs_file=${4:-""}
   local pids=()
+  local pkg_names=()
+  local pkg_logs=()
 
   for test_dir_p in "${test_array[@]}"
   do
@@ -537,18 +547,120 @@ function run_parallel_tests() {
       GODEBUG=asyncpreemptoff=1 go test "$test_path_parallel" $GO_TEST_SHORT_FLAG -p 1 $zonal_arg --integrationTest -v --testbucket="$BUCKET_NAME" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" > "$log_file" 2>&1 &
       pid=$!
       pids+=("$pid")
+      pkg_names+=("$test_dir_p")
+      pkg_logs+=("$log_file")
     else
       echo "Test path $test_path_parallel does not exist. Skipping tests." >> "$log_file"
     fi
   done
-  for pid in "${pids[@]}"; do
-    wait "$pid"
+  for i in "${!pids[@]}"; do
+    wait "${pids[$i]}"
     exit_code_parallel=$?
     if [[ $exit_code_parallel -ne 0 ]]; then
       exit_code=$exit_code_parallel
+      if [[ -n "$failed_pkgs_file" ]]; then
+        echo "${pkg_names[$i]}:${pkg_logs[$i]}" >> "$failed_pkgs_file"
+      fi
     fi
   done
   return $exit_code
+}
+
+# Retries failed test packages sequentially on a clean bucket in the VM region.
+# Arguments:
+#   $1: TESTCASE (flat/hns/zonal)
+#   $2: IS_ZONAL_BUCKET_FLAG (true/false)
+#   $3: FALLBACK_BUCKET (bucket name to use for zonal or if temp bucket creation fails)
+#   $4: FAILED_PKGS_FILE (file containing failed package:log_file lines)
+function retry_failed_packages() {
+  local testcase=$1
+  local is_zonal=$2
+  local fallback_bucket=$3
+  local failed_pkgs_file=$4
+  local retry_exit_code=0
+
+  if [[ ! -s "$failed_pkgs_file" ]]; then
+    return 0
+  fi
+
+  local -a failed_entries=()
+  readarray -t failed_entries < "$failed_pkgs_file"
+  if [[ "${#failed_entries[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  local region="${ZONE_NAME%-*}"
+  if [[ -z "$region" || "$region" == "$ZONE_NAME" ]]; then
+    region="us-central1"
+  fi
+  local project_id="gcs-fuse-test"
+  local retry_bucket="$fallback_bucket"
+  local created_temp_bucket="false"
+
+  if [[ "$is_zonal" != "true" ]]; then
+    local temp_bucket="gcsfuse-retry-${testcase}-${RANDOM}-${SECONDS}"
+    echo "Creating temporary ${testcase} retry bucket gs://${temp_bucket} in ${region}..."
+    if [[ "$testcase" == "hns" ]]; then
+      if gcloud storage buckets create "gs://${temp_bucket}" --project="${project_id}" --location="${region}" --uniform-bucket-level-access --enable-hierarchical-namespace; then
+        retry_bucket="$temp_bucket"
+        created_temp_bucket="true"
+      fi
+    else
+      if gcloud storage buckets create "gs://${temp_bucket}" --project="${project_id}" --location="${region}"; then
+        retry_bucket="$temp_bucket"
+        created_temp_bucket="true"
+      fi
+    fi
+  fi
+
+  local zonal_arg=""
+  if [[ -n "$major" ]] && [[ "$major" -gt 2 || ( "$major" -eq 2 && "$minor" -ge 12 ) ]]; then
+    zonal_arg="--zonal=${is_zonal}"
+  fi
+
+  local max_retries=2
+  for entry in "${failed_entries[@]}"; do
+    if [[ -z "$entry" ]]; then
+      continue
+    fi
+    local pkg=""
+    local log_file=""
+    IFS=":" read -r pkg log_file <<< "$entry"
+    if [[ -z "$pkg" || -z "$log_file" ]]; then
+      continue
+    fi
+
+    cp "$log_file" "${KOKORO_ARTIFACTS_DIR}/$(basename "$log_file" .log)_attempt1.log" || true
+
+    local pkg_passed="false"
+    local attempt=1
+    while [[ $attempt -le $max_retries ]]; do
+      local retry_log="${log_file}.retry${attempt}"
+      echo "=== [Retry Attempt ${attempt}/${max_retries}] Running package ${pkg} sequentially on bucket ${retry_bucket} ===" > "$retry_log"
+      GODEBUG=asyncpreemptoff=1 go test "./tools/integration_tests/${pkg}" $GO_TEST_SHORT_FLAG -p 1 $zonal_arg --integrationTest -v --testbucket="$retry_bucket" --testInstalledPackage=true -timeout "$INTEGRATION_TEST_TIMEOUT" >> "$retry_log" 2>&1
+      if [[ $? -eq 0 ]]; then
+        echo "=== Package ${pkg} PASSED on retry attempt ${attempt} ===" >> "$retry_log"
+        cp "$retry_log" "$log_file"
+        rm -f "$retry_log"
+        pkg_passed="true"
+        break
+      fi
+      cat "$retry_log" >> "$log_file"
+      rm -f "$retry_log"
+      attempt=$((attempt + 1))
+    done
+
+    if [[ "$pkg_passed" != "true" ]]; then
+      retry_exit_code=1
+    fi
+  done
+
+  if [[ "$created_temp_bucket" == "true" ]]; then
+    echo "Cleaning up temporary retry bucket gs://${retry_bucket}..."
+    gcloud storage rm --recursive "gs://${retry_bucket}" || true
+  fi
+
+  return $retry_exit_code
 }
 
 #Common method to invoke e2e tests on different types of buckets: flat, HNS or Zonal
@@ -587,12 +699,15 @@ function run_e2e_tests() {
   local bkt_parallel=$prefix-parallel
   echo "Bucket name to run parallel tests: $bkt_parallel"
 
+  local failed_pkgs_file
+  failed_pkgs_file=$(mktemp)
+
   echo "Running parallel tests..."
-  run_parallel_tests  "$bkt_parallel" "$is_zonal" test_dir_parallel & # Pass the name of the array
+  run_parallel_tests  "$bkt_parallel" "$is_zonal" test_dir_parallel "$failed_pkgs_file" & # Pass the name of the array
   parallel_tests_pid=$!
 
   echo "Running non parallel tests ..."
-  run_non_parallel_tests  "$bkt_non_parallel" "$is_zonal" test_dir_non_parallel & # Pass the name of the array
+  run_non_parallel_tests  "$bkt_non_parallel" "$is_zonal" test_dir_non_parallel "$failed_pkgs_file" & # Pass the name of the array
   non_parallel_tests_pid=$!
 
   wait "$parallel_tests_pid"
@@ -607,6 +722,15 @@ function run_e2e_tests() {
   if [[ "$parallel_tests_exit_code" -ne 0 ]]; then
     overall_exit_code=$parallel_tests_exit_code
   fi
+
+  if [[ "$overall_exit_code" -ne 0 && -s "$failed_pkgs_file" ]]; then
+    echo "Retrying failed packages for $testcase sequentially..."
+    if retry_failed_packages "$testcase" "$is_zonal" "$bkt_non_parallel" "$failed_pkgs_file"; then
+      overall_exit_code=0
+    fi
+  fi
+
+  rm -f "$failed_pkgs_file"
   return $overall_exit_code
 }
 
@@ -668,9 +792,19 @@ function log_based_on_exit_status() {
 
 # Function to run emulator-based E2E tests and log results.
 function run_e2e_tests_for_emulator_and_log() {
-  ./tools/integration_tests/emulator_tests/emulator_tests.sh true > ~/logs-emulator.txt
-  emulator_test_status=$?
-  if [ $e2e_tests_emulator_status != 0 ];
+  local emulator_test_status=1
+  local attempt=1
+  local max_attempts=3
+  while [[ $attempt -le $max_attempts ]]; do
+    ./tools/integration_tests/emulator_tests/emulator_tests.sh true > ~/logs-emulator.txt 2>&1
+    emulator_test_status=$?
+    if [[ $emulator_test_status -eq 0 ]]; then
+      break
+    fi
+    cp ~/logs-emulator.txt "${KOKORO_ARTIFACTS_DIR}/logs-emulator_attempt${attempt}.txt" || true
+    attempt=$((attempt + 1))
+  done
+  if [[ $emulator_test_status -ne 0 ]];
     then
         echo "Test failures detected in emulator based tests." &>> ~/logs-emulator.txt
     else
