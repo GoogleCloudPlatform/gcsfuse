@@ -26,7 +26,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedwrites"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
@@ -35,6 +34,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/streamingwrites"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
@@ -134,7 +134,7 @@ type FileInode struct {
 	// code.
 	MRDWrapper *gcsx.MultiRangeDownloaderWrapper
 
-	writeHandler bufferedwrites.WriteHandler
+	writeHandler streamingwrites.WriteHandler
 
 	// mrdInstance manages the MultiRangeDownloader instances for this inode.
 	mrdInstance               *gcsx.MrdInstance
@@ -786,7 +786,7 @@ func (f *FileInode) writeUsingWriteHandler(ctx context.Context, data []byte, off
 		return false, clobberedErr
 	}
 	// Fall back to temp file for Out-Of-Order Writes.
-	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
+	if errors.Is(err, streamingwrites.ErrOutOfOrderWrite) {
 		logger.Tracef("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
 		err = f.flushUsingWriteHandler(ctx)
@@ -1157,7 +1157,7 @@ func (f *FileInode) updateReaders() {
 func (f *FileInode) truncateUsingWriteHandler(ctx context.Context, size int64, writeCtx *WriteContext) (bool, error) {
 	err := f.writeHandler.Truncate(size)
 	// If truncate size is less than the total file size resulting in OutOfOrder write, finalize and fall back to temp file.
-	if errors.Is(err, bufferedwrites.ErrOutOfOrderWrite) {
+	if errors.Is(err, streamingwrites.ErrOutOfOrderWrite) {
 		logger.Tracef("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
 		err = f.flushUsingWriteHandler(ctx)
@@ -1268,7 +1268,7 @@ func (f *FileInode) InitWriteHandlerIfEligible(ctx context.Context, openMode uti
 	}
 
 	if f.writeHandler == nil {
-		f.writeHandler, err = bufferedwrites.NewWriteHandler(&bufferedwrites.CreateWriteHandlerRequest{
+		f.writeHandler, err = streamingwrites.NewWriteHandler(&streamingwrites.CreateWriteHandlerRequest{
 			Object:                   latestGcsObj,
 			ObjectName:               f.name.GcsObjectName(),
 			Bucket:                   f.bucket,

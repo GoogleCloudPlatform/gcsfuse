@@ -21,13 +21,13 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/bufferedwrites"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/streamingwrites"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
 	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
@@ -828,8 +828,8 @@ func (t *FakeBufferedWriteHandler) Flush(ctx context.Context) (*gcs.MinObject, e
 	return nil, nil
 }
 
-func (t *FakeBufferedWriteHandler) WriteFileInfo() bufferedwrites.WriteFileInfo {
-	return bufferedwrites.WriteFileInfo{
+func (t *FakeBufferedWriteHandler) WriteFileInfo() streamingwrites.WriteFileInfo {
+	return streamingwrites.WriteFileInfo{
 		TotalSize: 0,
 		Mtime:     time.Time{},
 	}
