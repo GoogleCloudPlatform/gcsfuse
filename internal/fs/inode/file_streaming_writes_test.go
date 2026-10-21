@@ -843,7 +843,7 @@ func (t *FakeWriteHandler) Unlink() error                                    { r
 
 func (t *FakeWriteHandler) SetTotalSize() {}
 
-func (t *FileStreamingWritesTest) TestWriteUsingBufferedWritesFails() {
+func (t *FileStreamingWritesTest) TestWriteUsingWriteHandlerFails() {
 	t.createBufferedWriteHandler()
 	assert.True(t.T(), t.in.IsLocal())
 	writeErr := errors.New("write error")

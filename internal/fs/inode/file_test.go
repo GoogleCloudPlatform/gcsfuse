@@ -237,7 +237,7 @@ func (t *FileTest) TestName() {
 	assert.Equal(t.T(), fileName, t.in.Name().GcsObjectName())
 }
 
-func (t *FileTest) TestAreBufferedWritesSupported() {
+func (t *FileTest) TestIsWriteHandlerSupported() {
 	finalizedTime := time.Date(2025, time.June, 18, 23, 30, 0, 0, time.UTC)
 	unFinalizedTime := time.Time{}
 	nonNilContents := "taco"
@@ -2018,7 +2018,7 @@ func (t *FileTest) TestSetMtimeOnEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	// This test checks if the mtime is updated to GCS. Since test framework
 	// doesn't support t.run, calling the test method here directly.
 	t.TestSetMtime_ContentNotFaultedIn()
-	// bufferedWritesHandler shouldn't get initialized.
+	// writeHandler shouldn't get initialized.
 	assert.Nil(t.T(), t.in.writeHandler)
 }
 
