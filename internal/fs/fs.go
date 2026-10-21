@@ -3093,11 +3093,12 @@ func (fs *fileSystem) ReadFile(
 
 	fh.Inode().Lock()
 	if fh.Inode().IsUsingWriteHandler() {
-		// Flush/Sync Pending streaming writes and issue read within same inode lock.
-		// With rapid buckets, we can read from unfinalized objects as well.
-		// Hence, there is no need to finalize the object from here for rapid buckets.
-		// Hence, if FinalizeFileForRapid is set, then we will call syncFile otherwise
-		// we can call flushFile (as it will not finalize when FinalizeFileForRapid is false) itself.
+		// Flush/Sync pending streaming writes and issue the read within the same inode lock.
+		// With appendable writes, unfinalized objects can be read, so there is no need to
+		// finalize the object here: if FinalizeFileForRapid is set, we call syncFile,
+		// otherwise flushFile (which doesn't finalize when FinalizeFileForRapid is false).
+		// Resumable and parallel uploads are not visible until finalized, so flushFile
+		// finalizes the object before the read.
 		if fh.Inode().Bucket().BucketType().WriteMode == gcs.WriteModeAppendable && fs.newConfig.Write.FinalizeFileForRapid {
 			err = fs.syncFile(ctx, fh.Inode())
 		} else {

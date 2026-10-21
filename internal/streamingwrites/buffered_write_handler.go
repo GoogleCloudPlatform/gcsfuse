@@ -164,7 +164,7 @@ func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject,
 	// The FlushPendingWrites method synchronizes all bytes currently residing in
 	// the Writer's buffer to Cloud Storage, thereby making them available for
 	// other operations like read.
-	// This functionality is exclusively supported on rapid buckets.
+	// This functionality is only supported for appendable writes.
 	if wh.uploadHandler.bucket.BucketType().WriteMode == gcs.WriteModeAppendable {
 		o, err = wh.uploadHandler.FlushPendingWrites(ctx)
 		if err != nil {
