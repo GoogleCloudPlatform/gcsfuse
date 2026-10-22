@@ -292,10 +292,9 @@ func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
 	obj = obj.Generation(*req.CreateObjectRequest.GenerationPrecondition)
 
 	opts := storage.AppendableWriterOpts{
-		ChunkSize:          req.ChunkSize,
-		ChunkRetryDeadline: time.Duration(req.ChunkRetryDeadlineSecs) * time.Second,
-		ProgressFunc:       req.CallBack,
-		FinalizeOnClose:    bh.writeConfig.FinalizeFileForRapid,
+		ChunkSize:       req.ChunkSize,
+		ProgressFunc:    req.CallBack,
+		FinalizeOnClose: bh.writeConfig.FinalizeFileForRapid,
 	}
 
 	tw, off, err := obj.NewWriterFromAppendableObject(ctx, &opts) // Takeover writer tw created from offset off.

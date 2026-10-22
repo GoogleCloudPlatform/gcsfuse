@@ -128,8 +128,12 @@ func buildForwardContext(ctx context.Context, fullMethodName string, validations
 		if *fDebug {
 			log.Printf("Planting operation: %s for method: %s", plantOp, fullMethodName)
 		}
+		// storage-testbench only enforces byte-offset write-stall instructions
+		// (e.g. "stall-for-40s-after-15360K") on BidiWriteObject when registered
+		// via its HTTP /retry_test API under "storage.objects.insert" and passed
+		// in the "x-retry-test-id" gRPC metadata header.
 		if fullMethodName == storageServicePrefix+"BidiWriteObject" {
-			testID, err := CreateGRPCRetryTest("http://localhost:9000", map[string][]string{"storage.objects.insert": {plantOp}})
+			testID, err := CreateRetryTest("http://localhost:9000", map[string][]string{"storage.objects.insert": {plantOp}}, "grpc")
 			if err != nil {
 				return nil, err
 			}

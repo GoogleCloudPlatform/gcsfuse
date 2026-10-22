@@ -90,7 +90,7 @@ func (et *emulatorTest) GetRetryID(instructions map[string][]string, transport s
 // The function returns a unique ID for the retry test, which can be used to
 // identify and manage the test. It returns an error if there is a problem
 // parsing the host URL or setting up the emulator test.
-func createRetryTestWithTransport(host, transport string, instructions map[string][]string) (string, error) {
+func CreateRetryTest(host string, instructions map[string][]string, transport string) (string, error) {
 	if len(instructions) == 0 {
 		return "", nil
 	}
@@ -102,12 +102,4 @@ func createRetryTestWithTransport(host, transport string, instructions map[strin
 
 	et := &emulatorTest{host: endpoint}
 	return et.GetRetryID(instructions, transport)
-}
-
-func CreateRetryTest(host string, instructions map[string][]string) (string, error) {
-	return createRetryTestWithTransport(host, "http", instructions)
-}
-
-func CreateGRPCRetryTest(host string, instructions map[string][]string) (string, error) {
-	return createRetryTestWithTransport(host, "grpc", instructions)
 }
