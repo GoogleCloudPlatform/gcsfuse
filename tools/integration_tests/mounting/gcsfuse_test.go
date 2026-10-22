@@ -17,6 +17,7 @@ package integration_test
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -97,6 +98,48 @@ func (t *GcsfuseTest) runGcsfuseWithEnv(args []string, env []string) (err error)
 // if it exits successfully.
 func (t *GcsfuseTest) runGcsfuse(args []string) (err error) {
 	return t.runGcsfuseWithEnv(args, nil)
+}
+
+const (
+	configDumpLogMessage      = "GCSFuse Config"
+	configDumpFullConfigLabel = "Full Config"
+)
+
+func assertContainsConfigDump(output []byte) {
+	AssertEq(true, bytes.Contains(output, []byte(configDumpLogMessage)), "output:\n%s", output)
+	AssertEq(true, bytes.Contains(output, []byte(configDumpFullConfigLabel)), "output:\n%s", output)
+}
+
+func waitForLogFileToContainConfigDump(logFile string) {
+	deadline := time.Now().Add(5 * time.Second)
+	var output []byte
+	var err error
+
+	for time.Now().Before(deadline) {
+		output, err = os.ReadFile(logFile)
+		if err == nil &&
+			bytes.Contains(output, []byte(configDumpLogMessage)) &&
+			bytes.Contains(output, []byte(configDumpFullConfigLabel)) {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	AssertEq(nil, err, "log file: %s", logFile)
+	assertContainsConfigDump(output)
+}
+
+func readStdoutUntilMounted(stdout io.Reader) []byte {
+	var output []byte
+	buf := make([]byte, 4096)
+
+	for !bytes.Contains(output, []byte("successfully mounted")) {
+		n, err := stdout.Read(buf)
+		output = append(output, buf[:n]...)
+		AssertEq(nil, err, "Output so far:\n%s", output)
+	}
+
+	return output
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -524,6 +567,75 @@ func (t *GcsfuseTest) ForegroundMode() {
 	// Now the process should exit successfully.
 	err = cmd.Wait()
 	AssertEq(nil, err)
+}
+
+func (t *GcsfuseTest) ForegroundModeDumpsConfigToStdout() {
+	cmd := t.gcsfuseCommand([]string{
+		"--foreground",
+		canned.FakeBucketName,
+		t.dir,
+	}, nil)
+
+	stdout, err := cmd.StdoutPipe()
+	AssertEq(nil, err)
+
+	err = cmd.Start()
+	AssertEq(nil, err)
+
+	mounted := false
+	processDone := false
+	defer func() {
+		if mounted {
+			_ = util.Unmount(t.dir)
+		}
+		if !processDone {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+		}
+	}()
+
+	mountOutput := readStdoutUntilMounted(stdout)
+	mounted = true
+
+	err = util.Unmount(t.dir)
+	AssertEq(nil, err)
+	mounted = false
+
+	remainingOutput, err := io.ReadAll(stdout)
+	AssertEq(nil, err, "Output so far:\n%s", mountOutput)
+	output := append(mountOutput, remainingOutput...)
+
+	err = cmd.Wait()
+	AssertEq(nil, err)
+	processDone = true
+
+	assertContainsConfigDump(output)
+}
+
+func (t *GcsfuseTest) BackgroundModeDumpsConfigToLogFile() {
+	logFile := filepath.Join(filepath.Dir(t.dir), filepath.Base(t.dir)+".log")
+	defer os.Remove(logFile)
+
+	err := t.runGcsfuse([]string{
+		"--log-file",
+		logFile,
+		canned.FakeBucketName,
+		t.dir,
+	})
+	AssertEq(nil, err)
+
+	mounted := true
+	defer func() {
+		if mounted {
+			_ = util.Unmount(t.dir)
+		}
+	}()
+
+	waitForLogFileToContainConfigDump(logFile)
+
+	err = util.Unmount(t.dir)
+	AssertEq(nil, err)
+	mounted = false
 }
 
 func (t *GcsfuseTest) VersionFlags() {
