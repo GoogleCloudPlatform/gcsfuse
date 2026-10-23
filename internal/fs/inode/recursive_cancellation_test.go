@@ -46,6 +46,7 @@ func (t *RecursiveCancellationTest) SetupTest() {
 		/*chunkRetryDeadlineSecs=*/ 120,
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/", t.fake,
+		false,
 	)
 	t.config = &cfg.Config{
 		MetadataCache: cfg.MetadataCacheConfig{

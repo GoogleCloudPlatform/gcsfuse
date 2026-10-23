@@ -83,7 +83,8 @@ func (t *DirTest) SetupTest() {
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
-		bucket)
+		bucket,
+		false)
 	// Create the inode. No implicit dirs by default.
 	t.resetInode(false, false)
 }
@@ -353,7 +354,8 @@ func (t *DirTest) TestLookUpChild_NegativeCacheHit() {
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
-		mockBucket)
+		mockBucket,
+		false)
 
 	config := &cfg.Config{
 		EnableTypeCacheDeprecation: true,
@@ -2261,6 +2263,7 @@ func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_CacheMiss() {
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/", mockBucket,
+		false,
 	)
 	oldBucket := t.bucket
 	t.bucket = syncerBucket
@@ -2311,6 +2314,7 @@ func (t *DirTest) TestLookUpChild_TypeCacheDeprecated_CacheHit() {
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/", mockBucket,
+		false,
 	)
 	oldBucket := t.bucket
 	t.bucket = syncerBucket

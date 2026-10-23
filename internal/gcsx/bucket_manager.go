@@ -79,6 +79,8 @@ type BucketConfig struct {
 	ImplicitDir bool
 
 	EnableEmptyManagedFolders bool
+
+	RapidWrite cfg.RapidWriteStrategy
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -259,7 +261,8 @@ func (bm *bucketManager) SetUpBucket(
 		bm.config.ChunkRetryDeadlineSecs,
 		bm.config.ChunkTransferTimeoutSecs,
 		bm.config.TmpObjectPrefix,
-		b)
+		b,
+		bm.config.RapidWrite == cfg.RapidWriteStrategyEnabled)
 
 	// Fetch bucket type from storage layout api and set bucket type.
 	b.BucketType()

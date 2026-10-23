@@ -20,34 +20,46 @@ import (
 	"context"
 
 	"cloud.google.com/go/storage"
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 )
 
-type RCUState int
+// WriteStrategy represents the GCS upload mechanism used for writing objects.
+type WriteStrategy string
 
 const (
-	// RCUStateNone indicates the bucket is not a Rapid Cache Ultra bucket.
-	RCUStateNone RCUState = iota
-	// RCUStateRapidWritesEnabled indicates it is a Rapid Cache Ultra bucket with rapid writes enabled.
-	RCUStateRapidWritesEnabled
-	// RCUStateRapidWritesDisabled indicates it is a Rapid Cache Ultra bucket with rapid writes disabled.
-	RCUStateRapidWritesDisabled
+	// WriteStrategyResumable represents resumable uploads.
+	// Note: For staging writes, this could also transition
+	// to the Compose API if it detects an append to the file.
+	WriteStrategyResumable WriteStrategy = "resumable"
+
+	// WriteStrategyAppendable represents uploads using Appendable API.
+	WriteStrategyAppendable WriteStrategy = "appendable"
+
+	// WriteStrategyParallel represents parallel uploads.
+	WriteStrategyParallel WriteStrategy = "parallel"
 )
 
 // BucketType represents bucket features.
 type BucketType struct {
 	Hierarchical bool
 	Zonal        bool
-	RCU          RCUState
+	RCU          bool
 }
 
 func (bt BucketType) IsRapid() bool {
-	return bt.Zonal || bt.RCU != RCUStateNone
+	return bt.Zonal || bt.RCU
 }
 
-// RapidWritesEnabled returns true if the bucket supports rapid writes
-// and they are currently active.
-func (bt BucketType) RapidWritesEnabled() bool {
-	return bt.Zonal || bt.RCU == RCUStateRapidWritesEnabled
+// WriteStrategy determines the write strategy (Resumable, Appendable, or Parallel)
+// based on bucket type and write configuration.
+func (bt BucketType) WriteStrategy(wc *cfg.WriteConfig) WriteStrategy {
+	if bt.Zonal {
+		return WriteStrategyAppendable
+	}
+	if bt.RCU && wc != nil && wc.RapidWrite == cfg.RapidWriteStrategyEnabled {
+		return WriteStrategyAppendable
+	}
+	return WriteStrategyResumable
 }
 
 const (
