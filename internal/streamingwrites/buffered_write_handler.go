@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bufferedwrites
+package streamingwrites
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -24,43 +23,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
-	"golang.org/x/sync/semaphore"
 )
 
 // Note: All the write operations take inode lock in fs.go, hence we don't need any locks here
 // as we will get write operations serially.
-
-type BufferedWriteHandler interface {
-	// Write writes the given data to the buffer. It writes to an existing buffer if
-	// the capacity is available otherwise writes to a new buffer.
-	Write(ctx context.Context, data []byte, offset int64) (err error)
-
-	// Sync uploads all the pending buffers to GCS.
-	// Sync returns
-	// 1. un-finalized object created on GCS for zonal buckets.
-	// 2. nil object for non-zonal buckets.
-	Sync(ctx context.Context) (*gcs.MinObject, error)
-
-	// Flush finalizes the upload.
-	Flush(ctx context.Context) (*gcs.MinObject, error)
-
-	// SetMtime stores the mtime with the bufferedWriteHandler.
-	SetMtime(mtime time.Time)
-
-	// Truncate allows truncating the file to a larger size.
-	Truncate(size int64) error
-
-	// WriteFileInfo returns the file info i.e, how much data has been buffered so far
-	// and the mtime.
-	WriteFileInfo() WriteFileInfo
-
-	// Destroy destroys the upload handler and then free up the buffers.
-	Destroy() error
-
-	// Unlink cancels the ongoing upload and free up the buffers.
-	Unlink()
-}
 
 // bufferedWriteHandlerImpl is responsible for filling up the buffers with the data
 // as it receives and handing over to uploadHandler which uploads to GCS.
@@ -83,28 +49,10 @@ type bufferedWriteHandlerImpl struct {
 	truncatedSize int64
 }
 
-// WriteFileInfo is used as part of serving fileInode attributes (GetInodeAttributes call).
-type WriteFileInfo struct {
-	TotalSize int64
-	Mtime     time.Time
-}
+var _ WriteHandler = (*bufferedWriteHandlerImpl)(nil)
 
-var ErrOutOfOrderWrite = errors.New("outOfOrder write detected")
-
-type CreateBWHandlerRequest struct {
-	Object                   *gcs.Object
-	ObjectName               string
-	Bucket                   gcs.Bucket
-	BlockSize                int64
-	MaxBlocksPerFile         int64
-	GlobalMaxBlocksSem       *semaphore.Weighted
-	ChunkRetryDeadlineSecs   int64
-	ChunkTransferTimeoutSecs int64
-	TraceHandle              tracing.TraceHandle
-}
-
-// NewBWHandler creates the bufferedWriteHandler struct.
-func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err error) {
+// newBufferedWriteHandler creates the bufferedWriteHandlerImpl struct.
+func newBufferedWriteHandler(req *CreateWriteHandlerRequest) (wh WriteHandler, err error) {
 	bp, err := block.NewBlockPool(req.BlockSize, req.MaxBlocksPerFile, 1, req.GlobalMaxBlocksSem)
 	if err != nil {
 		return
@@ -114,7 +62,7 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 		size = int64(req.Object.Size)
 	}
 
-	bwh = &bufferedWriteHandlerImpl{
+	wh = &bufferedWriteHandlerImpl{
 		current:   nil,
 		blockPool: bp,
 		uploadHandler: newUploadHandler(&CreateUploadHandlerRequest{
@@ -330,13 +278,12 @@ func (wh *bufferedWriteHandlerImpl) writeDataForTruncatedSize(ctx context.Contex
 	return nil
 }
 
-func (wh *bufferedWriteHandlerImpl) Unlink() {
+func (wh *bufferedWriteHandlerImpl) Unlink() error {
 	wh.uploadHandler.CancelUpload()
 	// Since bwh is not cleared after unlink, we will not release last block yet.
 	// Last block will be released when file handle for this file is closed.
-	err := wh.blockPool.ClearFreeBlockChannel(false)
-	if err != nil {
-		// Only logging an error in case of resource leak.
-		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
+	if err := wh.blockPool.ClearFreeBlockChannel(false); err != nil {
+		return fmt.Errorf("blockPool.ClearFreeBlockChannel() failed: %w", err)
 	}
+	return nil
 }
