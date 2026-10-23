@@ -15,11 +15,10 @@
 package gcsx
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"time"
-
-	"context"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
@@ -53,7 +52,8 @@ func NewSyncer(
 	chunkRetryDeadlineSecs int64,
 	chunkTransferTimeoutSecs int64,
 	tmpObjectPrefix string,
-	bucket gcs.Bucket) (os Syncer) {
+	bucket gcs.Bucket,
+	enableRapidWrites bool) (os Syncer) {
 	// Create the object creators.
 	fullCreator := &fullObjectCreator{
 		bucket: bucket,
@@ -62,7 +62,7 @@ func NewSyncer(
 	// Rapid buckets do not currently support Compose,
 	// so we always write objects in their entirety.
 	var composeCreator objectCreator
-	if !bucket.BucketType().RapidWritesEnabled() {
+	if !bucket.BucketType().Zonal && (!bucket.BucketType().RCU || !enableRapidWrites) {
 		composeCreator = newComposeObjectCreator(
 			tmpObjectPrefix,
 			bucket)

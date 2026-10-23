@@ -113,7 +113,7 @@ func (testSuite *StorageHandleTest) mockStorageLayout(bucketType gcs.BucketType)
 		storageLayout.LocationType = "multiregion"
 	}
 
-	if bucketType.RCU != gcs.RCUStateNone {
+	if bucketType.RCU {
 		storageLayout.RapidCacheInfo = &controlpb.StorageLayout_RapidCacheInfo{
 			CacheType: rapidCacheUltraType,
 		}
@@ -307,51 +307,32 @@ func (testSuite *StorageHandleTest) TestBucketHandle_ControlClientIsWrappedWithB
 func (testSuite *StorageHandleTest) TestLookupBucketType_RapidCacheInfo() {
 	testCases := []struct {
 		name            string
-		writeConfig     *cfg.WriteConfig
 		rapidCacheInfo  *controlpb.StorageLayout_RapidCacheInfo
-		expectedRCU     gcs.RCUState
+		expectedRCU     bool
 		expectedIsRapid bool
 	}{
 		{
-			name:            "rapid-cache-ultra with RapidWrite enabled",
-			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
+			name:            "rapid-cache-ultra is rcu",
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
-			expectedRCU:     gcs.RCUStateRapidWritesEnabled,
-			expectedIsRapid: true,
-		},
-		{
-			name:            "rapid-cache-ultra with RapidWrite disabled",
-			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyDisabled},
-			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
-			expectedRCU:     gcs.RCUStateRapidWritesDisabled,
-			expectedIsRapid: true,
-		},
-		{
-			name:            "rapid-cache-ultra with nil WriteConfig defaults to disabled",
-			writeConfig:     nil,
-			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
-			expectedRCU:     gcs.RCUStateRapidWritesDisabled,
+			expectedRCU:     true,
 			expectedIsRapid: true,
 		},
 		{
 			name:            "non-ultra rapid-cache is not rcu",
-			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: "rapid-cache"},
-			expectedRCU:     gcs.RCUStateNone,
+			expectedRCU:     false,
 			expectedIsRapid: false,
 		},
 		{
 			name:            "empty CacheType is not rcu",
-			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
 			rapidCacheInfo:  &controlpb.StorageLayout_RapidCacheInfo{CacheType: ""},
-			expectedRCU:     gcs.RCUStateNone,
+			expectedRCU:     false,
 			expectedIsRapid: false,
 		},
 		{
 			name:            "nil RapidCacheInfo is not rcu",
-			writeConfig:     &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
 			rapidCacheInfo:  nil,
-			expectedRCU:     gcs.RCUStateNone,
+			expectedRCU:     false,
 			expectedIsRapid: false,
 		},
 	}
@@ -359,7 +340,6 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_RapidCacheInfo() {
 	for _, tc := range testCases {
 		testSuite.Run(tc.name, func() {
 			sc := storageutil.GetDefaultStorageClientConfig(keyFile)
-			sc.WriteConfig = tc.writeConfig
 			sh, err := NewStorageHandle(testSuite.ctx, sc, "")
 			require.NoError(testSuite.T(), err)
 			client := sh.(*storageClient)
