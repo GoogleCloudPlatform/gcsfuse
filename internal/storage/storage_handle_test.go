@@ -1729,7 +1729,7 @@ func (c *stallBlackholeConn) blackhole() {
 	c.blackholed.Store(true)
 	// Interrupt any goroutine already blocked in c.Conn.Read(b) so it transitions
 	// immediately into waiting on <-c.closed instead of reading a future PING ACK.
-	_ = c.Conn.SetReadDeadline(time.Now())
+	_ = c.SetReadDeadline(time.Now())
 }
 
 func (c *stallBlackholeConn) Read(b []byte) (int, error) {
