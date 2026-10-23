@@ -85,7 +85,6 @@ func NewBaseDirInode(
 		metricHandle:                 metricHandle,
 		isEnableTypeCacheDeprecation: isEnableTypeCacheDeprecation,
 	}
-	typed.lc.Init(id)
 	typed.mu = locker.NewRW("BaseDirInode"+name.GcsObjectName(), func() {})
 
 	d = typed
@@ -134,18 +133,18 @@ func (d *baseDirInode) Name() Name {
 
 // LOCKS_REQUIRED(d)
 func (d *baseDirInode) IncrementLookupCount() {
-	d.lc.Inc()
+	d.lc.Inc(d.id)
 }
 
 // LOCKS_REQUIRED(d)
 func (d *baseDirInode) DecrementLookupCount(n uint64) (destroy bool) {
-	destroy = d.lc.Dec(n)
+	destroy = d.lc.Dec(d.id, n)
 	return
 }
 
 // LOCKS_REQUIRED(d)
 func (d *baseDirInode) Destroy() (err error) {
-	// Nothing interesting to do.
+	d.lc.Destroy()
 	return
 }
 
