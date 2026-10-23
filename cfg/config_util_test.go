@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -319,4 +320,37 @@ func Test_StorageClass(t *testing.T) {
 	assert.Equal(t, StorageClassRapid, BucketTypeRCU.StorageClass())
 	assert.Equal(t, StorageClassStandard, BucketTypeFlat.StorageClass())
 	assert.Equal(t, StorageClassStandard, BucketTypeHierarchical.StorageClass())
+}
+
+func TestGetWriteMode(t *testing.T) {
+	rapidWriteEnabled := &WriteConfig{RapidWrite: RapidWriteStrategyEnabled}
+	rapidWriteDisabled := &WriteConfig{RapidWrite: RapidWriteStrategyDisabled}
+	parallelUploadEnabled := &WriteConfig{RapidWrite: RapidWriteStrategyEnabled, ExperimentalEnableParallelUpload: true}
+	parallelUploadWithRapidWriteDisabled := &WriteConfig{RapidWrite: RapidWriteStrategyDisabled, ExperimentalEnableParallelUpload: true}
+	tests := []struct {
+		name        string
+		bucketType  gcs.BucketType
+		writeConfig *WriteConfig
+		expected    gcs.WriteMode
+	}{
+		{"flat_bucket", gcs.BucketType{}, rapidWriteEnabled, gcs.WriteModeResumable},
+		{"flat_bucket_parallel_upload_flag_ignored", gcs.BucketType{}, parallelUploadEnabled, gcs.WriteModeResumable},
+		{"hierarchical_bucket", gcs.BucketType{Hierarchical: true}, parallelUploadEnabled, gcs.WriteModeResumable},
+		{"zonal_bucket_rapid_write_disabled", gcs.BucketType{Zonal: true}, rapidWriteDisabled, gcs.WriteModeAppendable},
+		{"zonal_bucket_parallel_upload_flag_ignored", gcs.BucketType{Zonal: true, Hierarchical: true}, parallelUploadEnabled, gcs.WriteModeAppendable},
+		{"zonal_bucket_nil_write_config", gcs.BucketType{Zonal: true}, nil, gcs.WriteModeAppendable},
+		{"rcu_bucket_rapid_write_enabled", gcs.BucketType{RCU: true}, rapidWriteEnabled, gcs.WriteModeAppendable},
+		{"rcu_bucket_parallel_upload_enabled", gcs.BucketType{RCU: true}, parallelUploadEnabled, gcs.WriteModeParallel},
+		{"rcu_bucket_rapid_write_disabled", gcs.BucketType{RCU: true}, rapidWriteDisabled, gcs.WriteModeResumable},
+		{"rcu_bucket_parallel_upload_needs_rapid_write", gcs.BucketType{RCU: true}, parallelUploadWithRapidWriteDisabled, gcs.WriteModeResumable},
+		{"rcu_bucket_nil_write_config", gcs.BucketType{RCU: true}, nil, gcs.WriteModeResumable},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mode := GetWriteMode(tt.bucketType, tt.writeConfig)
+
+			assert.Equal(t, tt.expected, mode)
+		})
+	}
 }

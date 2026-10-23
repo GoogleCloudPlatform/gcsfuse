@@ -20,6 +20,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
 // Rapid bucket defaults (zonal, Rapid Cache Ultra)
@@ -138,4 +140,23 @@ func (bt BucketType) StorageClass() StorageClass {
 		return StorageClassRapid
 	}
 	return StorageClassStandard
+}
+
+// GetWriteMode returns the GCS write API to use for objects in a bucket of the given type:
+//   - Zonal buckets always use appendable writes.
+//   - Rapid Cache Ultra buckets with write.rapid-write=enabled use appendable writes, or
+//     parallel uploads when write.experimental-enable-parallel-upload is also set.
+//   - All other buckets, including Rapid Cache Ultra buckets with rapid writes disabled,
+//     use resumable uploads.
+func GetWriteMode(bt gcs.BucketType, wc *WriteConfig) gcs.WriteMode {
+	if bt.Zonal {
+		return gcs.WriteModeAppendable
+	}
+	if bt.RCU && wc != nil && wc.RapidWrite == RapidWriteStrategyEnabled {
+		if wc.ExperimentalEnableParallelUpload {
+			return gcs.WriteModeParallel
+		}
+		return gcs.WriteModeAppendable
+	}
+	return gcs.WriteModeResumable
 }

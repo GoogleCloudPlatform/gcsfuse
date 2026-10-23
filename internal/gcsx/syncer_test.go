@@ -800,3 +800,46 @@ func TestSyncer_AppendCreatorSucceeds(t *testing.T) {
 	h.require.NoError(err)
 	h.assert.Equal(h.appendCreator.o, o)
 }
+
+func TestNewSyncer_UsesComposeOnlyForResumableWrites(t *testing.T) {
+	testCases := []struct {
+		name          string
+		bucketType    gcs.BucketType
+		expectCompose bool
+	}{
+		{
+			name:          "NonRapidBucket",
+			bucketType:    gcs.BucketType{},
+			expectCompose: true,
+		},
+		{
+			name:          "RCUBucketWithRapidWritesDisabled",
+			bucketType:    gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeResumable},
+			expectCompose: true,
+		},
+		{
+			name:          "ZonalBucket",
+			bucketType:    gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable},
+			expectCompose: false,
+		},
+		{
+			name:          "RCUBucketWithRapidWritesEnabled",
+			bucketType:    gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeAppendable},
+			expectCompose: false,
+		},
+		{
+			name:          "RCUBucketWithParallelUpload",
+			bucketType:    gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeParallel},
+			expectCompose: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			bucket := fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", tc.bucketType)
+
+			s := NewSyncer(appendThreshold, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, ".gcsfuse_tmp/", bucket)
+
+			assert.Equal(t, tc.expectCompose, s.(*syncer).composeCreator != nil)
+		})
+	}
+}

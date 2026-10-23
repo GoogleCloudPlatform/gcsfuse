@@ -59,10 +59,11 @@ func NewSyncer(
 		bucket: bucket,
 	}
 
-	// Rapid buckets do not currently support Compose,
-	// so we always write objects in their entirety.
+	// Compose is only used with resumable writes. Rapid writes (appendable or
+	// parallel uploads) do not support Compose, so we always write objects in
+	// their entirety.
 	var composeCreator objectCreator
-	if !bucket.BucketType().RapidWritesEnabled() {
+	if bucket.BucketType().WriteMode == gcs.WriteModeResumable {
 		composeCreator = newComposeObjectCreator(
 			tmpObjectPrefix,
 			bucket)

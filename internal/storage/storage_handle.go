@@ -461,21 +461,14 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 
 	logger.Infof("GetStorageLayout -> (%s, prefix: %q) %v msec", bucketName, prefix, duration.Milliseconds())
 
-	rcuState := gcs.RCUStateNone
 	isRCUBucket := storageLayout.GetRapidCacheInfo() != nil && storageLayout.GetRapidCacheInfo().GetCacheType() == rapidCacheUltraType
-	if isRCUBucket {
-		if sh.clientConfig.WriteConfig != nil && sh.clientConfig.WriteConfig.RapidWrite == cfg.RapidWriteStrategyEnabled {
-			rcuState = gcs.RCUStateRapidWritesEnabled
-		} else {
-			rcuState = gcs.RCUStateRapidWritesDisabled
-		}
-	}
-
-	return &gcs.BucketType{
+	bucketType := gcs.BucketType{
 		Hierarchical: storageLayout.GetHierarchicalNamespace().GetEnabled(),
 		Zonal:        storageLayout.GetLocationType() == zonalLocationType,
-		RCU:          rcuState,
-	}, nil
+		RCU:          isRCUBucket,
+	}
+	bucketType.WriteMode = cfg.GetWriteMode(bucketType, sh.clientConfig.WriteConfig)
+	return &bucketType, nil
 }
 
 func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.StorageLayout, error) {

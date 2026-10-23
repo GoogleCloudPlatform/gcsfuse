@@ -84,10 +84,10 @@ func TestFileTestSuite(t *testing.T) {
 		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Zonal: false}})
 	})
 	t.Run("Zonal", func(t *testing.T) {
-		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Zonal: true}})
+		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable}})
 	})
 	t.Run("RCU", func(t *testing.T) {
-		suite.Run(t, &FileTest{bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled}})
+		suite.Run(t, &FileTest{bucketType: gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeAppendable}})
 	})
 }
 
@@ -252,7 +252,7 @@ func (t *FileTest) TestIsWriteHandlerSupported() {
 		{
 			name:       "AppendToFinalizedObjOnZB",
 			content:    nonNilContents,
-			bucketType: gcs.BucketType{Zonal: true},
+			bucketType: gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable},
 			finalized:  finalizedTime,
 			openMode:   AppendMode,
 			supported:  false,
@@ -260,7 +260,7 @@ func (t *FileTest) TestIsWriteHandlerSupported() {
 		{
 			name:       "AppendToUnfinalizedObjOnZB",
 			content:    nonNilContents,
-			bucketType: gcs.BucketType{Zonal: true},
+			bucketType: gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable},
 			finalized:  unFinalizedTime,
 			openMode:   AppendMode,
 			supported:  true,
@@ -284,7 +284,7 @@ func (t *FileTest) TestIsWriteHandlerSupported() {
 		{
 			name:       "AppendToUnfinalizedObjOnRCUWithRapidWritesEnabled",
 			content:    nonNilContents,
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType: gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeAppendable},
 			finalized:  unFinalizedTime,
 			openMode:   AppendMode,
 			supported:  true,
@@ -292,7 +292,15 @@ func (t *FileTest) TestIsWriteHandlerSupported() {
 		{
 			name:       "AppendToUnfinalizedObjOnRCUWithRapidWritesDisabled",
 			content:    nonNilContents,
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesDisabled},
+			bucketType: gcs.BucketType{RCU: true},
+			finalized:  unFinalizedTime,
+			openMode:   AppendMode,
+			supported:  false,
+		},
+		{
+			name:       "AppendToUnfinalizedObjOnRCUWithParallelUpload",
+			content:    nonNilContents,
+			bucketType: gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeParallel},
 			finalized:  unFinalizedTime,
 			openMode:   AppendMode,
 			supported:  false,
@@ -1047,7 +1055,7 @@ func (t *FileTest) TestAppendThenSync() {
 
 func (t *FileTest) TestAppendToUnfinalizedObjInZB() {
 	// Set up the Zonal Bucket
-	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{Zonal: true})
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable})
 	// Set up the backing unfinalized object.
 	var err error
 	t.initialContents = "lychee"

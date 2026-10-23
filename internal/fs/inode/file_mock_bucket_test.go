@@ -341,7 +341,7 @@ func (t *FileMockBucketTest) TestAttributes_NoChangeInAttributes() {
 func (t *FileMockBucketTest) TestInitWriteHandlerIfEligible_ZonalBucket_DoesNotFetchMetadataFromGCS_ForAppends() {
 	// Setup Mock Bucket for Zonal
 	t.bucket = new(storagemock.TestifyMockBucket)
-	t.bucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	t.bucket.On("BucketType").Return(gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable})
 	// Setup expectations for inode creation (emptyGCSFile triggers CreateObject)
 	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
 		Return(&gcs.Object{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, nil)
@@ -365,7 +365,7 @@ func (t *FileMockBucketTest) TestInitWriteHandlerIfEligible_ZonalBucket_DoesNotF
 func (t *FileMockBucketTest) TestInitWriteHandlerIfEligible_ZonalBucket_FetchesLatestMetadataFromGCS_ForOverwrites() {
 	// Setup Mock Bucket for Zonal
 	t.bucket = new(storagemock.TestifyMockBucket)
-	t.bucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	t.bucket.On("BucketType").Return(gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable})
 	// Setup expectations for inode creation
 	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
 		Return(&gcs.Object{Name: fileName, Size: 0, Generation: 1, MetaGeneration: 1}, nil)

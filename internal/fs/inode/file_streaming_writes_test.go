@@ -86,7 +86,7 @@ func (t *FileStreamingWritesCommon) setupTest() {
 
 func (t *FileStreamingWritesZonalBucketTest) SetupTest() {
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
-	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{Zonal: true})
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{Zonal: true, WriteMode: gcs.WriteModeAppendable})
 	t.setupTest()
 }
 
@@ -283,6 +283,20 @@ func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsFals
 	assert.False(t.T(), gcsSynced)
 
 	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
+}
+
+func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWriteForParallelUploads() {
+	t.in.Unlock()
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeParallel})
+	t.createInode(localFile)
+	t.createBufferedWriteHandler()
+	gcsSynced, err := t.in.Write(t.ctx, []byte("taco"), 0, WriteMode, t.writeCtx)
+	require.NoError(t.T(), err)
+	require.False(t.T(), gcsSynced)
+
+	authoritative := t.in.SourceGenerationIsAuthoritative()
+
+	assert.False(t.T(), authoritative)
 }
 
 func (t *FileStreamingWritesTest) TestSyncPendingWritesForNonZonalBucketsDoesNotPromoteInodeToNonLocal() {

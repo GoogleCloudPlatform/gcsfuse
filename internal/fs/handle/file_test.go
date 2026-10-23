@@ -1362,8 +1362,8 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 		isRapid    bool
 	}{
 		{name: "Zonal", bucketType: gcs.BucketType{Zonal: true}, isRapid: true},
-		{name: "RCURapidWriteEnabled", bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled}, isRapid: true},
-		{name: "RCURapidWriteDisabled", bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesDisabled}, isRapid: true},
+		{name: "RCURapidWriteEnabled", bucketType: gcs.BucketType{RCU: true, WriteMode: gcs.WriteModeAppendable}, isRapid: true},
+		{name: "RCURapidWriteDisabled", bucketType: gcs.BucketType{RCU: true}, isRapid: true},
 		{name: "Standard", bucketType: gcs.BucketType{}, isRapid: false},
 	}
 
