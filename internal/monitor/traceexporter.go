@@ -23,9 +23,18 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 )
+
+func initPropagators() {
+	props := propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	)
+	otel.SetTextMapPropagator(props)
+}
 
 // SetupTracing bootstraps the OpenTelemetry tracing pipeline.
 func SetupTracing(ctx context.Context, c *cfg.Config, mountID string) common.ShutdownFn {
@@ -36,6 +45,7 @@ func SetupTracing(ctx context.Context, c *cfg.Config, mountID string) common.Shu
 	}
 	if tp != nil {
 		otel.SetTracerProvider(tp)
+		initPropagators()
 		return shutdown
 	}
 
