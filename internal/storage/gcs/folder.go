@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 )
 
 type Folder struct {
@@ -43,4 +44,20 @@ func getFolderName(bucketName string, fullPath string) string {
 	folderName := strings.TrimPrefix(fullPath, prefix)
 
 	return folderName
+}
+
+// NestedSizeOfGcsFolder returns the full nested memory size
+// of the Folder pointed by the passed pointer.
+func NestedSizeOfGcsFolder(f *Folder) (size int) {
+	if f == nil {
+		return
+	}
+
+	// Get raw size of the structure.
+	size = util.UnsafeSizeOf(f)
+
+	// Account for string members.
+	size += util.ContentSizeOfString(&f.Name)
+
+	return
 }

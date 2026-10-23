@@ -37,6 +37,7 @@ func setupSymlinkTest(t *testing.T) *gcsx.SyncerBucket {
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		fake.NewFakeBucket(timeutil.RealClock(), "some-bucket", gcs.BucketType{}),
+		false,
 	)
 	return &bucket
 }

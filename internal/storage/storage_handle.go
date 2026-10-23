@@ -443,20 +443,12 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 
 	logger.Infof("GetStorageLayout -> (%s, prefix: %q) %v msec", bucketName, prefix, duration.Milliseconds())
 
-	rcuState := gcs.RCUStateNone
 	isRCUBucket := storageLayout.GetRapidCacheInfo() != nil && storageLayout.GetRapidCacheInfo().GetCacheType() == rapidCacheUltraType
-	if isRCUBucket {
-		if sh.clientConfig.WriteConfig != nil && sh.clientConfig.WriteConfig.RapidWrite == cfg.RapidWriteStrategyEnabled {
-			rcuState = gcs.RCUStateRapidWritesEnabled
-		} else {
-			rcuState = gcs.RCUStateRapidWritesDisabled
-		}
-	}
 
 	return &gcs.BucketType{
 		Hierarchical: storageLayout.GetHierarchicalNamespace().GetEnabled(),
 		Zonal:        storageLayout.GetLocationType() == zonalLocationType,
-		RCU:          rcuState,
+		RCU:          isRCUBucket,
 	}, nil
 }
 

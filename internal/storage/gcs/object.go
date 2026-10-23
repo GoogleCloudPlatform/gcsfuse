@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 
@@ -166,4 +167,35 @@ func NSToTime(ns int64) time.Time {
 		return time.Time{}
 	}
 	return time.Unix(0, ns).UTC()
+}
+
+// NestedSizeOfGcsMinObject returns the full nested memory size
+// of the MinObject pointed by the passed pointer.
+// Improvement scope: This can be generalized to a general-struct
+// but that needs better understanding of the reflect package
+// and other related packages.
+func NestedSizeOfGcsMinObject(m *MinObject) (size int) {
+	if m == nil {
+		return
+	}
+
+	// Get raw size of the structure.
+	size = util.UnsafeSizeOf(m)
+
+	// Account for string members.
+	for _, strPtr := range []*string{&m.Name, &m.ContentEncoding} {
+		size += util.ContentSizeOfString(strPtr)
+	}
+
+	// Account for pointers to built in types.
+	size += util.UnsafeSizeOf(m.CRC32C)
+
+	// Account for integer members - Size, Generation, MetaGeneration.
+	// Account for time members - Updated.
+	// Nothing to be added for any built-in types - already accounted for in util.UnsafeSizeOf(m).
+
+	// Account for map members.
+	size += util.ContentSizeOfStringToStringMap(&m.Metadata)
+
+	return
 }

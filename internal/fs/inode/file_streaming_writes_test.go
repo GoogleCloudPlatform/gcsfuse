@@ -118,7 +118,8 @@ func (t *FileStreamingWritesCommon) createInode(fileType string) {
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
-		t.bucket)
+		t.bucket,
+		false)
 
 	isLocal := false
 	if fileType == localFile {
@@ -223,7 +224,7 @@ func TestFileStreamingWritesWithZonalBucketTestSuite(t *testing.T) {
 }
 
 func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritativeReturnsTrueForZonalBuckets() {
-	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
+	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative(&t.writeCtx.Config.Write))
 }
 
 func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritativeReturnsTrueAfterWriteForZonalBuckets() {
@@ -231,7 +232,7 @@ func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritative
 	gcsSynced, err := t.in.Write(t.ctx, []byte("taco"), 0, WriteMode, t.writeCtx)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
+	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative(&t.writeCtx.Config.Write))
 }
 
 func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZonalBucketsPromotesInodeToNonLocal() {
@@ -273,7 +274,7 @@ func TestFileStreamingWritesTestSuite(t *testing.T) {
 }
 
 func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsTrueForNonZonalBuckets() {
-	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
+	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative(&t.writeCtx.Config.Write))
 }
 
 func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWriteForNonZonalBuckets() {
@@ -282,7 +283,7 @@ func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsFals
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
-	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
+	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative(&t.writeCtx.Config.Write))
 }
 
 func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucketsDoesNotPromoteInodeToNonLocal() {

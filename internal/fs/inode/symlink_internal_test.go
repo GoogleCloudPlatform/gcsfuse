@@ -76,6 +76,7 @@ func (t *SymlinkInternalTest) createSymlinkInode(name string, target string, leg
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
+		false,
 	)
 
 	s, err := NewSymlinkInode(
@@ -167,6 +168,7 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_Legacy() {
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
+		false,
 	)
 
 	s, err := NewSymlinkInode(
@@ -197,6 +199,7 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_Standard() {
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
+		false,
 	)
 
 	s, err := NewSymlinkInode(
@@ -227,6 +230,7 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_Standard_ReadError() {
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
+		false,
 	)
 
 	_, err := NewSymlinkInode(
@@ -251,6 +255,7 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_InvalidMetadata() {
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
+		false,
 	)
 
 	_, err := NewSymlinkInode(

@@ -17,6 +17,7 @@ package gcs
 import (
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,31 +25,25 @@ func TestBucketType_IsRapid(t *testing.T) {
 	testCases := []struct {
 		name     string
 		zonal    bool
-		rcu      RCUState
+		rcu      bool
 		expected bool
 	}{
 		{
 			name:     "Neither Zonal nor Rapid Cache Ultra",
 			zonal:    false,
-			rcu:      RCUStateNone,
+			rcu:      false,
 			expected: false,
 		},
 		{
 			name:     "Only Zonal is true",
 			zonal:    true,
-			rcu:      RCUStateNone,
+			rcu:      false,
 			expected: true,
 		},
 		{
-			name:     "Rapid Cache Ultra, Rapid Writes Enabled",
+			name:     "Only Rapid Cache Ultra is true",
 			zonal:    false,
-			rcu:      RCUStateRapidWritesEnabled,
-			expected: true,
-		},
-		{
-			name:     "Rapid Cache Ultra, Rapid Writes Disabled",
-			zonal:    false,
-			rcu:      RCUStateRapidWritesDisabled,
+			rcu:      true,
 			expected: true,
 		},
 	}
@@ -64,36 +59,48 @@ func TestBucketType_IsRapid(t *testing.T) {
 	}
 }
 
-func TestBucketType_RapidWritesEnabled(t *testing.T) {
+func TestBucketType_WriteStrategy(t *testing.T) {
 	testCases := []struct {
-		name     string
-		zonal    bool
-		rcu      RCUState
-		expected bool
+		name        string
+		zonal       bool
+		rcu         bool
+		writeConfig *cfg.WriteConfig
+		expected    WriteStrategy
 	}{
 		{
-			name:     "Neither Zonal nor Rapid Cache Ultra",
-			zonal:    false,
-			rcu:      RCUStateNone,
-			expected: false,
+			name:        "Standard bucket",
+			zonal:       false,
+			rcu:         false,
+			writeConfig: &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
+			expected:    WriteStrategyResumable,
 		},
 		{
-			name:     "Only Zonal is true",
-			zonal:    true,
-			rcu:      RCUStateNone,
-			expected: true,
+			name:        "Zonal bucket",
+			zonal:       true,
+			rcu:         false,
+			writeConfig: nil,
+			expected:    WriteStrategyAppendable,
 		},
 		{
-			name:     "Rapid Cache Ultra, Rapid Writes Enabled",
-			zonal:    false,
-			rcu:      RCUStateRapidWritesEnabled,
-			expected: true,
+			name:        "Rapid Cache Ultra, Rapid Writes Enabled",
+			zonal:       false,
+			rcu:         true,
+			writeConfig: &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled},
+			expected:    WriteStrategyAppendable,
 		},
 		{
-			name:     "Rapid Cache Ultra, Rapid Writes Disabled",
-			zonal:    false,
-			rcu:      RCUStateRapidWritesDisabled,
-			expected: false,
+			name:        "Rapid Cache Ultra, Rapid Writes Disabled",
+			zonal:       false,
+			rcu:         true,
+			writeConfig: &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyDisabled},
+			expected:    WriteStrategyResumable,
+		},
+		{
+			name:        "Rapid Cache Ultra, nil WriteConfig",
+			zonal:       false,
+			rcu:         true,
+			writeConfig: nil,
+			expected:    WriteStrategyResumable,
 		},
 	}
 	for _, tc := range testCases {
@@ -103,7 +110,7 @@ func TestBucketType_RapidWritesEnabled(t *testing.T) {
 				RCU:   tc.rcu,
 			}
 
-			assert.Equal(t, tc.expected, bt.RapidWritesEnabled())
+			assert.Equal(t, tc.expected, bt.WriteStrategy(tc.writeConfig))
 		})
 	}
 }
