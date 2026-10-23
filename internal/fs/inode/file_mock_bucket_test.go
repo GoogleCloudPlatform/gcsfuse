@@ -199,6 +199,22 @@ func (t *FileMockBucketTest) TestFlushSyncedFileForceFetchObjectFromGCS() {
 	t.bucket.AssertExpectations(t.T())
 }
 
+func (t *FileMockBucketTest) TestDeRegisterFileHandle_DestroysContentOnLastHandleWithoutSyncing() {
+	// Local inode created by createLockedInode already has a non-nil f.content
+	// (CreateEmptyTempFile) backed by an on-disk staging file.
+	require.NotNil(t.T(), t.in.content)
+	// Dirty the file.
+	_, err := t.in.Write(t.ctx, []byte("data"), 0, util.NewOpenMode(util.WriteOnly, 0), getWriteContext())
+	require.NoError(t.T(), err)
+	t.in.writeHandleCount = 1
+
+	t.in.DeRegisterFileHandle(false)
+
+	// The staging TempFile must be destroyed immediately on release without
+	// attempting an upload/sync to GCS (no CreateObject or SyncObject calls).
+	assert.Nil(t.T(), t.in.content)
+}
+
 func (t *FileMockBucketTest) TestSync_RemoteAppendClobber() {
 	// Expect CreateObject from createLockedInode
 	t.bucket.On("CreateObject", t.ctx, mock.AnythingOfType("*gcs.CreateObjectRequest")).
