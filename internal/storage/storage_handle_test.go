@@ -1704,66 +1704,47 @@ func (testSuite *StorageHandleTest) Test_GrpcKeepaliveDefaultParams() {
 	assert.Equal(testSuite.T(), 20*time.Second, grpcKeepaliveTimeout)
 }
 
-// stallBlackholeConn wraps a client-side net.Conn and, once armed, converts a
-// server-side mid-stream pause (>200ms with no incoming bytes) into a full
-// transport blackhole by blocking all further Reads on that connection until
-// Close() is called.
+// stallBlackholeConn wraps the first client-side net.Conn and, once blackhole()
+// is called after the initial object chunk is read, blocks all further Reads on
+// that connection until Close() is called.
 //
 // Why this wrapper is necessary:
 // If an in-process grpc.Server handler simply sleeps mid-stream, grpc-go's
 // background HTTP/2 server transport goroutine (http2Server) remains active on
 // the socket and automatically replies with HTTP/2 PING ACK frames whenever the
-// client sends a keepalive PING. By intercepting Read on the client's net.Conn
-// once the server pauses, we prevent the client's HTTP/2 reader goroutine from
+// client sends a keepalive PING. By blocking Read on the client's net.Conn once
+// blackhole() is invoked, we prevent the client's HTTP/2 reader goroutine from
 // receiving any frames (including PING ACKs), faithfully simulating a wedged L7
 // proxy or blackholed network path where TCP stays open (no FIN/RST) while HTTP/2
 // traffic stops.
 type stallBlackholeConn struct {
 	net.Conn
-	// armed is shared across connections and enabled right before the object read
-	// starts so initial connection setup is not subject to the 200ms read deadline.
-	armed *atomic.Bool
-	// triggered is a shared one-shot flag across connections. Once the first
-	// connection triggers the blackhole, subsequent retry connections see
-	// triggered == true and read normally without arming a read deadline.
-	triggered *atomic.Bool
-	// blackholed is per-connection state indicating this specific net.Conn has
-	// entered the blackhole state and must block all Reads until Close().
-	blackholed bool
-	closed     chan struct{}
-	closeOnce  sync.Once
+	blackholed  atomic.Bool
+	intercepted atomic.Bool
+	closed      chan struct{}
+	closeOnce   sync.Once
+}
+
+func (c *stallBlackholeConn) blackhole() {
+	c.blackholed.Store(true)
+	// Interrupt any goroutine already blocked in c.Conn.Read(b) so it transitions
+	// immediately into waiting on <-c.closed instead of reading a future PING ACK.
+	_ = c.Conn.SetReadDeadline(time.Now())
 }
 
 func (c *stallBlackholeConn) Read(b []byte) (int, error) {
-	for {
-		// Once this connection has been blackholed, block until grpc-go closes it.
-		if c.blackholed {
-			<-c.closed
-			return 0, net.ErrClosed
-		}
-		// While armed and before any connection has triggered the one-shot stall,
-		// impose a 200ms read deadline to detect when the server stops sending chunks.
-		if c.armed.Load() && !c.triggered.Load() {
-			_ = c.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
-		}
-		n, err := c.Conn.Read(b)
-		if c.armed.Load() {
-			// Clear the deadline so normal reads are unaffected if data arrived in time.
-			_ = c.SetReadDeadline(time.Time{})
-			if ne, ok := err.(net.Error); ok && ne.Timeout() {
-				// No bytes arrived within 200ms (the server entered its mid-stream stall).
-				// Transition this first connection into a permanent read blackhole until
-				// keepalive tears down the transport and calls Close().
-				if c.triggered.CompareAndSwap(false, true) {
-					c.blackholed = true
-					<-c.closed
-					return 0, net.ErrClosed
-				}
-				continue
-			}
-		}
-		return n, err
+	if c.blackholed.Load() {
+		c.intercepted.Store(true)
+		<-c.closed
+		return 0, net.ErrClosed
 	}
+	n, err := c.Conn.Read(b)
+	if c.blackholed.Load() {
+		c.intercepted.Store(true)
+		<-c.closed
+		return 0, net.ErrClosed
+	}
+	return n, err
 }
 
 func (c *stallBlackholeConn) Close() error {
@@ -1776,13 +1757,13 @@ type fakeReadStallStorageServer interface{}
 
 // registerReadStallStorageServer registers a minimal google.storage.v2.Storage
 // gRPC service implementing the server-streaming ReadObject RPC:
-//   - On the initial read request (read_offset == 0), it sends the first
-//     stallAfterBytes (4 KiB) and then stalls for 25s. Sending the initial chunk
-//     moves the RPC past response headers, where experimental.WithReadStallTimeout
+//   - On the very first ReadObject attempt (gated by stalledOnce), it sends the
+//     first stallAfterBytes (4 KiB) and then stalls for 25s. Sending the initial
+//     chunk moves the RPC past response headers, where experimental.WithReadStallTimeout
 //     no longer applies.
-//   - On the resumed read request (read_offset > 0) after gRPC keepalive aborts
-//     the wedged connection and the Go Storage SDK reopens the stream at the last
-//     received byte offset, it immediately sends the remaining payload[offset:].
+//   - On any subsequent ReadObject attempt after gRPC keepalive aborts the wedged
+//     connection and the Go Storage SDK reopens the stream at the last received
+//     byte offset, it immediately sends the remaining payload[offset:].
 //
 // We look up ReadObjectRequest and ReadObjectResponse via protoregistry.GlobalTypes
 // (already linked into the binary by cloud.google.com/go/storage) so we do not need
@@ -1811,6 +1792,7 @@ func registerReadStallStorageServer(t *testing.T, s *grpc.Server, payload []byte
 		return stream.SendMsg(resp.Interface())
 	}
 
+	var stalledOnce atomic.Bool
 	s.RegisterService(&grpc.ServiceDesc{
 		ServiceName: "google.storage.v2.Storage",
 		HandlerType: srvPtr,
@@ -1824,7 +1806,7 @@ func registerReadStallStorageServer(t *testing.T, s *grpc.Server, payload []byte
 						return err
 					}
 					offset := int(req.Get(req.Descriptor().Fields().ByName("read_offset")).Int())
-					if offset == 0 {
+					if stalledOnce.CompareAndSwap(false, true) {
 						// Send initial chunk (past response headers, where WithReadStallTimeout
 						// does not apply), then stall mid-stream for 25s (longer than the 16s
 						// test context timeout, so the test would fail without keepalive).
@@ -1851,10 +1833,13 @@ func registerReadStallStorageServer(t *testing.T, s *grpc.Server, payload []byte
 
 // Test_GrpcKeepaliveMidStreamStall verifies end-to-end recovery from a mid-stream
 // gRPC read stall using the keepalive option wired in createClientOptionForGRPCClient:
-//  1. Client opens a ReadObject stream for an 8 KiB object (`read_offset = 0`).
-//  2. Server sends the first 4 KiB chunk and pauses for 25s.
-//  3. After 200ms of silence, stallBlackholeConn blackholes the first TCP connection
-//     so no incoming HTTP/2 frames (including PING ACKs) can reach the client.
+//  1. Client opens a ReadObject stream via NewReader(ctx) for an 8 KiB object
+//     (`read_offset = 0`), receiving the first 4 KiB chunk before NewReader returns.
+//  2. Server pauses for 25s before sending the second 4 KiB chunk.
+//  3. Right after NewReader(ctx) returns, the test calls blackhole() on the first
+//     TCP connection so no further HTTP/2 frames (including PING ACKs) can reach
+//     the client—without imposing any timing-sensitive read deadline during the
+//     initial HTTP/2 handshake or first chunk read.
 //  4. After grpcKeepaliveTime (10s), grpc-go sends an HTTP/2 PING frame; after
 //     grpcKeepaliveTimeout (500ms) with no PING ACK, grpc-go closes the wedged
 //     connection and fails the stream with codes.Unavailable.
@@ -1894,19 +1879,21 @@ func (testSuite *StorageHandleTest) Test_GrpcKeepaliveMidStreamStall() {
 	ctx, cancel := context.WithTimeout(context.Background(), 16*time.Second)
 	defer cancel()
 
-	var armed, triggered atomic.Bool
+	var firstConn atomic.Pointer[stallBlackholeConn]
 	dialer := grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
 		var d net.Dialer
 		conn, err := d.DialContext(ctx, "tcp", addr)
 		if err != nil {
 			return nil, err
 		}
-		return &stallBlackholeConn{
-			Conn:      conn,
-			armed:     &armed,
-			triggered: &triggered,
-			closed:    make(chan struct{}),
-		}, nil
+		wrapped := &stallBlackholeConn{
+			Conn:   conn,
+			closed: make(chan struct{}),
+		}
+		if firstConn.CompareAndSwap(nil, wrapped) {
+			return wrapped, nil
+		}
+		return conn, nil
 	})
 
 	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
@@ -1927,16 +1914,19 @@ func (testSuite *StorageHandleTest) Test_GrpcKeepaliveMidStreamStall() {
 	defer func() { _ = client.Close() }()
 	setRetryConfig(ctx, client, &sc)
 
-	// Arm the blackhole wrapper right before starting the object read.
-	armed.Store(true)
-
 	r, err := client.Bucket(TestBucketName).Object("test-obj").NewReader(ctx)
 	require.NoError(t, err)
 	defer func() { _ = r.Close() }()
 
+	// NewReader(ctx) has already received the first 4 KiB ReadObjectResponse.
+	// Blackhole the first connection now to simulate a mid-stream L7/network wedge.
+	conn1 := firstConn.Load()
+	require.NotNil(t, conn1)
+	conn1.blackhole()
+
 	buf := &bytes.Buffer{}
 	_, err = io.Copy(buf, r)
 	require.NoError(t, err)
-	assert.True(t, triggered.Load(), "expected mid-stream stall to trigger connection blackhole")
+	assert.True(t, conn1.intercepted.Load(), "expected blackholed first connection to intercept mid-stream reads")
 	assert.Equal(t, payload, buf.Bytes())
 }

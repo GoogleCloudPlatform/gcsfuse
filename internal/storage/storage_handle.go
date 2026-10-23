@@ -80,6 +80,11 @@ var (
 	// gRPC keepalive parameters to detect mid-stream stalls on active RPCs when
 	// the remote peer's OS kernel continues ACKing TCP keepalives while the L7
 	// stream is wedged. Defined as vars so unit tests can use shorter intervals.
+	//
+	// Do not reduce grpcKeepaliveTime below 30s without first verifying GCS
+	// server-side keepalive enforcement limits, as more frequent pings on open
+	// but idle streams (such as cached MultiRangeDownloader BidiReadObject
+	// streams) could trigger GOAWAY(ENHANCE_YOUR_CALM, "too_many_pings").
 	grpcKeepaliveTime    = 30 * time.Second
 	grpcKeepaliveTimeout = 20 * time.Second
 )
