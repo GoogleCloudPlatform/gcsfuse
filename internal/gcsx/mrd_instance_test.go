@@ -310,7 +310,7 @@ func (t *MrdInstanceTest) TestDecrementRefCount() {
 
 func (t *MrdInstanceTest) TestDecrementRefCount_Eviction() {
 	// Fill cache with other items
-	localMrdInstance := &MrdInstance{mrdPool: &MRDPool{poolConfig: &MRDPoolConfig{PoolSize: 1}, stopCreation: make(chan struct{})}}
+	localMrdInstance := &MrdInstance{mrdPool: &MRDPool{poolConfig: &MRDPoolConfig{PoolSize: 1}}}
 	_, err := t.cache.Insert("other1", localMrdInstance)
 	assert.NoError(t.T(), err)
 	_, err = t.cache.Insert("other2", localMrdInstance)
@@ -677,14 +677,14 @@ func (t *MrdInstanceTest) TestClosePoolWithTimeout_LogWarningOnTimeout() {
 	logger.SetOutput(&buf)
 	defer logger.SetOutput(os.Stdout)
 	// 2. Create a pool that blocks on Close().
-	// MRDPool.Close() waits on creationWg. We increment it to block Close().
+	// MRDPool.Close() acquires entries[0].mu.Lock(). We lock it to block Close().
 	pool := &MRDPool{
 		poolConfig: &MRDPoolConfig{
 			object: t.object,
 		},
-		stopCreation: make(chan struct{}),
+		entries: make([]MRDEntry, 1),
 	}
-	pool.creationWg.Add(1)
+	pool.entries[0].mu.Lock()
 
 	// 3. Call the function.
 	closePoolWithTimeout(pool, "TestCaller", 10*time.Millisecond)
@@ -695,7 +695,7 @@ func (t *MrdInstanceTest) TestClosePoolWithTimeout_LogWarningOnTimeout() {
 	assert.Contains(t.T(), buf.String(), "TestCaller: MRDPool.Close() timed out")
 	assert.Contains(t.T(), buf.String(), t.object.Name)
 	// 7. Cleanup: Unblock the pool closure to avoid goroutine leak.
-	pool.creationWg.Done()
+	pool.entries[0].mu.Unlock()
 }
 
 // logBuffer is a thread-safe buffer for capturing logs in tests.
