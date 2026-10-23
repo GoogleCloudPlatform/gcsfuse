@@ -67,11 +67,11 @@ while (( $# >= 1 )); do
             RELEASE_VERSION="$2"
             shift 2
             # Regex breakdown:
-            # ^      : Start of string
-            # [0-9]+ : One or more digits
-            #  \.     : A literal dot
-            # $      : End of string
-            RE="^[0-9]+\.[0-9]+\.[0-9]+$"
+            # ^                                 : Start of string
+            # [0-9]+\.[0-9]+\.[0-9]+            : Major.Minor.Patch digits
+            # (-frontier-[a-z0-9]+(\.[0-9]+)?)? : Optional Frontier version suffix (e.g., 3.8.4-frontier-a or 3.8.4-frontier-a.1)
+            # $                                 : End of string
+            RE="^[0-9]+\.[0-9]+\.[0-9]+(-frontier-[a-z0-9]+(\.[0-9]+)?)?$"
             if [[ ! $RELEASE_VERSION =~ $RE ]]; then
                 log_error "--release-version value '$RELEASE_VERSION' is incorrectly formatted."
                 usage 1
@@ -178,10 +178,29 @@ ARGS+=("--output-dir=$OUTPUT_DIR")
 
 # TODO(b/503191432): Enable the cloud_profiler in release testing once it is stable.
 # Run all packages except cloud profiler during release testing.
-ARGS+=("--run-package=!cloud_profiler")
+EXCLUDED_PACKAGES="^cloud_profiler$"
+VERIFY_FRONTIER_VERSION_POST_RUN=false
+if [[ "$LOCAL_RUN" == "false" && "$RELEASE_VERSION" == *-frontier-* ]] && \
+   [[ -f ./tools/integration_tests/release_version/release_version_test.go ]] && \
+   ! grep -q -- "-frontier-" ./tools/integration_tests/release_version/release_version_test.go; then
+    log_info "Checked-out branch predates Frontier support in release_version_test.go; verifying 'gcsfuse --version' in script instead."
+    EXCLUDED_PACKAGES="^(cloud_profiler|release_version)$"
+    VERIFY_FRONTIER_VERSION_POST_RUN=true
+fi
+ARGS+=("--run-package=!${EXCLUDED_PACKAGES}")
 
 # Set --flake-attempts to 3 for release tests.
 ARGS+=("--flake-attempts=3")
 
 # Run the main e2e script
 bash ./tools/integration_tests/improved_run_e2e_tests.sh "${ARGS[@]}"
+
+if [[ "${VERIFY_FRONTIER_VERSION_POST_RUN}" == "true" ]]; then
+    VERSION_OUTPUT="$(gcsfuse --version 2>&1)"
+    log_info "Verifying installed Frontier gcsfuse --version output: ${VERSION_OUTPUT}"
+    EXPECTED_VERSION_RE="^gcsfuse version ([0-9]+\.[0-9]+\.[0-9]+(-frontier-[a-z0-9]+(\.[0-9]+)?)?) \(Go version go.+\)$"
+    if [[ ! "${VERSION_OUTPUT}" =~ ${EXPECTED_VERSION_RE} ]] || [[ "${BASH_REMATCH[1]}" != "${RELEASE_VERSION}" ]]; then
+        log_error "Unexpected 'gcsfuse --version' output '${VERSION_OUTPUT}' for release '${RELEASE_VERSION}'."
+        exit 1
+    fi
+fi

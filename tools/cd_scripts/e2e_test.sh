@@ -365,6 +365,20 @@ if [[ "${BUCKET_NAME_TO_USE}" != "gcsfuse-release-packages" ]]; then
     sudo cp sbin/* /usr/sbin/
 fi
 
+SKIP_LEGACY_RELEASE_VERSION_PKG=false
+if [[ "$VERSION_CLEAN" == *-frontier-* ]] && \
+   [[ -f tools/integration_tests/release_version/release_version_test.go ]] && \
+   ! grep -q -- "-frontier-" tools/integration_tests/release_version/release_version_test.go; then
+    echo "Checked-out branch predates Frontier support in release_version_test.go; verifying gcsfuse --version directly..." |& tee -a ${LOG_FILE}
+    VERSION_OUTPUT=$(gcsfuse --version 2>&1)
+    EXPECTED_VERSION_RE="^gcsfuse version ([0-9]+\.[0-9]+\.[0-9]+(-frontier-[a-z0-9]+(\.[0-9]+)?)?) \(Go version go.+\)$"
+    if [[ ! "$VERSION_OUTPUT" =~ $EXPECTED_VERSION_RE ]] || [[ "${BASH_REMATCH[1]}" != "$VERSION_CLEAN" ]]; then
+        echo "Unexpected gcsfuse --version output ($VERSION_OUTPUT) for release ($VERSION_CLEAN)." |& tee -a ${LOG_FILE}
+        exit 1
+    fi
+    SKIP_LEGACY_RELEASE_VERSION_PKG=true
+fi
+
 #run tests with testbucket flag
 set +e
 # Test directory arrays
@@ -439,6 +453,20 @@ TEST_DIR_PARALLEL_ZONAL=(
   "unsupported_path"
   "symlink_handling"
 )
+
+if [[ "$SKIP_LEGACY_RELEASE_VERSION_PKG" == "true" ]]; then
+  FILTERED_PARALLEL=()
+  for pkg in "${TEST_DIR_PARALLEL[@]}"; do
+    [[ "$pkg" != "release_version" ]] && FILTERED_PARALLEL+=("$pkg")
+  done
+  TEST_DIR_PARALLEL=("${FILTERED_PARALLEL[@]}")
+
+  FILTERED_PARALLEL_ZONAL=()
+  for pkg in "${TEST_DIR_PARALLEL_ZONAL[@]}"; do
+    [[ "$pkg" != "release_version" ]] && FILTERED_PARALLEL_ZONAL+=("$pkg")
+  done
+  TEST_DIR_PARALLEL_ZONAL=("${FILTERED_PARALLEL_ZONAL[@]}")
+fi
 
 # For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
 TEST_DIR_NON_PARALLEL_ZONAL=(
