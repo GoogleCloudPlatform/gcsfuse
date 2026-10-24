@@ -711,3 +711,49 @@ func (testSuite *BufferedWriteTest) TestReFlushAfterUploadFails() {
 	assert.Nil(testSuite.T(), obj)
 	assert.ErrorContains(testSuite.T(), err, errUploadFailure.Error())
 }
+
+func (testSuite *BufferedWriteTest) TestSyncFailureInEnsureWriterPersistsUploadErrorForSubsequentCalls() {
+	mockBucket := new(storagemock.TestifyMockBucket)
+	mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: true})
+	precondErr := &gcs.PreconditionError{Err: errors.New("takeover offset 52428800 does not match requested offset 0")}
+	mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(nil, precondErr)
+
+	bwh, err := NewBWHandler(&CreateBWHandlerRequest{
+		Object:                   &gcs.Object{Name: "testObject", Size: 0},
+		ObjectName:               "testObject",
+		Bucket:                   mockBucket,
+		BlockSize:                blockSize,
+		MaxBlocksPerFile:         10,
+		GlobalMaxBlocksSem:       testSuite.globalSemaphore,
+		ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
+		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+		TraceHandle:              tracing.NewNoopTracer(),
+	})
+	require.NoError(testSuite.T(), err)
+
+	// Initial Sync fails in ensureWriter -> CreateAppendableObjectWriter.
+	obj, err := bwh.Sync(context.Background())
+	require.Error(testSuite.T(), err)
+	assert.Nil(testSuite.T(), obj)
+	var gotPrecondErr *gcs.PreconditionError
+	assert.ErrorAs(testSuite.T(), err, &gotPrecondErr)
+
+	// Subsequent Write (even at an out-of-order offset) returns the stored upload error, not ErrOutOfOrderWrite.
+	err = bwh.Write(context.Background(), []byte("data"), 1024)
+	require.Error(testSuite.T(), err)
+	assert.NotErrorIs(testSuite.T(), err, ErrOutOfOrderWrite)
+	assert.ErrorAs(testSuite.T(), err, &gotPrecondErr)
+
+	// Subsequent Sync and repeated Flush calls return the stored upload error without panicking.
+	_, err = bwh.Sync(context.Background())
+	require.Error(testSuite.T(), err)
+	assert.ErrorAs(testSuite.T(), err, &gotPrecondErr)
+
+	for range 2 {
+		assert.NotPanics(testSuite.T(), func() {
+			_, flushErr := bwh.Flush(context.Background())
+			require.Error(testSuite.T(), flushErr)
+			assert.ErrorAs(testSuite.T(), flushErr, &gotPrecondErr)
+		})
+	}
+}
