@@ -1433,12 +1433,15 @@ func TestSetInodeAttributes_Metrics(t *testing.T) {
 
 func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 	tests := []struct {
-		name               string
-		readSizes          []int64
-		nilBufferReadCount int
-		expectedSum        int64
-		expectedCount      uint64
-		expectedBuckets    map[int]uint64 // Maps bucket index to expected count
+		name      string
+		readSizes []int64
+		// vectoredReadSizes are issued the way the FUSE library issues reads
+		// larger than its request buffer: Size set, Dst nil. The kernel reader is
+		// the only read path that supports them.
+		vectoredReadSizes []int64
+		expectedSum       int64
+		expectedCount     uint64
+		expectedBuckets   map[int]uint64 // Maps bucket index to expected count
 	}{
 		{
 			name:          "Reads in bucket > 0 and <= 8KB",
@@ -1481,12 +1484,14 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 			},
 		},
 		{
-			name:               "Nil byte read",
-			nilBufferReadCount: 1,
-			expectedSum:        0,
-			expectedCount:      1,
+			name:              "Vectored read with nil Dst records the requested size",
+			readSizes:         []int64{4096},
+			vectoredReadSizes: []int64{2097152}, // 2MB
+			expectedSum:       2101248,
+			expectedCount:     2,
 			expectedBuckets: map[int]uint64{
-				0: 1, // size <= 0
+				1: 1, // 0 < 4KB <= 8KB
+				9: 1, // 1MB < 2MB <= 2MB
 			},
 		},
 	}
@@ -1495,13 +1500,14 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			params := defaultServerConfigParams()
+			params.enableKernelReader = len(tc.vectoredReadSizes) > 0
 			bucket, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
 			server = wrappers.WithMonitoring(server, mh)
 			fileName := "test.txt"
 
 			// Find the max read size so we can create a file large enough for all read operations.
 			var maxReadSize int64
-			for _, size := range tc.readSizes {
+			for _, size := range append(append([]int64{}, tc.readSizes...), tc.vectoredReadSizes...) {
 				if size > maxReadSize {
 					maxReadSize = size
 				}
@@ -1521,16 +1527,17 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 			err = server.OpenFile(ctx, openOp)
 			require.NoError(t, err, "OpenFile")
 
-			// Perform reads with nil buffer
-			for i := 0; i < tc.nilBufferReadCount; i++ {
+			// Perform vectored reads (nil buffer)
+			for _, size := range tc.vectoredReadSizes {
 				readOp := &fuseops.ReadFileOp{
 					Inode:  lookupOp.Entry.Child,
 					Handle: openOp.Handle,
 					Offset: 0,
+					Size:   size,
 					Dst:    nil,
 				}
 				err = server.ReadFile(ctx, readOp)
-				require.NoError(t, err, "ReadFile with nil buffer")
+				require.NoError(t, err, "vectored ReadFile for size %d", size)
 			}
 
 			// Perform reads of different sizes
@@ -1539,6 +1546,7 @@ func TestReadFile_ReadBlockSizesMetric(t *testing.T) {
 					Inode:  lookupOp.Entry.Child,
 					Handle: openOp.Handle,
 					Offset: 0,
+					Size:   size,
 					Dst:    make([]byte, size),
 				}
 				err = server.ReadFile(ctx, readOp)
