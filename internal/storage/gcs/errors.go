@@ -49,6 +49,39 @@ func (pe *PreconditionError) Error() string {
 	return fmt.Sprintf("gcs.PreconditionError: %v", pe.Err)
 }
 
+// An *ObjectTooLargeError value is an error that indicates that an upload would
+// exceed the maximum object size, e.g. because a parallel upload needs more than
+// the maximum number of segments of an object.
+type ObjectTooLargeError struct {
+	Err error
+}
+
+func (e *ObjectTooLargeError) Error() string {
+	return fmt.Sprintf("gcs.ObjectTooLargeError: %v", e.Err)
+}
+
+func (e *ObjectTooLargeError) Unwrap() error {
+	return e.Err
+}
+
+// GetParallelUploadError converts an error returned by a parallel upload writer.
+// gRPC parallel uploads reject writes beyond the maximum number of segments of
+// an object with InvalidArgument, which is reported as an *ObjectTooLargeError.
+// Other errors are returned unchanged. Use it only for parallel upload writers:
+// InvalidArgument has other meanings elsewhere.
+// TODO(b/548851494): Confirm the error returned for segment overflow once the
+// Go SDK supports gRPC parallel upload v1.
+func GetParallelUploadError(err error) error {
+	var objectTooLargeErr *ObjectTooLargeError
+	if err == nil || errors.As(err, &objectTooLargeErr) {
+		return err
+	}
+	if status.Code(err) == codes.InvalidArgument {
+		return &ObjectTooLargeError{Err: err}
+	}
+	return err
+}
+
 // GetGCSError converts an error returned by go-sdk into gcsfuse specific common gcs error.
 func GetGCSError(err error) error {
 	if err == nil {

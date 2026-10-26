@@ -22,6 +22,7 @@ import (
 
 	"github.com/googleapis/gax-go/v2/apierror"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/api/googleapi"
@@ -100,6 +101,16 @@ func (testSuite *ErrorMapping) TestFileClobberedError() {
 	gotErrno := errno(clobberedErr)
 
 	assert.Equal(testSuite.T(), syscall.ESTALE, gotErrno)
+}
+
+func (testSuite *ErrorMapping) TestObjectTooLargeError() {
+	tooLargeErr := fmt.Errorf("write failed: %w", &gcs.ObjectTooLargeError{
+		Err: status.Error(codes.InvalidArgument, "too many segments"),
+	})
+
+	gotErrno := errno(tooLargeErr)
+
+	assert.Equal(testSuite.T(), syscall.EFBIG, gotErrno)
 }
 
 func (testSuite *ErrorMapping) TestFileNotFoundError() {
