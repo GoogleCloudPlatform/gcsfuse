@@ -76,7 +76,7 @@ func GetParallelUploadError(err error) error {
 	if err == nil || errors.As(err, &objectTooLargeErr) {
 		return err
 	}
-	if status.Code(err) == codes.InvalidArgument {
+	if rpcErr, ok := status.FromError(err); ok && rpcErr.Code() == codes.InvalidArgument {
 		return &ObjectTooLargeError{Err: err}
 	}
 	return err
