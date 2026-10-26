@@ -1430,13 +1430,13 @@ func (fs *fileSystem) syncFile(
 	return nil
 }
 
-// Initializes the write handler if eligible and synchronizes the file inode to GCS if initialization succeeds.
+// Initializes the streaming write handler if eligible and synchronizes the file inode to GCS if initialization succeeds.
 // Otherwise creates an empty temp writer if temp file nil.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
-func (fs *fileSystem) createWriteHandlerAndSyncOrTempWriter(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
-	err := fs.initWriteHandlerAndSyncFileIfEligible(ctx, f, openMode)
+func (fs *fileSystem) createStreamingWriteHandlerAndSyncOrTempWriter(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
+	err := fs.initStreamingWriteHandlerAndSyncFileIfEligible(ctx, f, openMode)
 	if err != nil {
 		return err
 	}
@@ -1447,18 +1447,18 @@ func (fs *fileSystem) createWriteHandlerAndSyncOrTempWriter(ctx context.Context,
 	return nil
 }
 
-// Initializes the write handler if eligible and synchronizes the file inode to GCS if initialization succeeds.
+// Initializes the streaming write handler if eligible and synchronizes the file inode to GCS if initialization succeeds.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
-func (fs *fileSystem) initWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
-	initialized, err := f.InitWriteHandlerIfEligible(ctx, openMode, fs.getWriteContext())
+func (fs *fileSystem) initStreamingWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
+	initialized, err := f.InitStreamingWriteHandlerIfEligible(ctx, openMode, fs.getWriteContext())
 	if err != nil {
 		return err
 	}
 	if initialized {
-		// Calling syncFile is safe here as we have file inode lock and the write handler is initialized.
-		// Thus sync method of the write handler will be invoked.
+		// Calling syncFile is safe here as we have file inode lock and the streaming write handler is initialized.
+		// Thus sync method of the streaming write handler will be invoked.
 		// 1. In case of zonal bucket it creates unfinalized new generation object.
 		// 2. In case of non zonal bucket it's no-op as we don't have pending buffers to upload.
 		err = fs.syncFile(ctx, f)
@@ -1974,8 +1974,8 @@ func (fs *fileSystem) SetInodeAttributes(
 
 	// Truncate files.
 	if isFile && op.Size != nil {
-		// Initialize the write handler if eligible and sync the file inode.
-		err = fs.initWriteHandlerAndSyncFileIfEligible(ctx, file, util.NewOpenMode(util.WriteOnly, 0))
+		// Initialize the streaming write handler if eligible and sync the file inode.
+		err = fs.initStreamingWriteHandlerAndSyncFileIfEligible(ctx, file, util.NewOpenMode(util.WriteOnly, 0))
 		if err != nil {
 			return
 		}
@@ -2203,7 +2203,7 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	fs.mu.Unlock()
 	defer fs.mu.Lock()
 	fileInode.Lock()
-	err = fs.createWriteHandlerAndSyncOrTempWriter(ctx, fileInode, openMode)
+	err = fs.createStreamingWriteHandlerAndSyncOrTempWriter(ctx, fileInode, openMode)
 	fileInode.Unlock()
 	if err != nil {
 		return
@@ -3092,7 +3092,7 @@ func (fs *fileSystem) ReadFile(
 	fs.mu.Unlock()
 
 	fh.Inode().Lock()
-	if fh.Inode().IsUsingWriteHandler() {
+	if fh.Inode().IsUsingStreamingWriteHandler() {
 		// Flush/Sync Pending streaming writes and issue read within same inode lock.
 		// With rapid buckets, we can read from unfinalized objects as well.
 		// Hence, there is no need to finalize the object from here for rapid buckets.
@@ -3201,7 +3201,7 @@ func (fs *fileSystem) WriteFile(
 	var gcsSynced bool
 	in.Lock()
 	defer in.Unlock()
-	if err = fs.initWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode()); err != nil {
+	if err = fs.initStreamingWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode()); err != nil {
 		// A FileClobberedError on write indicates the file was modified in GCS,
 		// making the kernel's dentry stale. By invalidating the cache
 		// entry, we ensure the filesystem corrects the inconsistency caused by this

@@ -134,18 +134,18 @@ type FileInode struct {
 	// code.
 	MRDWrapper *gcsx.MultiRangeDownloaderWrapper
 
-	writeHandler streamingwrites.WriteHandler
+	streamingWriteHandler streamingwrites.WriteHandler
 
 	// mrdInstance manages the MultiRangeDownloader instances for this inode.
 	mrdInstance               *gcsx.MrdInstance
 	kernelRangeReaderInstance *kernel_readers.KernelRangeReaderInstance
 
-	// Once write is started on the file i.e, writeHandler is initialized, any fileHandles
+	// Once write is started on the file i.e, streamingWriteHandler is initialized, any fileHandles
 	// opened in write mode before or after this and not yet closed are considered
 	// as writing to the file even though they are not writing.
-	// In case of successful flush, we will set writeHandler to nil. But in case of error,
+	// In case of successful flush, we will set streamingWriteHandler to nil. But in case of error,
 	// we will keep returning that error to all the fileHandles open during that time
-	// and set writeHandler to nil after all fileHandlers are closed.
+	// and set streamingWriteHandler to nil after all fileHandlers are closed.
 	// writeHandleCount tracks the count of open fileHandles in write mode.
 	writeHandleCount int32
 
@@ -459,19 +459,16 @@ func (f *FileInode) IsUnlinked() bool {
 func (f *FileInode) Unlink() {
 	f.unlinked = true
 
-	if f.writeHandler != nil {
-		if err := f.writeHandler.Unlink(); err != nil {
-			// Only logging an error in case of resource leak.
-			logger.Errorf("f.writeHandler.Unlink() failed for %s: %v", f.name.String(), err)
-		}
+	if f.streamingWriteHandler != nil {
+		f.streamingWriteHandler.Unlink()
 	}
 }
 
-// Returns true if the fileInode is using Write Handler.
+// Returns true if the fileInode is using streaming write handler.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) IsUsingWriteHandler() bool {
-	return f.writeHandler != nil
+func (f *FileInode) IsUsingStreamingWriteHandler() bool {
+	return f.streamingWriteHandler != nil
 }
 
 // Source returns a record for the GCS object from which this inode is branched. The
@@ -498,16 +495,16 @@ func (f *FileInode) GetKernelRangeReaderInstance() *kernel_readers.KernelRangeRe
 // f.Source(), rather than calling f.ReadAt. Doing so may be more efficient,
 // because f.ReadAt may cause the entire object to be faulted in and requires
 // the inode to be locked during the read. SourceGenerationAuthoritative requires
-// SyncPendingWrites method has been called on f within same inode lock for
+// SyncPendingStreamingWrites method has been called on f within same inode lock for
 // streaming writes with zonal bucket.
 // TODO(b/406160290): Check if this can be improved.
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 	// Source generation is authoritative if:
-	//   1.  No pending writes exists on the inode (both content and writeHandler are nil).
+	//   1.  No pending writes exists on the inode (both content and streamingWriteHandler are nil).
 	//   2.  The bucket is rapid and there are no pending writes in the temporary file.
-	return (f.content == nil && f.writeHandler == nil) || (f.bucket.BucketType().RapidWritesEnabled() && f.content == nil)
+	return (f.content == nil && f.streamingWriteHandler == nil) || (f.bucket.BucketType().RapidWritesEnabled() && f.content == nil)
 }
 
 // Equivalent to the generation returned by f.Source().
@@ -517,12 +514,12 @@ func (f *FileInode) SourceGeneration() (g Generation) {
 	g.Size = f.src.Size
 	g.Object = f.src.Generation
 	g.Metadata = f.src.MetaGeneration
-	// If writeHandler is not nil, it's size takes precedence as that is being actively
+	// If streamingWriteHandler is not nil, it's size takes precedence as that is being actively
 	// written to GCS.
 	// Since temporary file does not write to GCS on the go, it's size is not
 	// used as source object's size.
-	if f.writeHandler != nil {
-		writeFileInfo := f.writeHandler.WriteFileInfo()
+	if f.streamingWriteHandler != nil {
+		writeFileInfo := f.streamingWriteHandler.WriteFileInfo()
 		g.Size = uint64(writeFileInfo.TotalSize)
 	}
 	return
@@ -558,13 +555,13 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 
 	f.writeHandleCount--
 
-	// All write fileHandles associated with writeHandler are closed. So safe to set writeHandler to nil.
-	if f.writeHandleCount == 0 && f.writeHandler != nil {
-		err := f.writeHandler.Destroy()
+	// All write fileHandles associated with streamingWriteHandler are closed. So safe to set streamingWriteHandler to nil.
+	if f.writeHandleCount == 0 && f.streamingWriteHandler != nil {
+		err := f.streamingWriteHandler.Destroy()
 		if err != nil {
-			logger.Warnf("Error while destroying the writeHandler: %v", err)
+			logger.Warnf("Error while destroying the streamingWriteHandler: %v", err)
 		}
-		f.writeHandler = nil
+		f.streamingWriteHandler = nil
 	}
 }
 
@@ -614,8 +611,8 @@ func (f *FileInode) Attributes(
 		}
 	}
 
-	if f.writeHandler != nil {
-		writeFileInfo := f.writeHandler.WriteFileInfo()
+	if f.streamingWriteHandler != nil {
+		writeFileInfo := f.streamingWriteHandler.WriteFileInfo()
 		mtime = writeFileInfo.Mtime
 		size = uint64(writeFileInfo.TotalSize)
 	}
@@ -670,7 +667,7 @@ func (f *FileInode) Bucket() *gcsx.SyncerBucket {
 func (f *FileInode) Read(
 	ctx context.Context,
 	req *gcsx.ReadRequest) (res gcsx.ReadResponse, err error) {
-	if f.writeHandler != nil {
+	if f.streamingWriteHandler != nil {
 		err = fmt.Errorf("unexpected read call for %q when streaming write is in progress for it", f.Name().LocalName())
 		return
 	}
@@ -749,8 +746,8 @@ func (f *FileInode) Write(
 	offset int64,
 	openMode util.OpenMode,
 	writeCtx *WriteContext) (bool, error) {
-	if f.writeHandler != nil {
-		return f.writeUsingWriteHandler(ctx, data, offset, openMode, writeCtx)
+	if f.streamingWriteHandler != nil {
+		return f.writeUsingStreamingWriteHandler(ctx, data, offset, openMode, writeCtx)
 	}
 
 	return false, f.writeUsingTempFile(ctx, data, offset, writeCtx)
@@ -777,22 +774,22 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 	return
 }
 
-// Helper function to serve write for file using write handler.
+// Helper function to serve write for file using streaming write handler.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) writeUsingWriteHandler(ctx context.Context, data []byte, offset int64, openMode util.OpenMode, writeCtx *WriteContext) (_ bool, err error) {
+func (f *FileInode) writeUsingStreamingWriteHandler(ctx context.Context, data []byte, offset int64, openMode util.OpenMode, writeCtx *WriteContext) (_ bool, err error) {
 	bytes := int64(len(data))
 	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.WriteFileStreaming, f.src.Name, &bytes, &err)
 	defer finishSpan()
-	err = f.writeHandler.Write(ctx, data, offset)
-	if clobberedErr := f.wrapFileClobberedError(err, "f.writeHandler.Write()"); clobberedErr != nil {
+	err = f.streamingWriteHandler.Write(ctx, data, offset)
+	if clobberedErr := f.wrapFileClobberedError(err, "f.streamingWriteHandler.Write()"); clobberedErr != nil {
 		return false, clobberedErr
 	}
 	// Fall back to temp file for Out-Of-Order Writes.
 	if errors.Is(err, streamingwrites.ErrOutOfOrderWrite) {
 		logger.Tracef("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
-		err = f.flushUsingWriteHandler(ctx)
+		err = f.flushUsingStreamingWriteHandler(ctx)
 		if err != nil {
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
@@ -800,43 +797,43 @@ func (f *FileInode) writeUsingWriteHandler(ctx context.Context, data []byte, off
 		return true, f.writeUsingTempFile(ctx, data, offset, writeCtx)
 	}
 	if err != nil {
-		return false, fmt.Errorf("write to write handler failed: %w", err)
+		return false, fmt.Errorf("write to streaming write handler failed: %w", err)
 	}
 	return false, nil
 }
 
-// Helper function to flush write handler and update inode state with
+// Helper function to flush streaming write handler and update inode state with
 // new object.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) flushUsingWriteHandler(ctx context.Context) error {
-	obj, err := f.writeHandler.Flush(ctx)
-	if clobberedErr := f.wrapFileClobberedError(err, "f.writeHandler.Flush()"); clobberedErr != nil {
+func (f *FileInode) flushUsingStreamingWriteHandler(ctx context.Context) error {
+	obj, err := f.streamingWriteHandler.Flush(ctx)
+	if clobberedErr := f.wrapFileClobberedError(err, "f.streamingWriteHandler.Flush()"); clobberedErr != nil {
 		return clobberedErr
 	}
 	if err != nil {
-		return fmt.Errorf("f.writeHandler.Flush(): %w", err)
+		return fmt.Errorf("f.streamingWriteHandler.Flush(): %w", err)
 	}
 	// If we finalized the object, we need to update our state.
 	f.updateInodeStateAfterFlush(obj)
 	return nil
 }
 
-// SyncPendingWrites flushes any pending writes on the writeHandler to GCS.
-// It is a no-op when writeHandler is nil.
+// SyncPendingStreamingWrites flushes any pending writes on the streamingWriteHandler to GCS.
+// It is a no-op when streamingWriteHandler is nil.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) SyncPendingWrites(ctx context.Context) (gcsSynced bool, err error) {
-	if f.writeHandler == nil {
+func (f *FileInode) SyncPendingStreamingWrites(ctx context.Context) (gcsSynced bool, err error) {
+	if f.streamingWriteHandler == nil {
 		return
 	}
-	minObj, err := f.writeHandler.Sync(ctx)
-	if clobberedErr := f.wrapFileClobberedError(err, "f.writeHandler.Sync(ctx)"); clobberedErr != nil {
+	minObj, err := f.streamingWriteHandler.Sync(ctx)
+	if clobberedErr := f.wrapFileClobberedError(err, "f.streamingWriteHandler.Sync(ctx)"); clobberedErr != nil {
 		err = clobberedErr
 		return
 	}
 	if err != nil {
-		err = fmt.Errorf("f.writeHandler.Sync(ctx): %w", err)
+		err = fmt.Errorf("f.streamingWriteHandler.Sync(ctx): %w", err)
 		return
 	}
 	// We return gcsSynced as true when we get minObject from Sync() for Zonal Buckets.
@@ -878,12 +875,12 @@ func (f *FileInode) SetMtime(
 		return
 	}
 
-	// When writeHandler instance is not nil, set time on writeHandler.
+	// When streamingWriteHandler instance is not nil, set time on streamingWriteHandler.
 	// It will not be nil in 2 cases when streaming writes are enabled:
 	// 1. local files
 	// 2. After first write on empty GCS files.
-	if f.writeHandler != nil {
-		f.writeHandler.SetMtime(mtime)
+	if f.streamingWriteHandler != nil {
+		f.streamingWriteHandler.SetMtime(mtime)
 		return
 	}
 
@@ -989,8 +986,8 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 // having been clobbered, failure is propagated back to the calling
 // function as an error.
 //
-// For streaming writes (writeHandler), this method only syncs pending writes
-// through the write handler. It does not guarantee that the entire contents of
+// For streaming writes (streamingWriteHandler), this method only syncs pending writes
+// through the streaming write handler. It does not guarantee that the entire contents of
 // the file have been persisted.
 //
 // For staged writes (temp file), this method writes the entire contents to GCS.
@@ -1001,12 +998,12 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Sync(ctx context.Context, writeCtx *WriteContext) (gcsSynced bool, err error) {
 	// If we have not been dirtied, there is nothing to do.
-	if f.content == nil && f.writeHandler == nil {
+	if f.content == nil && f.streamingWriteHandler == nil {
 		return
 	}
 
-	if f.writeHandler != nil {
-		gcsSynced, err = f.SyncPendingWrites(ctx)
+	if f.streamingWriteHandler != nil {
+		gcsSynced, err = f.SyncPendingStreamingWrites(ctx)
 		if err != nil {
 			err = fmt.Errorf("could not sync what has been written so far: %w", err)
 		}
@@ -1092,23 +1089,23 @@ func (f *FileInode) syncUsingContent(ctx context.Context, writeCtx *WriteContext
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Flush(ctx context.Context, writeCtx *WriteContext) (err error) {
 	// If we have not been dirtied, there is nothing to do.
-	if f.content == nil && f.writeHandler == nil {
+	if f.content == nil && f.streamingWriteHandler == nil {
 		return
 	}
 
 	// Flush using the appropriate method based on whether we're using a
-	// write handler.
-	if f.writeHandler != nil {
-		return f.flushUsingWriteHandler(ctx)
+	// streaming write handler.
+	if f.streamingWriteHandler != nil {
+		return f.flushUsingStreamingWriteHandler(ctx)
 	}
 	return f.syncUsingContent(ctx, writeCtx)
 }
 
 func (f *FileInode) updateInodeStateAfterFlush(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
-		// Set writeHandler to nil as object has been finalized.
-		if f.writeHandler != nil {
-			f.writeHandler = nil
+		// Set streamingWriteHandler to nil as object has been finalized.
+		if f.streamingWriteHandler != nil {
+			f.streamingWriteHandler = nil
 		}
 		f.updateInodeStateAfterSync(minObj)
 	}
@@ -1151,19 +1148,19 @@ func (f *FileInode) updateReaders() {
 	}
 }
 
-// truncateUsingWriteHandler attempts to truncate the file using the write
-// handler. If the requested size is smaller than the file's current size,
+// truncateUsingStreamingWriteHandler attempts to truncate the file using the
+// streaming write handler. If the requested size is smaller than the file's current size,
 // it finalizes the existing writes, falls back to using a temporary file for
 // the truncation, and returns true to indicate the file has been synced.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) truncateUsingWriteHandler(ctx context.Context, size int64, writeCtx *WriteContext) (bool, error) {
-	err := f.writeHandler.Truncate(size)
+func (f *FileInode) truncateUsingStreamingWriteHandler(ctx context.Context, size int64, writeCtx *WriteContext) (bool, error) {
+	err := f.streamingWriteHandler.Truncate(size)
 	// If truncate size is less than the total file size resulting in OutOfOrder write, finalize and fall back to temp file.
 	if errors.Is(err, streamingwrites.ErrOutOfOrderWrite) {
 		logger.Tracef("Out of order write detected. File %s will now use legacy staged writes. "+StreamingWritesSemantics, f.name.String())
 		// Finalize the object.
-		err = f.flushUsingWriteHandler(ctx)
+		err = f.flushUsingStreamingWriteHandler(ctx)
 		if err != nil {
 			return false, fmt.Errorf("could not finalize what has been written so far: %w", err)
 		}
@@ -1171,7 +1168,7 @@ func (f *FileInode) truncateUsingWriteHandler(ctx context.Context, size int64, w
 		return true, f.truncateUsingTempFile(ctx, size)
 	}
 	if err != nil {
-		return false, fmt.Errorf("got unexpected error from writeHandler.Truncate(): %w", err)
+		return false, fmt.Errorf("got unexpected error from streamingWriteHandler.Truncate(): %w", err)
 	}
 	return false, nil
 }
@@ -1198,8 +1195,8 @@ func (f *FileInode) Truncate(
 	ctx context.Context,
 	size int64,
 	writeCtx *WriteContext) (bool, error) {
-	if f.IsUsingWriteHandler() {
-		return f.truncateUsingWriteHandler(ctx, size, writeCtx)
+	if f.IsUsingStreamingWriteHandler() {
+		return f.truncateUsingStreamingWriteHandler(ctx, size, writeCtx)
 	}
 	return false, f.truncateUsingTempFile(ctx, size)
 }
@@ -1220,7 +1217,7 @@ func (f *FileInode) CacheEnsureContent(ctx context.Context) (err error) {
 func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 	// Skip creating empty temp file when streaming writes are enabled
 	// or temp file is already created.
-	if f.writeHandler != nil || f.content != nil {
+	if f.streamingWriteHandler != nil || f.content != nil {
 		return
 	}
 
@@ -1232,17 +1229,17 @@ func (f *FileInode) CreateEmptyTempFile(ctx context.Context) (err error) {
 	return
 }
 
-// Initializes Write Handler if the file inode is eligible and returns
-// initialized as true when the new instance of write handler is created.
-func (f *FileInode) InitWriteHandlerIfEligible(ctx context.Context, openMode util.OpenMode, writeCtx *WriteContext) (bool, error) {
-	// writeHandler already initialized, do nothing.
-	if f.writeHandler != nil {
+// Initializes streaming write handler if the file inode is eligible and returns
+// initialized as true when the new instance of streaming write handler is created.
+func (f *FileInode) InitStreamingWriteHandlerIfEligible(ctx context.Context, openMode util.OpenMode, writeCtx *WriteContext) (bool, error) {
+	// streamingWriteHandler already initialized, do nothing.
+	if f.streamingWriteHandler != nil {
 		return false, nil
 	}
 
 	tempFileInUse := f.content != nil
 	if !writeCtx.Config.Write.EnableStreamingWrites || tempFileInUse {
-		// writeHandler should not be initialized under these conditions.
+		// streamingWriteHandler should not be initialized under these conditions.
 		return false, nil
 	}
 
@@ -1266,12 +1263,12 @@ func (f *FileInode) InitWriteHandlerIfEligible(ctx context.Context, openMode uti
 		}
 	}
 
-	if !f.isWriteHandlerSupported(openMode, latestGcsObj, writeCtx) {
+	if !f.areStreamingWritesSupported(openMode, latestGcsObj, writeCtx) {
 		return false, nil
 	}
 
-	if f.writeHandler == nil {
-		f.writeHandler, err = streamingwrites.NewWriteHandler(&streamingwrites.CreateWriteHandlerRequest{
+	if f.streamingWriteHandler == nil {
+		f.streamingWriteHandler, err = streamingwrites.NewWriteHandler(&streamingwrites.CreateWriteHandlerRequest{
 			Object:                   latestGcsObj,
 			ObjectName:               f.name.GcsObjectName(),
 			Bucket:                   f.bucket,
@@ -1292,15 +1289,15 @@ func (f *FileInode) InitWriteHandlerIfEligible(ctx context.Context, openMode uti
 		}
 		if err != nil {
 			recordStreamingWriteFallbackMetric(writeCtx.MetricHandle, openMode, metrics.WriteFallbackReasonOtherAttr)
-			return false, fmt.Errorf("failed to create writeHandler: %w", err)
+			return false, fmt.Errorf("failed to create streamingWriteHandler: %w", err)
 		}
-		f.writeHandler.SetMtime(f.mtimeClock.Now())
+		f.streamingWriteHandler.SetMtime(f.mtimeClock.Now())
 		return true, nil
 	}
 	return false, nil
 }
 
-func (f *FileInode) isWriteHandlerSupported(openMode util.OpenMode, obj *gcs.Object, writeCtx *WriteContext) bool {
+func (f *FileInode) areStreamingWritesSupported(openMode util.OpenMode, obj *gcs.Object, writeCtx *WriteContext) bool {
 	// For new files and existing files of size 0, streaming writes are always supported.
 	if f.local || obj.Size == 0 {
 		return true

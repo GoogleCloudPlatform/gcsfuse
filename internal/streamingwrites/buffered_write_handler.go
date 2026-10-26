@@ -25,9 +25,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
-// Note: All the write operations take inode lock in fs.go, hence we don't need any locks here
-// as we will get write operations serially.
-
 // bufferedWriteHandlerImpl is responsible for filling up the buffers with the data
 // as it receives and handing over to uploadHandler which uploads to GCS.
 type bufferedWriteHandlerImpl struct {
@@ -278,12 +275,14 @@ func (wh *bufferedWriteHandlerImpl) writeDataForTruncatedSize(ctx context.Contex
 	return nil
 }
 
-func (wh *bufferedWriteHandlerImpl) Unlink() error {
+func (wh *bufferedWriteHandlerImpl) Unlink() {
 	wh.uploadHandler.CancelUpload()
-	// Since bwh is not cleared after unlink, we will not release last block yet.
-	// Last block will be released when file handle for this file is closed.
-	if err := wh.blockPool.ClearFreeBlockChannel(false); err != nil {
-		return fmt.Errorf("blockPool.ClearFreeBlockChannel() failed: %w", err)
+	// Since the write handler is not cleared after unlink, we will not release
+	// last block yet. Last block will be released when file handle for this file
+	// is closed.
+	err := wh.blockPool.ClearFreeBlockChannel(false)
+	if err != nil {
+		// Only logging an error in case of resource leak.
+		logger.Errorf("blockPool.ClearFreeBlockChannel() failed: %v", err)
 	}
-	return nil
 }
