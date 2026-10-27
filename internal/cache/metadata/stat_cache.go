@@ -103,13 +103,17 @@ type StatCache interface {
 // allocates nothing. A nil metricHandle records nothing.
 func NewSharedStatCache(maxSize uint64, metricHandle metrics.MetricHandle) *lru.Cache {
 	if metricHandle == nil {
-		return lru.NewCache(maxSize)
+		return lru.NewCache(maxSize, lru.WithMemoryPressureEviction())
 	}
-	return lru.NewCache(maxSize, lru.WithSizeObserver(func(v lru.ValueType, delta int64) {
-		if e, ok := v.(entry); ok {
-			metricHandle.MetadataCacheSize(delta, e.status())
-		}
-	}))
+	return lru.NewCache(
+		maxSize,
+		lru.WithMemoryPressureEviction(),
+		lru.WithSizeObserver(func(v lru.ValueType, delta int64) {
+			if e, ok := v.(entry); ok {
+				metricHandle.MetadataCacheSize(delta, e.status())
+			}
+		}),
+	)
 }
 
 // Create a new bucket-view to the passed shared-cache object.
