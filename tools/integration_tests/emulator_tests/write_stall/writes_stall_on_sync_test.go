@@ -50,14 +50,11 @@ type writeStallTestSuite struct {
 	port               int
 	proxyProcessId     int
 	proxyServerLogFile string
-	flags              []string
-	configPath         string
 	protocol           string
 	suite.Suite
 }
 
-func (s *writeStallTestSuite) SetupTest() {
-	configPath := s.configPath
+func (s *writeStallTestSuite) setupTest(configPath string, testFlags []string) {
 	if s.protocol == "grpc" {
 		configPath = grpcConfigPath[configPath]
 		require.NotEmpty(s.T(), configPath)
@@ -68,7 +65,7 @@ func (s *writeStallTestSuite) SetupTest() {
 	s.port, s.proxyProcessId, err = emulator_tests.StartProxyServer(configPath, s.proxyServerLogFile)
 	require.NoError(s.T(), err)
 
-	flags := append([]string{"--client-protocol=" + s.protocol}, s.flags...)
+	flags := append([]string{"--client-protocol=" + s.protocol}, testFlags...)
 	if s.protocol == "grpc" {
 		flags = append(flags, "--anonymous-access", fmt.Sprintf("--custom-endpoint=localhost:%d", s.port))
 	} else {
@@ -83,7 +80,7 @@ func (s *writeStallTestSuite) SetupTest() {
 	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 }
 
-func (s *writeStallTestSuite) TearDownTest() {
+func (s *writeStallTestSuite) tearDownTest() {
 	setup.UnmountGCSFuse(rootDir)
 	assert.NoError(s.T(), emulator_tests.KillProxyServerProcess(s.proxyProcessId))
 	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
@@ -99,7 +96,10 @@ func (s *writeStallTestSuite) TearDownTest() {
 // It creates a file, writes data to it, and then calls Sync() to ensure
 // the data is written to GCS. The test measures the time taken for the Sync()
 // operation and asserts that it is greater than or equal to the configured stall time.
-func (s *writeStallTestSuite) TestWriteStallCausesDelay() {
+func (s *writeStallTestSuite) TestChunkTransferTimeoutInfinity() {
+	s.setupTest("../configs/write_stall_40s.yaml", []string{"--chunk-transfer-timeout-secs=0"})
+	defer s.tearDownTest()
+
 	testDir := "TestWriteStallCausesDelay" + setup.GenerateRandomString(3)
 	testDirPath = setup.SetupTestDirectory(testDir)
 	filePath := path.Join(testDirPath, "file.txt")
@@ -110,25 +110,7 @@ func (s *writeStallTestSuite) TestWriteStallCausesDelay() {
 	assert.GreaterOrEqual(s.T(), elapsedTime, stallTime)
 }
 
-////////////////////////////////////////////////////////////////////////
-// Test Function (Runs once before all tests)
-////////////////////////////////////////////////////////////////////////
-
-func TestChunkTransferTimeoutInfinity(t *testing.T) {
-	for _, protocol := range protocols {
-		t.Run(protocol, func(t *testing.T) {
-			ts := &writeStallTestSuite{
-				protocol:   protocol,
-				configPath: "../configs/write_stall_40s.yaml",
-				flags:      []string{"--chunk-transfer-timeout-secs=0"},
-			}
-			log.Printf("Running tests with protocol=%s, flags=%s", protocol, ts.flags)
-			suite.Run(t, ts)
-		})
-	}
-}
-
-func TestChunkTransferTimeout(t *testing.T) {
+func (s *writeStallTestSuite) TestChunkTransferTimeout() {
 	flagSets := [][]string{
 		{},
 		{"--chunk-transfer-timeout-secs=5"},
@@ -156,45 +138,33 @@ func TestChunkTransferTimeout(t *testing.T) {
 		},
 	}
 
-	for _, protocol := range protocols {
-		t.Run(protocol, func(t *testing.T) {
-			for _, flags := range flagSets {
-				chunkTransferTimeoutSecs, err := emulator_tests.GetChunkTransferTimeoutFromFlags(flags)
-				if err != nil {
-					t.Fatalf("Invalid chunk-transfer-timeout-secs flag: %v", err)
-				}
+	for _, flags := range flagSets {
+		chunkTransferTimeoutSecs, err := emulator_tests.GetChunkTransferTimeoutFromFlags(flags)
+		require.NoError(s.T(), err, "Invalid chunk-transfer-timeout-secs flag")
 
-				t.Run(fmt.Sprintf("Flags_%v", flags), func(t *testing.T) {
-					for _, scenario := range stallScenarios {
-						t.Run(scenario.name, func(t *testing.T) {
-							ts := &writeStallTestSuite{
-								protocol:   protocol,
-								configPath: scenario.configPath,
-								flags:      flags,
-							}
-							ts.SetT(t)
-							ts.SetupTest()
-							defer ts.TearDownTest()
+		s.Run(fmt.Sprintf("Flags_%v", flags), func() {
+			for _, scenario := range stallScenarios {
+				s.Run(scenario.name, func() {
+					s.setupTest(scenario.configPath, flags)
+					defer s.tearDownTest()
 
-							testDir := scenario.name + setup.GenerateRandomString(3)
-							testDirPath = setup.SetupTestDirectory(testDir)
-							filePath := path.Join(testDirPath, "file.txt")
+					testDir := scenario.name + setup.GenerateRandomString(3)
+					testDirPath = setup.SetupTestDirectory(testDir)
+					filePath := path.Join(testDirPath, "file.txt")
 
-							elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
+					elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
 
-							assert.NoError(t, err, "failed to write file and sync")
-							expectedTimeout := scenario.expectedTimeout(chunkTransferTimeoutSecs)
-							assert.GreaterOrEqual(t, elapsedTime, expectedTimeout)
-							assert.Less(t, elapsedTime, expectedTimeout+5*time.Second)
-						})
-					}
+					assert.NoError(s.T(), err, "failed to write file and sync")
+					expectedTimeout := scenario.expectedTimeout(chunkTransferTimeoutSecs)
+					assert.GreaterOrEqual(s.T(), elapsedTime, expectedTimeout)
+					assert.Less(s.T(), elapsedTime, expectedTimeout+5*time.Second)
 				})
 			}
 		})
 	}
 }
 
-func TestChunkRetryDeadline(t *testing.T) {
+func (s *writeStallTestSuite) TestChunkRetryDeadline() {
 	scenarios := []struct {
 		name            string
 		flags           []string
@@ -219,33 +189,36 @@ func TestChunkRetryDeadline(t *testing.T) {
 	// This results in 40s of total elapsed time before the 5th attempt (which is the 4th retry) succeeds.
 	configPath := "../configs/write_stalls_four_times_60s.yaml"
 
+	for _, scenario := range scenarios {
+		s.Run(scenario.name, func() {
+			s.setupTest(configPath, scenario.flags)
+			defer s.tearDownTest()
+
+			testDir := scenario.name + setup.GenerateRandomString(3)
+			testDirPath = setup.SetupTestDirectory(testDir)
+			filePath := path.Join(testDirPath, "file.txt")
+
+			elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
+
+			if scenario.expectedSuccess {
+				assert.NoError(s.T(), err, "expected success for chunk-retry-deadline-secs")
+				assert.GreaterOrEqual(s.T(), elapsedTime, scenario.expectedStall)
+			} else {
+				assert.Error(s.T(), err, "expected failure due to chunk-retry-deadline-secs")
+			}
+		})
+	}
+}
+
+////////////////////////////////////////////////////////////////////////
+// Test Function (Runs once before all tests)
+////////////////////////////////////////////////////////////////////////
+
+func TestWriteStall(t *testing.T) {
 	for _, protocol := range protocols {
 		t.Run(protocol, func(t *testing.T) {
-			for _, scenario := range scenarios {
-				t.Run(scenario.name, func(t *testing.T) {
-					ts := &writeStallTestSuite{
-						protocol:   protocol,
-						configPath: configPath,
-						flags:      scenario.flags,
-					}
-					ts.SetT(t)
-					ts.SetupTest()
-					defer ts.TearDownTest()
-
-					testDir := scenario.name + setup.GenerateRandomString(3)
-					testDirPath = setup.SetupTestDirectory(testDir)
-					filePath := path.Join(testDirPath, "file.txt")
-
-					elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
-
-					if scenario.expectedSuccess {
-						assert.NoError(t, err, "expected success for chunk-retry-deadline-secs")
-						assert.GreaterOrEqual(t, elapsedTime, scenario.expectedStall)
-					} else {
-						assert.Error(t, err, "expected failure due to chunk-retry-deadline-secs")
-					}
-				})
-			}
+			log.Printf("Running write stall tests with protocol=%s", protocol)
+			suite.Run(t, &writeStallTestSuite{protocol: protocol})
 		})
 	}
 }
