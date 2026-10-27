@@ -1153,6 +1153,14 @@ params:
     usage: "This flag enables the radix tree based lru cache"
     default: false
 
+  - config-path: "metadata-cache.experimental-enable-pressure-eviction"
+    proto-tag: 163
+    flag-name: "experimental-enable-metadata-cache-pressure-eviction"
+    type: "bool"
+    usage: "Enables memory-pressure based eviction in metadata stat cache."
+    default: false
+    hide-flag: true
+
   - config-path: "metadata-cache.experimental-metadata-prefetch-on-mount"
     proto-tag: 115
     flag-name: "experimental-metadata-prefetch-on-mount"

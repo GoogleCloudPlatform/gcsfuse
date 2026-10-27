@@ -288,7 +288,7 @@ func TestNewSharedStatCache_MemoryPressureEviction(t *testing.T) {
 	const numEntries = 10
 	// Create a cache whose capacity holds all 10 positive entries comfortably.
 	maxSize := uint64(numEntries) * cfg.AverageSizeOfPositiveStatCacheEntry
-	shared := metadata.NewSharedStatCache(maxSize, r)
+	shared := metadata.NewSharedStatCache(maxSize, r, lru.WithMemoryPressureEviction())
 	sc := metadata.NewStatCacheBucketView(shared, "")
 	later := time.Now().Add(time.Hour)
 
