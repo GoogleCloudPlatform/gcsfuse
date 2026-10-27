@@ -289,12 +289,6 @@ params:
     type: "bool"
     usage: "Whether to cache file for range reads."
     default: false
-    optimizations:
-      profiles:
-        - name: "aiml-serving"
-          value: true
-        - name: "aiml-checkpointing"
-          value: true
 
   - config-path: "file-cache.download-chunk-size-mb"
     proto-tag: 27
@@ -390,6 +384,10 @@ params:
     type: "int"
     usage: "Maximum size of the file-cache in MiBs"
     default: "-1"
+    optimizations:
+      profiles:
+        - name: "aiml-serving"
+          value: 0
 
   - config-path: "file-cache.parallel-downloads-per-file"
     proto-tag: 39
@@ -1391,6 +1389,10 @@ params:
       data from GCS. This improves performance for large file sequential reads.
       Note: Enabling this flag can increase the memory usage significantly.
     default: false
+    optimizations:
+      profiles:
+        - name: "aiml-serving"
+          value: true
 
   - config-path: "read.enable-grpc-read-checksums"
     proto-tag: 138
@@ -1409,6 +1411,10 @@ params:
       The value should be >= 0 or -1 (for infinite blocks).
       A value of 0 disables buffered reads.
     default: 40
+    optimizations:
+      profiles:
+        - name: "aiml-serving"
+          value: 80
 
   - config-path: "read.inactive-stream-timeout"
     proto-tag: 140

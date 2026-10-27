@@ -43,6 +43,13 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: int64(StorageClassStandard.DefaultCongestionThreshold()),
 		},
 	},
+}, "read.enable-buffered-read": {
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-serving",
+			Value: bool(true),
+		},
+	},
 }, "file-system.enable-kernel-reader": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
@@ -53,15 +60,11 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: bool(true),
 		},
 	},
-}, "file-cache.cache-file-for-range-read": {
+}, "file-cache.max-size-mb": {
 	Profiles: []shared.ProfileOptimization{
 		{
 			Name:  "aiml-serving",
-			Value: bool(true),
-		},
-		{
-			Name:  "aiml-checkpointing",
-			Value: bool(true),
+			Value: int64(0),
 		},
 	},
 }, "write.finalize-file-for-rapid": {
@@ -193,6 +196,13 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: int64(-1),
 		},
 	},
+}, "read.global-max-blocks": {
+	Profiles: []shared.ProfileOptimization{
+		{
+			Name:  "aiml-serving",
+			Value: int64(80),
+		},
+	},
 }, "file-system.rename-dir-limit": {
 	MachineBasedOptimization: []shared.MachineBasedOptimization{
 		{
@@ -296,6 +306,18 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 			}
 		}
 	}
+	if !v.IsSet("read.enable-buffered-read") {
+		rules := AllFlagOptimizationRules["read.enable-buffered-read"]
+		result := getOptimizedValue(&rules, c.Read.EnableBufferedRead, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(bool); ok {
+				if c.Read.EnableBufferedRead != val {
+					c.Read.EnableBufferedRead = val
+					optimizedFlags["read.enable-buffered-read"] = result
+				}
+			}
+		}
+	}
 	if !v.IsSet("file-system.enable-kernel-reader") {
 		rules := AllFlagOptimizationRules["file-system.enable-kernel-reader"]
 		result := getOptimizedValue(&rules, c.FileSystem.EnableKernelReader, profileName, machineType, input, machineTypeToGroupMap)
@@ -308,14 +330,14 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 			}
 		}
 	}
-	if !v.IsSet("file-cache.cache-file-for-range-read") {
-		rules := AllFlagOptimizationRules["file-cache.cache-file-for-range-read"]
-		result := getOptimizedValue(&rules, c.FileCache.CacheFileForRangeRead, profileName, machineType, input, machineTypeToGroupMap)
+	if !v.IsSet("file-cache.max-size-mb") {
+		rules := AllFlagOptimizationRules["file-cache.max-size-mb"]
+		result := getOptimizedValue(&rules, c.FileCache.MaxSizeMb, profileName, machineType, input, machineTypeToGroupMap)
 		if result.Optimized {
-			if val, ok := result.FinalValue.(bool); ok {
-				if c.FileCache.CacheFileForRangeRead != val {
-					c.FileCache.CacheFileForRangeRead = val
-					optimizedFlags["file-cache.cache-file-for-range-read"] = result
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.FileCache.MaxSizeMb != val {
+					c.FileCache.MaxSizeMb = val
+					optimizedFlags["file-cache.max-size-mb"] = result
 				}
 			}
 		}
@@ -412,6 +434,18 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 				if c.MetadataCache.TtlSecs != val {
 					c.MetadataCache.TtlSecs = val
 					optimizedFlags["metadata-cache.ttl-secs"] = result
+				}
+			}
+		}
+	}
+	if !v.IsSet("read.global-max-blocks") {
+		rules := AllFlagOptimizationRules["read.global-max-blocks"]
+		result := getOptimizedValue(&rules, c.Read.GlobalMaxBlocks, profileName, machineType, input, machineTypeToGroupMap)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.Read.GlobalMaxBlocks != val {
+					c.Read.GlobalMaxBlocks = val
+					optimizedFlags["read.global-max-blocks"] = result
 				}
 			}
 		}

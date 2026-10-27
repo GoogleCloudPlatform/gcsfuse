@@ -118,6 +118,77 @@ func TestApplyOptimizations(t *testing.T) {
 			})
 		}
 	})
+	// Tests for read.enable-buffered-read
+	t.Run("read.enable-buffered-read", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			userSetFlags    map[string]any
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name: "user_set",
+				config: Config{
+					Profile: "aiml-serving",
+				},
+				userSetFlags: map[string]any{
+					"read.enable-buffered-read": true,
+					"machine-type":              "a2-megagpu-16g",
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   true,
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   false,
+			},
+			{
+				name:            "profile_aiml-serving",
+				config:          Config{Profile: "aiml-serving"},
+				userSetFlags:    map[string]any{},
+				input:           nil,
+				expectOptimized: true,
+				expectedValue:   true,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.Read.EnableBufferedRead = tc.expectedValue.(bool)
+				} else {
+					c.Read.EnableBufferedRead = bool(false)
+				}
+
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "read.enable-buffered-read")
+				} else {
+					assert.NotContains(t, optimizedFlags, "read.enable-buffered-read")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.Read.EnableBufferedRead)
+			})
+		}
+	})
 	// Tests for file-system.enable-kernel-reader
 	t.Run("file-system.enable-kernel-reader", func(t *testing.T) {
 		testCases := []struct {
@@ -195,8 +266,8 @@ func TestApplyOptimizations(t *testing.T) {
 			})
 		}
 	})
-	// Tests for file-cache.cache-file-for-range-read
-	t.Run("file-cache.cache-file-for-range-read", func(t *testing.T) {
+	// Tests for file-cache.max-size-mb
+	t.Run("file-cache.max-size-mb", func(t *testing.T) {
 		testCases := []struct {
 			name            string
 			config          Config
@@ -211,12 +282,12 @@ func TestApplyOptimizations(t *testing.T) {
 					Profile: "aiml-serving",
 				},
 				userSetFlags: map[string]any{
-					"file-cache.cache-file-for-range-read": true,
-					"machine-type":                         "a2-megagpu-16g",
+					"file-cache.max-size-mb": 98765,
+					"machine-type":           "a2-megagpu-16g",
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   true,
+				expectedValue:   int64(98765),
 			},
 			{
 				name:   "no_optimization",
@@ -226,7 +297,7 @@ func TestApplyOptimizations(t *testing.T) {
 				},
 				input:           nil,
 				expectOptimized: false,
-				expectedValue:   false,
+				expectedValue:   -1,
 			},
 			{
 				name:            "profile_aiml-serving",
@@ -234,15 +305,7 @@ func TestApplyOptimizations(t *testing.T) {
 				userSetFlags:    map[string]any{},
 				input:           nil,
 				expectOptimized: true,
-				expectedValue:   true,
-			},
-			{
-				name:            "profile_aiml-checkpointing",
-				config:          Config{Profile: "aiml-checkpointing"},
-				userSetFlags:    map[string]any{},
-				input:           nil,
-				expectOptimized: true,
-				expectedValue:   true,
+				expectedValue:   0,
 			},
 		}
 
@@ -252,9 +315,9 @@ func TestApplyOptimizations(t *testing.T) {
 				c := tc.config
 				// Set the default or non-default value on the config object.
 				if tc.name == "user_set" {
-					c.FileCache.CacheFileForRangeRead = tc.expectedValue.(bool)
+					c.FileCache.MaxSizeMb = tc.expectedValue.(int64)
 				} else {
-					c.FileCache.CacheFileForRangeRead = bool(false)
+					c.FileCache.MaxSizeMb = int64(-1)
 				}
 
 				v := viper.New()
@@ -265,12 +328,12 @@ func TestApplyOptimizations(t *testing.T) {
 				optimizedFlags := c.ApplyOptimizations(v, tc.input)
 
 				if tc.expectOptimized {
-					assert.Contains(t, optimizedFlags, "file-cache.cache-file-for-range-read")
+					assert.Contains(t, optimizedFlags, "file-cache.max-size-mb")
 				} else {
-					assert.NotContains(t, optimizedFlags, "file-cache.cache-file-for-range-read")
+					assert.NotContains(t, optimizedFlags, "file-cache.max-size-mb")
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
-				assert.EqualValues(t, tc.expectedValue, c.FileCache.CacheFileForRangeRead)
+				assert.EqualValues(t, tc.expectedValue, c.FileCache.MaxSizeMb)
 			})
 		}
 	})
@@ -1030,6 +1093,77 @@ func TestApplyOptimizations(t *testing.T) {
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.MetadataCache.TtlSecs)
+			})
+		}
+	})
+	// Tests for read.global-max-blocks
+	t.Run("read.global-max-blocks", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			userSetFlags    map[string]any
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name: "user_set",
+				config: Config{
+					Profile: "aiml-serving",
+				},
+				userSetFlags: map[string]any{
+					"read.global-max-blocks": 98765,
+					"machine-type":           "a2-megagpu-16g",
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   int64(98765),
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   40,
+			},
+			{
+				name:            "profile_aiml-serving",
+				config:          Config{Profile: "aiml-serving"},
+				userSetFlags:    map[string]any{},
+				input:           nil,
+				expectOptimized: true,
+				expectedValue:   80,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.Read.GlobalMaxBlocks = tc.expectedValue.(int64)
+				} else {
+					c.Read.GlobalMaxBlocks = int64(40)
+				}
+
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "read.global-max-blocks")
+				} else {
+					assert.NotContains(t, optimizedFlags, "read.global-max-blocks")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.Read.GlobalMaxBlocks)
 			})
 		}
 	})
