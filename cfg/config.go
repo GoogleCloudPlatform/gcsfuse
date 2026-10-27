@@ -60,13 +60,6 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: bool(true),
 		},
 	},
-}, "file-cache.max-size-mb": {
-	Profiles: []shared.ProfileOptimization{
-		{
-			Name:  "aiml-serving",
-			Value: int64(0),
-		},
-	},
 }, "write.finalize-file-for-rapid": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
@@ -326,18 +319,6 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 				if c.FileSystem.EnableKernelReader != val {
 					c.FileSystem.EnableKernelReader = val
 					optimizedFlags["file-system.enable-kernel-reader"] = result
-				}
-			}
-		}
-	}
-	if !v.IsSet("file-cache.max-size-mb") {
-		rules := AllFlagOptimizationRules["file-cache.max-size-mb"]
-		result := getOptimizedValue(&rules, c.FileCache.MaxSizeMb, profileName, machineType, input, machineTypeToGroupMap)
-		if result.Optimized {
-			if val, ok := result.FinalValue.(int64); ok {
-				if c.FileCache.MaxSizeMb != val {
-					c.FileCache.MaxSizeMb = val
-					optimizedFlags["file-cache.max-size-mb"] = result
 				}
 			}
 		}

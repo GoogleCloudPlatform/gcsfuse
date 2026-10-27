@@ -17,9 +17,10 @@ spec:
       mountPath: /checkpoint-data
   serviceAccountName: <YOUR_K8S_SA>
   volumes:
-  - name: gke-gcsfuse-cache # GCSFuse file cache backed in Memory (RAM Disk)
-    emptyDir:
-      medium: Memory
+  # In-memory (RAM Disk) for GCSFuse file cache if available. Uncomment to use.
+  #   - name: gke-gcsfuse-cache # GCSFuse file cache backed in Memory (RAM Disk)
+  #     emptyDir:
+  #       medium: Memory
   - name: checkpoint-bucket-vol
     persistentVolumeClaim:
       claimName: checkpoint-bucket-pvc
