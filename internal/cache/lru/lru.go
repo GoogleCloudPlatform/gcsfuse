@@ -53,6 +53,12 @@ type Cache struct {
 	// Notified of every value entering or leaving the cache, if not nil.
 	sizeObserver SizeObserver
 
+	// Whether go-lru two-tier memory-pressure reclamation is enabled.
+	enablePressureEviction bool
+
+	// Optional custom pressure probe function for memory-pressure reclamation.
+	pressureFunc func() float64
+
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
@@ -70,6 +76,11 @@ type Cache struct {
 	// whose weight update in golru is deferred until the next Insert/Erase.
 	hasDeferredOverflow bool
 	deferredGolruSize   map[string]uint64
+
+	// State flags used to coordinate pressure-eviction callbacks under c.mu.
+	inPut           bool
+	inInsert        bool
+	pressureEvicted []ValueType
 
 	// All public methods of this Cache uses this RW mutex based locker while
 	// accessing/updating Cache's data.
@@ -100,6 +111,25 @@ func WithSizeObserver(o SizeObserver) Option {
 	}
 }
 
+// WithMemoryPressureEviction enables go-lru's default two-tier memory-pressure
+// reclamation (Tier 1 lossless compaction at >= 0.75 pressure and Tier 2 LRU
+// shedding down to 50% capacity at >= 0.90 pressure, backed by GOMEMLIMIT).
+func WithMemoryPressureEviction() Option {
+	return func(c *Cache) {
+		c.enablePressureEviction = true
+	}
+}
+
+// WithPressureFunc enables memory-pressure reclamation using the supplied custom
+// pressure probe function returning normalized pressure in [0.0, 1.0+].
+// If fn is nil, go-lru's default runtime/metrics GOMEMLIMIT probe is used.
+func WithPressureFunc(fn func() float64) Option {
+	return func(c *Cache) {
+		c.enablePressureEviction = true
+		c.pressureFunc = fn
+	}
+}
+
 type entry struct {
 	value ValueType
 	size  uint64
@@ -114,6 +144,24 @@ func (c *Cache) weigh(key string, ent entry) uint64 {
 	return ent.size * c.scale
 }
 
+// onEvict handles entries evicted due to critical memory pressure outside of
+// c.cache.Put (which already returns all capacity and pressure evicted entries).
+//
+// LOCKS_REQUIRED(c.mu)
+func (c *Cache) onEvict(evKey string, evEnt entry, reason golru.EvictionReason) {
+	if reason != golru.EvictionReasonPressure || c.inPut {
+		return
+	}
+	if c.hasDeferredOverflow {
+		delete(c.deferredGolruSize, evKey)
+	}
+	c.currentSize -= evEnt.size
+	c.notifySizeChange(evEnt.value, -int64(evEnt.size))
+	if c.inInsert {
+		c.pressureEvicted = append(c.pressureEvicted, evEnt.value)
+	}
+}
+
 func (c *Cache) initGolruCache(enableInvariantsCheck bool) {
 	c.scale = 1
 	golruMaxSize := c.maxSize
@@ -124,13 +172,23 @@ func (c *Cache) initGolruCache(enableInvariantsCheck bool) {
 		golruMaxSize = c.maxSize * c.scale
 	}
 
-	c.cache = golru.NewMapCache[entry](
-		golruMaxSize,
+	golruOpts := []golru.Option{
 		golru.WithWeigher(c.weigh),
-		golru.WithCompactionThreshold(math.MaxFloat64),
-		golru.WithEvictionThreshold(math.MaxFloat64),
 		golru.WithInvariantChecking(enableInvariantsCheck && c.maxSize > 0),
-	)
+	}
+	if !c.enablePressureEviction {
+		golruOpts = append(golruOpts,
+			golru.WithCompactionThreshold(math.MaxFloat64),
+			golru.WithEvictionThreshold(math.MaxFloat64),
+		)
+	} else {
+		golruOpts = append(golruOpts, golru.WithOnEvictEntry(c.onEvict))
+		if c.pressureFunc != nil {
+			golruOpts = append(golruOpts, golru.WithPressureFunc(c.pressureFunc))
+		}
+	}
+
+	c.cache = golru.NewMapCache[entry](golruMaxSize, golruOpts...)
 }
 
 // NewCache returns the reference of cache object by initialising the cache with
@@ -246,7 +304,8 @@ func (c *Cache) Insert(
 		return nil, ErrInvalidEntrySize
 	}
 
-	if oldEnt, ok := c.cache.Peek(key); ok {
+	oldEnt, hasOld := c.cache.Peek(key)
+	if hasOld {
 		// Update an entry if already exist.
 		c.currentSize -= oldEnt.size
 		c.notifySizeChange(oldEnt.value, -int64(oldEnt.size))
@@ -258,38 +317,47 @@ func (c *Cache) Insert(
 	c.currentSize += valueSize
 	c.notifySizeChange(value, int64(valueSize))
 
-	evictedEntries, _ := c.cache.Put(key, entry{value: value, size: valueSize})
-
 	var evictedValues []ValueType
+	c.inInsert = true
+	if c.hasDeferredOverflow {
+		if hasOld {
+			_, _ = c.cache.Delete(key)
+		}
+		if c.currentSize > c.maxSize {
+			var keys []string
+			for k := range c.cache.Keys() {
+				keys = append(keys, k)
+			}
+			for i := len(keys) - 1; i >= 0 && c.currentSize > c.maxSize; i-- {
+				if ev, ok := c.cache.Delete(keys[i]); ok {
+					delete(c.deferredGolruSize, keys[i])
+					c.currentSize -= ev.size
+					c.notifySizeChange(ev.value, -int64(ev.size))
+					evictedValues = append(evictedValues, ev.value)
+				}
+			}
+		}
+		c.reconcileDeferred()
+		if len(c.pressureEvicted) > 0 {
+			evictedValues = append(evictedValues, c.pressureEvicted...)
+			c.pressureEvicted = nil
+		}
+	}
+
+	c.inPut = true
+	evictedEntries, _ := c.cache.Put(key, entry{value: value, size: valueSize})
+	c.inPut = false
+	c.inInsert = false
+
 	if len(evictedEntries) > 0 {
-		evictedValues = make([]ValueType, 0, len(evictedEntries))
+		if evictedValues == nil {
+			evictedValues = make([]ValueType, 0, len(evictedEntries))
+		}
 		for _, ev := range evictedEntries {
 			c.currentSize -= ev.size
 			c.notifySizeChange(ev.value, -int64(ev.size))
 			evictedValues = append(evictedValues, ev.value)
 		}
-	}
-
-	// Evict any remaining excess from deferred UpdateSize calls until we're at or below maxSize.
-	if c.currentSize > c.maxSize {
-		var keys []string
-		for k := range c.cache.Keys() {
-			keys = append(keys, k)
-		}
-		for i := len(keys) - 1; i >= 0 && c.currentSize > c.maxSize; i-- {
-			if ev, ok := c.cache.Delete(keys[i]); ok {
-				if c.hasDeferredOverflow {
-					delete(c.deferredGolruSize, keys[i])
-				}
-				c.currentSize -= ev.size
-				c.notifySizeChange(ev.value, -int64(ev.size))
-				evictedValues = append(evictedValues, ev.value)
-			}
-		}
-	}
-
-	if c.hasDeferredOverflow {
-		c.reconcileDeferred()
 	}
 
 	return evictedValues, nil
@@ -389,10 +457,13 @@ func (c *Cache) UpdateWithoutChangingOrder(
 		return ErrInvalidUpdateEntrySize
 	}
 
-	_ = c.cache.Replace(key, entry{value: value, size: ent.size})
 	// The size stays the same, but the value it is accounted to changes.
 	c.notifySizeChange(ent.value, -int64(ent.size))
 	c.notifySizeChange(value, int64(ent.size))
+	_ = c.cache.Replace(key, entry{value: value, size: ent.size})
+	if c.hasDeferredOverflow && c.currentSize <= c.maxSize {
+		c.reconcileDeferred()
+	}
 
 	return nil
 }
@@ -418,6 +489,7 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 	// Note: This may temporarily violate currentSize <= maxSize invariant
 	// Eviction will happen on the next Insert() call
 	c.currentSize += sizeDelta
+	c.notifySizeChange(ent.value, int64(sizeDelta))
 
 	if !c.hasDeferredOverflow && sizeDelta <= c.maxSize-prevTotalSize {
 		_ = c.cache.Replace(key, ent)
@@ -432,9 +504,10 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 			c.deferredGolruSize[key] = oldSize
 		}
 		_ = c.cache.Replace(key, ent)
+		if c.currentSize <= c.maxSize {
+			c.reconcileDeferred()
+		}
 	}
-
-	c.notifySizeChange(ent.value, int64(sizeDelta))
 
 	return nil
 }

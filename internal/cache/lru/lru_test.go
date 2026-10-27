@@ -532,3 +532,76 @@ func TestUpdateSize_DeferredOverflowEraseAndPrefixErase(t *testing.T) {
 	assert.Nil(t, cache.LookUp("p/2"))
 	assert.Equal(t, int64(3), cache.LookUp("other").(testData).Value)
 }
+
+func TestMemoryPressureEviction_OnInsertAndMutations(t *testing.T) {
+	pressure := 0.0
+	var observedTotal int64
+	cache := lru.NewCacheWithOptions(
+		100,
+		locker.Options{EnableInvariantsCheck: true},
+		lru.WithMemoryPressureEviction(),
+		lru.WithPressureFunc(func() float64 { return pressure }),
+		lru.WithSizeObserver(func(_ lru.ValueType, delta int64) { observedTotal += delta }),
+	)
+
+	// Insert 4 entries of size 20 each (total = 80 <= 100) at 0.0 pressure.
+	insertAndAssert(t, cache, "k1", testData{Value: 1, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "k2", testData{Value: 2, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "k3", testData{Value: 3, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "k4", testData{Value: 4, DataSize: 20}, []int64{}, nil)
+	assert.Equal(t, int64(80), observedTotal)
+
+	// Raise pressure to critical (0.95 >= 0.90). Inserting k5 (size 10) brings size to 90,
+	// then sheds LRU entries (k1, k2) down to 50% of maxSize (50): k3(20) + k4(20) + k5(10) = 50.
+	pressure = 0.95
+	insertAndAssert(t, cache, "k5", testData{Value: 5, DataSize: 10}, []int64{1, 2}, nil)
+	assert.Nil(t, cache.LookUpWithoutChangingOrder("k1"))
+	assert.Nil(t, cache.LookUpWithoutChangingOrder("k2"))
+	assert.NotNil(t, cache.LookUpWithoutChangingOrder("k3"))
+	assert.NotNil(t, cache.LookUpWithoutChangingOrder("k4"))
+	assert.NotNil(t, cache.LookUpWithoutChangingOrder("k5"))
+	assert.Equal(t, int64(50), observedTotal)
+
+	// Lower pressure to 0, fill back up to 90, then trigger pressure eviction via Erase.
+	pressure = 0.0
+	insertAndAssert(t, cache, "k6", testData{Value: 6, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "k7", testData{Value: 7, DataSize: 20}, []int64{}, nil)
+	assert.Equal(t, int64(90), observedTotal)
+
+	pressure = 0.95
+	erased := cache.Erase("k7")
+	require.NotNil(t, erased)
+	// After erasing k7 (size 20 -> 70), pressure shedding evicts LRU k3 (size 20 -> 50 <= 50).
+	assert.Nil(t, cache.LookUpWithoutChangingOrder("k3"))
+	assert.Equal(t, int64(50), observedTotal)
+
+	// Trigger pressure eviction via UpdateWithoutChangingOrder and UpdateSize.
+	pressure = 0.0
+	insertAndAssert(t, cache, "k8", testData{Value: 8, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "k9", testData{Value: 9, DataSize: 20}, []int64{}, nil)
+	assert.Equal(t, int64(90), observedTotal)
+
+	pressure = 0.95
+	require.NoError(t, cache.UpdateWithoutChangingOrder("k9", testData{Value: 90, DataSize: 20}))
+	assert.LessOrEqual(t, observedTotal, int64(50))
+
+	// Deferred overflow with pressure eviction on subsequent Insert (including overwrite).
+	pressure = 0.0
+	insertAndAssert(t, cache, "k10", testData{Value: 10, DataSize: 30}, []int64{}, nil)
+	require.NoError(t, cache.UpdateSize("k9", 60))
+	require.NoError(t, cache.UpdateSize("k10", 30))
+	pressure = 0.95
+	evicted, err := cache.Insert("k9", testData{Value: 91, DataSize: 10})
+	require.NoError(t, err)
+	assert.NotEmpty(t, evicted)
+	assert.LessOrEqual(t, observedTotal, int64(50))
+
+	// Deferred overflow where overwrite still exceeds maxSize.
+	pressure = 0.0
+	insertAndAssert(t, cache, "k11", testData{Value: 11, DataSize: 40}, []int64{}, nil)
+	require.NoError(t, cache.UpdateSize("k11", 60))
+	pressure = 0.95
+	_, err = cache.Insert("k9", testData{Value: 92, DataSize: 20})
+	require.NoError(t, err)
+	assert.LessOrEqual(t, observedTotal, int64(50))
+}
