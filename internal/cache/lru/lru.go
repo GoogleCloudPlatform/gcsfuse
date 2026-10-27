@@ -253,6 +253,11 @@ func (c *Cache) checkInvariants() {
 		panic(fmt.Sprintf("Invalid maxSize: %v", c.maxSize))
 	}
 
+	st := c.cache.Stats()
+	if c.sizeObserver == nil && !c.hasDeferredOverflow {
+		c.currentSize = st.CurrentSize / c.scale
+	}
+
 	// INVARIANT: currentSize <= maxSize (unless deferred overflow from UpdateSize is pending)
 	if !c.hasDeferredOverflow && c.currentSize > c.maxSize {
 		panic(fmt.Sprintf("CurrentSize %v over maxSize %v", c.currentSize, c.maxSize))
@@ -273,7 +278,6 @@ func (c *Cache) checkInvariants() {
 		panic(fmt.Sprintf("Size mismatch: sum of entry sizes %v vs currentSize %v", sumSize, c.currentSize))
 	}
 
-	st := c.cache.Stats()
 	if count != st.Len {
 		panic(fmt.Sprintf(
 			"Length mismatch: %v vs. %v",
@@ -302,6 +306,20 @@ func (c *Cache) Insert(
 	valueSize := value.Size()
 	if valueSize > c.maxSize {
 		return nil, ErrInvalidEntrySize
+	}
+
+	if c.sizeObserver == nil && !c.hasDeferredOverflow {
+		c.inPut = true
+		evictedEntries, _ := c.cache.Put(key, entry{value: value, size: valueSize})
+		c.inPut = false
+		if len(evictedEntries) == 0 {
+			return nil, nil
+		}
+		evictedValues := make([]ValueType, len(evictedEntries))
+		for i, ev := range evictedEntries {
+			evictedValues[i] = ev.value
+		}
+		return evictedValues, nil
 	}
 
 	oldEnt, hasOld := c.cache.Peek(key)
@@ -482,6 +500,9 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 	}
 
 	oldSize := ent.size
+	if c.sizeObserver == nil && !c.hasDeferredOverflow {
+		c.currentSize = c.cache.Stats().CurrentSize / c.scale
+	}
 	prevTotalSize := c.currentSize
 	ent.size += sizeDelta
 
