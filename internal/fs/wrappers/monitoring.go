@@ -357,7 +357,14 @@ func (fs *monitoring) ReadFile(ctx context.Context, op *fuseops.ReadFileOp) erro
 }
 
 func (fs *monitoring) WriteFile(ctx context.Context, op *fuseops.WriteFileOp) error {
-	return fs.invokeWrapped(ctx, metrics.FsOpWriteFileAttr, func(ctx context.Context) error { return fs.wrapped.WriteFile(ctx, op) })
+	err := fs.invokeWrapped(ctx, metrics.FsOpWriteFileAttr, func(ctx context.Context) error { return fs.wrapped.WriteFile(ctx, op) })
+	// FUSE requires that exactly len(op.Data) bytes be written except on error,
+	// so a successful write accounts for the whole buffer. A failed write is not
+	// counted, matching fs/read_bytes_count.
+	if err == nil && len(op.Data) > 0 {
+		fs.metricHandle.FsWriteBytesCount(int64(len(op.Data)))
+	}
+	return err
 }
 
 func (fs *monitoring) SyncFile(ctx context.Context, op *fuseops.SyncFileOp) error {
