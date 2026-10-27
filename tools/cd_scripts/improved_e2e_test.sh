@@ -69,7 +69,7 @@ while (( $# >= 1 )); do
             # Regex breakdown:
             # ^                                 : Start of string
             # [0-9]+\.[0-9]+\.[0-9]+            : Major.Minor.Patch digits
-            # (-frontier-[a-z0-9]+(\.[0-9]+)?)? : Optional Frontier version suffix (e.g., 3.8.4-frontier-a or 3.8.4-frontier-a.1)
+            # (-frontier-[a-z0-9]+(\.[0-9]+)?)? : Optional Frontier version suffix (e.g., 3.8.4-frontier-a.0, 3.8.4-frontier-a.1, or 3.8.4-frontier-a)
             # $                                 : End of string
             RE="^[0-9]+\.[0-9]+\.[0-9]+(-frontier-[a-z0-9]+(\.[0-9]+)?)?$"
             if [[ ! $RELEASE_VERSION =~ $RE ]]; then
