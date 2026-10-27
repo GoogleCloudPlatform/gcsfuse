@@ -101,19 +101,18 @@ type StatCache interface {
 // adds or subtracts its size, as accounted by the cache, to the series of its
 // entry_status. Recording runs under the cache's lock, is one atomic add and
 // allocates nothing. A nil metricHandle records nothing.
-func NewSharedStatCache(maxSize uint64, metricHandle metrics.MetricHandle) *lru.Cache {
+func NewSharedStatCache(maxSize uint64, metricHandle metrics.MetricHandle, opts ...lru.Option) *lru.Cache {
 	if metricHandle == nil {
-		return lru.NewCache(maxSize, lru.WithMemoryPressureEviction())
+		return lru.NewCache(maxSize, opts...)
 	}
-	return lru.NewCache(
-		maxSize,
-		lru.WithMemoryPressureEviction(),
-		lru.WithSizeObserver(func(v lru.ValueType, delta int64) {
-			if e, ok := v.(entry); ok {
-				metricHandle.MetadataCacheSize(delta, e.status())
-			}
-		}),
-	)
+	allOpts := make([]lru.Option, 0, len(opts)+1)
+	allOpts = append(allOpts, opts...)
+	allOpts = append(allOpts, lru.WithSizeObserver(func(v lru.ValueType, delta int64) {
+		if e, ok := v.(entry); ok {
+			metricHandle.MetadataCacheSize(delta, e.status())
+		}
+	}))
+	return lru.NewCache(maxSize, allOpts...)
 }
 
 // Create a new bucket-view to the passed shared-cache object.
