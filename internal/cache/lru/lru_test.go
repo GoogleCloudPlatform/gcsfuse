@@ -441,3 +441,94 @@ func TestUpdateSizeTOCTOU_ConcurrentUpdateAndErase(t *testing.T) {
 	// Assert: Invariant checks (sum(size) == currentSize and currentSize <= maxSize)
 	// run automatically on lock release via setupCacheTest.
 }
+
+func TestUpdateWithoutChangingOrder_NilValue(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+
+	err := cache.UpdateWithoutChangingOrder("burrito", nil)
+
+	assert.ErrorIs(t, err, lru.ErrInvalidEntry)
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
+}
+
+func TestZeroSizeEntriesExceedMaxSizeCount(t *testing.T) {
+	cache := lru.NewCacheWithOptions(5, locker.Options{EnableInvariantsCheck: true})
+	for i := range 20 {
+		insertAndAssert(t, cache, fmt.Sprintf("zero-%d", i), testData{Value: int64(i), DataSize: 0}, []int64{}, nil)
+	}
+	for i := range 20 {
+		v := cache.LookUpWithoutChangingOrder(fmt.Sprintf("zero-%d", i))
+		require.NotNil(t, v)
+		assert.Equal(t, int64(i), v.(testData).Value)
+	}
+}
+
+func TestZeroMaxSizeCache(t *testing.T) {
+	cache := lru.NewCache(0)
+	insertAndAssert(t, cache, "non-zero", testData{Value: 1, DataSize: 1}, []int64{}, lru.ErrInvalidEntrySize)
+	insertAndAssert(t, cache, "zero", testData{Value: 2, DataSize: 0}, []int64{}, nil)
+	assert.Equal(t, int64(2), cache.LookUp("zero").(testData).Value)
+}
+
+func TestLargeMaxSizeCache(t *testing.T) {
+	cache := lru.NewCacheWithOptions(uint64(1)<<30, locker.Options{EnableInvariantsCheck: true})
+	insertAndAssert(t, cache, "item", testData{Value: 42, DataSize: 1024}, []int64{}, nil)
+	assert.Equal(t, int64(42), cache.LookUp("item").(testData).Value)
+}
+
+func TestUpdateSize_DeferredOverflowAndEvictionOnInsert(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "k1", testData{Value: 1, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "k2", testData{Value: 2, DataSize: 20}, []int64{}, nil)
+
+	// Grow k1 twice so total size (20 + 20 + 15 + 10 = 65) exceeds MaxSize (50),
+	// and also grow k2 while deferred overflow is active (65 + 5 = 70).
+	require.NoError(t, cache.UpdateSize("k1", 15))
+	require.NoError(t, cache.UpdateSize("k1", 10))
+	require.NoError(t, cache.UpdateSize("k2", 5))
+
+	// Both entries remain present without changing LRU order (k1 is still LRU, k2 is MRU).
+	assert.Equal(t, int64(1), cache.LookUpWithoutChangingOrder("k1").(testData).Value)
+	assert.Equal(t, int64(2), cache.LookUpWithoutChangingOrder("k2").(testData).Value)
+
+	// Inserting k3 (size 10) brings total to 80 > 50: evicts k1 (size 45), leaving k2 (25) + k3 (10) = 35 <= 50,
+	// and reconciles k2's deferred size in the underlying cache.
+	insertAndAssert(t, cache, "k3", testData{Value: 3, DataSize: 10}, []int64{1}, nil)
+	assert.Nil(t, cache.LookUp("k1"))
+	assert.Equal(t, int64(2), cache.LookUp("k2").(testData).Value)
+	assert.Equal(t, int64(3), cache.LookUp("k3").(testData).Value)
+}
+
+func TestUpdateSize_DeferredOverflowOverwriteAndReconcile(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "k1", testData{Value: 1, DataSize: 30}, []int64{}, nil)
+	insertAndAssert(t, cache, "k2", testData{Value: 2, DataSize: 15}, []int64{}, nil)
+
+	// Grow k1 by 20 -> total 65 > 50.
+	require.NoError(t, cache.UpdateSize("k1", 20))
+	// UpdateWithoutChangingOrder on k1 with its updated size (50) while deferred overflow is active.
+	require.NoError(t, cache.UpdateWithoutChangingOrder("k1", testData{Value: 11, DataSize: 50}))
+
+	// Overwrite k1 with smaller size 10 -> total becomes 10 + 15 = 25 <= 50, reconciling deferred state without evictions.
+	insertAndAssert(t, cache, "k1", testData{Value: 12, DataSize: 10}, []int64{}, nil)
+	assert.Equal(t, int64(12), cache.LookUp("k1").(testData).Value)
+	assert.Equal(t, int64(2), cache.LookUp("k2").(testData).Value)
+}
+
+func TestUpdateSize_DeferredOverflowEraseAndPrefixErase(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "p/1", testData{Value: 1, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "p/2", testData{Value: 2, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "other", testData{Value: 3, DataSize: 5}, []int64{}, nil)
+
+	// Grow p/1 by 20 -> total 65 > 50.
+	require.NoError(t, cache.UpdateSize("p/1", 20))
+
+	// EraseEntriesWithGivenPrefix while deferred overflow is active removes p/1 and p/2,
+	// bringing currentSize to 5 <= 50 and reconciling deferred state.
+	cache.EraseEntriesWithGivenPrefix("p/")
+	assert.Nil(t, cache.LookUp("p/1"))
+	assert.Nil(t, cache.LookUp("p/2"))
+	assert.Equal(t, int64(3), cache.LookUp("other").(testData).Value)
+}

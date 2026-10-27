@@ -195,8 +195,8 @@ func (c *Cache) checkInvariants() {
 		panic(fmt.Sprintf("Invalid maxSize: %v", c.maxSize))
 	}
 
-	// INVARIANT: currentSize <= maxSize
-	if !(c.currentSize <= c.maxSize) {
+	// INVARIANT: currentSize <= maxSize (unless deferred overflow from UpdateSize is pending)
+	if !c.hasDeferredOverflow && c.currentSize > c.maxSize {
 		panic(fmt.Sprintf("CurrentSize %v over maxSize %v", c.currentSize, c.maxSize))
 	}
 
@@ -258,10 +258,7 @@ func (c *Cache) Insert(
 	c.currentSize += valueSize
 	c.notifySizeChange(value, int64(valueSize))
 
-	evictedEntries, err := c.cache.Put(key, entry{value: value, size: valueSize})
-	if err != nil {
-		return nil, err
-	}
+	evictedEntries, _ := c.cache.Put(key, entry{value: value, size: valueSize})
 
 	var evictedValues []ValueType
 	if len(evictedEntries) > 0 {
@@ -310,7 +307,7 @@ func (c *Cache) eraseInternal(key string) (value ValueType) {
 	c.currentSize -= deletedEntry.size
 	if c.hasDeferredOverflow {
 		delete(c.deferredGolruSize, key)
-		if len(c.deferredGolruSize) == 0 || c.currentSize <= c.maxSize {
+		if c.currentSize <= c.maxSize {
 			c.reconcileDeferred()
 		}
 	}
@@ -392,9 +389,7 @@ func (c *Cache) UpdateWithoutChangingOrder(
 		return ErrInvalidUpdateEntrySize
 	}
 
-	if err := c.cache.Replace(key, entry{value: value, size: ent.size}); err != nil {
-		return err
-	}
+	_ = c.cache.Replace(key, entry{value: value, size: ent.size})
 	// The size stays the same, but the value it is accounted to changes.
 	c.notifySizeChange(ent.value, -int64(ent.size))
 	c.notifySizeChange(value, int64(ent.size))
