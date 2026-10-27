@@ -43,14 +43,6 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: int64(StorageClassStandard.DefaultCongestionThreshold()),
 		},
 	},
-}, "gcs-connection.enable-grpc-by-default": {
-	MachineBasedOptimization: []shared.MachineBasedOptimization{
-		{
-			Group:   "high-performance",
-			Value:   bool(true),
-			GkeOnly: true,
-		},
-	},
 }, "file-system.enable-kernel-reader": {
 	BucketTypeOptimization: []shared.BucketTypeOptimization{
 		{
@@ -300,18 +292,6 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 				if c.FileSystem.CongestionThreshold != val {
 					c.FileSystem.CongestionThreshold = val
 					optimizedFlags["file-system.congestion-threshold"] = result
-				}
-			}
-		}
-	}
-	if !v.IsSet("gcs-connection.enable-grpc-by-default") {
-		rules := AllFlagOptimizationRules["gcs-connection.enable-grpc-by-default"]
-		result := getOptimizedValue(&rules, c.GcsConnection.EnableGrpcByDefault, profileName, machineType, input, machineTypeToGroupMap)
-		if result.Optimized {
-			if val, ok := result.FinalValue.(bool); ok {
-				if c.GcsConnection.EnableGrpcByDefault != val {
-					c.GcsConnection.EnableGrpcByDefault = val
-					optimizedFlags["gcs-connection.enable-grpc-by-default"] = result
 				}
 			}
 		}
