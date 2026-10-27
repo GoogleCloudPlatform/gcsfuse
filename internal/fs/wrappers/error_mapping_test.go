@@ -105,7 +105,7 @@ func (testSuite *ErrorMapping) TestFileClobberedError() {
 
 func (testSuite *ErrorMapping) TestObjectTooLargeError() {
 	tooLargeErr := fmt.Errorf("write failed: %w", &gcs.ObjectTooLargeError{
-		Err: status.Error(codes.InvalidArgument, "too many segments"),
+		Err: status.Error(codes.InvalidArgument, "object too large"),
 	})
 
 	gotErrno := errno(tooLargeErr)
