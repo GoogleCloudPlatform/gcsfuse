@@ -150,7 +150,7 @@ func TestGetGCSError(t *testing.T) {
 }
 
 func TestGetParallelUploadError(t *testing.T) {
-	invalidArgumentErr := status.Error(codes.InvalidArgument, "too many segments")
+	invalidArgumentErr := status.Error(codes.InvalidArgument, "object too large")
 	wrappedInvalidArgumentErr := fmt.Errorf("write failed: %w", invalidArgumentErr)
 	notFoundErr := &NotFoundError{Err: status.Error(codes.NotFound, "object deleted")}
 	otherErr := errors.New("some error")
@@ -201,7 +201,7 @@ func TestGetParallelUploadError(t *testing.T) {
 }
 
 func TestObjectTooLargeError_UnwrapsCause(t *testing.T) {
-	cause := status.Error(codes.InvalidArgument, "too many segments")
+	cause := status.Error(codes.InvalidArgument, "object too large")
 	err := &ObjectTooLargeError{Err: cause}
 
 	unwrapped := errors.Unwrap(err)

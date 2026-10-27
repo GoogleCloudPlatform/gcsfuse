@@ -52,8 +52,7 @@ func errno(err error) error {
 		return syscall.ENOENT
 	}
 
-	// The upload would exceed the maximum object size, e.g. a parallel upload
-	// with more than the maximum number of segments.
+	// The object exceeds the maximum size supported by the upload strategy.
 	var objectTooLargeErr *gcs.ObjectTooLargeError
 	if errors.As(err, &objectTooLargeErr) {
 		return syscall.EFBIG
