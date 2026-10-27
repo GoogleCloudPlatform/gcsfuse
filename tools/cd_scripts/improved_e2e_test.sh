@@ -67,11 +67,11 @@ while (( $# >= 1 )); do
             RELEASE_VERSION="$2"
             shift 2
             # Regex breakdown:
-            # ^                                 : Start of string
-            # [0-9]+\.[0-9]+\.[0-9]+            : Major.Minor.Patch digits
-            # (-frontier-[a-z0-9]+(\.[0-9]+)?)? : Optional Frontier version suffix (e.g., 3.8.4-frontier-a.0, 3.8.4-frontier-a.1, or 3.8.4-frontier-a)
-            # $                                 : End of string
-            RE="^[0-9]+\.[0-9]+\.[0-9]+(-frontier-[a-z0-9]+(\.[0-9]+)?)?$"
+            # ^                              : Start of string
+            # [0-9]+\.[0-9]+\.[0-9]+         : Major.Minor.Patch digits
+            # (-frontier-[a-z0-9]+\.[0-9]+)? : Optional Frontier version suffix (e.g., 3.8.4-frontier-a.0, 3.8.4-frontier-a.1)
+            # $                              : End of string
+            RE="^[0-9]+\.[0-9]+\.[0-9]+(-frontier-[a-z0-9]+\.[0-9]+)?$"
             if [[ ! $RELEASE_VERSION =~ $RE ]]; then
                 log_error "--release-version value '$RELEASE_VERSION' is incorrectly formatted."
                 usage 1
@@ -193,14 +193,17 @@ ARGS+=("--run-package=!${EXCLUDED_PACKAGES}")
 ARGS+=("--flake-attempts=3")
 
 # Run the main e2e script
-bash ./tools/integration_tests/improved_run_e2e_tests.sh "${ARGS[@]}"
+E2E_EXIT_CODE=0
+bash ./tools/integration_tests/improved_run_e2e_tests.sh "${ARGS[@]}" || E2E_EXIT_CODE=$?
 
 if [[ "${VERIFY_FRONTIER_VERSION_POST_RUN}" == "true" ]]; then
-    VERSION_OUTPUT="$(gcsfuse --version 2>&1)"
+    VERSION_OUTPUT="$(gcsfuse --version 2>&1)" || true
     log_info "Verifying installed Frontier gcsfuse --version output: ${VERSION_OUTPUT}"
-    EXPECTED_VERSION_RE="^gcsfuse version ([0-9]+\.[0-9]+\.[0-9]+(-frontier-[a-z0-9]+(\.[0-9]+)?)?) \(Go version go.+\)$"
+    EXPECTED_VERSION_RE="^gcsfuse version ([0-9]+\.[0-9]+\.[0-9]+(-frontier-[a-z0-9]+\.[0-9]+)?) \(Go version go.+\)$"
     if [[ ! "${VERSION_OUTPUT}" =~ ${EXPECTED_VERSION_RE} ]] || [[ "${BASH_REMATCH[1]}" != "${RELEASE_VERSION}" ]]; then
         log_error "Unexpected 'gcsfuse --version' output '${VERSION_OUTPUT}' for release '${RELEASE_VERSION}'."
         exit 1
     fi
 fi
+
+exit "${E2E_EXIT_CODE}"
