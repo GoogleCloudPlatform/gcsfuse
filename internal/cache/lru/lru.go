@@ -188,7 +188,7 @@ func (c *Cache) initGolruCache(enableInvariantsCheck bool) {
 		}
 	}
 
-	c.cache = golru.NewMapCache[entry](golruMaxSize, golruOpts...)
+	c.cache = golru.NewRadixCache[entry](golruMaxSize, golruOpts...)
 }
 
 // NewCache returns the reference of cache object by initialising the cache with

@@ -792,3 +792,42 @@ func (t *StatCacheTest) Test_LookUpFolderDetail_ExpiredEntry() {
 	assert.Equal(t.T(), metrics.EntryStatusPositiveAttr, entryStatus)
 	assert.Equal(t.T(), metrics.LookupDetailTtlExpiredAttr, lookupDetail)
 }
+
+func (t *StatCacheTest) Test_InsertClearsCachedNameAndLookUpRestoresIt() {
+	shared := lru.NewCache(1 << 20)
+	sc := metadata.NewStatCacheBucketView(shared, "my_bucket")
+	const objName = "nested/path/to/object.txt"
+	orig := &gcs.MinObject{
+		Name:           objName,
+		Generation:     42,
+		MetaGeneration: 3,
+		Size:           1024,
+	}
+
+	sc.Insert(orig, expiration)
+
+	// Caller's MinObject.Name must remain untouched.
+	assert.Equal(t.T(), objName, orig.Name)
+
+	// The cached entry in sharedCache must have the same size irrespective of key length
+	// because MinObject.Name is cleared before storing.
+	shortName := "a"
+	sc.Insert(&gcs.MinObject{Name: shortName, Generation: 42, MetaGeneration: 3, Size: 1024}, expiration)
+	cachedLong := shared.LookUpWithoutChangingOrder("my_bucket/" + objName)
+	cachedShort := shared.LookUpWithoutChangingOrder("my_bucket/" + shortName)
+	assert.NotNil(t.T(), cachedLong)
+	assert.NotNil(t.T(), cachedShort)
+	assert.Equal(t.T(), cachedShort.Size(), cachedLong.Size())
+
+	// LookUp and LookUpDetail must restore Name on the returned MinObject.
+	hit, retrieved := sc.LookUp(objName, someTime)
+	assert.True(t.T(), hit)
+	assert.Equal(t.T(), orig, retrieved)
+
+	// Mutating retrieved.Name must not affect subsequent lookups.
+	retrieved.Name = "mutated"
+	hit2, retrieved2 := sc.LookUp(objName, someTime)
+	assert.True(t.T(), hit2)
+	assert.Equal(t.T(), objName, retrieved2.Name)
+}
+

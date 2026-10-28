@@ -80,8 +80,8 @@ func TestStatCacheMemoryWorkloads(t *testing.T) {
 		t.Logf("=== WORKLOAD: %s (%d files) ===", w, count)
 
 		// 1. StatCache
-		paths := generatePaths(w, count)
 		baseMem := getMemStats()
+		paths := generatePaths(w, count)
 
 		sharedCache := lru.NewCache(capacity)
 		statCache := metadata.NewStatCacheBucketView(sharedCache, "")
@@ -89,11 +89,11 @@ func TestStatCacheMemoryWorkloads(t *testing.T) {
 		for _, p := range paths {
 			statCache.Insert(&gcs.MinObject{Name: p}, expiration)
 		}
+		paths = nil
 
 		alloc := getMemStats()
 		pureMem := alloc - baseMem
 		runtime.KeepAlive(statCache)
-		runtime.KeepAlive(paths)
 
 		t.Logf("%-20s Heap Used: %10.2f MB\n", "StatCache", float64(pureMem)/(1024*1024))
 	}
