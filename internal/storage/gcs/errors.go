@@ -70,6 +70,9 @@ func GetParallelUploadError(err error) error {
 	if err == nil || errors.As(err, &objectTooLargeErr) {
 		return err
 	}
+	// TODO(b/578761925): InvalidArgument can be returned for other reasons as well.
+	// Narrow this check once the error returned for an object that is too large
+	// is known, e.g. by also checking that the message contains "too large".
 	if rpcErr, ok := status.FromError(err); ok && rpcErr.Code() == codes.InvalidArgument {
 		return &ObjectTooLargeError{Err: err}
 	}
