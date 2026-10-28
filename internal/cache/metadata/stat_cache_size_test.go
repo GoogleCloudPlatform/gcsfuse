@@ -16,7 +16,9 @@ package metadata_test
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -276,4 +278,45 @@ func TestNewSharedStatCache_NilMetricHandle(t *testing.T) {
 	hit, m := sc.LookUp("a", time.Now())
 	assert.True(t, hit)
 	assert.Equal(t, "a", m.Name)
+}
+
+func TestNewSharedStatCache_MemoryPressureEviction(t *testing.T) {
+	prevLimit := debug.SetMemoryLimit(math.MaxInt64)
+	defer debug.SetMemoryLimit(prevLimit)
+
+	r := newSizeRecorder()
+	const numEntries = 10
+	// Create a cache whose capacity holds all 10 positive entries comfortably.
+	maxSize := uint64(numEntries) * cfg.AverageSizeOfPositiveStatCacheEntry
+	shared := metadata.NewSharedStatCache(maxSize, r, lru.WithMemoryPressureEviction())
+	sc := metadata.NewStatCacheBucketView(shared, "")
+	later := time.Now().Add(time.Hour)
+
+	// The first write samples pressure at math.MaxInt64 (0.0 pressure).
+	var allKeys []string
+	for i := range numEntries {
+		name := fmt.Sprintf("obj-%02d", i)
+		allKeys = append(allKeys, name)
+		sc.Insert(&gcs.MinObject{Name: name, Generation: 1}, later)
+	}
+	r.requireSizes(t, shared, allKeys, nil)
+
+	// Set a 1-byte GOMEMLIMIT so the runtime pressure probe reports critical pressure (>= 0.90),
+	// and advance past the 256-write amortized sampling window so foreground writes re-sample pressure.
+	debug.SetMemoryLimit(1)
+	for i := range 256 {
+		name := fmt.Sprintf("obj-%02d", i%numEntries)
+		sc.Insert(&gcs.MinObject{Name: name, Generation: int64(2 + i)}, later)
+	}
+
+	var remaining []string
+	for _, k := range allKeys {
+		if shared.LookUpWithoutChangingOrder(k) != nil {
+			remaining = append(remaining, k)
+		}
+	}
+	// Critical pressure sheds LRU entries down to <= 50% of maxSize.
+	assert.Less(t, len(remaining), len(allKeys))
+	assert.LessOrEqual(t, r.positive, int64(maxSize/2))
+	r.requireSizes(t, shared, remaining, nil)
 }

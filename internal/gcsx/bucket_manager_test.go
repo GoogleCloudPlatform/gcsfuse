@@ -64,15 +64,16 @@ func setupTest(t *testing.T) (gcs.Bucket, storage.StorageHandle, *storage.MockSt
 func TestNewBucketManager(t *testing.T) {
 	_, storageHandle, _ := setupTest(t)
 	bucketConfig := BucketConfig{
-		BillingProject:                     "BillingProject",
-		OnlyDir:                            "OnlyDir",
-		EgressBandwidthLimitBytesPerSecond: 7,
-		OpRateLimitHz:                      11,
-		StatCacheMaxSizeMB:                 1,
-		StatCacheTTL:                       20 * time.Second,
-		EnableMonitoring:                   true,
-		AppendThreshold:                    2,
-		TmpObjectPrefix:                    "TmpObjectPrefix",
+		BillingProject:                      "BillingProject",
+		OnlyDir:                             "OnlyDir",
+		EgressBandwidthLimitBytesPerSecond:  7,
+		OpRateLimitHz:                       11,
+		StatCacheMaxSizeMB:                  1,
+		StatCacheTTL:                        20 * time.Second,
+		EnableMonitoring:                    true,
+		AppendThreshold:                     2,
+		TmpObjectPrefix:                     "TmpObjectPrefix",
+		EnableMetadataCachePressureEviction: true,
 	}
 
 	bm := NewBucketManager(bucketConfig, storageHandle, metrics.NewNoopMetrics())

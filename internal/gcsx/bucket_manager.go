@@ -79,6 +79,8 @@ type BucketConfig struct {
 	ImplicitDir bool
 
 	EnableEmptyManagedFolders bool
+
+	EnableMetadataCachePressureEviction bool
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -104,7 +106,11 @@ type bucketManager struct {
 func NewBucketManager(config BucketConfig, storageHandle storage.StorageHandle, metricHandle metrics.MetricHandle) BucketManager {
 	var c *lru.Cache
 	if config.StatCacheMaxSizeMB > 0 {
-		c = metadata.NewSharedStatCache(util.MiBsToBytes(config.StatCacheMaxSizeMB), metricHandle)
+		var opts []lru.Option
+		if config.EnableMetadataCachePressureEviction {
+			opts = append(opts, lru.WithMemoryPressureEviction())
+		}
+		c = metadata.NewSharedStatCache(util.MiBsToBytes(config.StatCacheMaxSizeMB), metricHandle, opts...)
 	}
 
 	bm := &bucketManager{

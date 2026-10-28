@@ -17,11 +17,13 @@ package lru_test
 import (
 	"fmt"
 	"math/rand"
+	"runtime/debug"
 	"sync"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -440,4 +442,203 @@ func TestUpdateSizeTOCTOU_ConcurrentUpdateAndErase(t *testing.T) {
 	wg.Wait()
 	// Assert: Invariant checks (sum(size) == currentSize and currentSize <= maxSize)
 	// run automatically on lock release via setupCacheTest.
+}
+
+func TestUpdateWithoutChangingOrder_NilValue(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "burrito", testData{Value: 23, DataSize: 4}, []int64{}, nil)
+
+	err := cache.UpdateWithoutChangingOrder("burrito", nil)
+
+	assert.ErrorIs(t, err, lru.ErrInvalidEntry)
+	assert.Equal(t, int64(23), cache.LookUp("burrito").(testData).Value)
+}
+
+func TestZeroSizeEntriesExceedMaxSizeCount(t *testing.T) {
+	cache := lru.NewCacheWithOptions(5, locker.Options{EnableInvariantsCheck: true})
+	for i := range 20 {
+		insertAndAssert(t, cache, fmt.Sprintf("zero-%d", i), testData{Value: int64(i), DataSize: 0}, []int64{}, nil)
+	}
+	for i := range 20 {
+		v := cache.LookUpWithoutChangingOrder(fmt.Sprintf("zero-%d", i))
+		require.NotNil(t, v)
+		assert.Equal(t, int64(i), v.(testData).Value)
+	}
+}
+
+func TestZeroMaxSizeCache(t *testing.T) {
+	cache := lru.NewCache(0)
+	insertAndAssert(t, cache, "non-zero", testData{Value: 1, DataSize: 1}, []int64{}, lru.ErrInvalidEntrySize)
+	insertAndAssert(t, cache, "zero", testData{Value: 2, DataSize: 0}, []int64{}, nil)
+	assert.Equal(t, int64(2), cache.LookUp("zero").(testData).Value)
+}
+
+func TestLargeMaxSizeCache(t *testing.T) {
+	cache := lru.NewCacheWithOptions(uint64(1)<<30, locker.Options{EnableInvariantsCheck: true})
+	insertAndAssert(t, cache, "item", testData{Value: 42, DataSize: 1024}, []int64{}, nil)
+	assert.Equal(t, int64(42), cache.LookUp("item").(testData).Value)
+}
+
+func TestUpdateSize_DeferredOverflowAndEvictionOnInsert(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "k1", testData{Value: 1, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "k2", testData{Value: 2, DataSize: 20}, []int64{}, nil)
+
+	// Grow k1 twice so total size (20 + 20 + 15 + 10 = 65) exceeds MaxSize (50),
+	// and also grow k2 while deferred overflow is active (65 + 5 = 70).
+	require.NoError(t, cache.UpdateSize("k1", 15))
+	require.NoError(t, cache.UpdateSize("k1", 10))
+	require.NoError(t, cache.UpdateSize("k2", 5))
+
+	// Both entries remain present without changing LRU order (k1 is still LRU, k2 is MRU).
+	assert.Equal(t, int64(1), cache.LookUpWithoutChangingOrder("k1").(testData).Value)
+	assert.Equal(t, int64(2), cache.LookUpWithoutChangingOrder("k2").(testData).Value)
+
+	// Inserting k3 (size 10) brings total to 80 > 50: evicts k1 (size 45), leaving k2 (25) + k3 (10) = 35 <= 50,
+	// and reconciles k2's deferred size in the underlying cache.
+	insertAndAssert(t, cache, "k3", testData{Value: 3, DataSize: 10}, []int64{1}, nil)
+	assert.Nil(t, cache.LookUp("k1"))
+	assert.Equal(t, int64(2), cache.LookUp("k2").(testData).Value)
+	assert.Equal(t, int64(3), cache.LookUp("k3").(testData).Value)
+}
+
+func TestUpdateSize_DeferredOverflowOverwriteAndReconcile(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "k1", testData{Value: 1, DataSize: 30}, []int64{}, nil)
+	insertAndAssert(t, cache, "k2", testData{Value: 2, DataSize: 15}, []int64{}, nil)
+
+	// Grow k1 by 20 -> total 65 > 50.
+	require.NoError(t, cache.UpdateSize("k1", 20))
+	// UpdateWithoutChangingOrder on k1 with its updated size (50) while deferred overflow is active.
+	require.NoError(t, cache.UpdateWithoutChangingOrder("k1", testData{Value: 11, DataSize: 50}))
+
+	// Overwrite k1 with smaller size 10 -> total becomes 10 + 15 = 25 <= 50, reconciling deferred state without evictions.
+	insertAndAssert(t, cache, "k1", testData{Value: 12, DataSize: 10}, []int64{}, nil)
+	assert.Equal(t, int64(12), cache.LookUp("k1").(testData).Value)
+	assert.Equal(t, int64(2), cache.LookUp("k2").(testData).Value)
+}
+
+func TestUpdateSize_DeferredOverflowEraseAndPrefixErase(t *testing.T) {
+	cache := setupCacheTest(t)
+	insertAndAssert(t, cache, "p/1", testData{Value: 1, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "p/2", testData{Value: 2, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "other", testData{Value: 3, DataSize: 5}, []int64{}, nil)
+
+	// Grow p/1 by 20 -> total 65 > 50.
+	require.NoError(t, cache.UpdateSize("p/1", 20))
+
+	// EraseEntriesWithGivenPrefix while deferred overflow is active removes p/1 and p/2,
+	// bringing currentSize to 5 <= 50 and reconciling deferred state.
+	cache.EraseEntriesWithGivenPrefix("p/")
+	assert.Nil(t, cache.LookUp("p/1"))
+	assert.Nil(t, cache.LookUp("p/2"))
+	assert.Equal(t, int64(3), cache.LookUp("other").(testData).Value)
+}
+
+func TestMemoryPressureEviction_OnInsertAndMutations(t *testing.T) {
+	pressure := 0.0
+	var observedTotal int64
+	cache := lru.NewCacheWithOptions(
+		100,
+		locker.Options{EnableInvariantsCheck: true},
+		lru.WithMemoryPressureEviction(),
+		lru.WithPressureFunc(func() float64 { return pressure }),
+		lru.WithSizeObserver(func(_ lru.ValueType, delta int64) { observedTotal += delta }),
+	)
+
+	// Insert 4 entries of size 20 each (total = 80 <= 100) at 0.0 pressure.
+	insertAndAssert(t, cache, "k1", testData{Value: 1, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "k2", testData{Value: 2, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "k3", testData{Value: 3, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "k4", testData{Value: 4, DataSize: 20}, []int64{}, nil)
+	assert.Equal(t, int64(80), observedTotal)
+
+	// Raise pressure to critical (0.95 >= 0.90). Inserting k5 (size 10) brings size to 90,
+	// then sheds LRU entries (k1, k2) down to 50% of maxSize (50): k3(20) + k4(20) + k5(10) = 50.
+	pressure = 0.95
+	insertAndAssert(t, cache, "k5", testData{Value: 5, DataSize: 10}, []int64{1, 2}, nil)
+	assert.Nil(t, cache.LookUpWithoutChangingOrder("k1"))
+	assert.Nil(t, cache.LookUpWithoutChangingOrder("k2"))
+	assert.NotNil(t, cache.LookUpWithoutChangingOrder("k3"))
+	assert.NotNil(t, cache.LookUpWithoutChangingOrder("k4"))
+	assert.NotNil(t, cache.LookUpWithoutChangingOrder("k5"))
+	assert.Equal(t, int64(50), observedTotal)
+
+	// Lower pressure to 0, fill back up to 90, then trigger pressure eviction via Erase.
+	pressure = 0.0
+	insertAndAssert(t, cache, "k6", testData{Value: 6, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "k7", testData{Value: 7, DataSize: 20}, []int64{}, nil)
+	assert.Equal(t, int64(90), observedTotal)
+
+	pressure = 0.95
+	erased := cache.Erase("k7")
+	require.NotNil(t, erased)
+	// After erasing k7 (size 20 -> 70), pressure shedding evicts LRU k3 (size 20 -> 50 <= 50).
+	assert.Nil(t, cache.LookUpWithoutChangingOrder("k3"))
+	assert.Equal(t, int64(50), observedTotal)
+
+	// Trigger pressure eviction via UpdateWithoutChangingOrder and UpdateSize.
+	pressure = 0.0
+	insertAndAssert(t, cache, "k8", testData{Value: 8, DataSize: 20}, []int64{}, nil)
+	insertAndAssert(t, cache, "k9", testData{Value: 9, DataSize: 20}, []int64{}, nil)
+	assert.Equal(t, int64(90), observedTotal)
+
+	pressure = 0.95
+	require.NoError(t, cache.UpdateWithoutChangingOrder("k9", testData{Value: 90, DataSize: 20}))
+	assert.LessOrEqual(t, observedTotal, int64(50))
+
+	// Deferred overflow with pressure eviction on subsequent Insert (including overwrite).
+	pressure = 0.0
+	insertAndAssert(t, cache, "k10", testData{Value: 10, DataSize: 30}, []int64{}, nil)
+	require.NoError(t, cache.UpdateSize("k9", 60))
+	require.NoError(t, cache.UpdateSize("k10", 30))
+	pressure = 0.95
+	evicted, err := cache.Insert("k9", testData{Value: 91, DataSize: 10})
+	require.NoError(t, err)
+	assert.NotEmpty(t, evicted)
+	assert.LessOrEqual(t, observedTotal, int64(50))
+
+	// Deferred overflow where overwrite still exceeds maxSize.
+	pressure = 0.0
+	insertAndAssert(t, cache, "k11", testData{Value: 11, DataSize: 40}, []int64{}, nil)
+	require.NoError(t, cache.UpdateSize("k11", 60))
+	pressure = 0.95
+	_, err = cache.Insert("k9", testData{Value: 92, DataSize: 20})
+	require.NoError(t, err)
+	assert.LessOrEqual(t, observedTotal, int64(50))
+}
+
+func TestMemoryPressureEviction_UnlimitedMaxSizeWithGOMEMLIMIT(t *testing.T) {
+	prevLimit := debug.SetMemoryLimit(1000)
+	defer debug.SetMemoryLimit(prevLimit)
+
+	var observedTotal int64
+	unlimitedMaxSize := util.MiBsToBytes(util.MaxMiBsInUint64)
+	cache := lru.NewCacheWithOptions(
+		unlimitedMaxSize,
+		locker.Options{EnableInvariantsCheck: true},
+		lru.WithMemoryPressureEviction(),
+		lru.WithSizeObserver(func(_ lru.ValueType, delta int64) { observedTotal += delta }),
+	)
+
+	// Because GOMEMLIMIT=1000 bytes is far below actual Go runtime memory (~several MiB),
+	// DefaultRuntimePressureFunc(0) reports critical pressure (> 0.70) on the first sample,
+	// shedding entries down to 15% of GOMEMLIMIT (150 bytes).
+	for i := range 10 {
+		_, err := cache.Insert(fmt.Sprintf("k%d", i), testData{Value: int64(i), DataSize: 100})
+		require.NoError(t, err)
+	}
+	assert.LessOrEqual(t, observedTotal, int64(150))
+
+	// Populate 100 entries while GOMEMLIMIT is high, then lower GOMEMLIMIT and verify LookUp sheds >= 64 entries.
+	debug.SetMemoryLimit(1 << 40)
+	for i := range 100 {
+		_, err := cache.Insert(fmt.Sprintf("k%d", i), testData{Value: int64(i), DataSize: 10})
+		require.NoError(t, err)
+	}
+	assert.Equal(t, int64(1000), observedTotal)
+
+	debug.SetMemoryLimit(1000)
+	_ = cache.LookUp("k99")
+	assert.LessOrEqual(t, observedTotal, int64(150))
 }
