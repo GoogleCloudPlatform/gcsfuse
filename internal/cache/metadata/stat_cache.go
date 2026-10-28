@@ -259,9 +259,12 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 		}
 	}
 
+	mCopy := *m
+	mCopy.Name = ""
+
 	// Insert an entry.
 	e := entry{
-		m:          m,
+		m:          &mCopy,
 		expiration: timeToUnixNano(expiration),
 	}
 
@@ -355,7 +358,12 @@ func (sc *statCacheBucketView) LookUpDetail(
 		if entry.implicitDir {
 			return true, &gcs.MinObject{Name: objectName}, entryStatus, detail
 		}
-		return hit, entry.m, entryStatus, detail
+		if entry.m != nil {
+			m := *entry.m
+			m.Name = objectName
+			return hit, &m, entryStatus, detail
+		}
+		return hit, nil, entryStatus, detail
 	}
 
 	return false, nil, entryStatus, detail
