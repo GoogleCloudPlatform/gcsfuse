@@ -24,6 +24,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unsafe"
 
 	"context"
 
@@ -190,10 +191,11 @@ func (t *FileTest) validateMrdInstanceMinObject() {
 	t.T().Helper()
 	// Validate only for rapid buckets
 	if t.in.bucket.BucketType().IsRapid() {
+		src := t.in.Source()
 		// Validate MinObject in inode and MRDInstance points to different copy of MinObject.
-		assert.NotSame(t.T(), &t.in.src, t.in.mrdInstance.GetMinObject())
+		assert.NotSame(t.T(), src, t.in.mrdInstance.GetMinObject())
 		// Validate MinObject in MRDInstance is equal to the MinObject in inode.
-		assert.Equal(t.T(), &t.in.src, t.in.mrdInstance.GetMinObject())
+		assert.Equal(t.T(), src, t.in.mrdInstance.GetMinObject())
 	}
 }
 
@@ -201,10 +203,11 @@ func (t *FileTest) validateMrdWrapperMinObject() {
 	t.T().Helper()
 	// Validate only for rapid buckets
 	if t.in.bucket.BucketType().IsRapid() {
+		src := t.in.Source()
 		// Validate MinObject in inode and MRDWrapper points to different copy of MinObject.
-		assert.NotSame(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
+		assert.NotSame(t.T(), src, t.in.MRDWrapper.GetMinObject())
 		// Validate MinObject in MRDWrapper is equal to the MinObject in inode.
-		assert.Equal(t.T(), &t.in.src, t.in.MRDWrapper.GetMinObject())
+		assert.Equal(t.T(), src, t.in.MRDWrapper.GetMinObject())
 	}
 }
 
@@ -2123,5 +2126,191 @@ func getWriteContext() *WriteContext {
 		GlobalMaxBlocksSem: semaphore.NewWeighted(math.MaxInt64),
 		TraceHandle:        tracing.NewNoopTracer(),
 		MetricHandle:       metrics.NewNoopMetrics(),
+	}
+}
+
+func (t *FileTest) TestSource_ReconstructsFieldsForFinalizedAndUnfinalizedAndLocal() {
+	// 1. Finalized object with ContentEncoding.
+	finalizedTime := time.Date(2025, time.June, 18, 23, 30, 0, 0, time.UTC)
+	updatedTime := time.Date(2025, time.June, 18, 23, 0, 0, 0, time.UTC)
+	crc := uint32(0x12345678)
+	m := &gcs.MinObject{
+		Name:            fileName,
+		Size:            4096,
+		Generation:      101,
+		MetaGeneration:  3,
+		Updated:         gcs.TimeToNS(updatedTime),
+		Finalized:       gcs.TimeToNS(finalizedTime),
+		ContentEncoding: gcs.ContentEncodingGzip,
+		Metadata:        map[string]string{"custom": "val"},
+		CRC32C:          &crc,
+	}
+	syncerBucket := gcsx.NewSyncerBucket(1, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, ".gcsfuse_tmp/", t.bucket)
+	in := NewFileInode(
+		fileInodeID,
+		NewFileName(NewRootName(""), fileName),
+		m,
+		&syncerBucket,
+		false,
+		contentcache.New("", &t.clock),
+		&t.clock,
+		false,
+		t.writeCtx.Config,
+		t.writeCtx.GlobalMaxBlocksSem,
+		nil,
+		t.writeCtx.TraceHandle,
+		t.writeCtx.MetricHandle,
+	)
+	in.Lock()
+	src := in.Source()
+	in.Unlock()
+
+	assert.Equal(t.T(), fileName, src.Name)
+	assert.Equal(t.T(), uint64(4096), src.Size)
+	assert.Equal(t.T(), int64(101), src.Generation)
+	assert.Equal(t.T(), int64(3), src.MetaGeneration)
+	assert.Equal(t.T(), gcs.TimeToNS(updatedTime), src.Updated)
+	assert.False(t.T(), src.IsUnfinalized())
+	assert.True(t.T(), src.HasContentEncodingGzip())
+	assert.Nil(t.T(), src.Metadata)
+	assert.Nil(t.T(), src.CRC32C)
+
+	// 2. Unfinalized object.
+	mUnfinalized := *m
+	mUnfinalized.Finalized = 0
+	inUnfinalized := NewFileInode(
+		fileInodeID,
+		NewFileName(NewRootName(""), fileName),
+		&mUnfinalized,
+		&syncerBucket,
+		false,
+		contentcache.New("", &t.clock),
+		&t.clock,
+		false,
+		t.writeCtx.Config,
+		t.writeCtx.GlobalMaxBlocksSem,
+		nil,
+		t.writeCtx.TraceHandle,
+		t.writeCtx.MetricHandle,
+	)
+	inUnfinalized.Lock()
+	srcUnfinalized := inUnfinalized.Source()
+	inUnfinalized.Unlock()
+	assert.True(t.T(), srcUnfinalized.IsUnfinalized())
+
+	// 3. Local unsynced file.
+	inLocal := NewFileInode(
+		fileInodeID,
+		NewFileName(NewRootName(""), fileName),
+		nil,
+		&syncerBucket,
+		false,
+		contentcache.New("", &t.clock),
+		&t.clock,
+		true,
+		t.writeCtx.Config,
+		t.writeCtx.GlobalMaxBlocksSem,
+		nil,
+		t.writeCtx.TraceHandle,
+		t.writeCtx.MetricHandle,
+	)
+	inLocal.Lock()
+	srcLocal := inLocal.Source()
+	inLocal.Unlock()
+	assert.Equal(t.T(), gcs.MinObject{}, *srcLocal)
+}
+
+func (t *FileTest) TestNewFileInode_InvariantPanics() {
+	syncerBucket := gcsx.NewSyncerBucket(1, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, ".gcsfuse_tmp/", t.bucket)
+
+	// 1. Directory name passed to NewFileInode panics.
+	assert.PanicsWithValue(t.T(), "Illegal file name: foo/bar/", func() {
+		NewFileInode(
+			fileInodeID,
+			NewDirName(NewRootName(""), "foo/bar/"),
+			t.backingObj,
+			&syncerBucket,
+			false,
+			contentcache.New("", &t.clock),
+			&t.clock,
+			false,
+			t.writeCtx.Config,
+			t.writeCtx.GlobalMaxBlocksSem,
+			nil,
+			t.writeCtx.TraceHandle,
+			t.writeCtx.MetricHandle,
+		)
+	})
+
+	// 2. Non-local file with mismatched object name panics.
+	mismatched := *t.backingObj
+	mismatched.Name = "wrong/name"
+	assert.PanicsWithValue(t.T(), `Name mismatch: "wrong/name" vs. "foo/bar"`, func() {
+		NewFileInode(
+			fileInodeID,
+			NewFileName(NewRootName(""), fileName),
+			&mismatched,
+			&syncerBucket,
+			false,
+			contentcache.New("", &t.clock),
+			&t.clock,
+			false,
+			t.writeCtx.Config,
+			t.writeCtx.GlobalMaxBlocksSem,
+			nil,
+			t.writeCtx.TraceHandle,
+			t.writeCtx.MetricHandle,
+		)
+	})
+}
+
+func TestFileInodeStructSizeAndAllocs(t *testing.T) {
+	if unsafe.Sizeof(uintptr(0)) == 8 {
+		assert.LessOrEqual(t, unsafe.Sizeof(FileInode{}), uintptr(224), "FileInode should fit within the 224-byte heap size class on 64-bit platforms")
+	}
+
+	var clock timeutil.SimulatedClock
+	bucket := fake.NewFakeBucket(&clock, "some_bucket", gcs.BucketType{Zonal: false})
+	syncerBucket := gcsx.NewSyncerBucket(1, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, ".gcsfuse_tmp/", bucket)
+	cc := contentcache.New("", &clock)
+	name := NewFileName(NewRootName("some_bucket"), fileName)
+	m := &gcs.MinObject{
+		Name:           fileName,
+		Size:           128,
+		Generation:     1,
+		MetaGeneration: 1,
+	}
+	config := &cfg.Config{}
+	sem := semaphore.NewWeighted(math.MaxInt64)
+	th := tracing.NewNoopTracer()
+	mh := metrics.NewNoopMetrics()
+
+	allocs := testing.AllocsPerRun(100, func() {
+		_ = NewFileInode(fileInodeID, name, m, &syncerBucket, false, cc, &clock, false, config, sem, nil, th, mh)
+	})
+	assert.Equal(t, float64(1), allocs, "NewFileInode on a non-rapid bucket with EnableKernelReader=false should perform exactly 1 heap allocation")
+}
+
+func BenchmarkNewFileInode(b *testing.B) {
+	var clock timeutil.SimulatedClock
+	bucket := fake.NewFakeBucket(&clock, "some_bucket", gcs.BucketType{Zonal: false})
+	syncerBucket := gcsx.NewSyncerBucket(1, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, ".gcsfuse_tmp/", bucket)
+	cc := contentcache.New("", &clock)
+	name := NewFileName(NewRootName("some_bucket"), fileName)
+	m := &gcs.MinObject{
+		Name:           fileName,
+		Size:           128,
+		Generation:     1,
+		MetaGeneration: 1,
+	}
+	config := &cfg.Config{}
+	sem := semaphore.NewWeighted(math.MaxInt64)
+	th := tracing.NewNoopTracer()
+	mh := metrics.NewNoopMetrics()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = NewFileInode(fileInodeID, name, m, &syncerBucket, false, cc, &clock, false, config, sem, nil, th, mh)
 	}
 }

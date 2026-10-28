@@ -21,6 +21,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -86,6 +87,21 @@ func parseMtime(m *gcs.MinObject) time.Time {
 	return mtime
 }
 
+// fileSourceMetadata holds the compact subset of GCS object metadata retained
+// by a FileInode. It omits the redundant object name (already stored in
+// FileInode.name), custom metadata map (only needed during initial mtime
+// parsing), and CRC32C pointer so they can be garbage-collected immediately.
+type fileSourceMetadata struct {
+	generation      int64
+	metaGeneration  int64
+	size            uint64
+	contentEncoding string
+}
+
+func (m fileSourceMetadata) hasContentEncodingGzip() bool {
+	return m.contentEncoding == gcs.ContentEncodingGzip
+}
+
 type FileInode struct {
 	/////////////////////////
 	// Dependencies
@@ -108,7 +124,7 @@ type FileInode struct {
 
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
-	mu syncutil.InvariantMutex
+	mu sync.Mutex
 
 	// GUARDED_BY(mu)
 	lc lookupCount
@@ -116,12 +132,10 @@ type FileInode struct {
 	// GUARDED_BY(mu)
 	mtime time.Time
 
-	// The source object from which this inode derives.
-	//
-	// INVARIANT: for non local files,  src.Name == name.GcsObjectName()
+	// The source object metadata from which this inode derives.
 	//
 	// GUARDED_BY(mu)
-	src gcs.MinObject
+	src fileSourceMetadata
 
 	// The current content of this inode, or nil if the source object is still
 	// authoritative.
@@ -153,16 +167,16 @@ type FileInode struct {
 	// one implementation with original functionality and one with new persistent disk content cache
 	localFileCache bool
 
-	// Has Destroy been called?
-	//
-	// GUARDED_BY(mu)
-	destroyed bool
-
 	// Represents a local file which is not yet synced to GCS.
 	local bool
 
 	// Represents if local file has been unlinked.
 	unlinked bool
+
+	// Represents whether the backing GCS object is unfinalized (zonal buckets).
+	//
+	// GUARDED_BY(mu)
+	isUnfinalized bool
 }
 
 var _ Inode = &FileInode{}
@@ -190,11 +204,6 @@ func NewFileInode(
 	traceHandle tracing.TraceHandle,
 	metricHandle metrics.MetricHandle) (f *FileInode) {
 	// Set up the basic struct.
-	var minObj gcs.MinObject
-	if m != nil {
-		minObj = *m
-	}
-
 	f = &FileInode{
 		bucket:         bucket,
 		mtimeClock:     mtimeClock,
@@ -203,24 +212,26 @@ func NewFileInode(
 		mtime:          parseMtime(m),
 		localFileCache: localFileCache,
 		contentCache:   contentCache,
-		src:            minObj,
 		local:          localFile,
 		unlinked:       false,
 	}
+	f.setSourceMetadata(m, localFile)
 
 	if f.bucket.BucketType().IsRapid() {
 		var err error
-		f.mrdInstance = gcsx.NewMrdInstance(&minObj, bucket, mrdCache, id, cfg)
-		f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, &minObj, cfg, mrdCache)
+		minObj := f.Source()
+		f.mrdInstance = gcsx.NewMrdInstance(minObj, bucket, mrdCache, id, cfg)
+		f.MRDWrapper, err = gcsx.NewMultiRangeDownloaderWrapper(bucket, minObj, cfg, mrdCache)
 		if err != nil {
 			logger.Errorf("NewFileInode: Error in creating MRDWrapper %v", err)
 		}
-	} else if cfg.FileSystem.EnableKernelReader {
-		f.kernelRangeReaderInstance = kernel_readers.NewKernelRangeReaderInstance(&minObj)
+	} else if cfg != nil && cfg.FileSystem.EnableKernelReader {
+		f.kernelRangeReaderInstance = kernel_readers.NewKernelRangeReaderInstance(f.Source())
 	}
 
-	f.lc.Init(id)
-	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
+	if syncutil.InvariantCheckingEnabled() {
+		f.checkInvariants()
+	}
 
 	return
 }
@@ -229,9 +240,69 @@ func NewFileInode(
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+func (f *FileInode) setSourceMetadata(m *gcs.MinObject, local bool) {
+	if m == nil {
+		f.src = fileSourceMetadata{}
+		f.isUnfinalized = true
+	} else {
+		f.src = fileSourceMetadata{
+			generation:      m.Generation,
+			metaGeneration:  m.MetaGeneration,
+			size:            m.Size,
+			contentEncoding: m.ContentEncoding,
+		}
+		f.isUnfinalized = m.IsUnfinalized()
+	}
+
+	if syncutil.InvariantCheckingEnabled() {
+		if !f.name.IsFile() {
+			panic("Illegal file name: " + f.name.String())
+		}
+		if !local {
+			var mName string
+			if m != nil {
+				mName = m.Name
+			}
+			if mName != f.name.GcsObjectName() {
+				panic(fmt.Sprintf(
+					"Name mismatch: %q vs. %q",
+					mName,
+					f.name.GcsObjectName(),
+				))
+			}
+		}
+	}
+}
+
+func (f *FileInode) srcName() string {
+	if f.local {
+		return ""
+	}
+	return f.name.GcsObjectName()
+}
+
+func (f *FileInode) srcMinObject() gcs.MinObject {
+	if f.local {
+		return gcs.MinObject{}
+	}
+	var finalized int64
+	if !f.isUnfinalized {
+		finalized = 1
+	}
+	return gcs.MinObject{
+		Name:            f.name.GcsObjectName(),
+		Size:            f.src.size,
+		Generation:      f.src.generation,
+		MetaGeneration:  f.src.metaGeneration,
+		Updated:         gcs.TimeToNS(f.mtime),
+		Finalized:       finalized,
+		ContentEncoding: f.src.contentEncoding,
+	}
+}
+
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) checkInvariants() {
-	if f.destroyed {
+	if f.lc.IsDestroyed() {
 		return
 	}
 
@@ -239,15 +310,6 @@ func (f *FileInode) checkInvariants() {
 	name := f.Name()
 	if !name.IsFile() {
 		panic("Illegal file name: " + name.String())
-	}
-
-	// INVARIANT: For non-local inodes, src.Name == name
-	if !f.IsLocal() && f.src.Name != name.GcsObjectName() {
-		panic(fmt.Sprintf(
-			"Name mismatch: %q vs. %q",
-			f.src.Name,
-			name.GcsObjectName(),
-		))
 	}
 
 	// INVARIANT: content.CheckInvariants() does not panic
@@ -354,9 +416,9 @@ func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 	rc, err := f.bucket.NewReaderWithReadHandle(
 		ctx,
 		&gcs.ReadObjectRequest{
-			Name:           f.src.Name,
-			Generation:     f.src.Generation,
-			ReadCompressed: f.src.HasContentEncodingGzip(),
+			Name:           f.srcName(),
+			Generation:     f.src.generation,
+			ReadCompressed: f.src.hasContentEncodingGzip(),
 		})
 	// If the object with requested generation doesn't exist in GCS, it indicates
 	// a file clobbering scenario. This likely occurred because the file was
@@ -365,7 +427,7 @@ func (f *FileInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 	if errors.As(err, &notFoundError) {
 		err = &gcsfuse_errors.FileClobberedError{
 			Err:        fmt.Errorf("NewReader: %w", err),
-			ObjectName: f.src.Name,
+			ObjectName: f.srcName(),
 		}
 	}
 	if err != nil {
@@ -383,7 +445,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		// Generation validation first occurs at inode creation/destruction
 		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
 		if cacheObject, exists := f.contentCache.Get(cacheObjectKey); exists {
-			if cacheObject.ValidateGeneration(f.src.Generation, f.src.MetaGeneration) {
+			if cacheObject.ValidateGeneration(f.src.generation, f.src.metaGeneration) {
 				f.content = cacheObject.CacheFile
 				return
 			}
@@ -396,7 +458,7 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 		}
 
 		// Insert object into content cache
-		tf, err := f.contentCache.AddOrReplace(cacheObjectKey, f.src.Generation, f.src.MetaGeneration, rc)
+		tf, err := f.contentCache.AddOrReplace(cacheObjectKey, f.src.generation, f.src.metaGeneration, rc)
 		if err != nil {
 			err = fmt.Errorf("AddOrReplace cache error: %w", err)
 			return err
@@ -434,9 +496,15 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 
 func (f *FileInode) Lock() {
 	f.mu.Lock()
+	if syncutil.InvariantCheckingEnabled() {
+		f.checkInvariants()
+	}
 }
 
 func (f *FileInode) Unlock() {
+	if syncutil.InvariantCheckingEnabled() {
+		f.checkInvariants()
+	}
 	f.mu.Unlock()
 }
 
@@ -476,8 +544,7 @@ func (f *FileInode) IsUsingBWH() bool {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Source() *gcs.MinObject {
-	// Make a copy, since we modify f.src.
-	o := f.src
+	o := f.srcMinObject()
 	return &o
 }
 
@@ -511,9 +578,9 @@ func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) SourceGeneration() (g Generation) {
-	g.Size = f.src.Size
-	g.Object = f.src.Generation
-	g.Metadata = f.src.MetaGeneration
+	g.Size = f.src.size
+	g.Object = f.src.generation
+	g.Metadata = f.src.metaGeneration
 	// If bwh is not nil, it's size takes precedence as that is being actively
 	// written to GCS.
 	// Since temporary file does not write to GCS on the go, it's size is not
@@ -527,12 +594,12 @@ func (f *FileInode) SourceGeneration() (g Generation) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) IncrementLookupCount() {
-	f.lc.Inc()
+	f.lc.Inc(f.id)
 }
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
-	destroy = f.lc.Dec(n)
+	destroy = f.lc.Dec(f.id, n)
 	return
 }
 
@@ -571,13 +638,13 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 // readers are aware of the new size. This prevents the downloader/readers from
 // operating on stale object information.
 func (f *FileInode) UpdateSize(size uint64) {
-	f.src.Size = size
+	f.src.size = size
 	f.updateReaders()
 }
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Destroy() (err error) {
-	f.destroyed = true
+	f.lc.Destroy()
 	if f.localFileCache {
 		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
 		f.contentCache.Remove(cacheObjectKey)
@@ -594,7 +661,7 @@ func (f *FileInode) Destroy() (err error) {
 func (f *FileInode) Attributes(
 	ctx context.Context, clobberedCheck bool) (size uint64, mtime time.Time, nlink uint32, err error) {
 	mtime = f.mtime
-	size = f.src.Size
+	size = f.src.size
 
 	// If we've got local content, its size and (maybe) mtime take precedence.
 	if f.content != nil {
@@ -758,7 +825,7 @@ func (f *FileInode) Write(
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset int64, writeCtx *WriteContext) (err error) {
 	bytes := int64(len(data))
-	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.WriteFileStaged, f.src.Name, &bytes, &err)
+	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.WriteFileStaged, f.srcName(), &bytes, &err)
 	defer finishSpan()
 	// Make sure f.content != nil.
 	err = f.ensureContent(ctx)
@@ -779,7 +846,7 @@ func (f *FileInode) writeUsingTempFile(ctx context.Context, data []byte, offset 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) writeUsingBufferedWrites(ctx context.Context, data []byte, offset int64, openMode util.OpenMode, writeCtx *WriteContext) (_ bool, err error) {
 	bytes := int64(len(data))
-	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.WriteFileStreaming, f.src.Name, &bytes, &err)
+	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.WriteFileStreaming, f.srcName(), &bytes, &err)
 	defer finishSpan()
 	err = f.bwh.Write(ctx, data, offset)
 	if clobberedErr := f.wrapFileClobberedError(err, "f.bwh.Write()"); clobberedErr != nil {
@@ -858,7 +925,7 @@ func (f *FileInode) wrapFileClobberedError(err error, op string) error {
 	if errors.As(err, &preconditionErr) || errors.As(err, &notFoundErr) {
 		return &gcsfuse_errors.FileClobberedError{
 			Err:        fmt.Errorf("%s: %w", op, err),
-			ObjectName: f.src.Name,
+			ObjectName: f.srcName(),
 		}
 	}
 	return nil
@@ -913,7 +980,7 @@ func (f *FileInode) SetMtime(
 	srcGen := f.SourceGeneration()
 
 	req := &gcs.UpdateObjectRequest{
-		Name:                       f.src.Name,
+		Name:                       f.srcName(),
 		Generation:                 srcGen.Object,
 		MetaGenerationPrecondition: &srcGen.Metadata,
 		Metadata: map[string]*string{
@@ -923,13 +990,9 @@ func (f *FileInode) SetMtime(
 
 	o, err := f.bucket.UpdateObject(ctx, req)
 	if err == nil {
-		var minObj gcs.MinObject
-		minObjPtr := storageutil.ConvertObjToMinObject(o)
-		if minObjPtr != nil {
-			minObj = *minObjPtr
-		}
-		f.src = minObj
-		f.mtime = parseMtime(&minObj)
+		minObj := storageutil.ConvertObjToMinObject(o)
+		f.setSourceMetadata(minObj, f.local)
+		f.mtime = parseMtime(minObj)
 		f.updateReaders()
 		return
 	}
@@ -976,7 +1039,7 @@ func (f *FileInode) fetchLatestGcsObject(ctx context.Context) (*gcs.Object, erro
 		}
 		return nil, &gcsfuse_errors.FileClobberedError{
 			Err:        err,
-			ObjectName: f.src.Name,
+			ObjectName: f.srcName(),
 		}
 	}
 	return latestGcsObj, nil
@@ -1037,7 +1100,7 @@ func (f *FileInode) getTempContentSizeForSpan(config *cfg.Config) int64 {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) syncUsingContent(ctx context.Context, writeCtx *WriteContext) (err error) {
 	bytes := f.getTempContentSizeForSpan(writeCtx.Config)
-	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.SyncFileStaged, f.src.Name, &bytes, &err)
+	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.SyncFileStaged, f.srcName(), &bytes, &err)
 	defer finishSpan()
 	var latestGcsObj *gcs.Object
 	if !f.local {
@@ -1113,14 +1176,14 @@ func (f *FileInode) updateInodeStateAfterFlush(minObj *gcs.MinObject) {
 
 func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 	if minObj != nil && !f.localFileCache {
-		f.src = *minObj
-		f.mtime = parseMtime(minObj)
-		// Update MRDWrapper
-		f.updateReaders()
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
 			f.local = false
 		}
+		f.setSourceMetadata(minObj, f.local)
+		f.mtime = parseMtime(minObj)
+		// Update MRDWrapper
+		f.updateReaders()
 		if f.content != nil {
 			f.content.Destroy()
 			f.content = nil
@@ -1131,15 +1194,15 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 // Updates the min object stored in MRDWrapper & MRDInstance corresponding to the inode.
 // Should be called when minObject associated with inode is updated.
 func (f *FileInode) updateReaders() {
-	minObj := f.Source()
 	if f.kernelRangeReaderInstance != nil {
-		f.kernelRangeReaderInstance.SetMinObject(minObj)
+		f.kernelRangeReaderInstance.SetMinObject(f.Source())
 	}
 
 	// This will be a noop for regional bucket.
 	if !f.bucket.BucketType().IsRapid() {
 		return
 	}
+	minObj := f.Source()
 	if err := f.mrdInstance.SetMinObject(minObj); err != nil {
 		logger.Errorf("FileInode::updateReaders Error in setting minObject for MrdInstance %v", err)
 	}
@@ -1251,7 +1314,8 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			// instead of reaching out to the server for latest metadata. This is done to avoid
 			// forceful overwrites of local and latest object metadata with possibly stale server
 			// response. Since appends happen at the same generation, StatObject() call is redundant.
-			latestGcsObj = storageutil.ConvertMinObjectToObject(&f.src)
+			minObj := f.srcMinObject()
+			latestGcsObj = storageutil.ConvertMinObjectToObject(&minObj)
 		} else {
 			// For regional buckets or overwrites for rapid buckets, call StatObject() to fetch extended
 			// attributes missing from the cached MinObject, which is required by the CreateObject request

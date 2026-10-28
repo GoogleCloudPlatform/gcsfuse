@@ -16,48 +16,53 @@ package inode
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/jacobsa/fuse/fuseops"
 )
 
-// A helper struct for implementing lookup counts. The only value added is some
+// A helper type for implementing lookup counts. The only value added is some
 // paranoid panics. External synchronization is required.
 //
-// May be embedded within a larger struct. Use Init to initialize.
-type lookupCount struct {
-	id        fuseops.InodeID
-	count     uint64
-	destroyed bool
-}
+// May be embedded within a larger struct. Zero value is a valid initialized
+// lookupCount with count 0; -1 represents a destroyed inode.
+type lookupCount int64
 
-func (lc *lookupCount) Init(id fuseops.InodeID) {
-	lc.id = id
-}
-
-func (lc *lookupCount) Inc() {
-	if lc.destroyed {
-		panic(fmt.Sprintf("Inode %v has already been destroyed", lc.id))
+func (lc *lookupCount) Inc(id fuseops.InodeID) {
+	if *lc < 0 {
+		panic(fmt.Sprintf("Inode %v has already been destroyed", id))
+	}
+	if *lc == math.MaxInt64 {
+		panic(fmt.Sprintf("Inode %v lookup count overflow", id))
 	}
 
-	lc.count++
+	(*lc)++
 }
 
-func (lc *lookupCount) Dec(n uint64) (destroy bool) {
-	if lc.destroyed {
-		panic(fmt.Sprintf("Inode %v has already been destroyed", lc.id))
+func (lc *lookupCount) Dec(id fuseops.InodeID, n uint64) (destroy bool) {
+	if *lc < 0 {
+		panic(fmt.Sprintf("Inode %v has already been destroyed", id))
 	}
 
 	// Make sure n is in range.
-	if n > lc.count {
+	if n > uint64(*lc) {
 		panic(fmt.Sprintf(
 			"n is greater than lookup count: %v vs. %v",
 			n,
-			lc.count))
+			*lc))
 	}
 
 	// Decrement.
-	lc.count -= n
+	*lc -= lookupCount(n)
 
-	destroy = lc.count == 0
+	destroy = *lc == 0
 	return
+}
+
+func (lc *lookupCount) Destroy() {
+	*lc = -1
+}
+
+func (lc *lookupCount) IsDestroyed() bool {
+	return *lc < 0
 }
