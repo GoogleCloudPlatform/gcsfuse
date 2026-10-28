@@ -2173,11 +2173,13 @@ func (t *FileTest) TestSource_ReconstructsFieldsForFinalizedAndUnfinalizedAndLoc
 	assert.False(t.T(), src.IsUnfinalized())
 	assert.True(t.T(), src.HasContentEncodingGzip())
 	assert.Nil(t.T(), src.Metadata)
-	assert.Nil(t.T(), src.CRC32C)
+	require.NotNil(t.T(), src.CRC32C)
+	assert.Equal(t.T(), crc, *src.CRC32C)
 
-	// 2. Unfinalized object.
+	// 2. Unfinalized object without CRC32C.
 	mUnfinalized := *m
 	mUnfinalized.Finalized = 0
+	mUnfinalized.CRC32C = nil
 	inUnfinalized := NewFileInode(
 		fileInodeID,
 		NewFileName(NewRootName(""), fileName),
@@ -2197,6 +2199,7 @@ func (t *FileTest) TestSource_ReconstructsFieldsForFinalizedAndUnfinalizedAndLoc
 	srcUnfinalized := inUnfinalized.Source()
 	inUnfinalized.Unlock()
 	assert.True(t.T(), srcUnfinalized.IsUnfinalized())
+	assert.Nil(t.T(), srcUnfinalized.CRC32C)
 
 	// 3. Local unsynced file.
 	inLocal := NewFileInode(
@@ -2274,11 +2277,13 @@ func TestFileInodeStructSizeAndAllocs(t *testing.T) {
 	syncerBucket := gcsx.NewSyncerBucket(1, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, ".gcsfuse_tmp/", bucket)
 	cc := contentcache.New("", &clock)
 	name := NewFileName(NewRootName("some_bucket"), fileName)
+	crc := uint32(0xdeadbeef)
 	m := &gcs.MinObject{
 		Name:           fileName,
 		Size:           128,
 		Generation:     1,
 		MetaGeneration: 1,
+		CRC32C:         &crc,
 	}
 	config := &cfg.Config{}
 	sem := semaphore.NewWeighted(math.MaxInt64)
@@ -2297,11 +2302,13 @@ func BenchmarkNewFileInode(b *testing.B) {
 	syncerBucket := gcsx.NewSyncerBucket(1, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, ".gcsfuse_tmp/", bucket)
 	cc := contentcache.New("", &clock)
 	name := NewFileName(NewRootName("some_bucket"), fileName)
+	crc := uint32(0xdeadbeef)
 	m := &gcs.MinObject{
 		Name:           fileName,
 		Size:           128,
 		Generation:     1,
 		MetaGeneration: 1,
+		CRC32C:         &crc,
 	}
 	config := &cfg.Config{}
 	sem := semaphore.NewWeighted(math.MaxInt64)

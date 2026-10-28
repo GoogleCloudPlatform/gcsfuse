@@ -89,8 +89,8 @@ func parseMtime(m *gcs.MinObject) time.Time {
 
 // fileSourceMetadata holds the compact subset of GCS object metadata retained
 // by a FileInode. It omits the redundant object name (already stored in
-// FileInode.name), custom metadata map (only needed during initial mtime
-// parsing), and CRC32C pointer so they can be garbage-collected immediately.
+// FileInode.name) and custom metadata map (only needed during initial mtime
+// parsing) so they can be garbage-collected immediately.
 type fileSourceMetadata struct {
 	generation      int64
 	metaGeneration  int64
@@ -163,6 +163,12 @@ type FileInode struct {
 	// writeHandleCount tracks the count of open fileHandles in write mode.
 	writeHandleCount int32
 
+	// CRC32C checksum of the backing GCS object (valid when hasCRC32C is true).
+	// Stored inline with hasCRC32C to avoid a separate *uint32 heap allocation.
+	//
+	// GUARDED_BY(mu)
+	crc32c uint32
+
 	// TODO (#640) remove bool flag and refactor contentCache to support two implementations:
 	// one implementation with original functionality and one with new persistent disk content cache
 	localFileCache bool
@@ -177,6 +183,11 @@ type FileInode struct {
 	//
 	// GUARDED_BY(mu)
 	isUnfinalized bool
+
+	// Represents whether crc32c holds a valid CRC32C checksum for the backing GCS object.
+	//
+	// GUARDED_BY(mu)
+	hasCRC32C bool
 }
 
 var _ Inode = &FileInode{}
@@ -243,6 +254,8 @@ func NewFileInode(
 func (f *FileInode) setSourceMetadata(m *gcs.MinObject, local bool) {
 	if m == nil {
 		f.src = fileSourceMetadata{}
+		f.crc32c = 0
+		f.hasCRC32C = false
 		f.isUnfinalized = true
 	} else {
 		f.src = fileSourceMetadata{
@@ -250,6 +263,13 @@ func (f *FileInode) setSourceMetadata(m *gcs.MinObject, local bool) {
 			metaGeneration:  m.MetaGeneration,
 			size:            m.Size,
 			contentEncoding: m.ContentEncoding,
+		}
+		if m.CRC32C != nil {
+			f.crc32c = *m.CRC32C
+			f.hasCRC32C = true
+		} else {
+			f.crc32c = 0
+			f.hasCRC32C = false
 		}
 		f.isUnfinalized = m.IsUnfinalized()
 	}
@@ -289,6 +309,11 @@ func (f *FileInode) srcMinObject() gcs.MinObject {
 	if !f.isUnfinalized {
 		finalized = 1
 	}
+	var crc32c *uint32
+	if f.hasCRC32C {
+		c := f.crc32c
+		crc32c = &c
+	}
 	return gcs.MinObject{
 		Name:            f.name.GcsObjectName(),
 		Size:            f.src.size,
@@ -297,6 +322,7 @@ func (f *FileInode) srcMinObject() gcs.MinObject {
 		Updated:         gcs.TimeToNS(f.mtime),
 		Finalized:       finalized,
 		ContentEncoding: f.src.contentEncoding,
+		CRC32C:          crc32c,
 	}
 }
 
@@ -1309,15 +1335,22 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 	var latestGcsObj *gcs.Object
 	var err error
 	if !f.local {
-		if f.bucket.BucketType().RapidWritesEnabled() && openMode.IsAppend() {
-			// In case of rapid appends, we will rely on kernel's latest view of the object
-			// instead of reaching out to the server for latest metadata. This is done to avoid
-			// forceful overwrites of local and latest object metadata with possibly stale server
-			// response. Since appends happen at the same generation, StatObject() call is redundant.
+		if f.bucket.BucketType().RapidWritesEnabled() && openMode.IsAppend() && (f.isUnfinalized || f.src.size > 0) {
+			// In case of rapid appends to an unfinalized object (or a non-empty finalized
+			// object where buffered writes are not supported anyway), we rely on the
+			// inode's latest view of the object instead of reaching out to the server
+			// for latest metadata. This avoids overwriting local object metadata with a
+			// possibly stale server response, and since appends to unfinalized objects
+			// happen at the same generation, a StatObject() call is redundant.
+			// For a finalized 0-byte object (!f.isUnfinalized && f.src.size == 0), we
+			// still call fetchLatestGcsObject(ctx) below because CreateObjectChunkWriter
+			// overwrites it with a new generation and needs the object's full metadata
+			// and extended attributes.
 			minObj := f.srcMinObject()
 			latestGcsObj = storageutil.ConvertMinObjectToObject(&minObj)
 		} else {
-			// For regional buckets or overwrites for rapid buckets, call StatObject() to fetch extended
+			// For regional buckets, overwrites for rapid buckets, or appends to a finalized
+			// 0-byte object in a rapid bucket, call StatObject() to fetch extended
 			// attributes missing from the cached MinObject, which is required by the CreateObject request
 			// to create the new object generation.
 			latestGcsObj, err = f.fetchLatestGcsObject(ctx)
