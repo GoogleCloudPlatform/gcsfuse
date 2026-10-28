@@ -830,4 +830,3 @@ func (t *StatCacheTest) Test_InsertClearsCachedNameAndLookUpRestoresIt() {
 	assert.True(t.T(), hit2)
 	assert.Equal(t.T(), objName, retrieved2.Name)
 }
-
