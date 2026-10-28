@@ -312,6 +312,13 @@ func (f *FileInode) clobbered(ctx context.Context, forceFetchFromGcs bool, inclu
 	cmp := oGen.Compare(f.SourceGeneration())
 	switch cmp {
 	case 0:
+		// TODO(b/520290147): Remove once stat results become consistent on zonal buckets.
+		// StatObject on an unfinalized object in a zonal bucket can return a stale
+		// size smaller than the size already synced for this generation. Preserve
+		// the authoritative synced size from f.src.Size.
+		if o.IsUnfinalized() && o.Size < f.src.Size {
+			o.Size = f.src.Size
+		}
 		// Generations and size match: Not clobbered. Return the fetched object.
 		return o, false, false, nil
 	case 2:
@@ -557,12 +564,23 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 
 	// All write fileHandles associated with bwh are closed. So safe to set bwh to nil.
 	if f.writeHandleCount == 0 && f.bwh != nil {
-		err := f.bwh.Destroy()
-		if err != nil {
-			logger.Warnf("Error while destroying the bufferedWritesHandler: %v", err)
-		}
-		f.bwh = nil
+		f.DestroyBufferedWriteHandler()
 	}
+}
+
+// DestroyBufferedWriteHandler destroys the buffered write handler if present
+// and resets f.bwh to nil.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) DestroyBufferedWriteHandler() {
+	if f.bwh == nil {
+		return
+	}
+	err := f.bwh.Destroy()
+	if err != nil {
+		logger.Warnf("Error while destroying the bufferedWritesHandler: %v", err)
+	}
+	f.bwh = nil
 }
 
 // LOCKS_REQUIRED(f.mu)
@@ -578,6 +596,7 @@ func (f *FileInode) UpdateSize(size uint64) {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Destroy() (err error) {
 	f.destroyed = true
+	f.DestroyBufferedWriteHandler()
 	if f.localFileCache {
 		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
 		f.contentCache.Remove(cacheObjectKey)

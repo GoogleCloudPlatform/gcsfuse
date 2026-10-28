@@ -203,6 +203,10 @@ func (wh *bufferedWriteHandlerImpl) appendBuffer(ctx context.Context, data []byt
 }
 
 func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject, err error) {
+	// Fail early if the uploadHandler has already failed.
+	if err = wh.uploadHandler.UploadError(); err != nil {
+		return nil, err
+	}
 	// Upload current block (for both regional and zonal buckets).
 	if wh.current != nil && wh.current.Size() != 0 {
 		err = wh.uploadHandler.Upload(ctx, wh.current)
@@ -213,6 +217,9 @@ func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject,
 	}
 	// Upload all the pending buffers.
 	wh.uploadHandler.AwaitBlocksUpload()
+	if err = wh.uploadHandler.UploadError(); err != nil {
+		return nil, err
+	}
 	// The FlushPendingWrites method synchronizes all bytes currently residing in
 	// the Writer's buffer to Cloud Storage, thereby making them available for
 	// other operations like read.

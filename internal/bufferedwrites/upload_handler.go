@@ -49,8 +49,9 @@ type UploadHandler struct {
 	// uploadError stores atomic pointer to the error seen by uploader.
 	uploadError atomic.Pointer[error]
 	// CancelFunc persisted to cancel the uploads in case of unlink operation.
-	cancelFunc    context.CancelFunc
-	startUploader sync.Once
+	cancelFunc        context.CancelFunc
+	startUploader     sync.Once
+	closeUploadChOnce sync.Once
 
 	// Parameters required for creating a new GCS chunk writer.
 	bucket               gcs.Bucket
@@ -99,7 +100,7 @@ func (uh *UploadHandler) Upload(ctx context.Context, block block.Block) error {
 	err := uh.ensureWriter(ctx)
 	if err != nil {
 		uh.wg.Done()
-		return fmt.Errorf("uh.ensureWriter() failed: %v", err)
+		return fmt.Errorf("uh.ensureWriter() failed: %w", err)
 	}
 	// Start the uploader goroutine but only once.
 	uh.startUploader.Do(func() {
@@ -198,13 +199,13 @@ func (uh *UploadHandler) Finalize(ctx context.Context) (obj *gcs.MinObject, err 
 	_, finishSpan := uh.traceHandle.TraceUpload(ctx, tracing.StreamingUploadFinalize, uh.objectName, &bytes, &err)
 	defer finishSpan()
 	uh.wg.Wait()
-	close(uh.uploadCh)
+	uh.closeUploadCh()
 
 	// Writer may not have been created for empty file creation flow or for very
 	// small writes of size less than 1 block.
 	err = uh.ensureWriter(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("uh.ensureWriter() failed: %v", err)
+		return nil, fmt.Errorf("uh.ensureWriter() failed: %w", err)
 	}
 
 	obj, err = uh.bucket.FinalizeUpload(ctx, uh.writer)
@@ -220,10 +221,18 @@ func (uh *UploadHandler) Finalize(ctx context.Context) (obj *gcs.MinObject, err 
 	return obj, nil
 }
 
+func (uh *UploadHandler) closeUploadCh() {
+	uh.closeUploadChOnce.Do(func() {
+		close(uh.uploadCh)
+	})
+}
+
 func (uh *UploadHandler) ensureWriter(ctx context.Context) error {
 	if uh.writer == nil {
 		if err := uh.createObjectWriter(ctx); err != nil {
-			return fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
+			err = fmt.Errorf("createObjectWriter failed for object %s: %w", uh.objectName, err)
+			uh.uploadError.Store(&err)
+			return err
 		}
 	}
 	return nil
@@ -240,7 +249,7 @@ func (uh *UploadHandler) FlushPendingWrites(ctx context.Context) (o *gcs.MinObje
 	// small writes of size less than 1 block.
 	err = uh.ensureWriter(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("uh.ensureWriter() failed: %v", err)
+		return nil, fmt.Errorf("uh.ensureWriter() failed: %w", err)
 	}
 
 	o, err = uh.bucket.FlushPendingWrites(ctx, uh.writer)
@@ -289,7 +298,7 @@ func (uh *UploadHandler) Destroy() {
 			uh.wg.Done()
 		default:
 			// Executed when there are no more blocks pending in uploadCh and it is not closed.
-			close(uh.uploadCh)
+			uh.closeUploadCh()
 			// Wait for the uploader goroutine to finish processing its current in-flight block.
 			uh.wg.Wait()
 			return
