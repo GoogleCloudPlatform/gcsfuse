@@ -1133,7 +1133,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("experimental-enable-parallel-upload", "", false, "Enables experimental parallel uploads for both streaming and staged writes on Rapid Cache Ultra buckets with rapid writes enabled.")
+	flagSet.BoolP("experimental-enable-parallel-upload", "", false, "Enables experimental parallel uploads to write to the RAPID storage class on RCU buckets.")
 
 	if err := flagSet.MarkHidden("experimental-enable-parallel-upload"); err != nil {
 		return err

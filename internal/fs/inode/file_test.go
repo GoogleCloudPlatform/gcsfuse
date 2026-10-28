@@ -1939,7 +1939,7 @@ func (t *FileTest) TestReadEmptyGCSFileWhenStreamingWritesAreNotInProgress() {
 	assert.Contains(t.T(), err.Error(), "EOF")
 }
 
-func (t *FileTest) TestInitBufferedWriteHandlerWithInvalidConfigWhenStreamingWritesAreEnabled() {
+func (t *FileTest) TestInitStreamingWriteHandlerWithInvalidConfigWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	t.writeCtx.Config = &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: true}}
