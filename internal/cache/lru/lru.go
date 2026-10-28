@@ -79,9 +79,10 @@ type Cache struct {
 	hasDeferredOverflow bool
 	deferredGolruSize   map[string]uint64
 
-	// State flags used to coordinate pressure-eviction callbacks under c.mu.
+	// State flags used to coordinate pressure-eviction and prefix-deletion callbacks under c.mu.
 	inPut                bool
 	inInsert             bool
+	inDeletePrefix       bool
 	pressureEvicted      []ValueType
 	lookupSeq            uint64
 	lastFreeOSMemoryNano int64
@@ -149,10 +150,16 @@ func (c *Cache) weigh(key string, ent entry) uint64 {
 }
 
 // onEvict handles entries evicted due to critical memory pressure outside of
-// c.cache.Put (which already returns all capacity and pressure evicted entries).
+// c.cache.Put (which already returns all capacity and pressure evicted entries)
+// as well as entries removed via c.cache.DeletePrefix.
 //
 // LOCKS_REQUIRED(c.mu)
 func (c *Cache) onEvict(evEnt entry, reason golru.EvictionReason) {
+	if c.inDeletePrefix && reason == golru.EvictionReasonDeleted {
+		c.currentSize -= evEnt.size
+		c.notifySizeChange(evEnt.value, -int64(evEnt.size))
+		return
+	}
 	if reason != golru.EvictionReasonPressure || c.inPut {
 		return
 	}
@@ -177,13 +184,15 @@ func (c *Cache) initGolruCache(enableInvariantsCheck bool) {
 		golru.WithWeigher(c.weigh),
 		golru.WithInvariantChecking(enableInvariantsCheck && c.maxSize > 0),
 	}
+	if c.enablePressureEviction || c.sizeObserver != nil {
+		golruOpts = append(golruOpts, golru.WithOnEvictValue(c.onEvict))
+	}
 	if !c.enablePressureEviction {
 		golruOpts = append(golruOpts,
 			golru.WithCompactionThreshold(math.MaxFloat64),
 			golru.WithEvictionThreshold(math.MaxFloat64),
 		)
 	} else {
-		golruOpts = append(golruOpts, golru.WithOnEvictValue(c.onEvict))
 		if c.pressureFunc != nil {
 			golruOpts = append(golruOpts, golru.WithPressureFunc(c.pressureFunc))
 		} else {
@@ -604,38 +613,26 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 }
 
 func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
-	if c.sizeObserver == nil {
-		c.mu.Lock()
-		defer c.mu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-		if !c.hasDeferredOverflow {
-			c.cache.DeletePrefix(prefix)
+	if !c.hasDeferredOverflow {
+		c.inDeletePrefix = true
+		c.cache.DeletePrefix(prefix)
+		c.inDeletePrefix = false
+		if c.sizeObserver == nil {
 			c.currentSize = c.cache.Stats().CurrentSize / c.scale
-			return
-		}
-
-		var keysToDelete []string
-		for key := range c.cache.Keys() {
-			if strings.HasPrefix(key, prefix) {
-				keysToDelete = append(keysToDelete, key)
-			}
-		}
-		for _, key := range keysToDelete {
-			c.eraseInternal(key)
 		}
 		return
 	}
 
-	c.mu.RLock()
 	var keysToDelete []string
 	for key := range c.cache.Keys() {
 		if strings.HasPrefix(key, prefix) {
 			keysToDelete = append(keysToDelete, key)
 		}
 	}
-	c.mu.RUnlock()
-
-	if len(keysToDelete) > 0 {
-		c.eraseKeys(keysToDelete)
+	for _, key := range keysToDelete {
+		c.eraseInternal(key)
 	}
 }
