@@ -17,11 +17,13 @@ package lru_test
 import (
 	"fmt"
 	"math/rand"
+	"runtime/debug"
 	"sync"
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -604,4 +606,39 @@ func TestMemoryPressureEviction_OnInsertAndMutations(t *testing.T) {
 	_, err = cache.Insert("k9", testData{Value: 92, DataSize: 20})
 	require.NoError(t, err)
 	assert.LessOrEqual(t, observedTotal, int64(50))
+}
+
+func TestMemoryPressureEviction_UnlimitedMaxSizeWithGOMEMLIMIT(t *testing.T) {
+	prevLimit := debug.SetMemoryLimit(1000)
+	defer debug.SetMemoryLimit(prevLimit)
+
+	var observedTotal int64
+	unlimitedMaxSize := util.MiBsToBytes(util.MaxMiBsInUint64)
+	cache := lru.NewCacheWithOptions(
+		unlimitedMaxSize,
+		locker.Options{EnableInvariantsCheck: true},
+		lru.WithMemoryPressureEviction(),
+		lru.WithSizeObserver(func(_ lru.ValueType, delta int64) { observedTotal += delta }),
+	)
+
+	// Because GOMEMLIMIT=1000 bytes is far below actual Go runtime memory (~several MiB),
+	// DefaultRuntimePressureFunc(0) reports critical pressure (> 0.70) on the first sample,
+	// shedding entries down to 15% of GOMEMLIMIT (150 bytes).
+	for i := range 10 {
+		_, err := cache.Insert(fmt.Sprintf("k%d", i), testData{Value: int64(i), DataSize: 100})
+		require.NoError(t, err)
+	}
+	assert.LessOrEqual(t, observedTotal, int64(150))
+
+	// Populate 100 entries while GOMEMLIMIT is high, then lower GOMEMLIMIT and verify LookUp sheds >= 64 entries.
+	debug.SetMemoryLimit(1 << 40)
+	for i := range 100 {
+		_, err := cache.Insert(fmt.Sprintf("k%d", i), testData{Value: int64(i), DataSize: 10})
+		require.NoError(t, err)
+	}
+	assert.Equal(t, int64(1000), observedTotal)
+
+	debug.SetMemoryLimit(1000)
+	_ = cache.LookUp("k99")
+	assert.LessOrEqual(t, observedTotal, int64(150))
 }
