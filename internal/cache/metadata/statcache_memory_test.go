@@ -81,15 +81,13 @@ func TestStatCacheMemoryWorkloads(t *testing.T) {
 
 		// 1. StatCache
 		baseMem := getMemStats()
-		paths := generatePaths(w, count)
 
 		sharedCache := lru.NewCache(capacity)
 		statCache := metadata.NewStatCacheBucketView(sharedCache, "")
 
-		for _, p := range paths {
+		for _, p := range generatePaths(w, count) {
 			statCache.Insert(&gcs.MinObject{Name: p}, expiration)
 		}
-		paths = nil
 
 		alloc := getMemStats()
 		pureMem := alloc - baseMem
