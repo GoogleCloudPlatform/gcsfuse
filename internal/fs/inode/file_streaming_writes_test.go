@@ -538,7 +538,7 @@ func (t *FileStreamingWritesTest) TestWriteToFileAndFlush() {
 			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 			assert.Equal(t.T(), uint64(len("tacos")), m.Size)
-			// Mtime metadata is not written for buffered writes.
+			// Mtime metadata is not written for streaming writes.
 			assert.Equal(t.T(), "", m.Metadata["gcsfuse_mtime"])
 			contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 			require.NoError(t.T(), err)
@@ -596,7 +596,7 @@ func (t *FileStreamingWritesTest) TestFlushEmptyFile() {
 			assert.Equal(t.T(), t.in.SourceGeneration().Object, m.Generation)
 			assert.Equal(t.T(), t.in.SourceGeneration().Metadata, m.MetaGeneration)
 			assert.Equal(t.T(), uint64(0), m.Size)
-			// Mtime metadata is not written for buffered writes.
+			// Mtime metadata is not written for streaming writes.
 			assert.Equal(t.T(), "", m.Metadata["gcsfuse_mtime"])
 			contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 			require.NoError(t.T(), err)

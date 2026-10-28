@@ -40,7 +40,7 @@ type WriteHandler interface {
 	// Flush finalizes the upload.
 	Flush(ctx context.Context) (*gcs.MinObject, error)
 
-	// SetMtime stores the mtime with the writeHandler.
+	// SetMtime stores the mtime with the write handler.
 	SetMtime(mtime time.Time)
 
 	// Truncate allows truncating the file to a larger size.

@@ -67,7 +67,7 @@ func (t *DualMountAppendsTestSuite) TestAppendSessionInvalidatedByAnotherClientU
 	// Read directly using storage client to validate the contents which has persisted in
 	// GCS after takeover from the secondary mount.
 	// Close the open append handle before issuing read on the file as Sync() triggered on
-	// ReadFile() due to BWH still being initialized, is expected to error out with stale NFS file handle.
+	// ReadFile() due to the streaming write handler still being initialized, is expected to error out with stale NFS file handle.
 	operations.CloseFileShouldThrowError(t.T(), appendFileHandle)
 	expectedContent := t.fileContent + appendContent
 	content, err := client.ReadObjectFromGCS(testEnv.ctx, testEnv.storageClient, path.Join(testDirName, t.fileName))

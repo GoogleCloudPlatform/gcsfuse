@@ -1836,7 +1836,7 @@ func (t *FileTest) TestCreateEmptyTempFileWhenStreamingWriteHandlerIsNotNil() {
 }
 
 func (t *FileTest) TestInitStreamingWriteHandlerIfEligibleShouldNotCreateForNonEmptySyncedFile() {
-	// Enabling buffered writes.
+	// Enabling streaming writes.
 	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 
 	initialized, err := t.in.InitStreamingWriteHandlerIfEligible(t.ctx, WriteMode, t.writeCtx)
