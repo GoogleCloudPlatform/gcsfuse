@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -131,6 +132,7 @@ func getOptimizedValue(
 	machineType string,
 	input *OptimizationInput,
 	machineTypeToGroupMap map[string]string,
+	c *Config,
 ) OptimizationResult {
 	// Precedence: Profile -> Machine-type -> Bucket-type -> Default
 	// Assuming Machine and Bucket optimizations are applied on mutually exclusive flags, so
@@ -166,10 +168,14 @@ func getOptimizedValue(
 	if input != nil && input.BucketType.IsValid() {
 		for _, bto := range rules.BucketTypeOptimization {
 			for _, bt := range bto.BucketTypes {
-				if BucketType(bt) == input.BucketType {
+				if BucketType(bt) == input.BucketType && matchesConditions(c, bto.Conditions) {
+					reason := fmt.Sprintf("bucket-type %q", input.BucketType)
+					if len(bto.Conditions) > 0 {
+						reason = fmt.Sprintf("bucket-type %q with matching conditions", input.BucketType)
+					}
 					return OptimizationResult{
 						FinalValue:         bto.Value,
-						OptimizationReason: fmt.Sprintf("bucket-type %q", input.BucketType),
+						OptimizationReason: reason,
 						Optimized:          true,
 					}
 				}
@@ -182,6 +188,71 @@ func getOptimizedValue(
 		FinalValue: currentValue,
 		Optimized:  false,
 	}
+}
+
+// matchesConditions checks if the current config satisfies all the given conditions.
+// If conditions is empty or nil, it returns true.
+func matchesConditions(c *Config, conditions map[string]any) bool {
+	if len(conditions) == 0 {
+		return true
+	}
+	if c == nil {
+		return false
+	}
+	for path, expectedVal := range conditions {
+		actualField, ok := getConfigFieldByPath(c, path)
+		if !ok || !valuesMatch(actualField.Interface(), expectedVal) {
+			return false
+		}
+	}
+	return true
+}
+
+// findFieldByYAMLTag returns the struct field matching the given YAML tag name.
+func findFieldByYAMLTag(structVal reflect.Value, tagName string) (reflect.Value, bool) {
+	if structVal.Kind() != reflect.Struct {
+		return reflect.Value{}, false
+	}
+	structType := structVal.Type()
+	for i := 0; i < structVal.NumField(); i++ {
+		tag := strings.Split(structType.Field(i).Tag.Get("yaml"), ",")[0]
+		if tag == tagName {
+			return structVal.Field(i), true
+		}
+	}
+	return reflect.Value{}, false
+}
+
+// getConfigFieldByPath traverses a struct by yaml tags corresponding to the dot-separated path.
+func getConfigFieldByPath(config any, path string) (reflect.Value, bool) {
+	if path == "" {
+		return reflect.Value{}, false
+	}
+	curr := reflect.Indirect(reflect.ValueOf(config))
+	if !curr.IsValid() {
+		return reflect.Value{}, false
+	}
+
+	for _, part := range strings.Split(path, ".") {
+		var ok bool
+		if curr, ok = findFieldByYAMLTag(curr, part); !ok {
+			return reflect.Value{}, false
+		}
+	}
+	return curr, true
+}
+
+// valuesMatch compares two values, allowing for type flexibility between custom string types, integers, and floats.
+func valuesMatch(actual, expected any) bool {
+	if actual == nil || expected == nil {
+		return actual == expected
+	}
+	actualType := reflect.TypeOf(actual)
+	expectedVal := reflect.ValueOf(expected)
+	if !expectedVal.CanConvert(actualType) {
+		return false
+	}
+	return reflect.DeepEqual(actual, expectedVal.Convert(actualType).Interface())
 }
 
 // CreateHierarchicalOptimizedFlags converts a flat map with dot-separated keys

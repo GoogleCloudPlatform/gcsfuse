@@ -620,6 +620,48 @@ params:
 `,
 			expectedErrorSubstring: "unsupported datatype: unknownTypeForGoAndProto",
 		},
+		{
+			name: "UnknownConditionConfigPath",
+			yamlContent: `
+params:
+  - config-path: "test-param"
+    proto-tag: 1
+    flag-name: "test-flag"
+    type: "bool"
+    default: false
+    usage: "Test flag"
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "rcu"
+          conditions:
+            unknown.config.path: "enabled"
+          value: true
+`,
+			expectedErrorSubstring: "unknown condition config-path \"unknown.config.path\"",
+		},
+		{
+			name: "DuplicateBucketTypeWithSameConditions",
+			yamlContent: `
+params:
+  - config-path: "test-param"
+    proto-tag: 1
+    flag-name: "test-flag"
+    type: "bool"
+    default: false
+    usage: "Test flag"
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "rcu"
+          conditions:
+            test-param: true
+          value: true
+        - bucket-type: "rcu"
+          conditions:
+            test-param: true
+          value: false
+`,
+			expectedErrorSubstring: "duplicate bucket-type \"rcu;test-param=true\"",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -629,6 +671,41 @@ params:
 			require.True(t, strings.Contains(err.Error(), tc.expectedErrorSubstring), "Expected error to contain %q, but got: %q", tc.expectedErrorSubstring, err.Error())
 		})
 	}
+}
+
+func TestParseParamsYAML_SameBucketTypeWithDifferentConditions(t *testing.T) {
+	yamlContent := `
+params:
+  - config-path: "write.block-size-mb"
+    proto-tag: 1
+    flag-name: "write-block-size-mb"
+    type: "float64"
+    default: 32
+    usage: "Block size in MB"
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "rcu"
+          conditions:
+            write.rapid-write: "enabled"
+          value: 4.0
+        - bucket-type: "rcu"
+          conditions:
+            write.rapid-write: "disabled"
+          value: 16.0
+  - config-path: "write.rapid-write"
+    proto-tag: 2
+    flag-name: "rapid-write"
+    type: "rapidWriteStrategy"
+    default: "disabled"
+    usage: "Rapid write strategy"
+`
+
+	parsed, err := parseParamsYAMLStr(yamlContent)
+
+	require.NoError(t, err)
+	require.Len(t, parsed.Params, 2)
+	require.NotNil(t, parsed.Params[0].Optimizations)
+	require.Len(t, parsed.Params[0].Optimizations.BucketTypeOptimization, 2)
 }
 
 func TestPopulateProtoMetadataExhaustive(t *testing.T) {

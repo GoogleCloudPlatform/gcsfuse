@@ -53,6 +53,13 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{
 					"{{ . }}",
 					{{- end }}
 				},
+				{{- if .Conditions }}
+				Conditions: map[string]any{
+					{{- range $k, $v := .Conditions }}
+					"{{ $k }}": {{ formatValue $v }},
+					{{- end }}
+				},
+				{{- end }}
 				Value:      {{$goType}}({{ formatValue .Value }}),
 			},
 			{{- end }}
@@ -103,7 +110,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 {{- if .Optimizations }}
 	if !v.IsSet("{{ .ConfigPath }}") {
 		rules := AllFlagOptimizationRules["{{ .ConfigPath }}"]
-		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.{{ .GoPath }}, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.({{ .GoType }}); ok {
 				if c.{{ .GoPath }} != val {
