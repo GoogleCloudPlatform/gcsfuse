@@ -358,8 +358,14 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_AllAttemptsTimeOut() {
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
 		// Simulate a call that always takes longer than the per-attempt deadline.
+		timer := time.NewTimer(stallDuration)
+		defer timer.Stop()
 		select {
-		case <-time.After(stallDuration):
+		case <-timer.C:
+			if dl, ok := ctx.Deadline(); ok && !time.Now().Before(dl) {
+				<-ctx.Done()
+				return "", ctx.Err()
+			}
 			// This case should not be hit, as the context deadline
 			// is shorter than stallDuration.
 			return "", errors.New("simulated apiCall finished before context timeout")
@@ -374,31 +380,37 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_AllAttemptsTimeOut() {
 	// Assert
 	assert.ErrorIs(t.T(), err, context.DeadlineExceeded, "Expected context.DeadlineExceeded because each attempt is designed to "+
 		"take longer than the per-attempt deadline.")
+	assert.Equal(t.T(), 3, callCount, "apiCall should have been called MaxAttempts times")
 }
 
 func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutShorterThanRetryDeadline() {
 	// Arrange
 	var callCount int
-	t.retryConfig.RetryDeadline = 100 * time.Millisecond
-	stallDuration := t.retryConfig.RetryDeadline + 100*time.Millisecond
-	// Set a parent context timeout that is shorter than the total retry budget.
-	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.RetryDeadline-50*time.Millisecond)
-	defer cancel()
+	t.retryConfig.RetryDeadline = 200 * time.Millisecond
+	stallDuration := t.retryConfig.RetryDeadline - 50*time.Millisecond
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
+		timer := time.NewTimer(stallDuration)
+		defer timer.Stop()
 		select {
-		case <-time.After(stallDuration):
+		case <-timer.C:
+			if dl, ok := ctx.Deadline(); ok && !time.Now().Before(dl) {
+				<-ctx.Done()
+				return "", ctx.Err()
+			}
+			return "", errors.New("simulated apiCall finished before context timeout")
 		case <-ctx.Done():
 			return "", ctx.Err()
 		}
-		// This will always fail with a retryable error.
-		return "", status.Error(codes.Unavailable, "server unavailable")
 	}
 
 	// Act
+	// Set a parent context timeout that is shorter than the per-attempt retry deadline.
 	// The parent context will be checked within ExecuteWithRetry before the first attempt,
 	// but the attempt will still proceed. The attempt's context will expire
 	// due to the parent's timeout.
+	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.RetryDeadline-100*time.Millisecond)
+	defer cancel()
 	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", "test-request-id", apiCall)
 
 	// Assert
@@ -411,21 +423,26 @@ func (t *ExecuteWithRetryTestSuite) TestExecuteWithRetry_ParentContextTimeoutBet
 	// Arrange
 	var callCount int
 	stallDuration := t.retryConfig.RetryDeadline + 100*time.Millisecond
-	// Set a parent context timeout that is longer than one attempt but shorter than the total budget.
-	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.RetryDeadline+50*time.Millisecond)
-	defer cancel()
 	apiCall := func(ctx context.Context) (string, error) {
 		callCount++
+		timer := time.NewTimer(stallDuration)
+		defer timer.Stop()
 		select {
-		case <-time.After(stallDuration):
+		case <-timer.C:
+			if dl, ok := ctx.Deadline(); ok && !time.Now().Before(dl) {
+				<-ctx.Done()
+				return "", ctx.Err()
+			}
+			return "", errors.New("simulated apiCall finished before context timeout")
 		case <-ctx.Done():
 			return "", ctx.Err()
 		}
-		// This will always fail with a retryable error.
-		return "", status.Error(codes.Unavailable, "server unavailable")
 	}
 
 	// Act
+	// Set a parent context timeout that is longer than one attempt but shorter than the total budget.
+	parentCtx, cancel := context.WithTimeout(context.Background(), t.retryConfig.RetryDeadline+50*time.Millisecond)
+	defer cancel()
 	result, err := ExecuteWithRetry(parentCtx, t.retryConfig, "testOp", "testReq", "test-request-id", apiCall)
 
 	// Assert
