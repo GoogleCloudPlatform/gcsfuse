@@ -114,12 +114,18 @@ WORKDIR ${GCSFUSE_PKG}
 # Build the package
 RUN dpkg-deb --build ${GCSFUSE_BIN}
 RUN mv ${GCSFUSE_BIN}.deb .
-RUN fpm \
+# rpmbuild rejects '-' in RPM Version headers, so sanitize '-' to '_' for -v
+# while preserving the expected output filename via -p.
+RUN RPM_VERSION="$(echo "${GCSFUSE_VERSION}" | tr '-' '_')" && \
+    if [ "${ARCHITECTURE}" = "arm64" ]; then RPM_ARCH="aarch64"; else RPM_ARCH="x86_64"; fi && \
+    fpm \
     -s dir \
     -t rpm \
     -n gcsfuse \
     -C ${GCSFUSE_BIN} \
-    -v ${GCSFUSE_VERSION} \
+    -v "${RPM_VERSION}" \
+    -a "${RPM_ARCH}" \
+    -p "gcsfuse-${GCSFUSE_VERSION}-1.${RPM_ARCH}.rpm" \
     -d fuse \
     --exclude DEBIAN \
     --rpm-digest sha256 \
