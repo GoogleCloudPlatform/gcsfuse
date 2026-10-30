@@ -15,7 +15,7 @@
 // Note: All the write operations take inode lock in fs.go, hence we don't need
 // any locks here as we will get calls to these methods serially.
 
-package bufferedwrites
+package streamingwrites
 
 import (
 	"context"

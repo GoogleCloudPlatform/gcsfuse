@@ -284,6 +284,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		expectedWriteMaxBlocksPerFile int64
 		expectedRapidWrite            cfg.RapidWriteStrategy
 		expectedFinalizeFileForRapid  bool
+		expectedEnableParallelUpload  bool
 	}{
 		{
 			name:                          "Test create-empty-file flag true works when streaming writes are explicitly disabled.",
@@ -471,6 +472,54 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedRapidWrite:            cfg.RapidWriteStrategyEnabled,
 			expectedFinalizeFileForRapid:  true,
 		},
+		{
+			name:                          "Test experimental-enable-parallel-upload flag true.",
+			args:                          []string{"gcsfuse", "--experimental-enable-parallel-upload", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  4,
+			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
+			expectedEnableParallelUpload:  true,
+		},
+		{
+			name:                          "Test experimental-enable-parallel-upload flag with rapid-write enabled.",
+			args:                          []string{"gcsfuse", "--rapid-write=enabled", "--experimental-enable-parallel-upload=true", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  4,
+			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyEnabled,
+			expectedEnableParallelUpload:  true,
+		},
+		{
+			name:                          "Test experimental-enable-parallel-upload flag false.",
+			args:                          []string{"gcsfuse", "--experimental-enable-parallel-upload=false", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  4,
+			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
+			expectedEnableParallelUpload:  false,
+		},
+		{
+			name:                          "Test experimental-enable-parallel-upload flag is accepted when streaming writes are disabled.",
+			args:                          []string{"gcsfuse", "--enable-streaming-writes=false", "--experimental-enable-parallel-upload=true", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: false,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  4,
+			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
+			expectedEnableParallelUpload:  true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -493,6 +542,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 				assert.Equal(t, tc.expectedEnableRapidAppends, wc.EnableRapidAppends)
 				assert.Equal(t, tc.expectedRapidWrite, wc.RapidWrite)
 				assert.Equal(t, tc.expectedFinalizeFileForRapid, wc.FinalizeFileForRapid)
+				assert.Equal(t, tc.expectedEnableParallelUpload, wc.ExperimentalEnableParallelUpload)
 			}
 		})
 	}

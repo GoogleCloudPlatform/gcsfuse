@@ -177,13 +177,13 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 	t.in.Lock()
 }
 
-func (t *FileTest) createBufferedWriteHandler(shouldInitialize bool, openMode util.OpenMode) {
-	// Initialize BWH for local inode created above.
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, openMode, t.writeCtx)
+func (t *FileTest) createStreamingWriteHandler(shouldInitialize bool, openMode util.OpenMode) {
+	// Initialize streaming write handler for local inode created above.
+	initialized, err := t.in.InitStreamingWriteHandlerIfEligible(t.ctx, openMode, t.writeCtx)
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), shouldInitialize, initialized)
 	if shouldInitialize {
-		assert.NotNil(t.T(), t.in.bwh)
+		assert.NotNil(t.T(), t.in.streamingWriteHandler)
 	}
 }
 
@@ -238,7 +238,7 @@ func (t *FileTest) TestName() {
 	assert.Equal(t.T(), fileName, t.in.Name().GcsObjectName())
 }
 
-func (t *FileTest) TestAreBufferedWritesSupported() {
+func (t *FileTest) TestAreStreamingWritesSupported() {
 	finalizedTime := time.Date(2025, time.June, 18, 23, 30, 0, 0, time.UTC)
 	unFinalizedTime := time.Time{}
 	nonNilContents := "taco"
@@ -323,7 +323,7 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 		t.createInode()
 		t.writeCtx.Config.Write.EnableRapidAppends = true
 
-		isSupported := t.in.areBufferedWritesSupported(tc.openMode, object, t.writeCtx)
+		isSupported := t.in.areStreamingWritesSupported(tc.openMode, object, t.writeCtx)
 
 		assert.Equal(t.T(), tc.supported, isSupported)
 	}
@@ -360,7 +360,7 @@ func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWrite() {
 	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
-func (t *FileTest) TestSyncPendingBufferedWritesReturnsNilAndNoOpForNonStreamingWrites() {
+func (t *FileTest) TestSyncPendingStreamingWritesReturnsNilAndNoOpForNonStreamingWrites() {
 	contents, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), t.initialContents, string(contents))
@@ -368,7 +368,7 @@ func (t *FileTest) TestSyncPendingBufferedWritesReturnsNilAndNoOpForNonStreaming
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
-	gcsSynced, err = t.in.SyncPendingBufferedWrites(context.Background())
+	gcsSynced, err = t.in.SyncPendingStreamingWrites(context.Background())
 
 	require.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
@@ -1063,8 +1063,8 @@ func (t *FileTest) TestAppendToUnfinalizedObjInZB() {
 	t.createInode()
 	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfigWithEnabledRapidAppends()}
 	assert.Nil(t.T(), t.in.content)
-	t.createBufferedWriteHandler(true, AppendMode)
-	assert.NotNil(t.T(), t.in.bwh)
+	t.createStreamingWriteHandler(true, AppendMode)
+	assert.NotNil(t.T(), t.in.streamingWriteHandler)
 
 	gcsSynced, err := t.in.Write(t.ctx, []byte("juice"), int64(len(t.initialContents)), AppendMode, t.writeCtx)
 	assert.Nil(t.T(), err)
@@ -1304,17 +1304,17 @@ func (t *FileTest) TestTruncateUpwardForLocalFileWhenStreamingWritesAreEnabled()
 			assert.Equal(t.T(), uint64(0), attrs.Size)
 
 			if tc.performWrite {
-				t.createBufferedWriteHandler(true, WriteMode)
+				t.createStreamingWriteHandler(true, WriteMode)
 				gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode, t.writeCtx)
 				assert.Nil(t.T(), err)
 				assert.False(t.T(), gcsSynced)
-				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
+				assert.Equal(t.T(), int64(2), t.in.streamingWriteHandler.WriteFileInfo().TotalSize)
 				// Fetch the attributes and check if the file size reflects the write.
 				attrs, err := t.getAttributes(true)
 				require.NoError(t.T(), err)
 				assert.Equal(t.T(), uint64(2), attrs.Size)
 			}
-			t.createBufferedWriteHandler(!tc.performWrite, WriteMode)
+			t.createStreamingWriteHandler(!tc.performWrite, WriteMode)
 
 			gcsSynced, err := t.in.Truncate(t.ctx, 10, t.writeCtx)
 
@@ -1358,17 +1358,17 @@ func (t *FileTest) TestTruncateUpwardForEmptyGCSFileWhenStreamingWritesAreEnable
 			assert.Equal(t.T(), uint64(0), attrs.Size)
 
 			if tc.performWrite {
-				t.createBufferedWriteHandler(true, WriteMode)
+				t.createStreamingWriteHandler(true, WriteMode)
 				gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode, t.writeCtx)
 				assert.Nil(t.T(), err)
 				assert.False(t.T(), gcsSynced)
-				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
+				assert.Equal(t.T(), int64(2), t.in.streamingWriteHandler.WriteFileInfo().TotalSize)
 				// Fetch the attributes and check if the file size reflects the write.
 				attrs, err := t.getAttributes(true)
 				require.NoError(t.T(), err)
 				assert.Equal(t.T(), uint64(2), attrs.Size)
 			}
-			t.createBufferedWriteHandler(!tc.performWrite, WriteMode)
+			t.createStreamingWriteHandler(!tc.performWrite, WriteMode)
 
 			gcsSynced, err := t.in.Truncate(t.ctx, 10, t.writeCtx)
 
@@ -1428,11 +1428,11 @@ func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
 			require.NoError(t.T(), err)
 			assert.Equal(t.T(), uint64(0), attrs.Size)
 
-			t.createBufferedWriteHandler(true, WriteMode)
+			t.createStreamingWriteHandler(true, WriteMode)
 			gcsSynced, err := t.in.Write(t.ctx, []byte("hihello"), 0, WriteMode, t.writeCtx)
 			assert.Nil(t.T(), err)
 			assert.False(t.T(), gcsSynced)
-			assert.Equal(t.T(), int64(7), t.in.bwh.WriteFileInfo().TotalSize)
+			assert.Equal(t.T(), int64(7), t.in.streamingWriteHandler.WriteFileInfo().TotalSize)
 			// Fetch the attributes and check if the file size reflects the write.
 			attrs, err = t.getAttributes(true)
 			require.NoError(t.T(), err)
@@ -1441,7 +1441,7 @@ func (t *FileTest) TestTruncateDownwardWhenStreamingWritesAreEnabled() {
 
 			require.NoError(t.T(), err)
 			assert.True(t.T(), gcsSynced)
-			t.createBufferedWriteHandler(false, WriteMode)
+			t.createStreamingWriteHandler(false, WriteMode)
 		})
 	}
 }
@@ -1740,7 +1740,7 @@ func (t *FileTest) TestSetMtimeForLocalFileWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
-	t.createBufferedWriteHandler(true, WriteMode)
+	t.createStreamingWriteHandler(true, WriteMode)
 
 	// Set mtime.
 	mtime := time.Now().UTC().Add(123 * time.Second)
@@ -1803,7 +1803,7 @@ func (t *FileTest) TestCreateEmptyTempFile() {
 	assert.Equal(t.T(), int64(0), sr.Size)
 }
 
-func (t *FileTest) TestCreateEmptyTempFileWhenBWHIsNotNil() {
+func (t *FileTest) TestCreateEmptyTempFileWhenStreamingWriteHandlerIsNotNil() {
 	testCases := []struct {
 		name    string
 		isLocal bool
@@ -1826,7 +1826,7 @@ func (t *FileTest) TestCreateEmptyTempFileWhenBWHIsNotNil() {
 				t.createInodeWithEmptyObject()
 			}
 			t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
-			t.createBufferedWriteHandler(true, WriteMode)
+			t.createStreamingWriteHandler(true, WriteMode)
 
 			err := t.in.CreateEmptyTempFile(t.ctx)
 
@@ -1836,14 +1836,14 @@ func (t *FileTest) TestCreateEmptyTempFileWhenBWHIsNotNil() {
 	}
 }
 
-func (t *FileTest) TestInitBufferedWriteHandlerIfEligibleShouldNotCreateBWHNonEmptySyncedFile() {
-	// Enabling buffered writes.
+func (t *FileTest) TestInitStreamingWriteHandlerIfEligibleShouldNotCreateForNonEmptySyncedFile() {
+	// Enabling streaming writes.
 	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, t.writeCtx)
+	initialized, err := t.in.InitStreamingWriteHandlerIfEligible(t.ctx, WriteMode, t.writeCtx)
 
 	assert.NoError(t.T(), err)
-	assert.Nil(t.T(), t.in.bwh)
+	assert.Nil(t.T(), t.in.streamingWriteHandler)
 	assert.False(t.T(), initialized)
 }
 
@@ -1895,7 +1895,7 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 				// Create a local file inode.
 				t.createInodeWithLocalParam("test", true)
 				t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
-				t.createBufferedWriteHandler(true, WriteMode)
+				t.createStreamingWriteHandler(true, WriteMode)
 			}
 
 			if tc.fileType == EmptyGCSFile {
@@ -1904,14 +1904,14 @@ func (t *FileTest) TestReadFileWhenStreamingWritesAreEnabled() {
 			}
 
 			if tc.performWrite {
-				t.createBufferedWriteHandler(tc.fileType != LocalFile, WriteMode)
+				t.createStreamingWriteHandler(tc.fileType != LocalFile, WriteMode)
 				gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode, t.writeCtx)
 				assert.Nil(t.T(), err)
 				assert.False(t.T(), gcsSynced)
-				assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
+				assert.Equal(t.T(), int64(2), t.in.streamingWriteHandler.WriteFileInfo().TotalSize)
 			}
 			data := make([]byte, len("hi"))
-			// Flush is required before reading an object for which BWH is open.
+			// Flush is required before reading an object for which streaming write handler is open.
 			assert.NoError(t.T(), t.in.Flush(context.Background(), t.writeCtx))
 
 			res, err := t.in.Read(t.ctx, &gcsx.ReadRequest{Buffer: data, Offset: 0})
@@ -1940,30 +1940,30 @@ func (t *FileTest) TestReadEmptyGCSFileWhenStreamingWritesAreNotInProgress() {
 	assert.Contains(t.T(), err.Error(), "EOF")
 }
 
-func (t *FileTest) TestInitBufferedWriteHandlerWithInvalidConfigWhenStreamingWritesAreEnabled() {
+func (t *FileTest) TestInitStreamingWriteHandlerWithInvalidConfigWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	t.writeCtx.Config = &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: true}}
 
-	initialized, err := t.in.InitBufferedWriteHandlerIfEligible(t.ctx, WriteMode, t.writeCtx)
+	initialized, err := t.in.InitStreamingWriteHandlerIfEligible(t.ctx, WriteMode, t.writeCtx)
 
 	assert.True(t.T(), strings.Contains(err.Error(), "invalid configuration"))
 	assert.False(t.T(), initialized)
-	assert.Nil(t.T(), t.in.bwh)
+	assert.Nil(t.T(), t.in.streamingWriteHandler)
 }
 
 func (t *FileTest) TestWriteToLocalFileWhenStreamingWritesAreEnabled() {
 	// Create a local file inode.
 	t.createInodeWithLocalParam("test", true)
 	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
-	t.createBufferedWriteHandler(true, WriteMode)
+	t.createStreamingWriteHandler(true, WriteMode)
 
 	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode, t.writeCtx)
 
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	assert.NotNil(t.T(), t.in.bwh)
-	writeFileInfo := t.in.bwh.WriteFileInfo()
+	assert.NotNil(t.T(), t.in.streamingWriteHandler)
+	writeFileInfo := t.in.streamingWriteHandler.WriteFileInfo()
 	assert.Equal(t.T(), int64(2), writeFileInfo.TotalSize)
 }
 
@@ -1972,18 +1972,18 @@ func (t *FileTest) TestMultipleWritesToLocalFileWhenStreamingWritesAreEnabled() 
 	t.createInodeWithLocalParam("test", true)
 	createTime := t.in.mtimeClock.Now()
 	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
-	t.createBufferedWriteHandler(true, WriteMode)
+	t.createStreamingWriteHandler(true, WriteMode)
 
 	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode, t.writeCtx)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	assert.NotNil(t.T(), t.in.bwh)
-	assert.Equal(t.T(), int64(2), t.in.bwh.WriteFileInfo().TotalSize)
+	assert.NotNil(t.T(), t.in.streamingWriteHandler)
+	assert.Equal(t.T(), int64(2), t.in.streamingWriteHandler.WriteFileInfo().TotalSize)
 
 	gcsSynced, err = t.in.Write(t.ctx, []byte("hello"), 2, WriteMode, t.writeCtx)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	assert.Equal(t.T(), int64(7), t.in.bwh.WriteFileInfo().TotalSize)
+	assert.Equal(t.T(), int64(7), t.in.streamingWriteHandler.WriteFileInfo().TotalSize)
 	// The inode should agree about the new mtime.
 	attrs, err := t.getAttributes(true)
 	require.NoError(t.T(), err)
@@ -1995,14 +1995,14 @@ func (t *FileTest) TestWriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	t.createInodeWithEmptyObject()
 	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 	createTime := t.in.mtimeClock.Now()
-	t.createBufferedWriteHandler(true, WriteMode)
+	t.createStreamingWriteHandler(true, WriteMode)
 
 	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode, t.writeCtx)
 
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	assert.NotNil(t.T(), t.in.bwh)
-	writeFileInfo := t.in.bwh.WriteFileInfo()
+	assert.NotNil(t.T(), t.in.streamingWriteHandler)
+	writeFileInfo := t.in.streamingWriteHandler.WriteFileInfo()
 	assert.Equal(t.T(), int64(2), writeFileInfo.TotalSize)
 	// The inode should agree about the new mtime.
 	attrs, err := t.getAttributes(true)
@@ -2014,25 +2014,25 @@ func (t *FileTest) TestWriteToEmptyGCSFileWhenStreamingWritesAreEnabled() {
 func (t *FileTest) TestSetMtimeOnEmptyGCSFileWhenStreamingWritesAreEnabled() {
 	t.createInodeWithEmptyObject()
 	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
-	assert.Nil(t.T(), t.in.bwh)
+	assert.Nil(t.T(), t.in.streamingWriteHandler)
 
 	// This test checks if the mtime is updated to GCS. Since test framework
 	// doesn't support t.run, calling the test method here directly.
 	t.TestSetMtime_ContentNotFaultedIn()
-	// bufferedWritesHandler shouldn't get initialized.
-	assert.Nil(t.T(), t.in.bwh)
+	// streamingWriteHandler shouldn't get initialized.
+	assert.Nil(t.T(), t.in.streamingWriteHandler)
 }
 
 func (t *FileTest) TestSetMtimeOnEmptyGCSFileAfterWritesWhenStreamingWritesAreEnabled() {
 	t.createInodeWithEmptyObject()
 	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
-	t.createBufferedWriteHandler(true, WriteMode)
+	t.createStreamingWriteHandler(true, WriteMode)
 	// Initiate write call.
 	gcsSynced, err := t.in.Write(t.ctx, []byte("hi"), 0, WriteMode, t.writeCtx)
 	assert.Nil(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	assert.NotNil(t.T(), t.in.bwh)
-	writeFileInfo := t.in.bwh.WriteFileInfo()
+	assert.NotNil(t.T(), t.in.streamingWriteHandler)
+	writeFileInfo := t.in.streamingWriteHandler.WriteFileInfo()
 	assert.Equal(t.T(), int64(2), writeFileInfo.TotalSize)
 
 	// Set mtime.
