@@ -800,3 +800,53 @@ func TestSyncer_AppendCreatorSucceeds(t *testing.T) {
 	h.require.NoError(err)
 	h.assert.Equal(h.appendCreator.o, o)
 }
+
+func TestNewSyncer_ComposeCreator(t *testing.T) {
+	testCases := []struct {
+		name                 string
+		bucketType           gcs.BucketType
+		useRapidStorageClass bool
+		wantCompose          bool
+	}{
+		{
+			name:                 "standard_bucket",
+			bucketType:           gcs.BucketType{},
+			useRapidStorageClass: false,
+			wantCompose:          true,
+		},
+		{
+			name:                 "zonal_bucket",
+			bucketType:           gcs.BucketType{Zonal: true},
+			useRapidStorageClass: false,
+			wantCompose:          false,
+		},
+		{
+			name:                 "rcu_bucket_default_storage_class",
+			bucketType:           gcs.BucketType{RCU: true},
+			useRapidStorageClass: false,
+			wantCompose:          true,
+		},
+		{
+			name:                 "rcu_bucket_rapid_storage_class",
+			bucketType:           gcs.BucketType{RCU: true},
+			useRapidStorageClass: true,
+			wantCompose:          false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var clock timeutil.SimulatedClock
+			b := fake.NewFakeBucket(&clock, "some_bucket", tc.bucketType)
+
+			s := NewSyncer(appendThreshold, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, ".gcsfuse_tmp/", b, tc.useRapidStorageClass)
+			impl, ok := s.(*syncer)
+			require.True(t, ok)
+			if tc.wantCompose {
+				assert.NotNil(t, impl.composeCreator)
+			} else {
+				assert.Nil(t, impl.composeCreator)
+			}
+		})
+	}
+}

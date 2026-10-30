@@ -87,7 +87,7 @@ func TestFileTestSuite(t *testing.T) {
 		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Zonal: true}})
 	})
 	t.Run("RCU", func(t *testing.T) {
-		suite.Run(t, &FileTest{bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled}})
+		suite.Run(t, &FileTest{bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled)})
 	})
 }
 
@@ -150,7 +150,8 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
-		t.bucket)
+		t.bucket,
+		t.bucketType.RCU)
 
 	if local {
 		t.backingObj = nil
@@ -284,7 +285,7 @@ func (t *FileTest) TestAreStreamingWritesSupported() {
 		{
 			name:       "AppendToUnfinalizedObjOnRCUWithRapidWritesEnabled",
 			content:    nonNilContents,
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
 			finalized:  unFinalizedTime,
 			openMode:   AppendMode,
 			supported:  true,
@@ -292,7 +293,7 @@ func (t *FileTest) TestAreStreamingWritesSupported() {
 		{
 			name:       "AppendToUnfinalizedObjOnRCUWithRapidWritesDisabled",
 			content:    nonNilContents,
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesDisabled},
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyDisabled),
 			finalized:  unFinalizedTime,
 			openMode:   AppendMode,
 			supported:  false,

@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
@@ -106,17 +107,17 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_CreateAppendableObjectWriterC
 func (t *UploadHandlerTest) TestCreateObjectWriter_RCU() {
 	testCases := []struct {
 		name           string
-		rcuState       gcs.RCUState
+		rapidWrite     cfg.RapidWriteStrategy
 		expectedMethod string
 	}{
 		{
 			name:           "RapidWritesEnabled",
-			rcuState:       gcs.RCUStateRapidWritesEnabled,
+			rapidWrite:     cfg.RapidWriteStrategyEnabled,
 			expectedMethod: "CreateAppendableObjectWriter",
 		},
 		{
 			name:           "RapidWritesDisabled",
-			rcuState:       gcs.RCUStateRapidWritesDisabled,
+			rapidWrite:     cfg.RapidWriteStrategyDisabled,
 			expectedMethod: "CreateObjectChunkWriter",
 		},
 	}
@@ -125,7 +126,7 @@ func (t *UploadHandlerTest) TestCreateObjectWriter_RCU() {
 		t.Run(tc.name, func() {
 			t.SetupSubTest()
 			t.createUploadHandlerWithObjectOfGivenSize(objectSize, time.Time{})
-			t.mockBucket.On("BucketType").Return(gcs.BucketType{RCU: tc.rcuState})
+			t.mockBucket.On("BucketType").Return(gcs.BucketType{RCU: true}.WithRapidWriteStrategy(tc.rapidWrite))
 			if tc.expectedMethod == "CreateAppendableObjectWriter" {
 				t.mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(&storagemock.Writer{}, nil)
 			} else {

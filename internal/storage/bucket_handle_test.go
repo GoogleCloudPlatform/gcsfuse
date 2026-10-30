@@ -654,13 +654,13 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 		},
 		{
 			name:                 "RCUBucket_RapidEnabled",
-			bucketType:           gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType:           gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
 			finalizeFileForRapid: true,
 			expectedAppend:       true,
 		},
 		{
 			name:                 "RCUBucket_RapidDisabled",
-			bucketType:           gcs.BucketType{RCU: gcs.RCUStateRapidWritesDisabled},
+			bucketType:           gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyDisabled),
 			finalizeFileForRapid: false,
 			expectedAppend:       false,
 		},
@@ -688,6 +688,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 	bucketScenarios := []struct {
 		name                        string
 		bucketType                  gcs.BucketType
+		rapidWrite                  cfg.RapidWriteStrategy
 		initialStorageClass         string
 		expectedWriterStorageClass  string
 		expectedCreatedStorageClass string
@@ -695,7 +696,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 	}{
 		{
 			name:                        "StandardBucket",
-			bucketType:                  gcs.BucketType{RCU: gcs.RCUStateNone},
+			bucketType:                  gcs.BucketType{RCU: false},
 			initialStorageClass:         "",
 			expectedWriterStorageClass:  "",
 			expectedCreatedStorageClass: "STANDARD",
@@ -703,7 +704,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 		},
 		{
 			name:                        "StandardBucket_InheritsStorageClass",
-			bucketType:                  gcs.BucketType{RCU: gcs.RCUStateNone},
+			bucketType:                  gcs.BucketType{RCU: false},
 			initialStorageClass:         "COLDLINE",
 			expectedWriterStorageClass:  "COLDLINE",
 			expectedCreatedStorageClass: "COLDLINE",
@@ -718,14 +719,16 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 		},
 		{
 			name:                       "RCUBucket_RapidEnabled",
-			bucketType:                 gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType:                 gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
+			rapidWrite:                 cfg.RapidWriteStrategyEnabled,
 			initialStorageClass:        "STANDARD", // Simulate inheriting from standard source
 			expectedWriterStorageClass: storageClassRapid,
 			canTestCreateObject:        false, // Fails on HTTP append.
 		},
 		{
 			name:                        "RCUBucket_RapidDisabled",
-			bucketType:                  gcs.BucketType{RCU: gcs.RCUStateRapidWritesDisabled},
+			bucketType:                  gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyDisabled),
+			rapidWrite:                  cfg.RapidWriteStrategyDisabled,
 			initialStorageClass:         storageClassRapid, // Simulate inheriting from rapid source
 			expectedWriterStorageClass:  "",
 			expectedCreatedStorageClass: "STANDARD",
@@ -737,7 +740,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 		testSuite.T().Run(scenario.name+"/CreateObjectChunkWriter", func(t *testing.T) {
 			createBucketHandle(testSuite, &controlpb.StorageLayout{})
 			testSuite.bucketHandle.bucketType = &scenario.bucketType
-			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{}
+			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{RapidWrite: scenario.rapidWrite}
 			req := &gcs.CreateObjectRequest{Name: "test_object_2", StorageClass: scenario.initialStorageClass}
 
 			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), req, 1024, nil)
@@ -752,7 +755,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 			testSuite.T().Run(scenario.name+"/CreateObject", func(t *testing.T) {
 				createBucketHandle(testSuite, &controlpb.StorageLayout{})
 				testSuite.bucketHandle.bucketType = &scenario.bucketType
-				testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{}
+				testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{RapidWrite: scenario.rapidWrite}
 				req := &gcs.CreateObjectRequest{Name: "test_object_1", Contents: strings.NewReader("data"), StorageClass: scenario.initialStorageClass}
 
 				o, err := testSuite.bucketHandle.CreateObject(context.Background(), req)

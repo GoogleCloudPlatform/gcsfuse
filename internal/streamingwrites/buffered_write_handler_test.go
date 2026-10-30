@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
@@ -307,11 +308,11 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 		},
 		{
 			name:       "rcu_new_file_rapid_writes",
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
 		},
 		{
 			name:       "rcu_append_rapid_writes",
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
 			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
 	}
@@ -321,7 +322,7 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 			mockBucket.On("BucketType").Return(tc.bucketType)
 			writer := &storagemock.Writer{}
 			writer.On("Write", mock.Anything).Return(2, nil)
-			if tc.bucketType.RapidWritesEnabled() && tc.obj != nil {
+			if tc.bucketType.WriteStrategy() == gcs.WriteStrategyAppendable && tc.obj != nil {
 				mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(writer, nil)
 			} else {
 				mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
@@ -369,11 +370,11 @@ func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 		},
 		{
 			name:       "rcu_new_file_rapid_writes",
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
 		},
 		{
 			name:       "rcu_append_rapid_writes",
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
 			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
 	}
@@ -383,7 +384,7 @@ func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 			mockBucket.On("BucketType").Return(tc.bucketType)
 			writer := &storagemock.Writer{}
 			writer.On("Write", mock.Anything).Return(2, nil)
-			if tc.bucketType.RapidWritesEnabled() && tc.obj != nil {
+			if tc.bucketType.WriteStrategy() == gcs.WriteStrategyAppendable && tc.obj != nil {
 				mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(writer, nil)
 			} else {
 				mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
@@ -483,12 +484,12 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 		},
 		{
 			name:       "rcu_bucket_rapid_writes_2.5_blocks",
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
 			numBlocks:  2.5,
 		},
 		{
 			name:       "rcu_bucket_rapid_writes_.5_blocks",
-			bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled},
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
 			numBlocks:  .5,
 		},
 	}
@@ -512,7 +513,7 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
 			// Read the object from back door.
 			content, err := storageutil.ReadObject(context.Background(), bwhImpl.uploadHandler.bucket, bwhImpl.uploadHandler.objectName)
-			if tc.bucketType.RapidWritesEnabled() {
+			if tc.bucketType.WriteStrategy() == gcs.WriteStrategyAppendable {
 				require.NotNil(testSuite.T(), o)
 				assert.EqualValues(testSuite.T(), int64(blockSize*tc.numBlocks), o.Size)
 				require.NoError(testSuite.T(), err)
