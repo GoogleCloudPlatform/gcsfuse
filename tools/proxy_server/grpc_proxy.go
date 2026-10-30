@@ -128,7 +128,19 @@ func buildForwardContext(ctx context.Context, fullMethodName string, validations
 		if *fDebug {
 			log.Printf("Planting operation: %s for method: %s", plantOp, fullMethodName)
 		}
-		md = metadata.Join(md, metadata.Pairs("x-goog-emulator-instructions", plantOp))
+		// storage-testbench only enforces byte-offset write-stall instructions
+		// (e.g. "stall-for-40s-after-15360K") on BidiWriteObject when registered
+		// via its HTTP /retry_test API under "storage.objects.insert" and passed
+		// in the "x-retry-test-id" gRPC metadata header.
+		if fullMethodName == storageServicePrefix+"BidiWriteObject" {
+			testID, err := CreateRetryTest("http://localhost:9000", map[string][]string{"storage.objects.insert": {plantOp}}, "grpc")
+			if err != nil {
+				return nil, err
+			}
+			md = metadata.Join(md, metadata.Pairs("x-retry-test-id", testID))
+		} else {
+			md = metadata.Join(md, metadata.Pairs("x-goog-emulator-instructions", plantOp))
+		}
 	}
 
 	return metadata.NewOutgoingContext(ctx, md), nil

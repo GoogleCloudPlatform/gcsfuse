@@ -1,0 +1,10 @@
+proxyType: grpc
+targetHost: localhost:8888
+retryConfig:
+- method: BidiWriteObject
+  retryInstruction: "stall-for-40s-after-15360K"
+  retryCount: 2
+  # For gRPC BidiWriteObject uploads, skipCount is 1 because the first BidiWriteObject
+  # stream creates the empty placeholder file on os.Create, and the second BidiWriteObject
+  # stream uploads the file data on Sync().
+  skipCount: 1

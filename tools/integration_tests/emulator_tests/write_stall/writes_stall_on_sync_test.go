@@ -16,7 +16,6 @@ package write_stall
 
 import (
 	"fmt"
-	"log"
 	"path"
 	"testing"
 	"time"
@@ -37,29 +36,55 @@ const (
 	stallTime = 40 * time.Second
 )
 
-type chunkTransferTimeoutInfinity struct {
-	port               int
-	proxyProcessId     int
-	proxyServerLogFile string
-	flags              []string
+var grpcConfigPath = map[string]string{
+	"../configs/write_stall_40s.yaml":             "../configs/grpc_write_stall_40s.yaml",
+	"../configs/write_stall_twice_40s.yaml":       "../configs/grpc_write_stall_twice_40s.yaml",
+	"../configs/write_stalls_four_times_60s.yaml": "../configs/grpc_write_stalls_four_times_60s.yaml",
+}
+
+type writeStallTestSuite struct {
+	port                int
+	proxyProcessId      int
+	proxyServerLogFile  string
+	baseFlags           []string
+	appendProxyEndpoint func(flags *[]string, port int)
+	configMap           map[string]string
 	suite.Suite
 }
 
-func (s *chunkTransferTimeoutInfinity) SetupTest() {
-	configPath := "../configs/write_stall_40s.yaml"
+func (s *writeStallTestSuite) mountWithProxy(configPath string, testFlags []string) {
+	if s.configMap != nil {
+		configPath = s.configMap[configPath]
+		require.NotEmpty(s.T(), configPath)
+	}
+
 	s.proxyServerLogFile = setup.CreateProxyServerLogFile(s.T())
 	var err error
 	s.port, s.proxyProcessId, err = emulator_tests.StartProxyServer(configPath, s.proxyServerLogFile)
 	require.NoError(s.T(), err)
-	setup.AppendProxyEndpointToFlagSet(&s.flags, s.port)
-	setup.MountGCSFuseWithGivenMountFunc(s.flags, mountFunc)
+
+	flags := append([]string{}, s.baseFlags...)
+	flags = append(flags, testFlags...)
+	s.appendProxyEndpoint(&flags, s.port)
+	setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
 }
 
-func (s *chunkTransferTimeoutInfinity) TearDownTest() {
-	setup.UnmountGCSFuse(rootDir)
-	assert.NoError(s.T(), emulator_tests.KillProxyServerProcess(s.proxyProcessId))
-	setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
-	setup.SaveProxyServerLogFileInCaseOfFailure(s.proxyServerLogFile, s.T())
+func (s *writeStallTestSuite) unmountAndKillProxy() {
+	if s.proxyProcessId > 0 {
+		setup.UnmountGCSFuse(rootDir)
+		assert.NoError(s.T(), emulator_tests.KillProxyServerProcess(s.proxyProcessId))
+		setup.SaveGCSFuseLogFileInCaseOfFailure(s.T())
+		setup.SaveProxyServerLogFileInCaseOfFailure(s.proxyServerLogFile, s.T())
+		s.proxyProcessId = 0
+	}
+}
+
+func (s *writeStallTestSuite) TearDownTest() {
+	s.unmountAndKillProxy()
+}
+
+func (s *writeStallTestSuite) TearDownSubTest() {
+	s.unmountAndKillProxy()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -71,8 +96,10 @@ func (s *chunkTransferTimeoutInfinity) TearDownTest() {
 // It creates a file, writes data to it, and then calls Sync() to ensure
 // the data is written to GCS. The test measures the time taken for the Sync()
 // operation and asserts that it is greater than or equal to the configured stall time.
-func (s *chunkTransferTimeoutInfinity) TestWriteStallCausesDelay() {
-	testDir := "TestWriteStallCausesDelay"
+func (s *writeStallTestSuite) TestChunkTransferTimeoutInfinity() {
+	s.mountWithProxy("../configs/write_stall_40s.yaml", []string{"--chunk-transfer-timeout-secs=0"})
+
+	testDir := "TestWriteStallCausesDelay" + setup.GenerateRandomString(3)
 	testDirPath = setup.SetupTestDirectory(testDir)
 	filePath := path.Join(testDirPath, "file.txt")
 
@@ -82,39 +109,10 @@ func (s *chunkTransferTimeoutInfinity) TestWriteStallCausesDelay() {
 	assert.GreaterOrEqual(s.T(), elapsedTime, stallTime)
 }
 
-////////////////////////////////////////////////////////////////////////
-// Test Function (Runs once before all tests)
-////////////////////////////////////////////////////////////////////////
-
-func TestChunkTransferTimeoutInfinity(t *testing.T) {
-	ts := &chunkTransferTimeoutInfinity{}
-	// Define flag set to run the tests.
-	flagsSet := [][]string{
-		{
-			"--chunk-transfer-timeout-secs=0",
-			// TODO: Remove --enable-hns=false after proxy server supports multiplexing
-			// HTTP and gRPC on the same port.
-			// Disable HNS to prevent gRPC Control Client initialization.
-			// Legacy emulator proxy servers run on HTTP/1.1, which causes the
-			// gRPC HTTP/2 dialer to crash the mount sequence.
-			"--enable-hns=false",
-		},
-	}
-
-	// Run tests.
-	for _, flags := range flagsSet {
-		ts.flags = flags
-		log.Printf("Running tests with flags: %s", ts.flags)
-		suite.Run(t, ts)
-	}
-}
-
-func TestChunkTransferTimeout(t *testing.T) {
-	// TODO: Remove --enable-hns=false from these flag sets after proxy server
-	// supports multiplexing HTTP and gRPC on the same port.
+func (s *writeStallTestSuite) TestChunkTransferTimeout() {
 	flagSets := [][]string{
-		{"--enable-hns=false"},
-		{"--chunk-transfer-timeout-secs=5", "--enable-hns=false"},
+		{},
+		{"--chunk-transfer-timeout-secs=5"},
 	}
 
 	stallScenarios := []struct {
@@ -141,45 +139,29 @@ func TestChunkTransferTimeout(t *testing.T) {
 
 	for _, flags := range flagSets {
 		chunkTransferTimeoutSecs, err := emulator_tests.GetChunkTransferTimeoutFromFlags(flags)
-		if err != nil {
-			t.Fatalf("Invalid chunk-transfer-timeout-secs flag: %v", err)
+		require.NoError(s.T(), err, "Invalid chunk-transfer-timeout-secs flag")
+
+		for _, scenario := range stallScenarios {
+			subtestName := fmt.Sprintf("Flags_%v_%s", flags, scenario.name)
+			s.Run(subtestName, func() {
+				s.mountWithProxy(scenario.configPath, flags)
+
+				testDir := scenario.name + setup.GenerateRandomString(3)
+				testDirPath = setup.SetupTestDirectory(testDir)
+				filePath := path.Join(testDirPath, "file.txt")
+
+				elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
+
+				assert.NoError(s.T(), err, "failed to write file and sync")
+				expectedTimeout := scenario.expectedTimeout(chunkTransferTimeoutSecs)
+				assert.GreaterOrEqual(s.T(), elapsedTime, expectedTimeout)
+				assert.Less(s.T(), elapsedTime, expectedTimeout+5*time.Second)
+			})
 		}
-
-		t.Run(fmt.Sprintf("Flags_%v", flags), func(t *testing.T) {
-			for _, scenario := range stallScenarios {
-				t.Run(scenario.name, func(t *testing.T) {
-					proxyServerLogFile := setup.CreateProxyServerLogFile(t)
-					port, proxyProcessId, err := emulator_tests.StartProxyServer(scenario.configPath, proxyServerLogFile)
-					require.NoError(t, err)
-					setup.AppendProxyEndpointToFlagSet(&flags, port)
-					setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-
-					defer func() { // Defer unmount, killing the proxy server and saving log files.
-						setup.UnmountGCSFuse(rootDir)
-						assert.NoError(t, emulator_tests.KillProxyServerProcess(proxyProcessId))
-						setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-						setup.SaveProxyServerLogFileInCaseOfFailure(proxyServerLogFile, t)
-					}()
-
-					testDir := scenario.name + setup.GenerateRandomString(3)
-					testDirPath = setup.SetupTestDirectory(testDir)
-					filePath := path.Join(testDirPath, "file.txt")
-
-					elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
-
-					assert.NoError(t, err, "failed to write file and sync")
-					expectedTimeout := scenario.expectedTimeout(chunkTransferTimeoutSecs)
-					assert.GreaterOrEqual(t, elapsedTime, expectedTimeout)
-					assert.Less(t, elapsedTime, expectedTimeout+5*time.Second)
-				})
-			}
-		})
 	}
 }
 
-func TestChunkRetryDeadline(t *testing.T) {
-	// TODO: Remove --enable-hns=false from these scenarios after proxy server
-	// supports multiplexing HTTP and gRPC on the same port.
+func (s *writeStallTestSuite) TestChunkRetryDeadline() {
 	scenarios := []struct {
 		name            string
 		flags           []string
@@ -188,13 +170,13 @@ func TestChunkRetryDeadline(t *testing.T) {
 	}{
 		{
 			name:            "StallUnderDeadline_Pass",
-			flags:           []string{"--chunk-transfer-timeout-secs=10", "--chunk-retry-deadline-secs=120", "--enable-hns=false"},
+			flags:           []string{"--chunk-transfer-timeout-secs=10", "--chunk-retry-deadline-secs=120"},
 			expectedStall:   40 * time.Second,
 			expectedSuccess: true,
 		},
 		{
 			name:            "StallOverDeadline_Fail",
-			flags:           []string{"--chunk-transfer-timeout-secs=10", "--chunk-retry-deadline-secs=32", "--enable-hns=false"},
+			flags:           []string{"--chunk-transfer-timeout-secs=10", "--chunk-retry-deadline-secs=32"},
 			expectedStall:   40 * time.Second,
 			expectedSuccess: false,
 		},
@@ -205,19 +187,9 @@ func TestChunkRetryDeadline(t *testing.T) {
 	configPath := "../configs/write_stalls_four_times_60s.yaml"
 
 	for _, scenario := range scenarios {
-		t.Run(scenario.name, func(t *testing.T) {
-			proxyServerLogFile := setup.CreateProxyServerLogFile(t)
-			flags := append([]string{}, scenario.flags...)
-			port, proxyProcessId, err := emulator_tests.StartProxyServer(configPath, proxyServerLogFile)
-			require.NoError(t, err)
-			setup.AppendProxyEndpointToFlagSet(&flags, port)
-			setup.MountGCSFuseWithGivenMountFunc(flags, mountFunc)
-			defer func() {
-				setup.UnmountGCSFuse(rootDir)
-				assert.NoError(t, emulator_tests.KillProxyServerProcess(proxyProcessId))
-				setup.SaveGCSFuseLogFileInCaseOfFailure(t)
-				setup.SaveProxyServerLogFileInCaseOfFailure(proxyServerLogFile, t)
-			}()
+		s.Run(scenario.name, func() {
+			s.mountWithProxy(configPath, scenario.flags)
+
 			testDir := scenario.name + setup.GenerateRandomString(3)
 			testDirPath = setup.SetupTestDirectory(testDir)
 			filePath := path.Join(testDirPath, "file.txt")
@@ -225,11 +197,49 @@ func TestChunkRetryDeadline(t *testing.T) {
 			elapsedTime, err := emulator_tests.WriteFileAndSync(filePath, fileSize)
 
 			if scenario.expectedSuccess {
-				assert.NoError(t, err, "expected success for chunk-retry-deadline-secs")
-				assert.GreaterOrEqual(t, elapsedTime, scenario.expectedStall)
+				assert.NoError(s.T(), err, "expected success for chunk-retry-deadline-secs")
+				assert.GreaterOrEqual(s.T(), elapsedTime, scenario.expectedStall)
 			} else {
-				assert.Error(t, err, "expected failure due to chunk-retry-deadline-secs")
+				assert.Error(s.T(), err, "expected failure due to chunk-retry-deadline-secs")
 			}
 		})
 	}
+}
+
+////////////////////////////////////////////////////////////////////////
+// Test Function (Runs once before all tests)
+////////////////////////////////////////////////////////////////////////
+
+type httpWriteStallTestSuite struct {
+	writeStallTestSuite
+}
+
+func (s *httpWriteStallTestSuite) SetupSuite() {
+	// TODO: Remove --enable-hns=false after proxy server supports multiplexing
+	// HTTP and gRPC on the same port.
+	// Disable HNS to prevent gRPC Control Client initialization.
+	// Legacy emulator proxy servers run on HTTP/1.1, which causes the
+	// gRPC HTTP/2 dialer to crash the mount sequence.
+	s.baseFlags = []string{"--client-protocol=http1", "--enable-hns=false"}
+	s.appendProxyEndpoint = setup.AppendProxyEndpointToFlagSet
+}
+
+type grpcWriteStallTestSuite struct {
+	writeStallTestSuite
+}
+
+func (s *grpcWriteStallTestSuite) SetupSuite() {
+	s.baseFlags = []string{"--client-protocol=grpc", "--anonymous-access"}
+	s.configMap = grpcConfigPath
+	s.appendProxyEndpoint = func(flags *[]string, port int) {
+		*flags = append(*flags, fmt.Sprintf("--custom-endpoint=localhost:%d", port))
+	}
+}
+
+func TestHTTPWriteStallTestSuite(t *testing.T) {
+	suite.Run(t, new(httpWriteStallTestSuite))
+}
+
+func TestGRPCWriteStallTestSuite(t *testing.T) {
+	suite.Run(t, new(grpcWriteStallTestSuite))
 }
