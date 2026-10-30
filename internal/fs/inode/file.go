@@ -500,11 +500,11 @@ func (f *FileInode) GetKernelRangeReaderInstance() *kernel_readers.KernelRangeRe
 // TODO(b/406160290): Check if this can be improved.
 //
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) SourceGenerationIsAuthoritative(writeConfig *cfg.WriteConfig) bool {
+func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 	// Source generation is authoritative if:
 	//   1.  No pending writes exists on the inode (both content and bwh are nil).
 	//   2.  Writes are using appendable API and there are no pending writes in the temporary file.
-	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().WriteStrategy(writeConfig) == gcs.WriteStrategyAppendable && f.content == nil)
+	return (f.content == nil && f.bwh == nil) || (f.bucket.BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && f.content == nil)
 }
 
 // Equivalent to the generation returned by f.Source().
@@ -1243,11 +1243,10 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 		return false, nil
 	}
 
-	writeStrategy := f.bucket.BucketType().WriteStrategy(&writeCtx.Config.Write)
 	var latestGcsObj *gcs.Object
 	var err error
 	if !f.local {
-		if writeStrategy == gcs.WriteStrategyAppendable && openMode.IsAppend() {
+		if f.bucket.BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && openMode.IsAppend() {
 			// In case of rapid appends, we will rely on kernel's latest view of the object
 			// instead of reaching out to the server for latest metadata. This is done to avoid
 			// forceful overwrites of local and latest object metadata with possibly stale server
@@ -1279,7 +1278,6 @@ func (f *FileInode) InitBufferedWriteHandlerIfEligible(ctx context.Context, open
 			ChunkRetryDeadlineSecs:   writeCtx.Config.GcsRetries.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: writeCtx.Config.GcsRetries.ChunkTransferTimeoutSecs,
 			TraceHandle:              writeCtx.TraceHandle,
-			WriteStrategy:            writeStrategy,
 		})
 		if errors.Is(err, block.CantAllocateAnyBlockError) {
 			logger.Tracef("File %s will use legacy staged writes because concurrent streaming write "+
@@ -1304,8 +1302,7 @@ func (f *FileInode) areBufferedWritesSupported(openMode util.OpenMode, obj *gcs.
 	if f.local || obj.Size == 0 {
 		return true
 	}
-	writeStrategy := f.bucket.BucketType().WriteStrategy(&writeCtx.Config.Write)
-	if writeCtx.Config.Write.EnableRapidAppends && writeStrategy == gcs.WriteStrategyAppendable && openMode.IsAppend() && obj.Finalized.IsZero() {
+	if writeCtx.Config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && obj.Finalized.IsZero() {
 		return true
 	}
 	logger.Tracef("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)

@@ -53,7 +53,7 @@ func NewSyncer(
 	chunkTransferTimeoutSecs int64,
 	tmpObjectPrefix string,
 	bucket gcs.Bucket,
-	enableRapidWrites bool) (os Syncer) {
+	useRapidStorageClass bool) (os Syncer) {
 	// Create the object creators.
 	fullCreator := &fullObjectCreator{
 		bucket: bucket,
@@ -62,7 +62,7 @@ func NewSyncer(
 	// Rapid buckets do not currently support Compose,
 	// so we always write objects in their entirety.
 	var composeCreator objectCreator
-	if !bucket.BucketType().Zonal && (!bucket.BucketType().RCU || !enableRapidWrites) {
+	if !bucket.BucketType().Zonal && (!bucket.BucketType().RCU || !useRapidStorageClass) {
 		composeCreator = newComposeObjectCreator(
 			tmpObjectPrefix,
 			bucket)

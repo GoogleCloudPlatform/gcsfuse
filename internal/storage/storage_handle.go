@@ -463,11 +463,16 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 
 	isRCUBucket := storageLayout.GetRapidCacheInfo() != nil && storageLayout.GetRapidCacheInfo().GetCacheType() == rapidCacheUltraType
 
-	return &gcs.BucketType{
+	bt := gcs.BucketType{
 		Hierarchical: storageLayout.GetHierarchicalNamespace().GetEnabled(),
 		Zonal:        storageLayout.GetLocationType() == zonalLocationType,
 		RCU:          isRCUBucket,
-	}, nil
+	}
+	if sh.clientConfig.WriteConfig != nil {
+		bt = bt.WithRapidWriteStrategy(sh.clientConfig.WriteConfig.RapidWrite)
+	}
+
+	return &bt, nil
 }
 
 func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.StorageLayout, error) {

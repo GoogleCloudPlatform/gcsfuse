@@ -59,7 +59,6 @@ type UploadHandler struct {
 	chunkRetryDeadline   int64
 	chunkTransferTimeout int64
 	blockSize            int64
-	writeStrategy        gcs.WriteStrategy
 
 	traceHandle tracing.TraceHandle
 }
@@ -74,7 +73,6 @@ type CreateUploadHandlerRequest struct {
 	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
 	TraceHandle              tracing.TraceHandle
-	WriteStrategy            gcs.WriteStrategy
 }
 
 // newUploadHandler creates the UploadHandler struct.
@@ -89,7 +87,6 @@ func newUploadHandler(req *CreateUploadHandlerRequest) *UploadHandler {
 		blockSize:            req.BlockSize,
 		chunkRetryDeadline:   req.ChunkRetryDeadlineSecs,
 		chunkTransferTimeout: req.ChunkTransferTimeoutSecs,
-		writeStrategy:        req.WriteStrategy,
 		traceHandle:          req.TraceHandle,
 	}
 	return uh
@@ -118,7 +115,7 @@ func (uh *UploadHandler) createObjectWriter(ctx context.Context) (err error) {
 	// We need a new context here, since the first writeFile() call will be complete
 	// (and context will be cancelled) by the time complete upload is done.
 	ctx, uh.cancelFunc = context.WithCancel(uh.traceHandle.PropagateTraceContext(context.Background(), ctx))
-	if uh.writeStrategy == gcs.WriteStrategyAppendable && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
+	if uh.bucket.BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
 		chunkWriterReq := gcs.CreateObjectChunkWriterRequest{
 			CreateObjectRequest: *req,
 			ChunkSize:           int(uh.blockSize),

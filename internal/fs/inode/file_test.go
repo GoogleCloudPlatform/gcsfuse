@@ -87,7 +87,7 @@ func TestFileTestSuite(t *testing.T) {
 		suite.Run(t, &FileTest{bucketType: gcs.BucketType{Zonal: true}})
 	})
 	t.Run("RCU", func(t *testing.T) {
-		suite.Run(t, &FileTest{bucketType: gcs.BucketType{RCU: true}})
+		suite.Run(t, &FileTest{bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled)})
 	})
 }
 
@@ -145,21 +145,19 @@ func (t *FileTest) createInodeWithLocalParam(fileName string, local bool) {
 		NewRootName(""),
 		fileName,
 	)
-	t.writeCtx = getWriteContext()
-	if t.bucketType.RCU {
-		t.writeCtx.Config.Write.RapidWrite = cfg.RapidWriteStrategyEnabled
-	}
 	syncerBucket := gcsx.NewSyncerBucket(
 		/*appendThreshold=*/ 1,
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
 		t.bucket,
-		t.writeCtx.Config.Write.RapidWrite == cfg.RapidWriteStrategyEnabled)
+		t.bucketType.RCU)
 
 	if local {
 		t.backingObj = nil
 	}
+
+	t.writeCtx = getWriteContext()
 
 	t.in = NewFileInode(
 		fileInodeID,
@@ -249,7 +247,6 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 		content    string
 		openMode   util.OpenMode
 		bucketType gcs.BucketType
-		rapidWrite cfg.RapidWriteStrategy
 		finalized  time.Time
 		supported  bool
 	}{
@@ -288,8 +285,7 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 		{
 			name:       "AppendToUnfinalizedObjOnRCUWithRapidWritesEnabled",
 			content:    nonNilContents,
-			bucketType: gcs.BucketType{RCU: true},
-			rapidWrite: cfg.RapidWriteStrategyEnabled,
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
 			finalized:  unFinalizedTime,
 			openMode:   AppendMode,
 			supported:  true,
@@ -297,8 +293,7 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 		{
 			name:       "AppendToUnfinalizedObjOnRCUWithRapidWritesDisabled",
 			content:    nonNilContents,
-			bucketType: gcs.BucketType{RCU: true},
-			rapidWrite: cfg.RapidWriteStrategyDisabled,
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyDisabled),
 			finalized:  unFinalizedTime,
 			openMode:   AppendMode,
 			supported:  false,
@@ -327,7 +322,6 @@ func (t *FileTest) TestAreBufferedWritesSupported() {
 		t.backingObj = storageutil.ConvertObjToMinObject(object)
 		t.createInode()
 		t.writeCtx.Config.Write.EnableRapidAppends = true
-		t.writeCtx.Config.Write.RapidWrite = tc.rapidWrite
 
 		isSupported := t.in.areBufferedWritesSupported(tc.openMode, object, t.writeCtx)
 
@@ -355,7 +349,7 @@ func (t *FileTest) TestSourceGenerationSizeAfterWriteDoesNotChange() {
 }
 
 func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsTrue() {
-	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative(&t.writeCtx.Config.Write))
+	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
 func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWrite() {
@@ -363,7 +357,7 @@ func (t *FileTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWrite() {
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
-	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative(&t.writeCtx.Config.Write))
+	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
 func (t *FileTest) TestSyncPendingBufferedWritesReturnsNilAndNoOpForNonStreamingWrites() {

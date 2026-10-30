@@ -803,34 +803,34 @@ func TestSyncer_AppendCreatorSucceeds(t *testing.T) {
 
 func TestNewSyncer_ComposeCreator(t *testing.T) {
 	testCases := []struct {
-		name              string
-		bucketType        gcs.BucketType
-		enableRapidWrites bool
-		wantCompose       bool
+		name                 string
+		bucketType           gcs.BucketType
+		useRapidStorageClass bool
+		wantCompose          bool
 	}{
 		{
-			name:              "standard_bucket",
-			bucketType:        gcs.BucketType{},
-			enableRapidWrites: false,
-			wantCompose:       true,
+			name:                 "standard_bucket",
+			bucketType:           gcs.BucketType{},
+			useRapidStorageClass: false,
+			wantCompose:          true,
 		},
 		{
-			name:              "zonal_bucket",
-			bucketType:        gcs.BucketType{Zonal: true},
-			enableRapidWrites: false,
-			wantCompose:       false,
+			name:                 "zonal_bucket",
+			bucketType:           gcs.BucketType{Zonal: true},
+			useRapidStorageClass: false,
+			wantCompose:          false,
 		},
 		{
-			name:              "rcu_bucket_rapid_writes_disabled",
-			bucketType:        gcs.BucketType{RCU: true},
-			enableRapidWrites: false,
-			wantCompose:       true,
+			name:                 "rcu_bucket_default_storage_class",
+			bucketType:           gcs.BucketType{RCU: true},
+			useRapidStorageClass: false,
+			wantCompose:          true,
 		},
 		{
-			name:              "rcu_bucket_rapid_writes_enabled",
-			bucketType:        gcs.BucketType{RCU: true},
-			enableRapidWrites: true,
-			wantCompose:       false,
+			name:                 "rcu_bucket_rapid_storage_class",
+			bucketType:           gcs.BucketType{RCU: true},
+			useRapidStorageClass: true,
+			wantCompose:          false,
 		},
 	}
 
@@ -839,7 +839,7 @@ func TestNewSyncer_ComposeCreator(t *testing.T) {
 			var clock timeutil.SimulatedClock
 			b := fake.NewFakeBucket(&clock, "some_bucket", tc.bucketType)
 
-			s := NewSyncer(appendThreshold, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, ".gcsfuse_tmp/", b, tc.enableRapidWrites)
+			s := NewSyncer(appendThreshold, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, ".gcsfuse_tmp/", b, tc.useRapidStorageClass)
 			impl, ok := s.(*syncer)
 			require.True(t, ok)
 			if tc.wantCompose {

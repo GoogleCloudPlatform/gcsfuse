@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
@@ -53,11 +54,12 @@ func TestBufferedWriteTestSuite(t *testing.T) {
 }
 
 func (testSuite *BufferedWriteTest) SetupTest() {
-	testSuite.setupTestWithWriteStrategy(gcs.WriteStrategyResumable)
+	bucketType := gcs.BucketType{}
+	testSuite.setupTestWithBucketType(bucketType)
 }
 
-func (testSuite *BufferedWriteTest) setupTestWithWriteStrategy(writeStrategy gcs.WriteStrategy) {
-	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", gcs.BucketType{})
+func (testSuite *BufferedWriteTest) setupTestWithBucketType(bucketType gcs.BucketType) {
+	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", bucketType)
 	testSuite.globalSemaphore = semaphore.NewWeighted(10)
 	bwh, err := NewBWHandler(&CreateBWHandlerRequest{
 		Object:                   nil,
@@ -69,7 +71,6 @@ func (testSuite *BufferedWriteTest) setupTestWithWriteStrategy(writeStrategy gcs
 		ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
 		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 		TraceHandle:              tracing.NewNoopTracer(),
-		WriteStrategy:            writeStrategy,
 	})
 	require.Nil(testSuite.T(), err)
 	testSuite.bwh = bwh
@@ -288,30 +289,40 @@ func (testSuite *BufferedWriteTest) TestFlushWithSignalUploadFailureDuringWrite(
 
 func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 	testCases := []struct {
-		name          string
-		writeStrategy gcs.WriteStrategy
-		obj           *gcs.Object
+		name       string
+		bucketType gcs.BucketType
+		obj        *gcs.Object
 	}{
 		{
-			name:          "resumable_new_file",
-			writeStrategy: gcs.WriteStrategyResumable,
+			name:       "non_zonal",
+			bucketType: gcs.BucketType{Zonal: false},
 		},
 		{
-			name:          "appendable_new_file",
-			writeStrategy: gcs.WriteStrategyAppendable,
+			name:       "zonal_new_file",
+			bucketType: gcs.BucketType{Zonal: true},
 		},
 		{
-			name:          "appendable_existing_file",
-			writeStrategy: gcs.WriteStrategyAppendable,
-			obj:           &gcs.Object{Name: "testObject", Size: 0},
+			name:       "zonal_append",
+			bucketType: gcs.BucketType{Zonal: true},
+			obj:        &gcs.Object{Name: "testObject", Size: 0},
+		},
+		{
+			name:       "rcu_new_file_rapid_writes",
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
+		},
+		{
+			name:       "rcu_append_rapid_writes",
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
+			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
 	}
 	for _, tc := range testCases {
 		testSuite.Run(tc.name, func() {
 			mockBucket := new(storagemock.TestifyMockBucket)
+			mockBucket.On("BucketType").Return(tc.bucketType)
 			writer := &storagemock.Writer{}
 			writer.On("Write", mock.Anything).Return(2, nil)
-			if tc.writeStrategy == gcs.WriteStrategyAppendable && tc.obj != nil {
+			if tc.bucketType.WriteStrategy() == gcs.WriteStrategyAppendable && tc.obj != nil {
 				mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(writer, nil)
 			} else {
 				mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
@@ -328,7 +339,6 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 				ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
 				ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 				TraceHandle:              tracing.NewNoopTracer(),
-				WriteStrategy:            tc.writeStrategy,
 			})
 			require.Nil(testSuite.T(), err)
 			err = bwh.Write(context.Background(), []byte("hi"), 0)
@@ -345,23 +355,36 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 
 func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 	testCases := []struct {
-		name string
-		obj  *gcs.Object
+		name       string
+		bucketType gcs.BucketType
+		obj        *gcs.Object
 	}{
 		{
-			name: "appendable_new_file",
+			name:       "zonal_new_file",
+			bucketType: gcs.BucketType{Zonal: true},
 		},
 		{
-			name: "appendable_existing_file",
-			obj:  &gcs.Object{Name: "testObject", Size: 0},
+			name:       "zonal_append",
+			bucketType: gcs.BucketType{Zonal: true},
+			obj:        &gcs.Object{Name: "testObject", Size: 0},
+		},
+		{
+			name:       "rcu_new_file_rapid_writes",
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
+		},
+		{
+			name:       "rcu_append_rapid_writes",
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
+			obj:        &gcs.Object{Name: "testObject", Size: 0},
 		},
 	}
 	for _, tc := range testCases {
 		testSuite.Run(tc.name, func() {
 			mockBucket := new(storagemock.TestifyMockBucket)
+			mockBucket.On("BucketType").Return(tc.bucketType)
 			writer := &storagemock.Writer{}
 			writer.On("Write", mock.Anything).Return(2, nil)
-			if tc.obj != nil {
+			if tc.bucketType.WriteStrategy() == gcs.WriteStrategyAppendable && tc.obj != nil {
 				mockBucket.On("CreateAppendableObjectWriter", mock.Anything, mock.Anything).Return(writer, nil)
 			} else {
 				mockBucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(writer, nil)
@@ -378,7 +401,6 @@ func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 				ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
 				ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 				TraceHandle:              tracing.NewNoopTracer(),
-				WriteStrategy:            gcs.WriteStrategyAppendable,
 			})
 			require.Nil(testSuite.T(), err)
 			err = bwh.Write(context.Background(), []byte("hi"), 0)
@@ -436,35 +458,45 @@ func (testSuite *BufferedWriteTest) TestSync5InProgressBlocks() {
 
 func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 	testCases := []struct {
-		name          string
-		writeStrategy gcs.WriteStrategy
-		numBlocks     float32
+		name       string
+		bucketType gcs.BucketType
+		numBlocks  float32
 	}{
 		{
-			name:          "resumable_2.5_blocks",
-			writeStrategy: gcs.WriteStrategyResumable,
-			numBlocks:     2.5,
+			name:       "multi_regional_bucket_2.5_blocks",
+			bucketType: gcs.BucketType{},
+			numBlocks:  2.5,
 		},
 		{
-			name:          "resumable_.5_blocks",
-			writeStrategy: gcs.WriteStrategyResumable,
-			numBlocks:     .5,
+			name:       "multi_regional_bucket_.5_blocks",
+			bucketType: gcs.BucketType{},
+			numBlocks:  .5,
 		},
 		{
-			name:          "appendable_2.5_blocks",
-			writeStrategy: gcs.WriteStrategyAppendable,
-			numBlocks:     2.5,
+			name:       "zonal_bucket_2.5_blocks",
+			bucketType: gcs.BucketType{Zonal: true},
+			numBlocks:  2.5,
 		},
 		{
-			name:          "appendable_.5_blocks",
-			writeStrategy: gcs.WriteStrategyAppendable,
-			numBlocks:     .5,
+			name:       "zonal_bucket_.5_blocks",
+			bucketType: gcs.BucketType{Zonal: true},
+			numBlocks:  .5,
+		},
+		{
+			name:       "rcu_bucket_rapid_writes_2.5_blocks",
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
+			numBlocks:  2.5,
+		},
+		{
+			name:       "rcu_bucket_rapid_writes_.5_blocks",
+			bucketType: gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
+			numBlocks:  .5,
 		},
 	}
 
 	for _, tc := range testCases {
 		testSuite.Run(tc.name, func() {
-			testSuite.setupTestWithWriteStrategy(tc.writeStrategy)
+			testSuite.setupTestWithBucketType(tc.bucketType)
 			buffer, err := operations.GenerateRandomData(int64(blockSize * tc.numBlocks))
 			assert.NoError(testSuite.T(), err)
 			err = testSuite.bwh.Write(context.Background(), buffer, 0)
@@ -481,7 +513,7 @@ func (testSuite *BufferedWriteTest) TestSyncPartialBlockTableDriven() {
 			assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
 			// Read the object from back door.
 			content, err := storageutil.ReadObject(context.Background(), bwhImpl.uploadHandler.bucket, bwhImpl.uploadHandler.objectName)
-			if tc.writeStrategy == gcs.WriteStrategyAppendable {
+			if tc.bucketType.WriteStrategy() == gcs.WriteStrategyAppendable {
 				require.NotNil(testSuite.T(), o)
 				assert.EqualValues(testSuite.T(), int64(blockSize*tc.numBlocks), o.Size)
 				require.NoError(testSuite.T(), err)

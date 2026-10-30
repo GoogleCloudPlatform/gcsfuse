@@ -637,7 +637,6 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 	tests := []struct {
 		name                 string
 		bucketType           gcs.BucketType
-		rapidWrite           cfg.RapidWriteStrategy
 		finalizeFileForRapid bool
 		expectedAppend       bool
 	}{
@@ -655,15 +654,13 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 		},
 		{
 			name:                 "RCUBucket_RapidEnabled",
-			bucketType:           gcs.BucketType{RCU: true},
-			rapidWrite:           cfg.RapidWriteStrategyEnabled,
+			bucketType:           gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
 			finalizeFileForRapid: true,
 			expectedAppend:       true,
 		},
 		{
 			name:                 "RCUBucket_RapidDisabled",
-			bucketType:           gcs.BucketType{RCU: true},
-			rapidWrite:           cfg.RapidWriteStrategyDisabled,
+			bucketType:           gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyDisabled),
 			finalizeFileForRapid: false,
 			expectedAppend:       false,
 		},
@@ -673,10 +670,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 		testSuite.T().Run(tt.name, func(t *testing.T) {
 			createBucketHandle(testSuite, &controlpb.StorageLayout{})
 			testSuite.bucketHandle.bucketType = &tt.bucketType
-			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{
-				FinalizeFileForRapid: tt.finalizeFileForRapid,
-				RapidWrite:           tt.rapidWrite,
-			}
+			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{FinalizeFileForRapid: tt.finalizeFileForRapid}
 
 			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), &gcs.CreateObjectRequest{Name: "test_object"}, 1024, nil)
 
@@ -725,7 +719,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 		},
 		{
 			name:                       "RCUBucket_RapidEnabled",
-			bucketType:                 gcs.BucketType{RCU: true},
+			bucketType:                 gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
 			rapidWrite:                 cfg.RapidWriteStrategyEnabled,
 			initialStorageClass:        "STANDARD", // Simulate inheriting from standard source
 			expectedWriterStorageClass: storageClassRapid,
@@ -733,7 +727,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 		},
 		{
 			name:                        "RCUBucket_RapidDisabled",
-			bucketType:                  gcs.BucketType{RCU: true},
+			bucketType:                  gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyDisabled),
 			rapidWrite:                  cfg.RapidWriteStrategyDisabled,
 			initialStorageClass:         storageClassRapid, // Simulate inheriting from rapid source
 			expectedWriterStorageClass:  "",

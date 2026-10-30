@@ -3098,8 +3098,7 @@ func (fs *fileSystem) ReadFile(
 		// Hence, there is no need to finalize the object from here for rapid buckets.
 		// Hence, if FinalizeFileForRapid is set, then we will call syncFile otherwise
 		// we can call flushFile (as it will not finalize when FinalizeFileForRapid is false) itself.
-		writeStrategy := fh.Inode().Bucket().BucketType().WriteStrategy(&fs.newConfig.Write)
-		if writeStrategy == gcs.WriteStrategyAppendable && fs.newConfig.Write.FinalizeFileForRapid {
+		if fh.Inode().Bucket().BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && fs.newConfig.Write.FinalizeFileForRapid {
 			err = fs.syncFile(ctx, fh.Inode())
 		} else {
 			err = fs.flushFile(ctx, fh.Inode())

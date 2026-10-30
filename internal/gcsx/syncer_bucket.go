@@ -31,8 +31,8 @@ func NewSyncerBucket(
 	chunkTransferTimeoutSecs int64,
 	tmpObjectPrefix string,
 	bucket gcs.Bucket,
-	enableRapidWrites bool,
+	useRapidStorageClass bool,
 ) SyncerBucket {
-	syncer := NewSyncer(appendThreshold, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, tmpObjectPrefix, bucket, enableRapidWrites)
+	syncer := NewSyncer(appendThreshold, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, tmpObjectPrefix, bucket, useRapidStorageClass)
 	return SyncerBucket{bucket, syncer}
 }

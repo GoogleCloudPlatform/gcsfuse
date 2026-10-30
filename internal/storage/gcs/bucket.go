@@ -41,9 +41,15 @@ const (
 
 // BucketType represents bucket features.
 type BucketType struct {
-	Hierarchical bool
-	Zonal        bool
-	RCU          bool
+	Hierarchical       bool
+	Zonal              bool
+	RCU                bool
+	rapidWriteStrategy cfg.RapidWriteStrategy
+}
+
+func (bt BucketType) WithRapidWriteStrategy(strategy cfg.RapidWriteStrategy) BucketType {
+	bt.rapidWriteStrategy = strategy
+	return bt
 }
 
 func (bt BucketType) IsRapid() bool {
@@ -52,11 +58,11 @@ func (bt BucketType) IsRapid() bool {
 
 // WriteStrategy determines the write strategy (Resumable, Appendable, or Parallel)
 // based on bucket type and write configuration.
-func (bt BucketType) WriteStrategy(wc *cfg.WriteConfig) WriteStrategy {
+func (bt BucketType) WriteStrategy() WriteStrategy {
 	if bt.Zonal {
 		return WriteStrategyAppendable
 	}
-	if bt.RCU && wc != nil && wc.RapidWrite == cfg.RapidWriteStrategyEnabled {
+	if bt.RCU && bt.rapidWriteStrategy == cfg.RapidWriteStrategyEnabled {
 		return WriteStrategyAppendable
 	}
 	return WriteStrategyResumable

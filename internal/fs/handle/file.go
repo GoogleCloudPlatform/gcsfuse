@@ -206,7 +206,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 		return gcsx.ReadResponse{}, fmt.Errorf("failed to ensure inode content: %w", err)
 	}
 
-	if !fh.inode.SourceGenerationIsAuthoritative(&fh.config.Write) {
+	if !fh.inode.SourceGenerationIsAuthoritative() {
 		// Read from inode if source generation is not authoratative
 		defer fh.inode.Unlock()
 		return fh.inode.Read(ctx, req)
@@ -285,7 +285,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) ReadWithKernelReader(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
-	if !fh.inode.SourceGenerationIsAuthoritative(&fh.config.Write) {
+	if !fh.inode.SourceGenerationIsAuthoritative() {
 		// Read from inode if source generation is not authoritative.
 		defer fh.inode.Unlock()
 		return fh.inode.Read(ctx, req)
@@ -318,7 +318,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 
 	// If the inode is dirty, there's nothing we can do. Throw away our reader if
 	// we have one.
-	if !fh.inode.SourceGenerationIsAuthoritative(&fh.config.Write) {
+	if !fh.inode.SourceGenerationIsAuthoritative() {
 		defer fh.inode.Unlock()
 		res, err := fh.inode.Read(ctx, &gcsx.ReadRequest{Buffer: dst, Offset: offset})
 		return dst, res.Size, err

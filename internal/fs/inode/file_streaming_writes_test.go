@@ -224,7 +224,7 @@ func TestFileStreamingWritesWithZonalBucketTestSuite(t *testing.T) {
 }
 
 func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritativeReturnsTrueForZonalBuckets() {
-	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative(&t.writeCtx.Config.Write))
+	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
 func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritativeReturnsTrueAfterWriteForZonalBuckets() {
@@ -232,7 +232,7 @@ func (t *FileStreamingWritesZonalBucketTest) TestSourceGenerationIsAuthoritative
 	gcsSynced, err := t.in.Write(t.ctx, []byte("taco"), 0, WriteMode, t.writeCtx)
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
-	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative(&t.writeCtx.Config.Write))
+	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
 func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingBufferedWritesForZonalBucketsPromotesInodeToNonLocal() {
@@ -274,7 +274,7 @@ func TestFileStreamingWritesTestSuite(t *testing.T) {
 }
 
 func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsTrueForNonZonalBuckets() {
-	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative(&t.writeCtx.Config.Write))
+	assert.True(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
 func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWriteForNonZonalBuckets() {
@@ -283,7 +283,7 @@ func (t *FileStreamingWritesTest) TestSourceGenerationIsAuthoritativeReturnsFals
 	assert.NoError(t.T(), err)
 	assert.False(t.T(), gcsSynced)
 
-	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative(&t.writeCtx.Config.Write))
+	assert.False(t.T(), t.in.SourceGenerationIsAuthoritative())
 }
 
 func (t *FileStreamingWritesTest) TestSyncPendingBufferedWritesForNonZonalBucketsDoesNotPromoteInodeToNonLocal() {

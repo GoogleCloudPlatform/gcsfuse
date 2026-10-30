@@ -101,7 +101,6 @@ type CreateBWHandlerRequest struct {
 	ChunkRetryDeadlineSecs   int64
 	ChunkTransferTimeoutSecs int64
 	TraceHandle              tracing.TraceHandle
-	WriteStrategy            gcs.WriteStrategy
 }
 
 // NewBWHandler creates the bufferedWriteHandler struct.
@@ -128,7 +127,6 @@ func NewBWHandler(req *CreateBWHandlerRequest) (bwh BufferedWriteHandler, err er
 			ChunkRetryDeadlineSecs:   req.ChunkRetryDeadlineSecs,
 			ChunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
 			TraceHandle:              req.TraceHandle,
-			WriteStrategy:            req.WriteStrategy,
 		}),
 		totalSize:     size,
 		mtime:         time.Now(),
@@ -219,7 +217,7 @@ func (wh *bufferedWriteHandlerImpl) Sync(ctx context.Context) (o *gcs.MinObject,
 	// the Writer's buffer to Cloud Storage, thereby making them available for
 	// other operations like read.
 	// This functionality is exclusively supported on appendable streams.
-	if wh.uploadHandler.writeStrategy == gcs.WriteStrategyAppendable {
+	if wh.uploadHandler.bucket.BucketType().WriteStrategy() == gcs.WriteStrategyAppendable {
 		o, err = wh.uploadHandler.FlushPendingWrites(ctx)
 		if err != nil {
 			return nil, err

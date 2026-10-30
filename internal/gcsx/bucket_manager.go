@@ -262,7 +262,7 @@ func (bm *bucketManager) SetUpBucket(
 		bm.config.ChunkTransferTimeoutSecs,
 		bm.config.TmpObjectPrefix,
 		b,
-		bm.config.RapidWrite == cfg.RapidWriteStrategyEnabled)
+		bm.config.RapidWrite != cfg.RapidWriteStrategyDisabled)
 
 	// Fetch bucket type from storage layout api and set bucket type.
 	b.BucketType()
