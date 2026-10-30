@@ -1549,6 +1549,14 @@ params:
     usage: "Enables streaming uploads during write file operation."
     default: true
 
+  - config-path: "write.experimental-enable-parallel-upload"
+    proto-tag: 163
+    flag-name: "experimental-enable-parallel-upload"
+    type: "bool"
+    usage: "Enables experimental parallel uploads to write to the RAPID storage class on RCU buckets."
+    default: false
+    hide-flag: true
+
   - config-path: "write.finalize-file-for-rapid"
     proto-tag: 156
     flag-name: "finalize-file-for-rapid"

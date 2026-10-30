@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bufferedwrites
+package streamingwrites
 
 import (
 	"context"
@@ -43,7 +43,7 @@ const (
 var errUploadFailure = errors.New("error while uploading object to GCS")
 
 type BufferedWriteTest struct {
-	bwh             BufferedWriteHandler
+	bwh             WriteHandler
 	globalSemaphore *semaphore.Weighted
 	suite.Suite
 }
@@ -60,7 +60,7 @@ func (testSuite *BufferedWriteTest) SetupTest() {
 func (testSuite *BufferedWriteTest) setupTestWithBucketType(bucketType gcs.BucketType) {
 	bucket := fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", bucketType)
 	testSuite.globalSemaphore = semaphore.NewWeighted(10)
-	bwh, err := NewBWHandler(&CreateBWHandlerRequest{
+	bwh, err := newBufferedWriteHandler(&CreateWriteHandlerRequest{
 		Object:                   nil,
 		ObjectName:               "testObject",
 		Bucket:                   bucket,
@@ -328,7 +328,7 @@ func (testSuite *BufferedWriteTest) TestFlush_SizeMismatch_ReturnsError() {
 			}
 			mockObj := &gcs.MinObject{Name: "testObject", Size: 0}
 			mockBucket.On("FinalizeUpload", mock.Anything, writer).Return(mockObj, nil)
-			bwh, err := NewBWHandler(&CreateBWHandlerRequest{
+			bwh, err := newBufferedWriteHandler(&CreateWriteHandlerRequest{
 				Object:                   tc.obj,
 				ObjectName:               "testObject",
 				Bucket:                   mockBucket,
@@ -390,7 +390,7 @@ func (testSuite *BufferedWriteTest) TestSync_SizeMismatch_ReturnsError() {
 			}
 			mockObj := &gcs.MinObject{Name: "testObject", Size: 0}
 			mockBucket.On("FlushPendingWrites", mock.Anything, writer).Return(mockObj, nil)
-			bwh, err := NewBWHandler(&CreateBWHandlerRequest{
+			bwh, err := newBufferedWriteHandler(&CreateWriteHandlerRequest{
 				Object:                   tc.obj,
 				ObjectName:               "testObject",
 				Bucket:                   mockBucket,
@@ -630,7 +630,7 @@ func (testSuite *BufferedWriteTest) TestDestroyShouldClearFreeBlockChannel() {
 }
 
 func (testSuite *BufferedWriteTest) TestDestroyWithPartialBlockInCurrent() {
-	// Write a partial block (less than blockSize) so it stays in wh.current and is not uploaded.
+	// Write a partial block (less than blockSize) so it stays in bwh.current and is not uploaded.
 	partialData := strings.Repeat("B", blockSize/2)
 	err := testSuite.bwh.Write(context.Background(), []byte(partialData), 0)
 	require.Nil(testSuite.T(), err)
@@ -644,12 +644,12 @@ func (testSuite *BufferedWriteTest) TestDestroyWithPartialBlockInCurrent() {
 	assert.Nil(testSuite.T(), bwhImpl.current)
 	assert.Equal(testSuite.T(), 0, bwhImpl.uploadHandler.blockPool.TotalFreeBlocks())
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))
-	// Verify that all 10 permits (including the one used by wh.current) are released.
+	// Verify that all 10 permits (including the one used by bwh.current) are released.
 	assert.True(testSuite.T(), testSuite.globalSemaphore.TryAcquire(10))
 }
 
 func (testSuite *BufferedWriteTest) TestDestroyWithMultiBlocksAndPartialBlockInCurrent() {
-	// Write 2.5 blocks of data: 2 full blocks sent to uploadCh, 0.5 block stays in wh.current.
+	// Write 2.5 blocks of data: 2 full blocks sent to uploadCh, 0.5 block stays in bwh.current.
 	data := strings.Repeat("C", int(blockSize*2.5))
 	err := testSuite.bwh.Write(context.Background(), []byte(data), 0)
 	require.Nil(testSuite.T(), err)
