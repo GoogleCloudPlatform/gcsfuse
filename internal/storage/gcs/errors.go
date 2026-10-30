@@ -49,6 +49,36 @@ func (pe *PreconditionError) Error() string {
 	return fmt.Sprintf("gcs.PreconditionError: %v", pe.Err)
 }
 
+// ObjectTooLargeError indicates that an object exceeds the maximum size supported by the upload strategy.
+type ObjectTooLargeError struct {
+	Err error
+}
+
+func (e *ObjectTooLargeError) Error() string {
+	return fmt.Sprintf("gcs.ObjectTooLargeError: %v", e.Err)
+}
+
+func (e *ObjectTooLargeError) Unwrap() error {
+	return e.Err
+}
+
+// GetParallelUploadError converts an InvalidArgument error into an
+// *ObjectTooLargeError. Other errors are returned unchanged.
+// Use it only for parallel uploads.
+func GetParallelUploadError(err error) error {
+	var objectTooLargeErr *ObjectTooLargeError
+	if err == nil || errors.As(err, &objectTooLargeErr) {
+		return err
+	}
+	// TODO(b/578761925): InvalidArgument can be returned for other reasons as well.
+	// Narrow this check once the error returned for an object that is too large
+	// is known, e.g. by also checking that the message contains "too large".
+	if rpcErr, ok := status.FromError(err); ok && rpcErr.Code() == codes.InvalidArgument {
+		return &ObjectTooLargeError{Err: err}
+	}
+	return err
+}
+
 // GetGCSError converts an error returned by go-sdk into gcsfuse specific common gcs error.
 func GetGCSError(err error) error {
 	if err == nil {

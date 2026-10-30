@@ -24,6 +24,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"google.golang.org/api/googleapi"
@@ -49,6 +50,12 @@ func errno(err error) error {
 	var fileNotFoundErr *gcsfuse_errors.FileNotFoundError
 	if errors.As(err, &fileNotFoundErr) {
 		return syscall.ENOENT
+	}
+
+	// The object exceeds the maximum size supported by the upload strategy.
+	var objectTooLargeErr *gcs.ObjectTooLargeError
+	if errors.As(err, &objectTooLargeErr) {
+		return syscall.EFBIG
 	}
 
 	// Use existing em errno

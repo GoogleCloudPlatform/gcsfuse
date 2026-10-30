@@ -148,3 +148,64 @@ func TestGetGCSError(t *testing.T) {
 		})
 	}
 }
+
+func TestGetParallelUploadError(t *testing.T) {
+	invalidArgumentErr := status.Error(codes.InvalidArgument, "object too large")
+	wrappedInvalidArgumentErr := fmt.Errorf("write failed: %w", invalidArgumentErr)
+	notFoundErr := &NotFoundError{Err: status.Error(codes.NotFound, "object deleted")}
+	otherErr := errors.New("some error")
+	testCases := []struct {
+		name        string
+		inputErr    error
+		expectedErr error
+	}{
+		{
+			name:        "nil_error",
+			inputErr:    nil,
+			expectedErr: nil,
+		},
+		{
+			name:        "invalid_argument_is_object_too_large",
+			inputErr:    invalidArgumentErr,
+			expectedErr: &ObjectTooLargeError{Err: invalidArgumentErr},
+		},
+		{
+			name:        "wrapped_invalid_argument_is_object_too_large",
+			inputErr:    wrappedInvalidArgumentErr,
+			expectedErr: &ObjectTooLargeError{Err: wrappedInvalidArgumentErr},
+		},
+		{
+			name:        "object_too_large_is_not_wrapped_again",
+			inputErr:    &ObjectTooLargeError{Err: invalidArgumentErr},
+			expectedErr: &ObjectTooLargeError{Err: invalidArgumentErr},
+		},
+		{
+			name:        "not_found_is_unchanged",
+			inputErr:    notFoundErr,
+			expectedErr: notFoundErr,
+		},
+		{
+			name:        "other_error_is_unchanged",
+			inputErr:    otherErr,
+			expectedErr: otherErr,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := GetParallelUploadError(tc.inputErr)
+
+			assert.Equal(t, tc.expectedErr, err)
+		})
+	}
+}
+
+func TestObjectTooLargeError_UnwrapsCause(t *testing.T) {
+	cause := status.Error(codes.InvalidArgument, "object too large")
+	err := &ObjectTooLargeError{Err: cause}
+
+	unwrapped := errors.Unwrap(err)
+
+	assert.Equal(t, cause, unwrapped)
+	assert.Contains(t, err.Error(), "gcs.ObjectTooLargeError")
+}
