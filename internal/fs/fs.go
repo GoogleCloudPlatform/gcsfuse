@@ -1328,8 +1328,14 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 func (fs *fileSystem) promoteToGenerationBacked(f *inode.FileInode) {
 	fs.mu.Lock()
 	name := f.Name()
+	// A local file is synced to GCS for the first time with a precondition
+	// that the object doesn't exist, so any other inode indexed under its name
+	// is stale, e.g. an unlinked inode that the kernel hasn't forgotten yet.
+	// Replace it. Otherwise this inode would be in neither map, and operations
+	// by name, such as unlink, would miss it.
+	isLocalFile := fs.localFileInodes[name] == f
 	delete(fs.localFileInodes, name)
-	if _, ok := fs.generationBackedInodes[name]; !ok {
+	if _, ok := fs.generationBackedInodes[name]; isLocalFile || !ok {
 		fs.generationBackedInodes[name] = f
 	}
 	fs.mu.Unlock()
