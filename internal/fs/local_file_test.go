@@ -665,6 +665,35 @@ func (t *LocalFileTest) TestUnlinkOfSyncedLocalFile() {
 	t.validateObjectNotFoundErr(FileName)
 }
 
+// The open handle keeps the unlinked inode of the old file alive, so it is
+// still indexed under the file name when the recreated file is synced.
+func (t *LocalFileTest) TestUnlinkOfRecreatedFileAfterSyncWhileOldFileIsOpen() {
+	filePath := path.Join(mntDir, FileName)
+	require.NoError(t.T(), t.createObjects(map[string]string{FileName: FileContents}))
+	var err error
+	t.f2, err = os.Open(filePath)
+	require.NoError(t.T(), err)
+	require.NoError(t.T(), os.Remove(filePath))
+	_, t.f1 = t.createLocalFile(FileName)
+	_, err = t.f1.WriteString(FileContents)
+	require.NoError(t.T(), err)
+	require.NoError(t.T(), t.f1.Sync())
+	_, err = t.f1.WriteString(FileContents)
+	require.NoError(t.T(), err)
+
+	err = os.Remove(filePath)
+
+	require.NoError(t.T(), err)
+	t.validateNoFileOrDirError(FileName)
+	t.validateObjectNotFoundErr(FileName)
+	// Like on a local file system, closing an unlinked file succeeds.
+	err = t.closeLocalFile(&t.f1)
+	require.NoError(t.T(), err)
+	t.validateObjectNotFoundErr(FileName)
+	err = t.closeLocalFile(&t.f2)
+	require.NoError(t.T(), err)
+}
+
 func (t *LocalFileTest) TestRmDirOfDirectoryContainingGCSAndLocalFiles() {
 	// Create explicit directory with one synced and one local file.
 	require.NoError(t.T(),
