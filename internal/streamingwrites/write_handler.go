@@ -65,6 +65,19 @@ type WriteFileInfo struct {
 
 var ErrOutOfOrderWrite = errors.New("outOfOrder write detected")
 
+// isSequentialWrite reports whether a write at offset is in order for a
+// streaming write handler. It must start at the current size, totalSize, or at
+// the size requested by a pending forward truncate, truncatedSize, while the
+// file is still smaller than truncatedSize. Any other offset is out of order.
+//
+// Once a write goes past the truncated size, a write starting at the truncated
+// size is out of order. For example, if a file is truncated to 10 bytes and 10
+// bytes are written at offset 5, totalSize becomes 15, and a later write at
+// offset 10 (the truncated size) is rejected.
+func isSequentialWrite(offset, totalSize, truncatedSize int64) bool {
+	return offset == totalSize || (offset == truncatedSize && totalSize < truncatedSize)
+}
+
 type CreateWriteHandlerRequest struct {
 	Object                   *gcs.Object
 	ObjectName               string
