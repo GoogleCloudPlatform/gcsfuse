@@ -16,6 +16,7 @@ package cfg
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"math"
 	"os"
@@ -904,28 +905,40 @@ func TestRationalize_MetadataCacheConfig(t *testing.T) {
 
 func TestResolveOnlyDir(t *testing.T) {
 	testCases := []struct {
-		name     string
-		input    string
-		expected string
+		name          string
+		input         string
+		expected      string
+		expectWarning bool
 	}{
-		{"Clean relative path", "foo/bar", "foo/bar"},
-		{"Trailing slash", "foo/bar/", "foo/bar"},
-		{"Leading slash", "/foo/bar", "foo/bar"},
-		{"Leading and trailing slashes", "/foo/bar/", "foo/bar"},
-		{"Relative parent segment", "foo/../bar/", "bar"},
-		{"Root slash", "/", ""},
-		{"Root dot", "/.", ""},
-		{"Parent directory", "..", ""},
-		{"Root parent directory", "/..", ""},
-		{"Current directory prefix", "./foo", "foo"},
-		{"Parent directory prefix", "../foo", "foo"},
-		{"Empty string", "", ""},
+		{"Clean relative path", "foo/bar", "foo/bar", false},
+		{"Trailing slash", "foo/bar/", "foo/bar", false},
+		{"Leading slash", "/foo/bar", "foo/bar", true},
+		{"Leading and trailing slashes", "/foo/bar/", "foo/bar", true},
+		{"Relative parent segment", "foo/../bar/", "bar", false},
+		{"Root slash", "/", "", true},
+		{"Root dot", "/.", "", true},
+		{"Parent directory", "..", "", false},
+		{"Root parent directory", "/..", "", true},
+		{"Current directory prefix", "./foo", "foo", false},
+		{"Parent directory prefix", "../foo", "foo", false},
+		{"Empty string", "", "", false},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			log.SetOutput(&buf)
+			defer log.SetOutput(os.Stderr)
+
 			c := &Config{OnlyDir: tc.input}
 			resolveOnlyDir(c)
+
 			assert.Equal(t, tc.expected, c.OnlyDir)
+			if tc.expectWarning {
+				expectedWarning := fmt.Sprintf("Warning: Leading '/' in only-dir (%q) is stripped; resolved only-dir to %q. Objects under a '/'-prefixed path are not reachable via only-dir.", tc.input, tc.expected)
+				assert.Contains(t, buf.String(), expectedWarning)
+			} else {
+				assert.Empty(t, buf.String())
+			}
 		})
 	}
 }

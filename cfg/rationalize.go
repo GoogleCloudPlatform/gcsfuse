@@ -171,7 +171,11 @@ func resolveGCSRetriesConfig(c *GcsRetriesConfig) {
 // or trailing slashes (e.g., "foo/bar/.." -> "foo", "/foo/bar/" -> "foo/bar").
 func resolveOnlyDir(c *Config) {
 	if c.OnlyDir != "" {
+		hasLeadingSlash := strings.HasPrefix(c.OnlyDir, "/")
 		clean := strings.TrimPrefix(path.Clean("/"+c.OnlyDir), "/")
+		if hasLeadingSlash {
+			log.Printf("Warning: Leading '/' in only-dir (%q) is stripped; resolved only-dir to %q. Objects under a '/'-prefixed path are not reachable via only-dir.", c.OnlyDir, clean)
+		}
 		c.OnlyDir = clean
 	}
 }
