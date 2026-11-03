@@ -83,22 +83,24 @@ To upgrade standard Go modules (non-toolchain libraries):
 #### Case A: Upgrading All/General Dependencies
 If you are asked to upgrade all or general dependencies, run the following command to upgrade **only the direct dependencies** to their latest minor/patch versions:
 ```bash
-go get $(go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all)
+TARGET_GO=$(tr -d '[:space:]' < .go-version)
+GOWORK=off GOTOOLCHAIN=go${TARGET_GO} go get $(GOWORK=off go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all)
 ```
 Then, run `go mod tidy` to let Go resolve and update the indirect dependencies and clean up `go.mod` and `go.sum`:
 ```bash
-go mod tidy
+GOWORK=off GOTOOLCHAIN=go${TARGET_GO} go mod tidy
 ```
 
 #### Case B: Upgrading Specific Dependencies
 If you are asked to upgrade specific dependencies:
 1. Run the `go get` command for the target package(s) and its direct dependencies:
    ```bash
-   go get <module_path>@<target_version> [peer_package]@[target_version] ...
+   TARGET_GO=$(tr -d '[:space:]' < .go-version)
+   GOWORK=off GOTOOLCHAIN=go${TARGET_GO} go get <module_path>@<target_version> [peer_package]@[target_version] ...
    ```
 2. Tidy up the module definition files (`go.mod` and `go.sum`):
    ```bash
-   go mod tidy
+   GOWORK=off GOTOOLCHAIN=go${TARGET_GO} go mod tidy
    ```
 
 ---
@@ -157,16 +159,16 @@ SearchPath: "<workspace_root>"
    * **[e2e_test.sh](../../../tools/cd_scripts/e2e_test.sh)**
    * **[run_e2e_tests.sh](../../../tools/integration_tests/run_e2e_tests.sh)**
    * **[improved_run_e2e_tests.sh](../../../tools/integration_tests/improved_run_e2e_tests.sh)**
-6. **Performance & Presubmit Test Scripts**:
-   * **[build.sh](../../../perfmetrics/scripts/presubmit_test/pr_perf_test/build.sh)**
-   * **[setup.sh](../../../perfmetrics/scripts/read_cache/setup.sh)**
-   * **[run_checkpoints.sh](../../../perfmetrics/scripts/ml_tests/checkpoint/Jax/run_checkpoints.sh)**
+6. **Performance, GKE & Presubmit Test Scripts / CI Workflows**:
+   * **[run-gke-tests.sh](../../../perfmetrics/scripts/testing_on_gke/examples/run-gke-tests.sh)** (`version=X.Y.Z`)
+   * **[build.sh](../../../perfmetrics/scripts/presubmit_test/pr_perf_test/build.sh)**, **[setup.sh](../../../perfmetrics/scripts/read_cache/setup.sh)**, **[run_checkpoints.sh](../../../perfmetrics/scripts/ml_tests/checkpoint/Jax/run_checkpoints.sh)**, **[run_model.sh](../../../perfmetrics/scripts/ml_tests/pytorch/run_model.sh)**, and **[setup_container.sh](../../../perfmetrics/scripts/ml_tests/tf/resnet/setup_scripts/setup_container.sh)** (note: on `master`, several scripts and Dockerfiles read `.go-version` dynamically, whereas older release branches hardcode the version string—always verify via repository-wide search)
+   * **`.github/workflows/*.yml`** (on older release branches that hardcode `go-version:` instead of `go-version-file: '.go-version'`)
 
 ### Step 4: Replace All References
 Update every file identified in Step 3, substituting the old Go version with the new exact target Go version. Ensure that no minor-only (e.g. `1.26` instead of `1.26.3`) or mismatched version strings exist.
 
 ### Step 5: Sync and Tidy
-Run `go mod tidy` to ensure `go.mod` and `go.sum` are consistent and fully synchronized.
+Run `GOWORK=off GOTOOLCHAIN=go$(tr -d '[:space:]' < .go-version) go mod tidy` to ensure `go.mod` and `go.sum` are consistent and fully synchronized.
 
 ---
 
@@ -177,31 +179,41 @@ After upgrading dependencies and/or the Go toolchain, verify the integrity and s
 ### Compile Check
 Verify that the entire codebase builds cleanly with no compile-time regressions:
 ```bash
-make build
+TARGET_GO=$(tr -d '[:space:]' < .go-version)
+GOWORK=off GOTOOLCHAIN=go${TARGET_GO} make build
 ```
 
 ### Run Vulnerability Scan
-Verify that all active CVEs are completely cleared. First, ensure `govulncheck` is installed on the system, and install it if it is missing:
+Verify that all active CVEs and fixable module advisories are completely cleared by scanning the compiled `gcsfuse` binary built with the branch's target Go toolchain from `.go-version`. First, ensure `govulncheck` is installed on the system and exposed in `PATH`:
 ```bash
-# Check if govulncheck is installed, if not, attempt to install it and expose $(go env GOPATH)/bin in PATH
 if ! command -v govulncheck &> /dev/null; then
-  go install golang.org/x/vuln/cmd/govulncheck@latest || true
-  export PATH=$PATH:$(go env GOPATH)/bin
+  go install golang.org/x/vuln/cmd/govulncheck@latest
+  export PATH=$(go env GOPATH)/bin:$PATH
 fi
 ```
-Then attempt to run the vulnerability scan.
+Build the `gcsfuse` binary in a per-run `mktemp -d` directory with `GOWORK=off` and the target toolchain in `.go-version`, and run `govulncheck` in binary mode with `-show verbose`:
+```bash
+TMP_DIR=$(mktemp -d)
+TARGET_GO=$(tr -d '[:space:]' < .go-version)
+GOWORK=off GOTOOLCHAIN=go${TARGET_GO} go build -o "${TMP_DIR}/gcsfuse-vulncheck" .
+govulncheck -mode=binary -show verbose "${TMP_DIR}/gcsfuse-vulncheck"
+```
+Remove the temporary directory in a separate step after inspecting the result:
+```bash
+rm -rf "${TMP_DIR}"
+```
 > [!IMPORTANT]
-> If `govulncheck` fails to install or run (e.g., due to offline environments, missing access to external proxies, or toolchain configuration limits), **do NOT treat this failure as a critical blocker**. Log a warning to the user, note the issue in your summary, and proceed to running the test suite to complete the dependency upgrade.
+> **Mandatory Blocking Gate for CVE Remediation**:
+> For any CVE or security vulnerability remediation workflow, `govulncheck -mode=binary -show verbose "${TMP_DIR}/gcsfuse-vulncheck"` **is a strict blocking requirement**. Do **NOT** bypass `govulncheck` failures, do **NOT** chain `; rm -rf "${TMP_DIR}"` after `govulncheck` (which masks non-zero exit codes), and do **NOT** create a Pull Request if any `Symbol`, `Package`, or fixable tagged `Module` (`Fixed in: <mod>@vX.Y.Z` without a `-0.<timestamp>-<commit>` pseudo-version suffix) vulnerabilities remain. Module-only notices with `Fixed in: N/A` or untagged pseudo-versions (`@vX.Y.Z-0.<timestamp>-<commit>`, e.g., `GO-2026-5932` in `golang.org/x/crypto/openpgp`) for subpackages confirmed unimported via `GOWORK=off go list -deps ./... | grep <pkg>` are non-blocking and must NOT be pinned to untagged commits.
 
-If the utility is available, run the scan:
+### Run Tests & Create Pull Request
+Verify that the unit test suite passes successfully with the upgraded dependencies:
 ```bash
-govulncheck ./...
+TARGET_GO=$(tr -d '[:space:]' < .go-version)
+GOWORK=off GOTOOLCHAIN=go${TARGET_GO} go test `GOWORK=off go list ./... | grep -v 'tools/integration_tests'`
 ```
-*Result:* The scan should report `Your code is affected by 0 vulnerabilities`.
-
-### Run Tests
-Verify that the test suite passes successfully with the upgraded dependencies:
-```bash
-go test ./...
-```
+When pushing changes upstream and creating a Pull Request:
+1. Follow the **[GCSFuse Build and Style Verification Skill](../build/SKILL.md)** (`make build`) to ensure code generation, imports, formatting, and static analysis are clean.
+2. Follow the **[GCSFuse Integration Testing Skill](../integration-tests/SKILL.md)** safety rules (**never** run integration tests locally on Cloudtop; apply the `execute-integration-tests` and `execute-perf-test` PR labels to trigger CI suites).
+3. Follow the **[GCSFuse Pull Request Creation Skill](../pull-request/SKILL.md)** to align the commit message and PR title (`type(scope): subject`), format the 4-section PR description starting at `### Description`, and open the PR in **Draft** mode (`--draft`).
 
