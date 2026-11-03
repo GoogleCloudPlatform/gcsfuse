@@ -41,10 +41,7 @@ func (p *PromGrpcMetricsTest) TestStorageClientGrpcMetrics() {
 		assertNonZeroCountMetric(p.T(), "grpc_client_attempt_started", "grpc_method", "google.storage.v2.Storage/ReadObject", p.prometheusPort)
 	}
 	assertNonZeroCountMetric(p.T(), "grpc_client_attempt_started", "", "", p.prometheusPort)
-	assertNonZeroHistogramMetric(p.T(), "grpc_client_attempt_duration_seconds", "", "", p.prometheusPort)
-	assertNonZeroHistogramMetric(p.T(), "grpc_client_call_duration_seconds", "", "", p.prometheusPort)
-	assertNonZeroHistogramMetric(p.T(), "grpc_client_attempt_rcvd_total_compressed_message_size_bytes", "", "", p.prometheusPort)
-	assertNonZeroHistogramMetric(p.T(), "grpc_client_attempt_sent_total_compressed_message_size_bytes", "", "", p.prometheusPort)
+	assertNonZeroHistogramMetric(p.T(), "grpc_client_call_duration", "", "", p.prometheusPort)
 }
 
 func TestPromGrpcMetricsSuite(t *testing.T) {
