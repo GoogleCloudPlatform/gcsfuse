@@ -695,15 +695,15 @@ func TestGetMetricViews(t *testing.T) {
 	}
 }
 
-func TestDropDisallowedMetricsView_GrpcMetricsFiltering(t *testing.T) {
-	ctx := context.Background()
+func TestDropDisallowedMetricsView_GRPCMetricsFiltering(t *testing.T) {
+	ctx := t.Context()
 	reader := metric.NewManualReader()
 	provider := metric.NewMeterProvider(
 		metric.WithReader(reader),
 		metric.WithView(getMetricViews(false)...),
 	)
 	t.Cleanup(func() {
-		_ = provider.Shutdown(ctx)
+		_ = provider.Shutdown(context.Background())
 	})
 
 	meter := provider.Meter("grpc-go")
@@ -714,10 +714,15 @@ func TestDropDisallowedMetricsView_GrpcMetricsFiltering(t *testing.T) {
 		"grpc.lb.rls.default_target_picks",
 		"grpc.lb.rls.failed_picks",
 	}
-	disallowedGrpcMetrics := []string{
+	assert.Len(t, allowedGRPCMetrics, len(allowedMetrics))
+
+	disallowedGRPCMetrics := []string{
 		"grpc.client.attempt.duration",
 		"grpc.client.attempt.rcvd_total_compressed_message_size",
 		"grpc.client.attempt.sent_total_compressed_message_size",
+		"grpc.lb.wrr.rr_fallback",
+		"grpc.lb.wrr.endpoint_weight_not_yet_usable",
+		"grpc.lb.wrr.endpoint_weight_stale",
 		"grpc.lb.wrr.endpoint_weights",
 		"grpc.lb.rls.target_picks",
 		"grpc.lb.rls.cache_entries",
@@ -729,7 +734,7 @@ func TestDropDisallowedMetricsView_GrpcMetricsFiltering(t *testing.T) {
 		require.NoError(t, err)
 		c.Add(ctx, 1)
 	}
-	for _, name := range disallowedGrpcMetrics {
+	for _, name := range disallowedGRPCMetrics {
 		h, err := meter.Float64Histogram(name)
 		require.NoError(t, err)
 		h.Record(ctx, 1.0)
@@ -748,7 +753,7 @@ func TestDropDisallowedMetricsView_GrpcMetricsFiltering(t *testing.T) {
 	for _, name := range allowedMetrics {
 		assert.Contains(t, collectedNames, name, "expected allowed gRPC metric %q to be retained", name)
 	}
-	for _, name := range disallowedGrpcMetrics {
+	for _, name := range disallowedGRPCMetrics {
 		assert.NotContains(t, collectedNames, name, "expected disallowed gRPC metric %q to be dropped", name)
 	}
 }

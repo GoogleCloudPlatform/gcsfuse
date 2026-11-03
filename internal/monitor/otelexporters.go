@@ -60,7 +60,7 @@ const cloudMonitoringMetricPrefix = "custom.googleapis.com/gcsfuse/"
 
 var allowedMetricPrefixes = []string{"fs/", "gcs/", "file_cache/", "buffered_read/", "read/", "metadata_cache/"}
 
-var allowedGrpcMetrics = map[string]struct{}{
+var allowedGRPCMetrics = map[string]struct{}{
 	"grpc.client.attempt.started":      {},
 	"grpc.client.call.duration":        {},
 	"grpc.lb.rls.default_target_picks": {},
@@ -118,9 +118,10 @@ func getMetricViews(enableNewMetricsSchema bool) []metric.View {
 	return views
 }
 
-// dropDisallowedMetricsView is an OTel View that drops the metrics that don't match the allowed prefixes or allowed gRPC metric names.
+// dropDisallowedMetricsView is an OTel View that drops metrics that don't match
+// the allowed prefixes or allowed gRPC metric names.
 func dropDisallowedMetricsView(i metric.Instrument) (metric.Stream, bool) {
-	if _, ok := allowedGrpcMetrics[i.Name]; ok {
+	if _, ok := allowedGRPCMetrics[i.Name]; ok {
 		return metric.Stream{}, false
 	}
 	for _, prefix := range allowedMetricPrefixes {
