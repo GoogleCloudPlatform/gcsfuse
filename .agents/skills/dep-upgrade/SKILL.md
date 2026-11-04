@@ -77,26 +77,44 @@ To upgrade standard Go modules (non-toolchain libraries):
 1. **Focus on Direct Dependencies**: Only upgrade direct dependencies directly. Do not manually upgrade indirect dependencies unless the corresponding direct dependency is also being upgraded. Let `go mod tidy` resolve and update indirect dependencies automatically based on the upgraded direct dependencies.
 2. **Lock Version Precisely**: Do not use wildcard upgrades if a specific fixed version is known.
 3. **Upgrade Co-dependencies (Peer Packages)**: Upgrading a core library (like `go.opentelemetry.io/otel/sdk`) often requires upgrading peer packages (like `go.opentelemetry.io/otel` or contribution/instrumentation packages like `otelhttp`) to the same version to prevent Skew/API conflicts.
+4. **Keep `google.golang.org/grpc` Aligned with `cloud.google.com/go/storage`**: Do **not** upgrade `google.golang.org/grpc` independently (including for `grpc-go` CVEs). Coordinate with the Go SDK team to release an updated `cloud.google.com/go/storage` first—including patch releases on older minor versions when needed—and then upgrade `cloud.google.com/go/storage` in GCSFuse.
 
 ### Commands
 
 #### Case A: Upgrading All/General Dependencies
-If you are asked to upgrade all or general dependencies, run the following command to upgrade **only the direct dependencies** to their latest minor/patch versions:
+If you are asked to upgrade all or general dependencies, run the following command to upgrade **only the direct dependencies** (excluding `google.golang.org/grpc`, which tracks `cloud.google.com/go/storage`) to their latest minor/patch versions:
 ```bash
-go get $(go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all)
+go get $(go list -f '{{if and (not (or .Main .Indirect)) (ne .Path "google.golang.org/grpc")}}{{.Path}}{{end}}' -m all)
 ```
-Then, run `go mod tidy` to let Go resolve and update the indirect dependencies and clean up `go.mod` and `go.sum`:
+Next, align `google.golang.org/grpc` with the version required by `cloud.google.com/go/storage` and run `go mod tidy` so MVS resolves indirect requirements without downgrading other dependencies:
 ```bash
+STORAGE_MOD=$(GOWORK=off go list -mod=readonly -m -f '{{.Path}}@{{.Version}}' cloud.google.com/go/storage)
+SDK_GRPC=$(GOWORK=off go mod graph | awk -v sm="$STORAGE_MOD" '$1 == sm && $2 ~ /^google\.golang\.org\/grpc@/ {sub(/^google\.golang\.org\/grpc@/, "", $2); print $2}')
+if [ -n "$SDK_GRPC" ]; then
+  go mod edit -require="google.golang.org/grpc@${SDK_GRPC}"
+else
+  echo "Warning: Could not resolve gRPC version from ${STORAGE_MOD}" >&2
+fi
 go mod tidy
 ```
 
 #### Case B: Upgrading Specific Dependencies
-If you are asked to upgrade specific dependencies:
+If you are asked to upgrade specific dependencies (note: do **not** run `go get google.golang.org/grpc@...` independently; even for `grpc-go` CVEs, coordinate with the Go SDK team to release an updated `cloud.google.com/go/storage` first and then upgrade `cloud.google.com/go/storage`):
 1. Run the `go get` command for the target package(s) and its direct dependencies:
    ```bash
    go get <module_path>@<target_version> [peer_package]@[target_version] ...
    ```
-2. Tidy up the module definition files (`go.mod` and `go.sum`):
+2. If upgrading `cloud.google.com/go/storage`, align the direct `google.golang.org/grpc` requirement in `go.mod` with `cloud.google.com/go/storage`:
+   ```bash
+   STORAGE_MOD=$(GOWORK=off go list -mod=readonly -m -f '{{.Path}}@{{.Version}}' cloud.google.com/go/storage)
+   SDK_GRPC=$(GOWORK=off go mod graph | awk -v sm="$STORAGE_MOD" '$1 == sm && $2 ~ /^google\.golang\.org\/grpc@/ {sub(/^google\.golang\.org\/grpc@/, "", $2); print $2}')
+   if [ -n "$SDK_GRPC" ]; then
+     go mod edit -require="google.golang.org/grpc@${SDK_GRPC}"
+   else
+     echo "Warning: Could not resolve gRPC version from ${STORAGE_MOD}" >&2
+   fi
+   ```
+3. Tidy up the module definition files (`go.mod` and `go.sum`):
    ```bash
    go mod tidy
    ```
