@@ -45,7 +45,7 @@ const (
 	// Note: The user or service account running the test package, as well as the
 	// requester-pays service account (requester-pays-tester), must be granted the
 	// Storage Admin and Service Usage Consumer roles on the billing project (see
-	// billingProject).
+	// determineBillingProject).
 	// For example, adding the Service Usage Consumer role to
 	// requester-pays-tester@gcs-fuse-test.iam.gserviceaccount.com in the gcs-fuse-test project.
 	requesterPaysServiceAccountName = "requester-pays-tester"
@@ -89,7 +89,7 @@ func TestMain(m *testing.M) {
 	// When not running in GKE environment.
 	if cfg.RequesterPaysBucket[0].GKEMountedDirectory == "" {
 		// Replace --billing-project= placeholder in flags with the billing project.
-		targetBillingProject := billingProject(creds_tests.ActiveProjectID(testEnv.ctx))
+		targetBillingProject := determineBillingProject(creds_tests.ActiveProjectID(testEnv.ctx))
 		for i := range cfg.RequesterPaysBucket[0].Configs {
 			for j, flag := range cfg.RequesterPaysBucket[0].Configs[i].Flags {
 				cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = setup.ReplaceOrAppendFlag(flag, "${BILLING_PROJECT}", "--billing-project=", targetBillingProject)
@@ -178,11 +178,11 @@ func TestMain(m *testing.M) {
 // legacyBillingProject is the billing project used by the legacy test projects.
 const legacyBillingProject = "gcs-fuse-test"
 
-// billingProject returns the project billed for requester-pays requests. The
+// determineBillingProject returns the project billed for requester-pays requests. The
 // legacy test projects (gcs-fuse-test, gcs-fuse-test-ml) keep billing
 // gcs-fuse-test. Any other project, such as the dedicated CD pipeline projects,
 // bills itself, so it only needs Service Usage Consumer on its own project.
-func billingProject(activeProject string) string {
+func determineBillingProject(activeProject string) string {
 	if activeProject == "gcs-fuse-test" || activeProject == "gcs-fuse-test-ml" {
 		return legacyBillingProject
 	}
