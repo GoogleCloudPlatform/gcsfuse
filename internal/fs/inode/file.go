@@ -157,11 +157,6 @@ type FileInode struct {
 	// one implementation with original functionality and one with new persistent disk content cache
 	localFileCache bool
 
-	// Has Destroy been called?
-	//
-	// GUARDED_BY(mu)
-	destroyed bool
-
 	// Represents a local file which is not yet synced to GCS.
 	local atomic.Bool
 
@@ -222,7 +217,6 @@ func NewFileInode(
 		f.kernelRangeReaderInstance = kernel_readers.NewKernelRangeReaderInstance(&minObj)
 	}
 
-	f.lc.Init(id)
 	f.mu = locker.NewRW("FileInode", f.checkInvariants)
 
 	return
@@ -234,7 +228,7 @@ func NewFileInode(
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) checkInvariants() {
-	if f.destroyed {
+	if f.lc.IsDestroyed() {
 		return
 	}
 
@@ -557,12 +551,12 @@ func (f *FileInode) SourceGeneration() (g Generation) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) IncrementLookupCount() {
-	f.lc.Inc()
+	f.lc.Inc(f.id)
 }
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) DecrementLookupCount(n uint64) (destroy bool) {
-	destroy = f.lc.Dec(n)
+	destroy = f.lc.Dec(f.id, n)
 	return
 }
 
@@ -608,7 +602,7 @@ func (f *FileInode) UpdateSize(size uint64) {
 
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) Destroy() (err error) {
-	f.destroyed = true
+	f.lc.Destroy()
 	if f.localFileCache {
 		cacheObjectKey := &contentcache.CacheObjectKey{BucketName: f.bucket.Name(), ObjectName: f.name.objectName}
 		f.contentCache.Remove(cacheObjectKey)
