@@ -70,6 +70,12 @@ func projectID(ctx context.Context) string {
 	return id
 }
 
+// ActiveProjectID returns the GCP project the tests run in (gcs-fuse-test on
+// cloudtop), the same project used to look up the test service accounts and secrets.
+func ActiveProjectID(ctx context.Context) string {
+	return projectID(ctx)
+}
+
 func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath string) {
 	log.Println("Running credentials tests...")
 	return CreateCredentialsForSA(ctx, NameOfServiceAccount, CredentialsSecretName)
