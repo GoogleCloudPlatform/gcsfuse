@@ -42,12 +42,11 @@ const (
 	// (e.g., "gcs-fuse-test" or "gcs-fuse-test-ml").
 	// The test expects a JSON key for this SA to be stored in Secret Manager
 	// within the same project, under the secret name specified by requesterPaysCredsSecretName.
-	// Note: The user or service account running the test package, as well as the
-	// requester-pays service account (requester-pays-tester), must be granted the
-	// Storage Admin and Service Usage Consumer roles on the billing project (see
-	// determineBillingProject).
-	// For example, adding the Service Usage Consumer role to
-	// requester-pays-tester@gcs-fuse-test.iam.gserviceaccount.com in the gcs-fuse-test project.
+	// Note: requester-pays-tester e2e test package needs Storage Admin on the project that owns the
+	// test bucket, and Service Usage Consumer on the billing project (see
+	// determineBillingProject). For example, for gcs-fuse-test-ml the bucket is in
+	// gcs-fuse-test-ml but billing goes to gcs-fuse-test; for CD projects both are
+	// the same project.
 	requesterPaysServiceAccountName = "requester-pays-tester"
 	requesterPaysCredsSecretName    = "requester-pays-tester"
 )
