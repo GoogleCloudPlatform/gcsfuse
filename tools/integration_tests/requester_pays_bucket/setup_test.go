@@ -44,12 +44,12 @@ const (
 	// within the same project, under the secret name specified by requesterPaysCredsSecretName.
 	// Note: The user or service account running the test package, as well as the
 	// requester-pays service account (requester-pays-tester), must be granted the
-	// Storage Admin and Service Usage Consumer roles on the project.
+	// Storage Admin and Service Usage Consumer roles on the billing project (see
+	// billingProject).
 	// For example, adding the Service Usage Consumer role to
 	// requester-pays-tester@gcs-fuse-test.iam.gserviceaccount.com in the gcs-fuse-test project.
 	requesterPaysServiceAccountName = "requester-pays-tester"
 	requesterPaysCredsSecretName    = "requester-pays-tester"
-	targetBillingProject            = "gcs-fuse-test"
 )
 
 // To prevent global variable pollution, enhance code clarity,
@@ -88,7 +88,8 @@ func TestMain(m *testing.M) {
 
 	// When not running in GKE environment.
 	if cfg.RequesterPaysBucket[0].GKEMountedDirectory == "" {
-		// Replace --billing-project= placeholder in flags with the default billing project.
+		// Replace --billing-project= placeholder in flags with the billing project.
+		targetBillingProject := billingProject(creds_tests.ActiveProjectID(testEnv.ctx))
 		for i := range cfg.RequesterPaysBucket[0].Configs {
 			for j, flag := range cfg.RequesterPaysBucket[0].Configs[i].Flags {
 				cfg.RequesterPaysBucket[0].Configs[i].Flags[j] = setup.ReplaceOrAppendFlag(flag, "${BILLING_PROJECT}", "--billing-project=", targetBillingProject)
@@ -172,4 +173,18 @@ func TestMain(m *testing.M) {
 	// Clean up test directory created.
 	setup.CleanupDirectoryOnGCS(testEnv.ctx, testEnv.storageClient, path.Join(setup.TestBucket(), testDirName))
 	os.Exit(successCode)
+}
+
+// legacyBillingProject is the billing project used by the legacy test projects.
+const legacyBillingProject = "gcs-fuse-test"
+
+// billingProject returns the project billed for requester-pays requests. The
+// legacy test projects (gcs-fuse-test, gcs-fuse-test-ml) keep billing
+// gcs-fuse-test. Any other project, such as the dedicated CD pipeline projects,
+// bills itself, so it only needs Service Usage Consumer on its own project.
+func billingProject(activeProject string) string {
+	if activeProject == "gcs-fuse-test" || activeProject == "gcs-fuse-test-ml" {
+		return legacyBillingProject
+	}
+	return activeProject
 }
