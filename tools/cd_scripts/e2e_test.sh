@@ -100,11 +100,20 @@ if [[ "$RUN_LIGHT_TEST" == "true" ]]; then
 	echo "Running light tests only..."
 fi
 
-#details.txt file contains the release version and commit hash of the current release.
-# Using dynamic bucket.
-gcloud storage cp gs://${BUCKET_NAME_TO_USE}/version-detail/details.txt .
-# Writing VM instance name to details.txt (Format: release-test-<os-name>)
-curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
+# Fetch parameters from VM metadata attributes or environment variables first.
+META_VERSION=$(curl -sfS -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/RELEASE_VERSION" 2>/dev/null || echo "${RELEASE_VERSION:-}")
+META_COMMIT=$(curl -sfS -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/COMMIT_HASH" 2>/dev/null || echo "${COMMIT_HASH:-}")
+VM_NAME=$(curl -sfS -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/name" 2>/dev/null || hostname)
+
+if [[ -n "$META_VERSION" && -n "$META_COMMIT" ]]; then
+  echo "$META_VERSION" > details.txt
+  echo "$META_COMMIT" >> details.txt
+  echo "$VM_NAME" >> details.txt
+else
+  # Fallback to fetching details.txt from GCS if metadata is not provided
+  gcloud storage cp gs://${BUCKET_NAME_TO_USE}/version-detail/details.txt . || true
+  echo "$VM_NAME" >> details.txt
+fi
 
 # Function to create the local user
 create_user() {

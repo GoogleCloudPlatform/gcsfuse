@@ -68,10 +68,11 @@ while (( $# >= 1 )); do
             shift 2
             # Regex breakdown:
             # ^                              : Start of string
-            # [0-9]+\.[0-9]+\.[0-9]+         : Major.Minor.Patch digits
+            # [0-9]+\.[0-9]+\.[0-9]+         : Major.Minor.Patch digits (YYYY.MM.DD for dev/nightly CD runs)
             # (-frontier-[a-z0-9]+\.[0-9]+)? : Optional Frontier version suffix (e.g., 3.8.4-frontier-a.0, 3.8.4-frontier-a.1)
+            # (-(dev|nightly))?              : Optional dev/nightly suffix used by the CD pipelines
             # $                              : End of string
-            RE="^[0-9]+\.[0-9]+\.[0-9]+(-frontier-[a-z0-9]+\.[0-9]+)?$"
+            RE="^[0-9]+\.[0-9]+\.[0-9]+((-frontier-[a-z0-9]+\.[0-9]+)|(-(dev|nightly)))?$"
             if [[ ! $RELEASE_VERSION =~ $RE ]]; then
                 log_error "--release-version value '$RELEASE_VERSION' is incorrectly formatted."
                 usage 1
