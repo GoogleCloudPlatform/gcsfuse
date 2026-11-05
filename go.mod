@@ -12,7 +12,7 @@ require (
 	cloud.google.com/go/storage v1.70.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.62.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.38.0
-	github.com/fsouza/fake-gcs-server v1.56.1
+	github.com/fsouza/fake-gcs-server v1.54.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/s2a-go v0.1.11
 	github.com/google/uuid v1.6.0
