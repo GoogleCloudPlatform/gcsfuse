@@ -52,6 +52,10 @@ const (
 func (p *Protocol) UnmarshalText(text []byte) error {
 	txtStr := string(text)
 	protocol := strings.ToLower(txtStr)
+	if protocol == "" {
+		*p = ""
+		return nil
+	}
 	v := []string{"http1", "http2", "grpc", "httpmtls"}
 	if !slices.Contains(v, protocol) {
 		return fmt.Errorf("invalid protocol value: %s. It can only accept values in the list: %v", txtStr, v)
