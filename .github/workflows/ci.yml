@@ -76,6 +76,11 @@ jobs:
         CGO_ENABLED=0 go build ./...
         go install ./tools/build_gcsfuse
         build_gcsfuse . /tmp ${GITHUB_SHA}
+    - name: Run govulncheck on built gcsfuse binary
+      if: ${{ needs.filter.outputs.run_tests == 'true' }}
+      run: |
+        go install golang.org/x/vuln/cmd/govulncheck@latest
+        govulncheck -mode=binary -show verbose /tmp/bin/gcsfuse
     - name: Test all
       if: ${{ needs.filter.outputs.run_tests == 'true' }}
       run: CGO_ENABLED=0 go test -p 1 -count 1 -covermode=atomic -coverprofile=coverage.out -coverpkg=./... -v -skip `cat flaky_tests.lst | go run tools/scripts/skip_tests/main.go` `go list ./... | grep -v 'tools/integration_tests'`
