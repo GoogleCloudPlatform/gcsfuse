@@ -19,6 +19,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -285,6 +286,184 @@ func TestApplyOptimizations_Success(t *testing.T) {
 	assert.EqualValues(t, 1024, cfg.MetadataCache.StatCacheMaxSizeMb)
 	assert.True(t, cfg.ImplicitDirs)
 	assert.EqualValues(t, 200000, cfg.FileSystem.RenameDirLimit)
+}
+
+func TestConditionalBucketTypeOptimizations(t *testing.T) {
+	blockSizeRules := &shared.OptimizationRules{
+		BucketTypeOptimization: []shared.BucketTypeOptimization{
+			{
+				BucketTypes: shared.BucketTypeList{"rcu"},
+				Conditions: map[string]any{
+					"write.rapid-write": "enabled",
+				},
+				Value: float64(4.0),
+			},
+		},
+	}
+	maxBlocksPerFileRules := &shared.OptimizationRules{
+		BucketTypeOptimization: []shared.BucketTypeOptimization{
+			{
+				BucketTypes: shared.BucketTypeList{"rcu"},
+				Conditions: map[string]any{
+					"write.rapid-write": "enabled",
+				},
+				Value: int64(4),
+			},
+		},
+	}
+
+	testCases := []struct {
+		name                     string
+		rapidWrite               RapidWriteStrategy
+		bucketType               BucketType
+		expectedOptimized        bool
+		expectedBlockSize        float64
+		expectedMaxBlocksPerFile int64
+		expectedReason           string
+	}{
+		{
+			name:                     "Conditions_Met_Optimizes_Write_Params",
+			rapidWrite:               RapidWriteStrategyEnabled,
+			bucketType:               BucketTypeRCU,
+			expectedOptimized:        true,
+			expectedBlockSize:        4.0,
+			expectedMaxBlocksPerFile: 4,
+			expectedReason:           `bucket-type "rcu" with matching conditions`,
+		},
+		{
+			name:                     "Conditions_Not_Met_RapidWrite_Disabled",
+			rapidWrite:               RapidWriteStrategyDisabled,
+			bucketType:               BucketTypeRCU,
+			expectedOptimized:        false,
+			expectedBlockSize:        32,
+			expectedMaxBlocksPerFile: 1,
+		},
+		{
+			name:                     "Non_RCU_Bucket_No_Optimization",
+			rapidWrite:               RapidWriteStrategyEnabled,
+			bucketType:               BucketTypeZonal,
+			expectedOptimized:        false,
+			expectedBlockSize:        32,
+			expectedMaxBlocksPerFile: 1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := defaultConfig()
+			cfg.Write.RapidWrite = tc.rapidWrite
+			cfg.Write.BlockSizeMb = 32
+			cfg.Write.MaxBlocksPerFile = 1
+			input := &OptimizationInput{BucketType: tc.bucketType}
+
+			blockSizeRes := getOptimizedValue(blockSizeRules, cfg.Write.BlockSizeMb, "", "", input, machineTypeToGroupMap, &cfg)
+			maxBlocksRes := getOptimizedValue(maxBlocksPerFileRules, cfg.Write.MaxBlocksPerFile, "", "", input, machineTypeToGroupMap, &cfg)
+
+			assert.Equal(t, tc.expectedOptimized, blockSizeRes.Optimized)
+			assert.EqualValues(t, tc.expectedBlockSize, blockSizeRes.FinalValue)
+			assert.Equal(t, tc.expectedReason, blockSizeRes.OptimizationReason)
+			assert.Equal(t, tc.expectedOptimized, maxBlocksRes.Optimized)
+			assert.EqualValues(t, tc.expectedMaxBlocksPerFile, maxBlocksRes.FinalValue)
+			assert.Equal(t, tc.expectedReason, maxBlocksRes.OptimizationReason)
+		})
+	}
+}
+
+func TestMatchesConditions(t *testing.T) {
+	cfg := defaultConfig()
+	cfg.Write.RapidWrite = RapidWriteStrategyEnabled
+
+	assert.True(t, matchesConditions(&cfg, nil))
+	assert.True(t, matchesConditions(&cfg, map[string]any{}))
+	assert.False(t, matchesConditions(nil, map[string]any{"write.rapid-write": "enabled"}))
+	assert.True(t, matchesConditions(&cfg, map[string]any{"write.rapid-write": "enabled"}))
+	assert.False(t, matchesConditions(&cfg, map[string]any{"write.rapid-write": "disabled"}))
+	assert.False(t, matchesConditions(&cfg, map[string]any{"non.existent": true}))
+}
+
+func TestGetConfigFieldByPath(t *testing.T) {
+	cfg := defaultConfig()
+	cfg.Write.RapidWrite = RapidWriteStrategyEnabled
+	var nilCfg *Config
+
+	testCases := []struct {
+		name        string
+		config      any
+		path        string
+		expectedOk  bool
+		expectedVal any
+	}{
+		{
+			name:        "pointer_config_bool_field",
+			config:      &cfg,
+			path:        "write.enable-streaming-writes",
+			expectedOk:  true,
+			expectedVal: true,
+		},
+		{
+			name:        "value_config_string_field",
+			config:      cfg,
+			path:        "write.rapid-write",
+			expectedOk:  true,
+			expectedVal: RapidWriteStrategyEnabled,
+		},
+		{
+			name:   "typed_nil_config",
+			config: nilCfg,
+			path:   "write.rapid-write",
+		},
+		{
+			name:   "untyped_nil_config",
+			config: nil,
+			path:   "write.rapid-write",
+		},
+		{
+			name:   "empty_path",
+			config: &cfg,
+			path:   "",
+		},
+		{
+			name:   "non_struct_intermediate_field",
+			config: &cfg,
+			path:   "write.rapid-write.invalid-subpath",
+		},
+		{
+			name:   "non_existent_path",
+			config: &cfg,
+			path:   "non.existent.path",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			val, ok := getConfigFieldByPath(tc.config, tc.path)
+
+			assert.Equal(t, tc.expectedOk, ok)
+			if tc.expectedOk {
+				assert.Equal(t, tc.expectedVal, val.Interface())
+			} else {
+				assert.False(t, val.IsValid())
+			}
+		})
+	}
+}
+
+func TestValuesMatch(t *testing.T) {
+	assert.True(t, valuesMatch(true, true))
+	assert.False(t, valuesMatch(true, false))
+
+	// Custom string type vs string literal
+	assert.True(t, valuesMatch(RapidWriteStrategyEnabled, "enabled"))
+	assert.False(t, valuesMatch(RapidWriteStrategyDisabled, "enabled"))
+
+	// Cross-type numeric comparisons
+	assert.True(t, valuesMatch(int64(10), int(10)))
+	assert.True(t, valuesMatch(float64(4.0), int(4)))
+
+	// Nil and incompatible types
+	assert.True(t, valuesMatch(nil, nil))
+	assert.False(t, valuesMatch(nil, "enabled"))
+	assert.False(t, valuesMatch(10, "enabled"))
 }
 
 func TestCreateHierarchicalOptimizedFlags_Positive(t *testing.T) {
