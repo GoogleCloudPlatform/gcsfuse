@@ -77,6 +77,7 @@ func setupBaseDirTest(t *testing.T) (context.Context, *timeutil.SimulatedClock, 
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
 		fake.NewFakeBucket(clock, "bucketA", gcs.BucketType{}),
+		false,
 	)
 	bm.buckets["bucketB"] = gcsx.NewSyncerBucket(
 		1,
@@ -84,6 +85,7 @@ func setupBaseDirTest(t *testing.T) (context.Context, *timeutil.SimulatedClock, 
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
 		fake.NewFakeBucket(clock, "bucketB", gcs.BucketType{}),
+		false,
 	)
 
 	in := NewBaseDirInode(

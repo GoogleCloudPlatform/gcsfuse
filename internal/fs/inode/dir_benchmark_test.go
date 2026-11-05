@@ -40,7 +40,8 @@ func newBenchmarkDirInode(b *testing.B, implicitDirs bool) *dirInode {
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
-		bucket)
+		bucket,
+		false)
 
 	config := &cfg.Config{
 		List:                         cfg.ListConfig{EnableEmptyManagedFolders: true},

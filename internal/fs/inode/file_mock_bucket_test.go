@@ -83,7 +83,8 @@ func (t *FileMockBucketTest) createLockedInode(fileName string, fileType string)
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
-		t.bucket)
+		t.bucket,
+		false)
 
 	isLocal := false
 	if fileType == localFile {
@@ -133,7 +134,8 @@ func (t *FileMockBucketTest) createGCSBackedFileInode(backingObj *gcs.MinObject)
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
-		t.bucket)
+		t.bucket,
+		false)
 
 	f := NewFileInode(
 		fileInodeID,

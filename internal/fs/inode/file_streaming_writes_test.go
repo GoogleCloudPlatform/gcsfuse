@@ -118,7 +118,8 @@ func (t *FileStreamingWritesCommon) createInode(fileType string) {
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
-		t.bucket)
+		t.bucket,
+		false)
 
 	isLocal := false
 	if fileType == localFile {

@@ -55,6 +55,7 @@ func (t *DirPrefetchTest) setup(enablePrefetch bool, ttl time.Duration) (d *dirI
 		/*chunkRetryDeadlineSecs=*/ 120,
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/", t.fake,
+		false,
 	)
 
 	t.config = &cfg.Config{

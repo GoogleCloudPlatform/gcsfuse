@@ -503,8 +503,8 @@ func (f *FileInode) GetKernelRangeReaderInstance() *kernel_readers.KernelRangeRe
 func (f *FileInode) SourceGenerationIsAuthoritative() bool {
 	// Source generation is authoritative if:
 	//   1.  No pending writes exists on the inode (both content and streamingWriteHandler are nil).
-	//   2.  The bucket is rapid and there are no pending writes in the temporary file.
-	return (f.content == nil && f.streamingWriteHandler == nil) || (f.bucket.BucketType().RapidWritesEnabled() && f.content == nil)
+	//   2.  Writes are using appendable API and there are no pending writes in the temporary file.
+	return (f.content == nil && f.streamingWriteHandler == nil) || (f.bucket.BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && f.content == nil)
 }
 
 // Equivalent to the generation returned by f.Source().
@@ -1246,7 +1246,7 @@ func (f *FileInode) InitStreamingWriteHandlerIfEligible(ctx context.Context, ope
 	var latestGcsObj *gcs.Object
 	var err error
 	if !f.local {
-		if f.bucket.BucketType().RapidWritesEnabled() && openMode.IsAppend() {
+		if f.bucket.BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && openMode.IsAppend() {
 			// In case of rapid appends, we will rely on kernel's latest view of the object
 			// instead of reaching out to the server for latest metadata. This is done to avoid
 			// forceful overwrites of local and latest object metadata with possibly stale server
@@ -1302,7 +1302,7 @@ func (f *FileInode) areStreamingWritesSupported(openMode util.OpenMode, obj *gcs
 	if f.local || obj.Size == 0 {
 		return true
 	}
-	if writeCtx.Config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().RapidWritesEnabled() && obj.Finalized.IsZero() {
+	if writeCtx.Config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && obj.Finalized.IsZero() {
 		return true
 	}
 	logger.Tracef("Existing file %s of size %d bytes (non-zero) will use legacy staged writes. "+StreamingWritesSemantics, f.name.String(), obj.Size)
