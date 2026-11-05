@@ -2,7 +2,7 @@ absl-py==2.1.0
 chex==0.1.89
 etils==1.12.0
 flax==0.10.4
-fsspec==2025.2.0
+fsspec==2026.6.0
 humanize==4.12.1
 importlib_resources==6.5.2
 jax==0.5.1
