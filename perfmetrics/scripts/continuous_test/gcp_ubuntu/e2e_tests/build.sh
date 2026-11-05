@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Script to run e2e tests for regional or zonal buckets if env variable RUN_TESTS_WITH_ZONAL_BUCKET is set to 'true'.
+# Script to run e2e tests for regional, zonal, or NPI buckets if env variable RUN_TESTS_WITH_ZONAL_BUCKET or RUN_TESTS_FOR_NPI is set to 'true'.
 # Exit on error, treat unset variables as errors, and propagate pipeline errors.
 set -euo pipefail
 
 if [[ $# -gt 0 ]]; then
-    echo "This script requires no argument. Pass env variable RUN_TESTS_WITH_ZONAL_BUCKET set to 'true' to run this script for zonal buckets." 
+    echo "This script requires no argument. Pass env variable RUN_TESTS_WITH_ZONAL_BUCKET or RUN_TESTS_FOR_NPI set to 'true' to run this script for zonal or NPI buckets." 
     exit 1
 fi
 
@@ -46,14 +46,19 @@ fi
 echo "Checking out commit ${commitId}."
 git checkout $commitId
 
-if [[ "${RUN_TESTS_WITH_ZONAL_BUCKET-}" == "true" ]]; then
+if [[ "${RUN_TESTS_FOR_NPI-}" == "true" ]]; then
+    echo "Running NPI e2e tests on installed package...."
+    bash ./tools/integration_tests/improved_run_e2e_tests.sh --test-installed-package --npi
+elif [[ "${RUN_TESTS_WITH_ZONAL_BUCKET-}" == "true" ]]; then
     echo "Running zonal e2e tests on installed package...."
     bash ./tools/integration_tests/improved_run_e2e_tests.sh --test-installed-package --zonal
 else
     if [[ -n "${RUN_TESTS_WITH_ZONAL_BUCKET-}" ]]; then
         echo "Warning: RUN_TESTS_WITH_ZONAL_BUCKET is set to '${RUN_TESTS_WITH_ZONAL_BUCKET}', which is not 'true'. Running regional tests."
+    elif [[ -n "${RUN_TESTS_FOR_NPI-}" ]]; then
+        echo "Warning: RUN_TESTS_FOR_NPI is set to '${RUN_TESTS_FOR_NPI}', which is not 'true'. Running regional tests."
     else
-        echo "RUN_TESTS_WITH_ZONAL_BUCKET is not set. Running regional tests by default."
+        echo "RUN_TESTS_WITH_ZONAL_BUCKET and RUN_TESTS_FOR_NPI are not set. Running regional tests by default."
     fi
     echo "Running regional e2e tests on installed package...."
     bash ./tools/integration_tests/improved_run_e2e_tests.sh --test-installed-package
