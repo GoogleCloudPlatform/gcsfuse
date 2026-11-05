@@ -17,8 +17,11 @@ package gcsx
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -97,6 +100,7 @@ func (t *sharedChunkCacheReaderTest) SetupTest() {
 		t.manager,
 		t.bucket,
 		t.object,
+		"",
 		metrics.NewNoopMetrics(),
 		tracing.NewNoopTracer(),
 		0,
@@ -175,6 +179,23 @@ func (t *sharedChunkCacheReaderTest) TestReadAt_CacheHit() {
 	assert.Equal(t.T(), modTimeBeforeCacheHit, modTimeAfterCacheHit, "Cache hit: chunk file should not be re-downloaded")
 }
 
+func (t *sharedChunkCacheReaderTest) TestReadAt_IgnoresLegacyCacheEntries() {
+	legacyKey := fmt.Sprintf("%d:%s%d:%s:%d", len(t.bucket.Name()), t.bucket.Name(), len(t.object.Name), t.object.Name, t.object.Generation)
+	legacyHash := fmt.Sprintf("%x", sha256.Sum256([]byte(legacyKey)))
+	legacyPath := filepath.Join(t.cacheDir, legacyHash[:2], legacyHash[2:4], legacyHash, fmt.Sprintf("0_%d.bin", t.manager.GetChunkSize()))
+	require.NoError(t.T(), os.MkdirAll(filepath.Dir(legacyPath), t.manager.GetDirPerm()))
+	require.NoError(t.T(), os.WriteFile(legacyPath, bytes.Repeat([]byte{0xff}, len(t.objectData)), t.manager.GetFilePerm()))
+	buffer := make([]byte, 100)
+
+	response, err := t.reader.ReadAt(t.ctx, &ReadRequest{Buffer: buffer})
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), len(buffer), response.Size)
+	assert.Equal(t.T(), t.objectData[:len(buffer)], buffer)
+	assert.FileExists(t.T(), t.manager.GetChunkPath(t.bucket.Name(), t.object.Name, t.object.Generation, 0))
+	assert.FileExists(t.T(), legacyPath)
+}
+
 func (t *sharedChunkCacheReaderTest) TestReadAt_AcrossChunkBoundary() {
 	// Arrange
 	largeObjectData := make([]byte, 3*1024*1024)
@@ -196,6 +217,7 @@ func (t *sharedChunkCacheReaderTest) TestReadAt_AcrossChunkBoundary() {
 		t.manager,
 		t.bucket,
 		largeObject,
+		"",
 		metrics.NewNoopMetrics(),
 		tracing.NewNoopTracer(),
 		0,
@@ -286,6 +308,7 @@ func (t *sharedChunkCacheReaderTest) TestReadAt_ExcludedByRegex() {
 		excludemanager,
 		t.bucket,
 		t.object,
+		"",
 		metrics.NewNoopMetrics(),
 		tracing.NewNoopTracer(),
 		0,
@@ -321,6 +344,7 @@ func (t *sharedChunkCacheReaderTest) TestReadAt_MultipleChunks() {
 		t.manager,
 		t.bucket,
 		largeObject,
+		"",
 		metrics.NewNoopMetrics(),
 		tracing.NewNoopTracer(),
 		0,
@@ -393,6 +417,7 @@ func TestSharedChunkCacheReader_ConcurrentReads(t *testing.T) {
 		manager,
 		bucket,
 		object,
+		"",
 		metrics.NewNoopMetrics(),
 		tracing.NewNoopTracer(),
 		0,
@@ -448,6 +473,7 @@ func TestSharedChunkCacheReader_ChunkRaceCondition(t *testing.T) {
 		manager,
 		bucket,
 		object,
+		"",
 		metrics.NewNoopMetrics(),
 		tracing.NewNoopTracer(),
 		0,
@@ -507,6 +533,7 @@ func TestSharedChunkCacheReader_DownloadChunkWithDeletedDirectory(t *testing.T) 
 		manager,
 		bucket,
 		object,
+		"",
 		metrics.NewNoopMetrics(),
 		tracing.NewNoopTracer(),
 		0,
@@ -570,6 +597,7 @@ func TestSharedChunkCacheReader_ReadAtFallbackOnDownloadError(t *testing.T) {
 		manager,
 		bucket,
 		object,
+		"",
 		metrics.NewNoopMetrics(),
 		tracing.NewNoopTracer(),
 		0,
@@ -621,6 +649,7 @@ func TestSharedChunkCacheReader_ReadAtWithCorruptedCache(t *testing.T) {
 		manager,
 		bucket,
 		object,
+		"",
 		metrics.NewNoopMetrics(),
 		tracing.NewNoopTracer(),
 		0,
@@ -679,6 +708,7 @@ func TestSharedChunkCacheReader_DownloadChunkGCSError(t *testing.T) {
 		manager,
 		bucket,
 		object,
+		"",
 		metrics.NewNoopMetrics(),
 		tracing.NewNoopTracer(),
 		0,

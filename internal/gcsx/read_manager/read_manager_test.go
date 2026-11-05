@@ -42,8 +42,10 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
 )
@@ -137,6 +139,120 @@ func TestNonZonalBucketReadManagerTestSuite(t *testing.T) {
 
 func TestZonalBucketReadManagerTestSuite(t *testing.T) {
 	suite.Run(t, &readManagerTest{bucketType: gcs.BucketType{Zonal: true, Hierarchical: true}})
+}
+
+func TestSharedChunkCacheSeparatesOnlyDirPrefixes(t *testing.T) {
+	ctx := context.Background()
+	manager, err := file.NewSharedChunkCacheManager(t.TempDir(), util.DefaultFilePerm, util.DefaultDirPerm, &cfg.FileCacheConfig{
+		SharedCacheChunkSizeMb: 1,
+	})
+	require.NoError(t, err)
+
+	var generation int64
+	for _, tc := range []struct {
+		onlyDir string
+		content byte
+	}{
+		{onlyDir: "tenant-a", content: 'a'},
+		{onlyDir: "tenant-b/nested", content: 'b'},
+	} {
+		t.Run(tc.onlyDir, func(t *testing.T) {
+			// Independent fake backends allow distinct objects to have the same generation.
+			backend := fake.NewFakeBucket(timeutil.RealClock(), "test-bucket", gcs.BucketType{})
+			bucket, err := gcsx.NewPrefixBucket(tc.onlyDir+"/", backend)
+			require.NoError(t, err)
+			contents := bytes.Repeat([]byte{tc.content}, 2*MiB+17)
+			created, err := bucket.CreateObject(ctx, &gcs.CreateObjectRequest{
+				Name:     "nested/file.txt",
+				Contents: bytes.NewReader(contents),
+			})
+			require.NoError(t, err)
+			if generation == 0 {
+				generation = created.Generation
+			}
+			require.Equal(t, generation, created.Generation)
+
+			object := &gcs.MinObject{
+				Name:       created.Name,
+				Size:       created.Size,
+				Generation: created.Generation,
+			}
+			reader := NewReadManager(object, bucket, &ReadManagerConfig{
+				SequentialReadSizeMB:    sequentialReadSizeInMb,
+				SharedChunkCacheManager: manager,
+				MetricHandle:            metrics.NewNoopMetrics(),
+				Config:                  &cfg.Config{OnlyDir: tc.onlyDir},
+			})
+			t.Cleanup(reader.Destroy)
+			buffer := make([]byte, len(contents))
+
+			response, err := reader.ReadAt(ctx, &gcsx.ReadRequest{Buffer: buffer})
+
+			require.NoError(t, err)
+			assert.Equal(t, len(contents), response.Size)
+			assert.True(t, bytes.Equal(contents, buffer), "read returned another prefix's contents")
+			assert.Equal(t, "nested/file.txt", object.Name)
+		})
+	}
+}
+
+func TestSharedChunkCacheReusesFullObjectNameAcrossPrefixes(t *testing.T) {
+	ctx := context.Background()
+	manager, err := file.NewSharedChunkCacheManager(t.TempDir(), util.DefaultFilePerm, util.DefaultDirPerm, &cfg.FileCacheConfig{
+		SharedCacheChunkSizeMb: 1,
+	})
+	require.NoError(t, err)
+	backend := fake.NewFakeBucket(timeutil.RealClock(), "test-bucket", gcs.BucketType{})
+	contents := bytes.Repeat([]byte("cached"), MiB/6+1)
+	created, err := backend.CreateObject(ctx, &gcs.CreateObjectRequest{
+		Name:     "parent/child/file.txt",
+		Contents: bytes.NewReader(contents),
+	})
+	require.NoError(t, err)
+
+	for i, tc := range []struct {
+		onlyDir    string
+		objectName string
+	}{
+		{onlyDir: "parent", objectName: "child/file.txt"},
+		{onlyDir: "parent/child", objectName: "file.txt"},
+		{onlyDir: "", objectName: "parent/child/file.txt"},
+	} {
+		t.Run(tc.onlyDir, func(t *testing.T) {
+			bucket := backend
+			if tc.onlyDir != "" {
+				bucket, err = gcsx.NewPrefixBucket(tc.onlyDir+"/", backend)
+				require.NoError(t, err)
+			}
+			object := &gcs.MinObject{
+				Name:       tc.objectName,
+				Size:       created.Size,
+				Generation: created.Generation,
+			}
+			reader := NewReadManager(object, bucket, &ReadManagerConfig{
+				SequentialReadSizeMB:    sequentialReadSizeInMb,
+				SharedChunkCacheManager: manager,
+				MetricHandle:            metrics.NewNoopMetrics(),
+				Config:                  &cfg.Config{OnlyDir: tc.onlyDir},
+			})
+			t.Cleanup(reader.Destroy)
+			buffer := make([]byte, len(contents))
+
+			response, err := reader.ReadAt(ctx, &gcsx.ReadRequest{Buffer: buffer})
+
+			require.NoError(t, err)
+			assert.Equal(t, len(contents), response.Size)
+			assert.True(t, bytes.Equal(contents, buffer), "cached contents changed between views")
+			assert.Equal(t, tc.objectName, object.Name)
+			if i == 0 {
+				// Subsequent views must use the shared cache rather than download again.
+				require.NoError(t, backend.DeleteObject(ctx, &gcs.DeleteObjectRequest{
+					Name:       created.Name,
+					Generation: created.Generation,
+				}))
+			}
+		})
+	}
 }
 
 func (t *readManagerTest) SetupTest() {
