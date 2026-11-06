@@ -15,13 +15,16 @@
 package monitor
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	otelmetric "go.opentelemetry.io/otel/metric"
@@ -32,6 +35,31 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+func TestServeMetricsReportsWildcardListener(t *testing.T) {
+	var output bytes.Buffer
+	logger.SetOutput(&output)
+	t.Cleanup(func() { logger.SetOutput(os.Stderr) })
+	shutdownCh := make(chan context.Context)
+	done := make(chan any)
+
+	serveMetrics(0, shutdownCh, done)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	select {
+	case shutdownCh <- ctx:
+	case <-ctx.Done():
+		t.Fatal("metrics shutdown did not accept the context")
+	}
+	select {
+	case <-done:
+	case <-ctx.Done():
+		t.Fatal("metrics server did not shut down")
+	}
+	assert.Contains(t, output.String(), "Serving metrics over HTTP on all interfaces at :0/metrics")
+	assert.NotContains(t, output.String(), "localhost")
+}
 
 type mockExporter struct {
 	metric.Exporter
