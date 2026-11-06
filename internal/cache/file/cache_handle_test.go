@@ -149,7 +149,7 @@ func (cht *cacheHandleTest) SetupTest() {
 	cht.addTestFileInfoEntryInCache()
 
 	localDownloadedPath := path.Join(cht.cacheDir, cht.bucket.Name(), cht.object.Name)
-	cht.fileSpec = data.FileSpec{Path: localDownloadedPath, FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}
+	cht.fileSpec = data.FileSpec{RootDir: cht.cacheDir, Path: localDownloadedPath, FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}
 
 	readLocalFileHandle, err := util.CreateFile(cht.fileSpec, os.O_RDONLY)
 	assert.Nil(cht.T(), err)

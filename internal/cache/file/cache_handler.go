@@ -107,6 +107,7 @@ func (chr *CacheHandler) createLocalFileReadHandle(objectName string, bucketName
 		return nil, fmt.Errorf("createLocalFileReadHandle: %w", err)
 	}
 	fileSpec := data.FileSpec{
+		RootDir:  chr.cacheDir,
 		Path:     downloadPath,
 		FilePerm: chr.filePerm,
 		DirPerm:  chr.dirPerm,
@@ -131,7 +132,7 @@ func (chr *CacheHandler) cleanUpEvictedFile(fileInfo *data.FileInfo) error {
 	if err != nil {
 		return fmt.Errorf("cleanUpEvictedFile: %w", err)
 	}
-	err = util.TruncateAndRemoveFile(localFilePath)
+	err = util.TruncateAndRemoveFile(chr.cacheDir, localFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			logger.Warnf("cleanUpEvictedFile: file was not present at the time of clean up: %v", err)
@@ -174,9 +175,12 @@ func (chr *CacheHandler) addFileInfoEntryAndCreateDownloadJob(object *gcs.MinObj
 	} else {
 		// Throw an error, if there is an entry in the file-info cache and cache file doesn't
 		// exist locally.
-		_, err = os.Stat(filePath)
-		if err != nil && os.IsNotExist(err) {
-			return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %w: %s", util.ErrFileNotPresentInCache, filePath)
+		_, err = util.StatFile(chr.cacheDir, filePath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: %w: %s", util.ErrFileNotPresentInCache, filePath)
+			}
+			return fmt.Errorf("addFileInfoEntryAndCreateDownloadJob: stat cache file: %w", err)
 		}
 
 		// Evict object in cache if the generation of object in cache is different

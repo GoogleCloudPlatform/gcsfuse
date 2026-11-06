@@ -550,7 +550,7 @@ func (job *Job) validateCRC() (err error) {
 		return
 	}
 
-	crc32Val, err := cacheutil.CalculateFileCRC32(job.cancelCtx, job.fileSpec.Path)
+	crc32Val, err := cacheutil.CalculateCacheFileCRC32(job.cancelCtx, job.fileSpec)
 	if err != nil {
 		return
 	}
@@ -575,7 +575,7 @@ func (job *Job) validateCRC() (err error) {
 	}
 
 	job.fileInfoCache.Erase(fileInfoKeyName)
-	removeErr := cacheutil.TruncateAndRemoveFile(job.fileSpec.Path)
+	removeErr := cacheutil.TruncateAndRemoveFile(job.fileSpec.RootDir, job.fileSpec.Path)
 	if removeErr != nil && !os.IsNotExist(removeErr) {
 		err = errors.Join(err, removeErr)
 	}

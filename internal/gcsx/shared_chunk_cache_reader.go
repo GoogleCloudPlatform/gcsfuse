@@ -20,11 +20,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
+	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
@@ -120,6 +122,25 @@ func (r *SharedChunkCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (
 	totalRead := 0
 	bufferRemaining := len(p)
 	currentOffset := offset
+	if bufferRemaining == 0 {
+		return readResponse, nil
+	}
+
+	cacheDir := r.manager.GetCacheDir()
+	objectPath := r.manager.GetObjectDir(r.bucket.Name(), r.object.Name, r.object.Generation)
+	root, objectDir, rootErr := cacheutil.OpenCachePath(cacheDir, objectPath)
+	if errors.Is(rootErr, os.ErrNotExist) {
+		if mkdirErr := os.MkdirAll(cacheDir, r.manager.GetDirPerm()); mkdirErr != nil {
+			logger.Warnf("Failed to recreate shared cache root %s: %v, falling back to GCS reader", cacheDir, mkdirErr)
+			return readResponse, FallbackToAnotherReader
+		}
+		root, objectDir, rootErr = cacheutil.OpenCachePath(cacheDir, objectPath)
+	}
+	if rootErr != nil {
+		logger.Warnf("Failed to open shared cache root %s: %v, falling back to GCS reader", cacheDir, rootErr)
+		return readResponse, FallbackToAnotherReader
+	}
+	defer func() { _ = root.Close() }()
 
 	// Read across chunk boundaries if necessary
 	for bufferRemaining > 0 && currentOffset < int64(r.object.Size) {
@@ -130,14 +151,15 @@ func (r *SharedChunkCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (
 
 		// Try to open the chunk file directly (no stat() to avoid stale NFS cache and reduce round trips)
 		chunkPath := r.manager.GetChunkPath(r.bucket.Name(), r.object.Name, r.object.Generation, chunkIndex)
-		chunkFile, openErr := os.Open(chunkPath)
+		chunkName := filepath.Join(objectDir, filepath.Base(chunkPath))
+		chunkFile, openErr := root.Open(chunkName)
 		if openErr != nil {
 			if errors.Is(openErr, syscall.ENOENT) {
 				// Chunk not in cache - download it
 				logger.Tracef("Chunk %d not cached, downloading for %s/%s (offset %d)",
 					chunkIndex, r.bucket.Name(), r.object.Name, currentOffset)
 
-				if downloadErr := r.downloadChunk(ctx, chunkIndex, chunkStart, chunkEnd); downloadErr != nil {
+				if downloadErr := r.downloadChunk(ctx, root, objectDir, chunkIndex, chunkStart, chunkEnd); downloadErr != nil {
 					bytesRead = totalRead
 					cacheHit = false
 					logger.Warnf("DownloadChunk (%d, %d, %d) failed with: %v, read from GCS reader.", chunkIndex, chunkStart, chunkEnd, downloadErr)
@@ -146,7 +168,7 @@ func (r *SharedChunkCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (
 				cacheHit = false // Cache miss - we had to download the chunk
 
 				// Open the newly downloaded chunk, and file should exist.
-				chunkFile, openErr = os.Open(chunkPath)
+				chunkFile, openErr = root.Open(chunkName)
 				if openErr != nil {
 					bytesRead = totalRead
 					logger.Warnf("Failed to open chunk %d after download at path %s: %v, falling back to GCS reader", chunkIndex, chunkPath, openErr)
@@ -199,15 +221,15 @@ func (r *SharedChunkCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (
 // downloadChunk downloads a specific chunk from GCS and caches it atomically.
 // This method handles concurrent access and LRU cache eviction race conditions.
 // If any cache operation fails, we fallback to reading directly from GCS without caching.
-func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, chunkStart, chunkEnd int64) error {
-	objDir := r.manager.GetObjectDir(r.bucket.Name(), r.object.Name, r.object.Generation)
+func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, root *os.Root, objDir string, chunkIndex, chunkStart, chunkEnd int64) error {
 	tmpPath := r.manager.GenerateTmpPath(r.bucket.Name(), r.object.Name, r.object.Generation, chunkIndex)
+	tmpName := filepath.Join(objDir, filepath.Base(tmpPath))
 
 	// Step 1: Create object directory
 	// Protects against concurrent LRU cache eviction that may have deleted the directory.
 	// - EEXIST: Ignore, directory already exists (expected)
 	// - Any other error: Fallback to GCS reader
-	if err := os.MkdirAll(objDir, r.manager.GetDirPerm()); err != nil {
+	if err := root.MkdirAll(objDir, r.manager.GetDirPerm()); err != nil {
 		if !errors.Is(err, syscall.EEXIST) {
 			return fmt.Errorf("MkDirAll failed: %w", err)
 		}
@@ -218,15 +240,15 @@ func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, 
 	// hash-prefix).
 	// - ENOENT: Directory was deleted (LRU race), retry once by recreating directory
 	// - Any other error, including EEXIST (chunk path collision): Fallback to GCS reader
-	tmpFile, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, r.manager.GetFilePerm())
+	tmpFile, err := root.OpenFile(tmpName, os.O_CREATE|os.O_WRONLY|os.O_EXCL, r.manager.GetFilePerm())
 	if err != nil {
 		if errors.Is(err, syscall.ENOENT) {
 			// Directory was deleted by LRU, retry once
-			if mkdirErr := os.MkdirAll(objDir, r.manager.GetDirPerm()); mkdirErr != nil && !errors.Is(mkdirErr, syscall.EEXIST) {
+			if mkdirErr := root.MkdirAll(objDir, r.manager.GetDirPerm()); mkdirErr != nil && !errors.Is(mkdirErr, syscall.EEXIST) {
 				return fmt.Errorf("MkDirAll retry failed: %w", mkdirErr)
 			}
 			// Retry creating temp file
-			tmpFile, err = os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, r.manager.GetFilePerm())
+			tmpFile, err = root.OpenFile(tmpName, os.O_CREATE|os.O_WRONLY|os.O_EXCL, r.manager.GetFilePerm())
 			if err != nil {
 				return fmt.Errorf("retry to create tmp file failed: %w", err)
 			}
@@ -253,7 +275,7 @@ func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, 
 	}
 	reader, err := r.bucket.NewReaderWithReadHandle(ctx, readReq)
 	if err != nil {
-		os.Remove(tmpPath) // Cleanup
+		_ = root.Remove(tmpName)
 		return fmt.Errorf("failed to create GCS reader: %w", err)
 	}
 	defer reader.Close()
@@ -261,7 +283,7 @@ func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, 
 	// Step 4: Copy data from GCS to temp file
 	bytesWritten, err := io.Copy(tmpFile, reader)
 	if err != nil || bytesWritten != (chunkEnd-chunkStart) {
-		os.Remove(tmpPath) // Cleanup
+		_ = root.Remove(tmpName)
 		if err != nil {
 			return fmt.Errorf("failed to copy data to temp file: %w", err)
 		}
@@ -270,7 +292,7 @@ func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, 
 
 	// Close implies Sync() on NFS (intended use case).
 	if err := tmpFile.Close(); err != nil {
-		os.Remove(tmpPath) // Cleanup
+		_ = root.Remove(tmpName)
 		return fmt.Errorf("failed to close tmpFile: %v", err)
 	}
 	tmpFile = nil // Avoid deferred close since file is already closed
@@ -278,8 +300,9 @@ func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, 
 	// Step 5: Atomically rename temp file to final location
 	// Protects against concurrent downloads of the same chunk.
 	chunkPath := r.manager.GetChunkPath(r.bucket.Name(), r.object.Name, r.object.Generation, chunkIndex)
-	if err := os.Rename(tmpPath, chunkPath); err != nil {
-		os.Remove(tmpPath) // Cleanup
+	chunkName := filepath.Join(objDir, filepath.Base(chunkPath))
+	if err := root.Rename(tmpName, chunkName); err != nil {
+		_ = root.Remove(tmpName)
 		return fmt.Errorf("failed to rename temp file: %w", err)
 	}
 

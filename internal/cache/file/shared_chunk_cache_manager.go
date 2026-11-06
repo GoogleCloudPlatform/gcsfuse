@@ -136,6 +136,11 @@ func (sccm *SharedChunkCacheManager) GetDirPerm() os.FileMode {
 	return sccm.dirPerm
 }
 
+// GetCacheDir returns the trusted root of the shared chunk cache.
+func (sccm *SharedChunkCacheManager) GetCacheDir() string {
+	return sccm.cacheDir
+}
+
 // GetChunkIndex calculates which chunk contains the given offset.
 func (sccm *SharedChunkCacheManager) GetChunkIndex(offset int64) int64 {
 	return offset / sccm.chunkSize
