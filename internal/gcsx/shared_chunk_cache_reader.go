@@ -45,7 +45,9 @@ type SharedChunkCacheReader struct {
 }
 
 // NewSharedChunkCacheReader creates a new chunk-based reader for shared cache.
-// onlyDir is the normalized mount prefix applied to bucket.
+// onlyDir must already be normalized during configuration rationalization and
+// match the prefix applied to bucket. Object names are used verbatim, not cleaned
+// as filesystem paths.
 func NewSharedChunkCacheReader(
 	manager *file.SharedChunkCacheManager,
 	bucket gcs.Bucket,

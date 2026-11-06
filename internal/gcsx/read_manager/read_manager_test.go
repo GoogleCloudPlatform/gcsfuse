@@ -43,6 +43,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/timeutil"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -205,23 +206,29 @@ func TestSharedChunkCacheReusesFullObjectNameAcrossPrefixes(t *testing.T) {
 	backend := fake.NewFakeBucket(timeutil.RealClock(), "test-bucket", gcs.BucketType{})
 	contents := bytes.Repeat([]byte("cached"), MiB/6+1)
 	created, err := backend.CreateObject(ctx, &gcs.CreateObjectRequest{
-		Name:     "parent/child/file.txt",
+		Name:     "parent/child/nested//file.txt",
 		Contents: bytes.NewReader(contents),
 	})
 	require.NoError(t, err)
 
 	for i, tc := range []struct {
+		name       string
 		onlyDir    string
 		objectName string
 	}{
-		{onlyDir: "parent", objectName: "child/file.txt"},
-		{onlyDir: "parent/child", objectName: "file.txt"},
-		{onlyDir: "", objectName: "parent/child/file.txt"},
+		{name: "parent prefix", onlyDir: "parent", objectName: "child/nested//file.txt"},
+		{name: "nested prefix", onlyDir: "parent/child", objectName: "nested//file.txt"},
+		{name: "bucket root", onlyDir: "", objectName: "parent/child/nested//file.txt"},
+		{name: "redundant slashes and current directory", onlyDir: "/parent//child/./", objectName: "nested//file.txt"},
+		{name: "parent directory segment", onlyDir: "parent/child/temporary/..", objectName: "nested//file.txt"},
+		{name: "normalized bucket root", onlyDir: "/./", objectName: "parent/child/nested//file.txt"},
 	} {
-		t.Run(tc.onlyDir, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
+			config := &cfg.Config{OnlyDir: tc.onlyDir}
+			require.NoError(t, cfg.Rationalize(viper.New(), config, []string{}))
 			bucket := backend
-			if tc.onlyDir != "" {
-				bucket, err = gcsx.NewPrefixBucket(tc.onlyDir+"/", backend)
+			if config.OnlyDir != "" {
+				bucket, err = gcsx.NewPrefixBucket(config.OnlyDir+"/", backend)
 				require.NoError(t, err)
 			}
 			object := &gcs.MinObject{
@@ -233,7 +240,7 @@ func TestSharedChunkCacheReusesFullObjectNameAcrossPrefixes(t *testing.T) {
 				SequentialReadSizeMB:    sequentialReadSizeInMb,
 				SharedChunkCacheManager: manager,
 				MetricHandle:            metrics.NewNoopMetrics(),
-				Config:                  &cfg.Config{OnlyDir: tc.onlyDir},
+				Config:                  config,
 			})
 			t.Cleanup(reader.Destroy)
 			buffer := make([]byte, len(contents))
