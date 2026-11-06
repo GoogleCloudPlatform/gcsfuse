@@ -35,30 +35,41 @@ import (
 // SharedChunkCacheReader implements on-demand chunk-based reading without prefetching for
 // shared cache. It downloads only the chunks needed for a read operation, no prefetching.
 type SharedChunkCacheReader struct {
-	manager      *file.SharedChunkCacheManager
-	bucket       gcs.Bucket
-	object       *gcs.MinObject
-	metricHandle metrics.MetricHandle
-	traceHandle  tracing.TraceHandle
-	handleID     fuseops.HandleID
+	manager         *file.SharedChunkCacheManager
+	bucket          gcs.Bucket
+	object          *gcs.MinObject
+	cacheObjectName string
+	metricHandle    metrics.MetricHandle
+	traceHandle     tracing.TraceHandle
+	handleID        fuseops.HandleID
 }
 
 // NewSharedChunkCacheReader creates a new chunk-based reader for shared cache.
+// onlyDir must already be normalized during configuration rationalization and
+// match the prefix applied to bucket. Object names are used verbatim, not cleaned
+// as filesystem paths.
 func NewSharedChunkCacheReader(
 	manager *file.SharedChunkCacheManager,
 	bucket gcs.Bucket,
 	object *gcs.MinObject,
+	onlyDir string,
 	metricHandle metrics.MetricHandle,
 	traceHandle tracing.TraceHandle,
 	handleID fuseops.HandleID,
 ) *SharedChunkCacheReader {
+	cacheObjectName := object.Name
+	if onlyDir != "" {
+		cacheObjectName = onlyDir + "/" + object.Name
+	}
+
 	return &SharedChunkCacheReader{
-		manager:      manager,
-		bucket:       bucket,
-		object:       object,
-		metricHandle: metricHandle,
-		traceHandle:  traceHandle,
-		handleID:     handleID,
+		manager:         manager,
+		bucket:          bucket,
+		object:          object,
+		cacheObjectName: cacheObjectName,
+		metricHandle:    metricHandle,
+		traceHandle:     traceHandle,
+		handleID:        handleID,
 	}
 }
 
@@ -129,7 +140,7 @@ func (r *SharedChunkCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (
 		chunkEnd := min(chunkStart+r.manager.GetChunkSize(), int64(r.object.Size))
 
 		// Try to open the chunk file directly (no stat() to avoid stale NFS cache and reduce round trips)
-		chunkPath := r.manager.GetChunkPath(r.bucket.Name(), r.object.Name, r.object.Generation, chunkIndex)
+		chunkPath := r.manager.GetChunkPath(r.bucket.Name(), r.cacheObjectName, r.object.Generation, chunkIndex)
 		chunkFile, openErr := os.Open(chunkPath)
 		if openErr != nil {
 			if errors.Is(openErr, syscall.ENOENT) {
@@ -200,8 +211,8 @@ func (r *SharedChunkCacheReader) ReadAt(ctx context.Context, req *ReadRequest) (
 // This method handles concurrent access and LRU cache eviction race conditions.
 // If any cache operation fails, we fallback to reading directly from GCS without caching.
 func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, chunkStart, chunkEnd int64) error {
-	objDir := r.manager.GetObjectDir(r.bucket.Name(), r.object.Name, r.object.Generation)
-	tmpPath := r.manager.GenerateTmpPath(r.bucket.Name(), r.object.Name, r.object.Generation, chunkIndex)
+	objDir := r.manager.GetObjectDir(r.bucket.Name(), r.cacheObjectName, r.object.Generation)
+	tmpPath := r.manager.GenerateTmpPath(r.bucket.Name(), r.cacheObjectName, r.object.Generation, chunkIndex)
 
 	// Step 1: Create object directory
 	// Protects against concurrent LRU cache eviction that may have deleted the directory.
@@ -277,7 +288,7 @@ func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, 
 
 	// Step 5: Atomically rename temp file to final location
 	// Protects against concurrent downloads of the same chunk.
-	chunkPath := r.manager.GetChunkPath(r.bucket.Name(), r.object.Name, r.object.Generation, chunkIndex)
+	chunkPath := r.manager.GetChunkPath(r.bucket.Name(), r.cacheObjectName, r.object.Generation, chunkIndex)
 	if err := os.Rename(tmpPath, chunkPath); err != nil {
 		os.Remove(tmpPath) // Cleanup
 		return fmt.Errorf("failed to rename temp file: %w", err)
