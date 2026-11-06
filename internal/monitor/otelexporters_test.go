@@ -39,7 +39,7 @@ import (
 func TestServeMetricsReportsWildcardListener(t *testing.T) {
 	var output bytes.Buffer
 	logger.SetOutput(&output)
-	t.Cleanup(func() { logger.SetOutput(os.Stderr) })
+	t.Cleanup(func() { logger.SetOutput(os.Stdout) })
 	shutdownCh := make(chan context.Context)
 	done := make(chan any)
 
