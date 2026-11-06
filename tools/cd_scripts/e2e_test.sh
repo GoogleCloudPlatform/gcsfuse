@@ -57,12 +57,13 @@ BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-release-packages"}
 
 #details.txt file contains the release version and commit hash of the current release.
 # Using dynamic bucket.
-curl_with_vm_credentials -o details.txt "https://storage.googleapis.com/${BUCKET_NAME_TO_USE}/version-detail/details.txt"
+DETAILS_FILE=$(pwd)/details.txt
+curl_with_vm_credentials -o "$DETAILS_FILE" "https://storage.googleapis.com/${BUCKET_NAME_TO_USE}/version-detail/details.txt"
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
-get_metadata instance/name >>details.txt
+get_metadata instance/name >>"$DETAILS_FILE"
 # GCS location for the results of this run: v<release version>/<VM instance name> in the bucket. Not stored in a
 # VERSION variable, because sourcing /etc/os-release below overwrites VERSION.
-RESULTS_URL="https://storage.googleapis.com/${BUCKET_NAME_TO_USE}/v$(sed -n 1p details.txt)/$(sed -n 3p details.txt)"
+RESULTS_URL="https://storage.googleapis.com/${BUCKET_NAME_TO_USE}/v$(sed -n 1p "$DETAILS_FILE")/$(sed -n 3p "$DETAILS_FILE")"
 
 # Testcases whose results are uploaded in the active run mode. The Louhi wait step polls GCS until the log files of
 # all of them exist, so keep this in sync with the test runs at the end of this script.
@@ -237,7 +238,6 @@ grant_sudo() {
 ################################################################################
 USERNAME=starterscriptuser
 HOMEDIR="/home/${USERNAME}"
-DETAILS_FILE=$(pwd)/details.txt
 
 create_user "$USERNAME" "$HOMEDIR" "$DETAILS_FILE"
 grant_sudo  "$USERNAME" "$HOMEDIR"
@@ -285,7 +285,7 @@ export BUCKET_NAME_TO_USE='$BUCKET_NAME_TO_USE'
 
 #Copy details.txt to starterscriptuser home directory and create logs.txt
 cd ~/
-cp /details.txt .
+cp '$DETAILS_FILE' .
 touch logs.txt
 touch logs-hns.txt
 touch logs-zonal.txt
