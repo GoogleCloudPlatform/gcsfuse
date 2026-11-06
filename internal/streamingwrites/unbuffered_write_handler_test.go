@@ -625,30 +625,50 @@ func TestUnbufferedWriteHandler_FinalizeErrorCancelsUploadAndIsSticky(t *testing
 	bucket.AssertNumberOfCalls(t, "FinalizeUpload", 1)
 }
 
-func TestUnbufferedWriteHandler_FlushSizeMismatchIsSticky(t *testing.T) {
-	ctx := context.Background()
-	writer := new(storagemock.Writer)
-	writer.On("Write", mock.Anything).Return(3, nil)
-	bucket, _ := newMockBucket(writer)
-	bucket.On("FinalizeUpload", mock.Anything, writer).Return(&gcs.MinObject{Name: objectName, Size: 1}, nil)
-	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
-	require.NoError(t, wh.Write(ctx, []byte("foo"), 0))
+func TestUnbufferedWriteHandler_FlushWithUnexpectedObjectIsSticky(t *testing.T) {
+	testCases := []struct {
+		name          string
+		finalizedObj  *gcs.MinObject
+		expectedError string
+	}{
+		{
+			name:          "NilObject",
+			finalizedObj:  nil,
+			expectedError: "FinalizeUpload returned nil object",
+		},
+		{
+			name:          "SizeMismatch",
+			finalizedObj:  &gcs.MinObject{Name: objectName, Size: 1},
+			expectedError: "could not upload entire data",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			writer := new(storagemock.Writer)
+			writer.On("Write", mock.Anything).Return(3, nil)
+			bucket, _ := newMockBucket(writer)
+			bucket.On("FinalizeUpload", mock.Anything, writer).Return(tc.finalizedObj, nil)
+			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
+			require.NoError(t, wh.Write(ctx, []byte("foo"), 0))
 
-	obj, err := wh.Flush(ctx)
-	writeErr := wh.Write(ctx, []byte("bar"), 3)
-	_, syncErr := wh.Sync(ctx)
-	_, flushErr := wh.Flush(ctx)
+			obj, err := wh.Flush(ctx)
+			writeErr := wh.Write(ctx, []byte("bar"), 3)
+			_, syncErr := wh.Sync(ctx)
+			_, flushErr := wh.Flush(ctx)
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "could not upload entire data")
-	assert.Nil(t, obj)
-	assert.ErrorIs(t, writeErr, err)
-	assert.ErrorIs(t, syncErr, err)
-	assert.ErrorIs(t, flushErr, err)
-	// The closed writer isn't used again: it isn't written to or finalized a
-	// second time.
-	writer.AssertNumberOfCalls(t, "Write", 1)
-	bucket.AssertNumberOfCalls(t, "FinalizeUpload", 1)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.expectedError)
+			assert.Nil(t, obj)
+			assert.ErrorIs(t, writeErr, err)
+			assert.ErrorIs(t, syncErr, err)
+			assert.ErrorIs(t, flushErr, err)
+			// The closed writer isn't used again: it isn't written to or finalized a
+			// second time.
+			writer.AssertNumberOfCalls(t, "Write", 1)
+			bucket.AssertNumberOfCalls(t, "FinalizeUpload", 1)
+		})
+	}
 }
 
 func TestUnbufferedWriteHandler_FlushReleasesWriterContext(t *testing.T) {
