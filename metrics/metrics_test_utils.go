@@ -83,6 +83,8 @@ func VerifyCounterMetric(t *testing.T, ctx context.Context, reader *metric.Manua
 	encoder := attribute.DefaultEncoder()
 
 	foundMetric := false
+	foundDataPoint := false
+	var totalValue int64
 	for _, sm := range rm.ScopeMetrics {
 		for _, m := range sm.Metrics {
 			if m.Name == metricName {
@@ -92,14 +94,21 @@ func VerifyCounterMetric(t *testing.T, ctx context.Context, reader *metric.Manua
 
 				for _, dp := range data.DataPoints {
 					if matchesAttributes(dp.Attributes, attrs, cfg.subset, encoder) {
-						verifyValue(t, dp.Value, expectedValue, cfg.atLeast, metricName, attrs)
-						return
+						foundDataPoint = true
+						totalValue += dp.Value
 					}
 				}
 			}
 		}
 	}
 
+	if foundDataPoint {
+		verifyValue(t, totalValue, expectedValue, cfg.atLeast, metricName, attrs)
+		return
+	}
+	if expectedValue == 0 {
+		return
+	}
 	require.True(t, foundMetric, "metric %s not found", metricName)
 	require.Failf(t, "data point not found", "no data point matching attributes %v in metric %s", attrs, metricName)
 }

@@ -204,6 +204,69 @@ func TestGCSMetrics_RequestCount_CreateObject(t *testing.T) {
 		1)
 }
 
+// TestGCSMetrics_RequestCount_CreateFile_ZonalBucket validates the GCS API calls made during
+// CreateFile on a zonal (rapid) bucket with streaming writes enabled and metadata cache disabled.
+//
+// Expected Behavior:
+//   - CreateFile initializes the buffered write handler and syncs the new file to GCS to create
+//     an unfinalized object, invoking CreateObjectChunkWriter (1) and FlushPendingWrites (1).
+//   - Fetching attributes for the newly created inode skips the clobbered check, so StatObject
+//     is not invoked (0).
+func TestGCSMetrics_RequestCount_CreateFile_ZonalBucket(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableStreamingWrites = true
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, true)
+	server = wrappers.WithMonitoring(server, mh)
+
+	createOp := &fuseops.CreateFileOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "new_zonal_file.txt",
+		Mode:   0644,
+	}
+	err := server.CreateFile(ctx, createOp)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// Verify total GCS API calls across all methods is 2 (CreateObjectChunkWriter + FlushPendingWrites).
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(), 2, metrics.Subset())
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(attribute.String("gcs_method", "CreateObjectChunkWriter")),
+		1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(attribute.String("gcs_method", "FlushPendingWrites")),
+		1)
+}
+
+// TestGCSMetrics_RequestCount_CreateFile_RegionalBucket validates the GCS API calls made during
+// CreateFile on a regional bucket with streaming writes enabled and metadata cache disabled.
+//
+// Expected Behavior:
+//   - CreateFile initializes a local file inode and buffered write handler without uploading to GCS.
+//   - Fetching attributes for the newly created inode skips the clobbered check, so 0 GCS API calls
+//     are made during CreateFile.
+func TestGCSMetrics_RequestCount_CreateFile_RegionalBucket(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableStreamingWrites = true
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+	server = wrappers.WithMonitoring(server, mh)
+
+	createOp := &fuseops.CreateFileOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "new_regional_file.txt",
+		Mode:   0644,
+	}
+	err := server.CreateFile(ctx, createOp)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// Verify 0 GCS API calls are made across all methods.
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(), 0, metrics.Subset())
+}
+
 // TestGCSMetrics_RequestLatencies validates the "gcs/request_latencies" histogram metric.
 //
 // Expected Behavior:
