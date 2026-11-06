@@ -68,7 +68,7 @@ func (t *ParallelDownloaderJobTestifyTest) Test_ParallelDownloadObjectToFile_New
 	// Add subscriber
 	subscribedOffset := int64(1 * util.MiB)
 	notificationC := t.job.subscribe(subscribedOffset)
-	file, err := util.CreateFile(data.FileSpec{Path: t.job.fileSpec.Path,
+	file, err := util.CreateFile(data.FileSpec{RootDir: t.job.fileSpec.RootDir, Path: t.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
 	assert.Equal(t.T(), nil, err)
 	defer func() {
@@ -184,7 +184,7 @@ func (t *ParallelDownloaderJobTestifyTest) Test_ParallelDownloadObjectToFile_Rea
 	// Add subscriber
 	subscribedOffset := int64(1 * util.MiB)
 	notificationC := t.job.subscribe(subscribedOffset)
-	file, err := util.CreateFile(data.FileSpec{Path: t.job.fileSpec.Path,
+	file, err := util.CreateFile(data.FileSpec{RootDir: t.job.fileSpec.RootDir, Path: t.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
 	assert.NoError(t.T(), err)
 	defer func() {
