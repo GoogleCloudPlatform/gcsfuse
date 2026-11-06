@@ -136,6 +136,13 @@ func TestToProto_AllDataTypes(t *testing.T) {
 				GcsConnectionHttpClientTimeout: int64(30 * time.Second),
 			},
 		},
+		{
+			name:   "TokenURLTimeout",
+			config: &Config{GcsAuth: GcsAuthConfig{ExperimentalTokenUrlTimeout: 30 * time.Second}},
+			expected: &pb.Config{
+				GcsAuthExperimentalTokenUrlTimeout: int64(30 * time.Second),
+			},
+		},
 	}
 
 	for _, tc := range testCases {

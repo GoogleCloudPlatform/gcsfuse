@@ -53,6 +53,32 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 **When Used:**
 - For HNS buckets folder operations.
 
+### 5. Custom Token Provider
+
+When `token-url` is configured, GCSFuse fetches tokens over HTTP or a Unix
+socket. By default, these fetches have no timeout, preserving compatibility with
+slow providers. To opt in to an experimental per-fetch budget, use
+`--experimental-token-url-timeout=30s` or:
+
+```yaml
+gcs-auth:
+  experimental-token-url-timeout: 30s
+```
+
+The duration must be non-negative; `0s` (the default) means unlimited. A positive
+budget covers each individual request, including connection establishment,
+response headers, and body reading. Each refresh gets a new budget, so a failed
+or timed-out fetch does not prevent later attempts. Retries can make the total
+operation take longer than a single fetch budget. This setting does not change
+ADC or key-file authentication, token expiry/reuse, or the 1 MiB response limit.
+
+Internal custom-token-source callers must supply a context that lasts for the
+source's lifetime; canceling it cancels provider requests. The Google-library
+adapter retains initialization-context values but detaches cancellation because
+its cached source outlives an individual lookup. Legacy storage and telemetry
+continue using their existing background contexts; mount-shutdown cancellation
+is not wired by this setting.
+
 ---
 
 ## Retry Strategies

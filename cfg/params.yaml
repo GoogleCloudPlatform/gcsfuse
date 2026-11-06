@@ -679,6 +679,17 @@ params:
     usage: "This flag disables authentication."
     default: false
 
+  - config-path: "gcs-auth.experimental-token-url-timeout"
+    proto-tag: 164
+    flag-name: "experimental-token-url-timeout"
+    type: "duration"
+    usage: >-
+      Experimental timeout for each custom token-url request, including response
+      body reads, over HTTP or Unix sockets. A value of 0 disables the timeout;
+      negative values are invalid. Does not affect key-file or application
+      default credentials.
+    default: "0s"
+
   - config-path: "gcs-auth.key-file"
     proto-tag: 67
     flag-name: "key-file"

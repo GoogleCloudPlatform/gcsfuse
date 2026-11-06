@@ -62,6 +62,30 @@ func validFileCacheConfigWithIncludeRegex(t *testing.T, r string) FileCacheConfi
 	return cfg
 }
 
+func TestValidateConfig_ExperimentalTokenURLTimeout(t *testing.T) {
+	for _, timeout := range []time.Duration{-time.Second, 0, 30 * time.Second} {
+		t.Run(timeout.String(), func(t *testing.T) {
+			config := &Config{
+				GcsAuth:       GcsAuthConfig{ExperimentalTokenUrlTimeout: timeout},
+				Logging:       LoggingConfig{LogRotate: validLogRotateConfig()},
+				FileCache:     validFileCacheConfig(t),
+				GcsConnection: GcsConnectionConfig{SequentialReadSizeMb: 200},
+				MetadataCache: MetadataCacheConfig{ExperimentalMetadataPrefetchOnMount: "disabled"},
+				Metrics:       MetricsConfig{Workers: 3, BufferSize: 256},
+				Mrd:           MrdConfig{PoolSize: 4},
+			}
+
+			err := ValidateConfig(viper.New(), config)
+
+			if timeout < 0 {
+				assert.EqualError(t, err, "error parsing experimental-token-url-timeout config: must be non-negative")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestValidateConfigSuccessful(t *testing.T) {
 	testCases := []struct {
 		name   string
