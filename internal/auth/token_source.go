@@ -28,19 +28,25 @@ import (
 )
 
 // newProxyTokenSource returns a TokenSource that calls an external
-// endpoint for authentication and access tokens.
+// endpoint for authentication and access tokens. ctx owns the source's lifetime;
+// tokenURLTimeout bounds each fetch, including reading its response body.
 func newProxyTokenSource(
 	ctx context.Context,
 	endpoint string,
 	reuseTokenFromUrl bool,
+	tokenURLTimeout time.Duration,
 ) (ts oauth2.TokenSource, err error) {
+	if tokenURLTimeout < 0 {
+		return nil, fmt.Errorf("token URL timeout must be non-negative")
+	}
+
 	u, err := url.Parse(endpoint)
 	if err != nil {
 		err = fmt.Errorf("newProxyTokenSource cannot parse endpoint %s: %w", endpoint, err)
 		return nil, err
 	}
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: tokenURLTimeout}
 	if u.Scheme == "unix" {
 		client.Transport = &http.Transport{
 			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
@@ -94,7 +100,7 @@ const (
 )
 
 func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
-	req, err := http.NewRequest(http.MethodGet, ts.endpoint, nil)
+	req, err := http.NewRequestWithContext(ts.ctx, http.MethodGet, ts.endpoint, nil)
 	if err != nil {
 		err = fmt.Errorf("proxyTokenSource cannot create request: %w", err)
 		return nil, err
@@ -144,6 +150,9 @@ func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 	return token, nil
 }
 
-func NewTokenSourceFromURL(ctx context.Context, tokenUrl string, reuseTokenFromUrl bool) (tokenSrc oauth2.TokenSource, err error) {
-	return newProxyTokenSource(ctx, tokenUrl, reuseTokenFromUrl)
+// NewTokenSourceFromURL creates a custom token source whose HTTP requests honor
+// ctx for the source's lifetime. tokenURLTimeout applies separately to each fetch,
+// including response body reads; zero leaves fetches unlimited and negatives are invalid.
+func NewTokenSourceFromURL(ctx context.Context, tokenUrl string, reuseTokenFromUrl bool, tokenURLTimeout time.Duration) (tokenSrc oauth2.TokenSource, err error) {
+	return newProxyTokenSource(ctx, tokenUrl, reuseTokenFromUrl, tokenURLTimeout)
 }

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -85,21 +86,26 @@ func newTokenSourceFromPath(ctx context.Context, path string, scope string) (oau
 // for key-file and default-credential flow.
 // It also supports generating the self-signed JWT tokenSource for key-file authentication which can be
 // used by custom-endpoint(e.g. TPC).
+// For token URLs, ctx owns the source's lifetime and tokenURLTimeout bounds each
+// fetch (zero means unlimited). The timeout does not affect key-file or ADC flows.
 func GetTokenSource(
 	ctx context.Context,
 	keyFile string,
 	tokenUrl string,
 	reuseTokenFromUrl bool,
+	tokenURLTimeout time.Duration,
 ) (tokenSrc oauth2.TokenSource, err error) {
-	return GetTokenSourceWithScope(ctx, keyFile, tokenUrl, reuseTokenFromUrl, storagev1.DevstorageFullControlScope)
+	return GetTokenSourceWithScope(ctx, keyFile, tokenUrl, reuseTokenFromUrl, tokenURLTimeout, storagev1.DevstorageFullControlScope)
 }
 
 // GetTokenSourceWithScope generates the token-source for a specific scope.
+// ctx and tokenURLTimeout have the same lifetime and per-fetch semantics as GetTokenSource.
 func GetTokenSourceWithScope(
 	ctx context.Context,
 	keyFile string,
 	tokenUrl string,
 	reuseTokenFromUrl bool,
+	tokenURLTimeout time.Duration,
 	scope string,
 ) (tokenSrc oauth2.TokenSource, err error) {
 	var method string
@@ -108,7 +114,7 @@ func GetTokenSourceWithScope(
 		tokenSrc, err = newTokenSourceFromPath(ctx, keyFile, scope)
 		method = "newTokenSourceFromPath"
 	} else if tokenUrl != "" {
-		tokenSrc, err = newProxyTokenSource(ctx, tokenUrl, reuseTokenFromUrl)
+		tokenSrc, err = newProxyTokenSource(ctx, tokenUrl, reuseTokenFromUrl, tokenURLTimeout)
 		method = "newProxyTokenSource"
 	} else {
 		tokenSrc, err = google.DefaultTokenSource(ctx, scope)

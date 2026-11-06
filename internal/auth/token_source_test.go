@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -59,7 +60,7 @@ func fetchTokenFromJSON(t *testing.T, responseJSON string) *oauth2.Token {
 	server := startFakeJSONTokenServer(responseJSON)
 	defer server.Close()
 
-	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false)
+	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false, 0)
 	require.NoError(t, err)
 	require.NotNil(t, ts)
 
@@ -116,7 +117,7 @@ func Test_NewTokenSourceFromURL_Success(t *testing.T) {
 	server := startFakeTCPTokenServer(accessToken)
 	defer server.Close()
 
-	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false)
+	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false, 0)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, ts)
@@ -127,7 +128,7 @@ func Test_NewTokenSourceFromURL_Success(t *testing.T) {
 }
 
 func Test_NewTokenSourceFromURL_InvalidURL(t *testing.T) {
-	ts, err := NewTokenSourceFromURL(context.Background(), ":", false) // invalid URL
+	ts, err := NewTokenSourceFromURL(context.Background(), ":", false, 0) // invalid URL
 
 	assert.Error(t, err)
 	assert.Nil(t, ts)
@@ -139,7 +140,7 @@ func TestProxyTokenSource_TokenFetch_ServerError(t *testing.T) {
 		http.Error(w, "server error", http.StatusInternalServerError)
 	}))
 	defer server.Close()
-	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false)
+	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false, 0)
 	require.NoError(t, err)
 
 	token, err := ts.Token()
@@ -156,7 +157,7 @@ func TestProxyTokenSource_TokenFetch_InvalidJSON(t *testing.T) {
 		require.NoError(t, err)
 	}))
 	defer server.Close()
-	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false)
+	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false, 0)
 	require.NoError(t, err)
 
 	token, err := ts.Token()
@@ -176,7 +177,7 @@ func Test_NewTokenSourceFromURL_UnixSocket_WithFragment_Success(t *testing.T) {
 
 	// unix:///path/to/socket#/http_path?query
 	tokenURL := fmt.Sprintf("unix://%s#%s?%s", socketPath, expectedEscapedPath, expectedQuery)
-	ts, err := NewTokenSourceFromURL(context.Background(), tokenURL, false)
+	ts, err := NewTokenSourceFromURL(context.Background(), tokenURL, false, 0)
 	require.NoError(t, err)
 	require.NotNil(t, ts)
 
@@ -195,7 +196,7 @@ func Test_NewTokenSourceFromURL_UnixSocket_WithFragment_EscapedChars_Success(t *
 	startFakeUDSTokenServer(t, listener, expectedEscapedPath, expectedQuery, accessToken)
 
 	tokenURL := fmt.Sprintf("unix://%s#%s?%s", socketPath, expectedEscapedPath, expectedQuery)
-	ts, err := NewTokenSourceFromURL(context.Background(), tokenURL, false)
+	ts, err := NewTokenSourceFromURL(context.Background(), tokenURL, false, 0)
 	require.NoError(t, err)
 	require.NotNil(t, ts)
 
@@ -214,7 +215,7 @@ func Test_NewTokenSourceFromURL_UnixSocket_BackwardCompatibility_Success(t *test
 
 	// unix:///path/to/socket?query (old way, but with query)
 	tokenURL := fmt.Sprintf("unix://%s?%s", socketPath, expectedQuery)
-	ts, err := NewTokenSourceFromURL(context.Background(), tokenURL, false)
+	ts, err := NewTokenSourceFromURL(context.Background(), tokenURL, false, 0)
 	require.NoError(t, err)
 	require.NotNil(t, ts)
 
@@ -264,7 +265,7 @@ func TestProxyTokenSource_TokenRefresh_WithReuseTokenSource(t *testing.T) {
 	defer server.Close()
 
 	// reuseTokenFromUrl = true enables oauth2.ReuseTokenSource
-	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, true)
+	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, true, 0)
 	require.NoError(t, err)
 	require.NotNil(t, ts)
 
@@ -299,7 +300,7 @@ func Test_NewTokenSourceFromURL_UnixSocket_ExpiresInPopulatesExpiry(t *testing.T
 	startUDSServer(t, listener, handler)
 
 	tokenURL := fmt.Sprintf("unix://%s#/computeMetadata/v1/instance/service-accounts/default/token", socketPath)
-	ts, err := NewTokenSourceFromURL(context.Background(), tokenURL, false)
+	ts, err := NewTokenSourceFromURL(context.Background(), tokenURL, false, 0)
 	require.NoError(t, err)
 	require.NotNil(t, ts)
 
@@ -319,7 +320,7 @@ func Test_NewTokenSourceFromURL_SendsMetadataFlavorHeader(t *testing.T) {
 		_, _ = w.Write([]byte(`{"access_token":"tcp-token","token_type":"Bearer","expires_in":3600}`))
 	}))
 	defer server.Close()
-	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false)
+	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false, 0)
 	require.NoError(t, err)
 
 	token, err := ts.Token()
@@ -339,7 +340,7 @@ func Test_NewTokenSourceFromURL_UnixSocket_SendsMetadataFlavorHeader(t *testing.
 	})
 	startUDSServer(t, listener, handler)
 	tokenURL := fmt.Sprintf("unix://%s#/computeMetadata/v1/instance/service-accounts/default/token", socketPath)
-	ts, err := NewTokenSourceFromURL(context.Background(), tokenURL, false)
+	ts, err := NewTokenSourceFromURL(context.Background(), tokenURL, false, 0)
 	require.NoError(t, err)
 
 	token, err := ts.Token()
@@ -347,4 +348,166 @@ func Test_NewTokenSourceFromURL_UnixSocket_SendsMetadataFlavorHeader(t *testing.
 	require.NoError(t, err)
 	assert.Equal(t, "uds-token", token.AccessToken)
 	assert.Equal(t, "Google", gotFlavor)
+}
+
+func TestProxyTokenSource_CanceledLifetimeBeforeFetch(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		tokenHandler("unexpected-token")(w, r)
+	}))
+	defer server.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	ts, err := NewTokenSourceFromURL(ctx, server.URL, false, 0)
+	require.NoError(t, err)
+
+	token, err := ts.Token()
+
+	assert.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, token)
+	assert.Zero(t, requests.Load())
+}
+
+func TestProxyTokenSource_LifetimeCancellationDuringFetch(t *testing.T) {
+	for _, slowBody := range []bool{false, true} {
+		t.Run(fmt.Sprintf("body=%t", slowBody), func(t *testing.T) {
+			started := make(chan struct{})
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if slowBody {
+					_, _ = w.Write([]byte(`{"access_token":`))
+					w.(http.Flusher).Flush()
+				}
+				close(started)
+				<-r.Context().Done()
+			}))
+			defer server.Close()
+			defer server.CloseClientConnections()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			ts, err := NewTokenSourceFromURL(ctx, server.URL, false, 0)
+			require.NoError(t, err)
+			result := make(chan error, 1)
+			go func() {
+				_, err := ts.Token()
+				result <- err
+			}()
+			select {
+			case <-started:
+			case <-time.After(5 * time.Second):
+				t.Fatal("token request did not reach provider")
+			}
+
+			cancel()
+
+			select {
+			case err := <-result:
+				assert.ErrorIs(t, err, context.Canceled)
+			case <-time.After(5 * time.Second):
+				t.Fatal("token request did not honor lifetime cancellation")
+			}
+		})
+	}
+}
+
+func TestProxyTokenSource_FetchTimeoutAndRecovery(t *testing.T) {
+	for _, transport := range []string{"http", "unix"} {
+		for _, slowBody := range []bool{false, true} {
+			for _, reuse := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/body=%t/reuse=%t", transport, slowBody, reuse), func(t *testing.T) {
+					var requests atomic.Int32
+					handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						if requests.Add(1) == 1 {
+							if slowBody {
+								_, _ = w.Write([]byte(`{"access_token":`))
+								w.(http.Flusher).Flush()
+							}
+							<-r.Context().Done()
+							return
+						}
+						_, _ = w.Write([]byte(`{"access_token":"recovered-token","expires_in":3600}`))
+					})
+					var tokenURL string
+					if transport == "unix" {
+						socketPath, listener := createTempUnixSocket(t)
+						startUDSServer(t, listener, handler)
+						tokenURL = fmt.Sprintf("unix://%s#/token", socketPath)
+					} else {
+						server := httptest.NewServer(handler)
+						defer server.Close()
+						tokenURL = server.URL
+					}
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					ts, err := NewTokenSourceFromURL(ctx, tokenURL, reuse, 100*time.Millisecond)
+					require.NoError(t, err)
+
+					start := time.Now()
+					token, err := ts.Token()
+
+					require.ErrorIs(t, err, context.DeadlineExceeded)
+					assert.Nil(t, token)
+					assert.Less(t, time.Since(start), 2*time.Second)
+					if slowBody {
+						assert.Contains(t, err.Error(), "cannot load body")
+					} else {
+						assert.Contains(t, err.Error(), "cannot fetch token")
+					}
+
+					token, err = ts.Token()
+
+					require.NoError(t, err, "each fetch must get a fresh timeout budget")
+					assert.Equal(t, "recovered-token", token.AccessToken)
+					assert.True(t, token.Valid())
+					assert.Equal(t, int32(2), requests.Load())
+					if reuse {
+						cached, err := ts.Token()
+						require.NoError(t, err)
+						assert.Same(t, token, cached)
+						assert.Equal(t, int32(2), requests.Load())
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestProxyTokenSource_ZeroTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(150 * time.Millisecond)
+		tokenHandler("slow-token")(w, r)
+	}))
+	defer server.Close()
+	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false, 0)
+	require.NoError(t, err)
+	assert.Zero(t, ts.(proxyTokenSource).client.Timeout)
+
+	token, err := ts.Token()
+
+	require.NoError(t, err)
+	assert.Equal(t, "slow-token", token.AccessToken)
+}
+
+func Test_NewTokenSourceFromURL_NegativeTimeout(t *testing.T) {
+	ts, err := NewTokenSourceFromURL(context.Background(), "http://localhost/token", false, -time.Second)
+
+	assert.ErrorContains(t, err, "timeout must be non-negative")
+	assert.Nil(t, ts)
+}
+
+func TestProxyTokenSource_ResponseSizeLimit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(strings.Repeat("x", (1<<20)+64)))
+	}))
+	defer server.Close()
+	ts, err := NewTokenSourceFromURL(context.Background(), server.URL, false, 0)
+	require.NoError(t, err)
+
+	token, err := ts.Token()
+
+	var retrieveErr *oauth2.RetrieveError
+	require.ErrorAs(t, err, &retrieveErr)
+	assert.Nil(t, token)
+	assert.Len(t, retrieveErr.Body, 1<<20)
 }

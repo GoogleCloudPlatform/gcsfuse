@@ -642,6 +642,8 @@ type FileSystemConfig struct {
 type GcsAuthConfig struct {
 	AnonymousAccess bool `yaml:"anonymous-access"`
 
+	ExperimentalTokenUrlTimeout time.Duration `yaml:"experimental-token-url-timeout"`
+
 	KeyFile ResolvedPath `yaml:"key-file"`
 
 	ReuseTokenFromUrl bool `yaml:"reuse-token-from-url"`
@@ -1192,6 +1194,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("experimental-otel-metrics-project-id"); err != nil {
 		return err
 	}
+
+	flagSet.DurationP("experimental-token-url-timeout", "", 0*time.Nanosecond, "Experimental timeout for each custom token-url request, including response body reads, over HTTP or Unix sockets. A value of 0 disables the timeout; negative values are invalid. Does not affect key-file or application default credentials.")
 
 	flagSet.BoolP("file-cache-cache-file-for-range-read", "", false, "Whether to cache file for range reads.")
 
@@ -1829,6 +1833,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("metrics.experimental-otel-metrics-project-id", flagSet.Lookup("experimental-otel-metrics-project-id")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("gcs-auth.experimental-token-url-timeout", flagSet.Lookup("experimental-token-url-timeout")); err != nil {
 		return err
 	}
 

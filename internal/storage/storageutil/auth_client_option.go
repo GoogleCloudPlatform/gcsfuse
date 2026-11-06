@@ -33,7 +33,9 @@ func GetClientAuthOptionsAndTokenSource(ctx context.Context, config *StorageClie
 	retryConfig := NewRetryConfig(config)
 	// If Token URL is provided, attempt to fetch token source directly.
 	if config.TokenUrl != "" {
-		tokenSrc, err := auth2.NewTokenSourceFromURL(ctx, config.TokenUrl, config.ReuseTokenFromUrl)
+		// The cached source outlives this initialization/lookup context. Keep its
+		// values, but do not let an interrupted lookup cancel future refreshes.
+		tokenSrc, err := auth2.NewTokenSourceFromURL(context.WithoutCancel(ctx), config.TokenUrl, config.ReuseTokenFromUrl, config.ExperimentalTokenUrlTimeout)
 		if err != nil {
 			return nil, nil, fmt.Errorf("while fetching token source: %w", err)
 		}
