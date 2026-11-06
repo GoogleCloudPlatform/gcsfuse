@@ -88,6 +88,15 @@ func (p *PromTest) TestReadMetrics() {
 	assertNonZeroHistogramMetric(p.T(), "gcs_request_latencies", "gcs_method", "NewReader", prometheusPort)
 }
 
+func (p *PromTest) TestWriteMetrics() {
+	prometheusPort := p.prometheusPort
+	err := os.WriteFile(path.Join(testEnv.testDirPath, "write.txt"), []byte("hello world"), setup.FilePermission_0600)
+
+	require.NoError(p.T(), err)
+	assertNonZeroCountMetric(p.T(), "fs_ops_count", "fs_op", "WriteFile", prometheusPort)
+	assertNonZeroCountMetric(p.T(), "fs_write_bytes_count", "", "", prometheusPort)
+}
+
 func TestPromOTELSuite(t *testing.T) {
 	ts := &PromTest{}
 	ts.suiteName = "TestPromOTELSuite"

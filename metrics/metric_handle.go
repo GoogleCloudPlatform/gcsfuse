@@ -214,6 +214,9 @@ type MetricHandle interface {
 	// FsStreamingWriteFallbackCount - The cumulative number of streaming write fallbacks with reason attached
 	FsStreamingWriteFallbackCount(inc int64, openMode OpenMode, writeFallbackReason WriteFallbackReason)
 
+	// FsWriteBytesCount - The cumulative number of bytes GCSFuse accepted from file write requests, regardless of the write path used (streaming upload or the local staging file). Its rate gives the write throughput into GCSFuse. It is not the instantaneous upload throughput to GCS, because streaming writes are buffered before upload and staged writes are uploaded only on flush or close, although over longer windows the two converge. Bytes are counted when a write request succeeds, even if a later upload fails; failed write requests are not counted. The kernel writeback cache (used for non-streaming writes) may coalesce write() calls into fewer, larger requests without changing the byte total.
+	FsWriteBytesCount(inc int64)
+
 	// GcsDownloadBytesCount - The cumulative number of bytes downloaded from GCS along with type - Sequential/Random
 	GcsDownloadBytesCount(inc int64, readType ReadType)
 
