@@ -82,10 +82,8 @@ type unbufferedWriteHandlerImpl struct {
 var _ WriteHandler = (*unbufferedWriteHandlerImpl)(nil)
 
 // newUnbufferedWriteHandler creates an unbufferedWriteHandlerImpl for the
-// object described by req. The handler is only used for new files and empty
-// objects, so totalSize starts at 0. A later write at any other offset is out
-// of order and falls back to staged writes, so an existing object's data is
-// never dropped.
+// object described by req. Callers must only create this handler for new files
+// or empty objects (size 0), so totalSize starts at 0.
 func newUnbufferedWriteHandler(req *CreateWriteHandlerRequest) *unbufferedWriteHandlerImpl {
 	return &unbufferedWriteHandlerImpl{
 		bucket:                   req.Bucket,
@@ -102,7 +100,6 @@ func newUnbufferedWriteHandler(req *CreateWriteHandlerRequest) *unbufferedWriteH
 }
 
 func (wh *unbufferedWriteHandlerImpl) Write(ctx context.Context, data []byte, offset int64) error {
-	// Fail early if the upload has already failed.
 	if wh.uploadError != nil {
 		return wh.uploadError
 	}
@@ -126,7 +123,6 @@ func (wh *unbufferedWriteHandlerImpl) Write(ctx context.Context, data []byte, of
 // doesn't touch the writer, so the sync that follows the handler's creation
 // doesn't start an upload.
 func (wh *unbufferedWriteHandlerImpl) Sync(ctx context.Context) (*gcs.MinObject, error) {
-	// Fail early if the upload has already failed.
 	if wh.uploadError != nil {
 		return nil, wh.uploadError
 	}
@@ -135,12 +131,11 @@ func (wh *unbufferedWriteHandlerImpl) Sync(ctx context.Context) (*gcs.MinObject,
 
 // Flush writes any pending zero padding and finalizes the object.
 func (wh *unbufferedWriteHandlerImpl) Flush(ctx context.Context) (obj *gcs.MinObject, err error) {
-	// Fail early if the upload has already failed.
 	if wh.uploadError != nil {
 		return nil, wh.uploadError
 	}
-	// As in UploadHandler.Finalize, finalize under a context that is detached
-	// from the FUSE operation but carries its trace.
+	// Finalize under a context that is detached from the FUSE operation but
+	// carries its trace.
 	ctx = wh.traceHandle.PropagateTraceContext(context.Background(), ctx)
 	var bytes int64
 	ctx, finishSpan := wh.traceHandle.TraceUpload(ctx, tracing.StreamingUploadFinalize, wh.objectName, &bytes, &err)
@@ -156,17 +151,24 @@ func (wh *unbufferedWriteHandlerImpl) Flush(ctx context.Context) (obj *gcs.MinOb
 	obj, err = wh.bucket.FinalizeUpload(ctx, wh.writer)
 	if err != nil {
 		// FinalizeUpload already converts the error to a GCS error.
-		return nil, wh.fail(fmt.Errorf("FinalizeUpload failed for object %s: %w", wh.objectName, err))
+		err = fmt.Errorf("FinalizeUpload failed for object %s: %w", wh.objectName, err)
+		wh.handleUploadFailure(err)
+		return nil, err
 	}
 	// The upload is complete, so release the context of the writer.
 	wh.cancelFunc()
-	if obj != nil {
-		bytes = int64(obj.Size)
-		if obj.Size != uint64(wh.totalSize) {
-			// The writer is already closed, so make the error sticky: a later
-			// Flush from another write handle must not finalize it again.
-			return nil, wh.fail(fmt.Errorf("could not upload entire data, expected size %d, got %d", wh.totalSize, obj.Size))
-		}
+	// The writer is closed now, so the errors below are sticky too: a later Flush
+	// from another write handle must not finalize the object again.
+	if obj == nil {
+		err = fmt.Errorf("FinalizeUpload returned nil object for %s", wh.objectName)
+		wh.handleUploadFailure(err)
+		return nil, err
+	}
+	bytes = int64(obj.Size)
+	if obj.Size != uint64(wh.totalSize) {
+		err = fmt.Errorf("could not upload entire data, expected size %d, got %d", wh.totalSize, obj.Size)
+		wh.handleUploadFailure(err)
+		return nil, err
 	}
 	return obj, nil
 }
@@ -223,7 +225,9 @@ func (wh *unbufferedWriteHandlerImpl) write(ctx context.Context, data []byte) er
 		// an earlier write.
 		// TODO(b/577926767): Map errors for files that exceed the size limit to
 		// EFBIG.
-		return wh.fail(fmt.Errorf("write failed for object %s: %w", wh.objectName, gcs.GetGCSError(err)))
+		err = fmt.Errorf("write failed for object %s: %w", wh.objectName, gcs.GetGCSError(err))
+		wh.handleUploadFailure(err)
+		return err
 	}
 	// Once the file reaches the truncated size, the truncate is complete.
 	if wh.truncatedSize != -1 && wh.totalSize >= wh.truncatedSize {
@@ -249,37 +253,36 @@ func (wh *unbufferedWriteHandlerImpl) writeZeroPadding(ctx context.Context) erro
 	return nil
 }
 
-// ensureWriter creates the writer, if it hasn't been created yet. Unlike
-// UploadHandler, it never takes over an appendable object, because this
-// handler is only used for new files and empty objects.
+// ensureWriter creates the writer if it hasn't been created yet.
 func (wh *unbufferedWriteHandlerImpl) ensureWriter(ctx context.Context) error {
 	if wh.writer != nil {
 		return nil
 	}
 	req := gcs.NewCreateObjectRequest(wh.obj, wh.objectName, nil, wh.chunkRetryDeadlineSecs, wh.chunkTransferTimeoutSecs)
-	// The upload outlives the FUSE operation that starts it, so the writer gets
-	// its own context, which carries the operation's trace.
+	// ctx is scoped to the FUSE operation that creates the writer (e.g.
+	// WriteFile) and may be canceled when that operation returns, but the writer
+	// must live until the upload is finalized or canceled. So the writer gets its
+	// own context, which carries only the operation's trace.
 	writerCtx, cancel := context.WithCancel(wh.traceHandle.PropagateTraceContext(context.Background(), ctx))
 	writer, err := wh.bucket.CreateObjectChunkWriter(writerCtx, req, int(wh.blockSize), nil)
 	if err != nil {
 		cancel()
-		// A failed writer creation is an upload error like any other: later
-		// operations return it instead of starting a new upload.
-		return wh.fail(fmt.Errorf("CreateObjectChunkWriter failed for object %s: %w", wh.objectName, err))
+		err = fmt.Errorf("CreateObjectChunkWriter failed for object %s: %w", wh.objectName, err)
+		wh.handleUploadFailure(err)
+		return err
 	}
 	wh.writer = writer
 	wh.cancelFunc = cancel
 	return nil
 }
 
-// fail records err as the error of the upload, cancels the upload and returns
-// err.
-func (wh *unbufferedWriteHandlerImpl) fail(err error) error {
+// handleUploadFailure makes err the sticky error of the upload and cancels the
+// upload.
+func (wh *unbufferedWriteHandlerImpl) handleUploadFailure(err error) {
 	wh.uploadError = err
 	if wh.cancelFunc != nil {
 		// TODO(b/581184283): Also abort the upload, so that the parts uploaded so
 		// far are discarded.
 		wh.cancelFunc()
 	}
-	return err
 }
