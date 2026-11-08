@@ -21,6 +21,7 @@ package fake
 
 import (
 	"bytes"
+	"errors"
 	"io"
 
 	"cloud.google.com/go/storage"
@@ -28,18 +29,25 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
 )
 
+// errWriterAborted is returned by Write and Close after Abort.
+var errWriterAborted = errors.New("writer aborted")
+
 // FakeObjectWriter is a mock implementation of storage.Writer used by FakeBucket.
 type FakeObjectWriter struct {
 	io.WriteCloser
 	buf bytes.Buffer
 	storage.ObjectAttrs
-	bkt    *bucket
-	req    *gcs.CreateObjectRequest
-	Object *gcs.MinObject // Object created by writer
-	append bool
+	bkt     *bucket
+	req     *gcs.CreateObjectRequest
+	Object  *gcs.MinObject // Object created by writer
+	append  bool
+	aborted bool
 }
 
 func (w *FakeObjectWriter) Write(p []byte) (n int, err error) {
+	if w.aborted {
+		return 0, errWriterAborted
+	}
 	contents := w.buf.Bytes()
 	// Validate for preconditions.
 	if err := preconditionChecks(w.bkt, w.req, contents); err != nil {
@@ -49,6 +57,9 @@ func (w *FakeObjectWriter) Write(p []byte) (n int, err error) {
 }
 
 func (w *FakeObjectWriter) Close() error {
+	if w.aborted {
+		return errWriterAborted
+	}
 	contents := w.buf.Bytes()
 
 	// Validate for preconditions.
@@ -77,6 +88,13 @@ func (w *FakeObjectWriter) ObjectName() string {
 }
 func (w *FakeObjectWriter) Attrs() *storage.ObjectAttrs {
 	return &w.ObjectAttrs
+}
+
+// Abort discards the upload: the object isn't created, and later writes and
+// close fail.
+func (w *FakeObjectWriter) Abort() error {
+	w.aborted = true
+	return nil
 }
 
 func NewFakeObjectWriter(b *bucket, req *gcs.CreateObjectRequest, append bool) (w gcs.Writer, err error) {

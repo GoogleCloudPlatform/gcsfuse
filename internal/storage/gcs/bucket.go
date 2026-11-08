@@ -67,6 +67,8 @@ type Writer interface {
 	Flush() (int64, error)
 	ObjectName() string
 	Attrs() *storage.ObjectAttrs
+	// Abort discards an upload that hasn't been finalized.
+	Abort() error
 }
 
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
