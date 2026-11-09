@@ -739,6 +739,43 @@ func (testSuite *StorageHandleTest) TestCreateGRPCClientWithSocketAddress() {
 	assert.Equal(testSuite.T(), testSuite.clientConfig.LocalSocketAddress, host)
 }
 
+func (testSuite *StorageHandleTest) TestCreateGRPCClientWithIPv6SocketAddress() {
+	listener, err := net.Listen("tcp6", "[::1]:0")
+	if err != nil {
+		testSuite.T().Skipf("IPv6 loopback not available: %v", err)
+	}
+	server := &fakeStorageControlServer{}
+	serveErr := make(chan error, 1)
+	grpcServer := grpc.NewServer()
+	controlpb.RegisterStorageControlServer(grpcServer, server)
+	go func() {
+		serveErr <- grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	testSuite.clientConfig.CustomEndpoint = listener.Addr().String()
+	testSuite.clientConfig.LocalSocketAddress = "::1"
+	testSuite.clientConfig.AnonymousAccess = true
+	ctx := context.Background()
+	clientOpts, err := createClientOptionForGRPCClient(ctx, testSuite.clientConfig, false)
+	require.NoError(testSuite.T(), err)
+	controlClient, err := storageutil.CreateGRPCControlClient(ctx, clientOpts, false)
+	require.NoError(testSuite.T(), err)
+	require.NotNil(testSuite.T(), controlClient)
+
+	_, err = controlClient.CreateFolder(ctx, &controlpb.CreateFolderRequest{})
+	assert.NoError(testSuite.T(), err)
+	grpcServer.Stop()
+	err = <-serveErr
+	if err != nil && err != grpc.ErrServerStopped {
+		testSuite.T().Fatalf("grpcServer.Serve failed: %v", err)
+	}
+
+	host, _, err := net.SplitHostPort(server.remoteAddr.String())
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), "::1", host)
+}
+
 func (testSuite *StorageHandleTest) TestCreateGRPCClientWithInvalidSocketAddress() {
 	// Configure the client to use an invalid local IP address.
 	testSuite.clientConfig.LocalSocketAddress = "invalid-address"

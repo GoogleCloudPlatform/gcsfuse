@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptrace"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -35,16 +36,80 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// ConfigureDialerWithLocalAddr resolves the provided socket address and returns a net.TCPAddr.
-// The port can be 0, in which case the OS will choose a local port.
-// The format of SocketAddress is expected to be IP address.
+// gceIPv6MetadataAddr is the Google Compute Engine IPv6 metadata server ULA
+// address (https://cloud.google.com/compute/docs/metadata/overview).
+var gceIPv6MetadataAddr = netip.MustParseAddr("fd20:ce::254")
+
+// ConfigureDialerWithLocalAddr resolves the provided IPv4 or IPv6 socket address
+// (including optional brackets or IPv6 zone identifiers) and sets dialer.LocalAddr.
+// The port is set to 0 so the OS chooses an ephemeral local port.
 func ConfigureDialerWithLocalAddr(dialer *net.Dialer, socketAddress string) error {
-	localAddr, err := net.ResolveTCPAddr("tcp", socketAddress+":0")
+	trimmed := strings.TrimSpace(socketAddress)
+	trimmed = strings.TrimPrefix(trimmed, "[")
+	trimmed = strings.TrimSuffix(trimmed, "]")
+	if trimmed == "" {
+		return fmt.Errorf("failed to resolve socket address %q: empty address", socketAddress)
+	}
+	localAddr, err := net.ResolveTCPAddr("tcp", net.JoinHostPort(trimmed, "0"))
 	if err != nil {
 		return fmt.Errorf("failed to resolve socket address %q: %w", socketAddress, err)
 	}
 	dialer.LocalAddr = localAddr
 	return nil
+}
+
+// isMetadataOrLinkLocalHost reports whether host targets the Compute Engine
+// metadata server (metadata.google.internal, 169.254.169.254, fd20:ce::254) or a
+// link-local unicast address (169.254.0.0/16, fe80::/10), which must remain
+// unbound when a global --experimental-local-socket-address is set.
+func isMetadataOrLinkLocalHost(host string) bool {
+	trimmed := strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(host), "["), "]")
+	lowerHost := strings.ToLower(trimmed)
+	if lowerHost == "metadata.google.internal" || lowerHost == "metadata" {
+		return true
+	}
+	if targetAddr, err := netip.ParseAddr(trimmed); err == nil {
+		unmapped := targetAddr.Unmap().WithZone("")
+		if unmapped.IsLinkLocalUnicast() || unmapped == gceIPv6MetadataAddr {
+			return true
+		}
+	}
+	return false
+}
+
+// NewDialContextWithLocalAddr configures baseDialer.LocalAddr to socketAddress and
+// returns a DialContext function that binds storage connections to socketAddress
+// while leaving GCE metadata and link-local endpoints unbound and matching the TCP
+// address family ("tcp4" or "tcp6") to the configured local IP address.
+func NewDialContextWithLocalAddr(baseDialer *net.Dialer, socketAddress string) (func(ctx context.Context, network, addr string) (net.Conn, error), error) {
+	if err := ConfigureDialerWithLocalAddr(baseDialer, socketAddress); err != nil {
+		return nil, err
+	}
+	boundDialer := *baseDialer
+	unboundDialer := *baseDialer
+	unboundDialer.LocalAddr = nil
+
+	localTCP, _ := boundDialer.LocalAddr.(*net.TCPAddr)
+	isLocalIPv6 := localTCP != nil && localTCP.IP.To4() == nil
+
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			host = addr
+		}
+		if isMetadataOrLinkLocalHost(host) {
+			return unboundDialer.DialContext(ctx, network, addr)
+		}
+		dialNet := network
+		if network == "tcp" {
+			if isLocalIPv6 {
+				dialNet = "tcp6"
+			} else {
+				dialNet = "tcp4"
+			}
+		}
+		return boundDialer.DialContext(ctx, dialNet, addr)
+	}, nil
 }
 
 const urlSchemeSeparator = "://"
@@ -147,13 +212,15 @@ func newS2ADialTLSContextForHTTP1(opts *s2a.ClientOptions, baseDialer *net.Diale
 
 func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.TokenSource, clientProtocol cfg.Protocol) (httpClient *http.Client, err error) {
 	dialer := net.Dialer{}
-	if storageClientConfig.LocalSocketAddress != "" {
-		if err := ConfigureDialerWithLocalAddr(&dialer, storageClientConfig.LocalSocketAddress); err != nil {
-			return nil, fmt.Errorf("failed to configure dialer with local-socket-address %q: %w", storageClientConfig.LocalSocketAddress, err)
-		}
-	}
 	if storageClientConfig.EnableHTTPDNSCache {
 		dialer.Resolver = dns.NewCachingResolver(nil, dns.MinCacheTTL(1*time.Minute))
+	}
+	dialContextFn := dialer.DialContext
+	if storageClientConfig.LocalSocketAddress != "" {
+		dialContextFn, err = NewDialContextWithLocalAddr(&dialer, storageClientConfig.LocalSocketAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure dialer with local-socket-address %q: %w", storageClientConfig.LocalSocketAddress, err)
+		}
 	}
 
 	var dialTLSContext func(ctx context.Context, network, addr string) (net.Conn, error)
@@ -186,7 +253,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 	// Using http1 makes the client more performant.
 	if clientProtocol == cfg.HTTP1 {
 		transport = &http.Transport{
-			DialContext:         dialer.DialContext,
+			DialContext:         dialContextFn,
 			DialTLSContext:      dialTLSContext,
 			Proxy:               http.ProxyFromEnvironment,
 			MaxConnsPerHost:     storageClientConfig.MaxConnsPerHost,
@@ -199,7 +266,7 @@ func CreateHttpClient(storageClientConfig *StorageClientConfig, tokenSrc oauth2.
 	} else {
 		// For http2, change in MaxConnsPerHost doesn't affect the performance.
 		transport = &http.Transport{
-			DialContext:       dialer.DialContext,
+			DialContext:       dialContextFn,
 			DialTLSContext:    dialTLSContext,
 			Proxy:             http.ProxyFromEnvironment,
 			DisableKeepAlives: true,

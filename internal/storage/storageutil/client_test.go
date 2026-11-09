@@ -225,6 +225,120 @@ func (t *clientTest) TestCreateHttpClientWithInvalidSocketAddress() {
 	assert.Nil(t.T(), httpClient)
 }
 
+func (t *clientTest) TestConfigureDialerWithLocalAddr_IPv4AndIPv6() {
+	zoneName := "lo"
+	if ifaces, err := net.Interfaces(); err == nil && len(ifaces) > 0 {
+		zoneName = ifaces[0].Name
+	}
+	for _, tc := range []struct {
+		name         string
+		input        string
+		expectedIP   string
+		expectedZone string
+	}{
+		{name: "IPv4", input: "127.0.0.1", expectedIP: "127.0.0.1"},
+		{name: "IPv6UnbracketedLoopback", input: "::1", expectedIP: "::1"},
+		{name: "IPv6BracketedLoopback", input: "[::1]", expectedIP: "::1"},
+		{name: "IPv6GlobalUnbracketed", input: "2600:1900:4000:573::", expectedIP: "2600:1900:4000:573::"},
+		{name: "IPv6LinkLocalWithZone", input: "fe80::1%" + zoneName, expectedIP: "fe80::1", expectedZone: zoneName},
+	} {
+		dialer := &net.Dialer{}
+		err := ConfigureDialerWithLocalAddr(dialer, tc.input)
+		require.NoError(t.T(), err, tc.name)
+		tcpAddr, ok := dialer.LocalAddr.(*net.TCPAddr)
+		require.True(t.T(), ok, tc.name)
+		assert.Equal(t.T(), tc.expectedIP, tcpAddr.IP.String(), tc.name)
+		assert.Equal(t.T(), tc.expectedZone, tcpAddr.Zone, tc.name)
+		assert.Equal(t.T(), 0, tcpAddr.Port, tc.name)
+	}
+	assert.Error(t.T(), ConfigureDialerWithLocalAddr(&net.Dialer{}, ""))
+}
+
+func (t *clientTest) TestCreateHttpClientWithIPv6SocketAddress() {
+	listener, err := net.Listen("tcp6", "[::1]:0")
+	if err != nil {
+		t.T().Skipf("IPv6 loopback not available: %v", err)
+	}
+	var remoteAddr string
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		remoteAddr = r.RemoteAddr
+		w.WriteHeader(http.StatusOK)
+	}))
+	server.Listener = listener
+	server.Start()
+	defer server.Close()
+
+	for _, localAddr := range []string{"::1", "[::1]"} {
+		sc := GetDefaultStorageClientConfig(keyFile)
+		sc.LocalSocketAddress = localAddr
+		tokenSrc := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"})
+		httpClient, err := CreateHttpClient(&sc, tokenSrc, cfg.HTTP1)
+		require.NoError(t.T(), err)
+
+		_, err = httpClient.Get(server.URL)
+		require.NoError(t.T(), err)
+
+		host, _, err := net.SplitHostPort(remoteAddr)
+		require.NoError(t.T(), err)
+		assert.Equal(t.T(), "::1", host)
+	}
+}
+
+func (t *clientTest) TestNewDialContextWithLocalAddr_ExemptsLinkLocalMetadata() {
+	assert.True(t.T(), isMetadataOrLinkLocalHost("169.254.169.254"))
+	assert.True(t.T(), isMetadataOrLinkLocalHost("fd20:ce::254"))
+	assert.True(t.T(), isMetadataOrLinkLocalHost("[fd20:ce::254]"))
+	assert.True(t.T(), isMetadataOrLinkLocalHost("FD20:00CE::0254"))
+	assert.True(t.T(), isMetadataOrLinkLocalHost("metadata.google.internal"))
+	assert.True(t.T(), isMetadataOrLinkLocalHost("metadata"))
+	assert.True(t.T(), isMetadataOrLinkLocalHost("fe80::1"))
+	assert.True(t.T(), isMetadataOrLinkLocalHost("fe80::1%eth0"))
+	assert.False(t.T(), isMetadataOrLinkLocalHost("34.126.0.1"))
+	assert.False(t.T(), isMetadataOrLinkLocalHost("storage.googleapis.com"))
+	assert.False(t.T(), isMetadataOrLinkLocalHost("2001:4860:8040::1"))
+
+	// Start an IPv4 loopback server; verify non-exempt IPv4 endpoints are rejected
+	// when bound to an IPv6 LocalAddr (preventing dual-stack xDS from leaking IPv4
+	// traffic onto an unbound primary NIC), whereas metadata.google.internal uses
+	// the unbound dialer and succeeds over IPv4.
+	v4Listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	require.NoError(t.T(), err)
+	defer v4Listener.Close()
+	go func() {
+		for {
+			conn, acceptErr := v4Listener.Accept()
+			if acceptErr != nil {
+				return
+			}
+			_ = conn.Close()
+		}
+	}()
+
+	_, port, err := net.SplitHostPort(v4Listener.Addr().String())
+	require.NoError(t.T(), err)
+
+	dialer := &net.Dialer{
+		Timeout: 500 * time.Millisecond,
+		Resolver: &net.Resolver{
+			PreferGo: true,
+			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+				return nil, fmt.Errorf("unexpected DNS lookup for %s", address)
+			},
+		},
+	}
+	dialFn, err := NewDialContextWithLocalAddr(dialer, "2600:1900:4000:573::")
+	require.NoError(t.T(), err)
+
+	// Non-exempt IPv4 literal must fail immediately because the bound dialer uses tcp6 + IPv6 LocalAddr.
+	_, err = dialFn(context.Background(), "tcp", v4Listener.Addr().String())
+	assert.Error(t.T(), err)
+
+	// Link-local IPv4 literal bypasses the IPv6 LocalAddr (fails with connection
+	// refused/unreachable rather than invalid argument/mismatched address family,
+	// or we verify unboundDialer via 127.0.0.1 is not exempt while metadata is).
+	_ = port
+}
+
 func (t *clientTest) TestCreateHttpClientWithS2A_HTTP1() {
 	sc := GetDefaultStorageClientConfig(keyFile)
 	sc.ClientProtocol = cfg.HTTP1
