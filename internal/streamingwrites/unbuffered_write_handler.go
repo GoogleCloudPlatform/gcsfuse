@@ -34,12 +34,11 @@ const zeroPaddingChunkSize = 1024 * 1024
 // TODO(b/581184283): Remove once Destroy is implemented.
 var errNotImplemented = errors.New("unbuffered write handler: not implemented")
 
-// unbufferedWriteHandlerImpl is the WriteHandler for parallel uploads. It
-// passes writes straight to a Go SDK writer, which uploads the object in parts
-// concurrently, so GCSFuse keeps no write buffers of its own. Only sequential
-// writes are supported. Out-of-order writes and truncates below the current
-// size return ErrOutOfOrderWrite, so that the caller falls back to staged
-// writes.
+// unbufferedWriteHandlerImpl implements WriteHandler for parallel uploads.
+// Rather than buffering writes in GCSFuse, it forwards incoming data directly
+// to the Go SDK writer, which uploads parts concurrently. Only sequential
+// writes are supported; out-of-order writes and downward truncates return
+// ErrOutOfOrderWrite to trigger a fallback to staged writes.
 //
 // All methods assume the caller holds the FileInode lock, so no internal
 // synchronization is needed.
