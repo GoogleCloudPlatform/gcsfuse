@@ -15,11 +15,11 @@
 package handle
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
-
-	"context"
+	"math"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
@@ -90,6 +90,12 @@ type FileHandle struct {
 
 	// HandleID is an opaque 64-bit number used to create this File Handle, used for logging.
 	handleID fuseops.HandleID
+
+	flushOrSyncCallback func(ctx context.Context) error
+}
+
+func (fh *FileHandle) SetFlushOrSyncCallback(fn func(ctx context.Context) error) {
+	fh.flushOrSyncCallback = fn
 }
 
 // LOCKS_REQUIRED(fh.inode.mu)
@@ -261,19 +267,20 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 
 	fh.lockHandleAndRelockInode(true)
 
-	// If the inode is dirty, there's nothing we can do. Throw away our readManager if
-	// we have one & create a new readManager
-	if !fh.hasPendingStreamingWritesLocked() && fh.inode.SourceGenerationIsAuthoritative() && fh.isValidReadManagerRLocked() {
-		fh.inode.Unlock()
-	} else {
-		// Acquire a RWLock on file handle as we will update readManager
+	for {
+		if !fh.hasPendingStreamingWritesLocked() && fh.inode.SourceGenerationIsAuthoritative() && fh.isValidReadManagerRLocked() {
+			fh.inode.Unlock()
+			break
+		}
+
+		// Acquire an exclusive lock on file handle as we will update readManager
 		fh.unlockHandleAndInode(true)
 		fh.mu.Lock()
 		fh.inode.Lock()
 
 		if err := fh.ensureStreamingWritesFlushedLocked(ctx); err != nil {
-			fh.mu.Unlock()
 			fh.inode.Unlock()
+			fh.mu.Unlock()
 			return gcsx.ReadResponse{}, err
 		}
 
@@ -285,6 +292,7 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 
 		if !fh.isValidReadManager() {
 			minObj := fh.inode.Source()
+			minObj.Size = fh.inode.SourceGeneration().Size
 			bucket := fh.inode.Bucket()
 			mrdWrapper := fh.inode.MRDWrapper
 
@@ -315,10 +323,11 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 			}
 		}
 
-		// Release inode lock, release RWLock, and take RLock on file handle again.
+		// Downgrade to RLock and relock inode to re-verify state before reading.
 		fh.inode.Unlock()
 		fh.mu.Unlock()
 		fh.mu.RLock()
+		fh.inode.Lock()
 	}
 	defer fh.mu.RUnlock()
 
@@ -386,17 +395,20 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 
 	fh.lockHandleAndRelockInode(true)
 
-	if !fh.hasPendingStreamingWritesLocked() && fh.inode.SourceGenerationIsAuthoritative() && fh.isValidReaderRLocked() {
-		fh.inode.Unlock()
-	} else {
-		// Acquire a RWLock on file handle as we will update reader
+	for {
+		if !fh.hasPendingStreamingWritesLocked() && fh.inode.SourceGenerationIsAuthoritative() && fh.isValidReaderRLocked() {
+			fh.inode.Unlock()
+			break
+		}
+
+		// Acquire an exclusive lock on file handle as we will update reader
 		fh.unlockHandleAndInode(true)
 		fh.mu.Lock()
 		fh.inode.Lock()
 
 		if err = fh.ensureStreamingWritesFlushedLocked(ctx); err != nil {
-			fh.mu.Unlock()
 			fh.inode.Unlock()
+			fh.mu.Unlock()
 			return nil, 0, err
 		}
 
@@ -409,6 +421,7 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 
 		if !fh.isValidReader() {
 			minObj := fh.inode.Source()
+			minObj.Size = fh.inode.SourceGeneration().Size
 			bucket := fh.inode.Bucket()
 			mrdWrapper := fh.inode.MRDWrapper
 
@@ -416,10 +429,11 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 			fh.reader = gcsx.NewRandomReader(minObj, bucket, sequentialReadSizeMb, fh.fileCacheHandler, fh.cacheFileForRangeRead, fh.metricHandle, fh.traceHandle, mrdWrapper, fh.config, fh.handleID)
 		}
 
-		// Release inode lock, release RWLock, and take RLock on file handle again
+		// Downgrade to RLock and relock inode to re-verify state before reading.
 		fh.inode.Unlock()
 		fh.mu.Unlock()
 		fh.mu.RLock()
+		fh.inode.Lock()
 	}
 	defer fh.mu.RUnlock()
 
@@ -592,13 +606,7 @@ func normalizeReadResponse(readResponse gcsx.ReadResponse, err error) (gcsx.Read
 // that require flushing or syncing before reading under the current inode lock.
 // LOCKS_REQUIRED(fh.inode.mu)
 func (fh *FileHandle) hasPendingStreamingWritesLocked() bool {
-	if !fh.inode.IsUsingStreamingWriteHandler() {
-		return false
-	}
-	if fh.inode.Bucket().BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && fh.config != nil && fh.config.Write.FinalizeFileForRapid {
-		return fh.inode.IsLocal() || fh.inode.Source().Size != fh.inode.SourceGeneration().Size
-	}
-	return true
+	return fh.inode.HasPendingStreamingWrites()
 }
 
 // ensureStreamingWritesFlushedLocked flushes or syncs pending streaming writes
@@ -608,13 +616,16 @@ func (fh *FileHandle) ensureStreamingWritesFlushedLocked(ctx context.Context) er
 	if !fh.hasPendingStreamingWritesLocked() {
 		return nil
 	}
+	if fh.flushOrSyncCallback != nil {
+		return fh.flushOrSyncCallback(ctx)
+	}
 	if fh.inode.Bucket().BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && fh.config != nil && fh.config.Write.FinalizeFileForRapid {
 		_, err := fh.inode.SyncPendingStreamingWrites(ctx)
 		return err
 	}
 	return fh.inode.Flush(ctx, &inode.WriteContext{
 		Config:             fh.config,
-		GlobalMaxBlocksSem: fh.globalMaxReadBlocksSem,
+		GlobalMaxBlocksSem: semaphore.NewWeighted(math.MaxInt64),
 		TraceHandle:        fh.traceHandle,
 		MetricHandle:       fh.metricHandle,
 	})

@@ -251,7 +251,7 @@ func (p *BufferedReader) prepareQueueForOffset(offset int64) {
 		entry := p.blockQueue.Peek()
 		block := entry.block
 		blockStart := block.AbsStartOff()
-		blockEnd := blockStart + block.Cap()
+		blockEnd := blockStart + p.config.PrefetchBlockSizeBytes
 
 		if offset < blockStart || offset >= blockEnd {
 			// Offset is either before or beyond this block – discard.
@@ -545,9 +545,10 @@ func (p *BufferedReader) scheduleBlockWithIndex(b block.PrefetchBlock, blockInde
 	}
 
 	ctx, cancel := context.WithCancel(p.ctx)
+	objCopy := *p.object
 	task := &downloadTask{
 		ctx:          ctx,
-		object:       p.object,
+		object:       &objCopy,
 		bucket:       p.bucket,
 		block:        b,
 		readHandle:   p.readHandle,

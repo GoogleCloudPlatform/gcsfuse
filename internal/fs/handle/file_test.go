@@ -2065,3 +2065,200 @@ func (t *fileTest) Test_Read_ConcurrentStreamingWriteDuringLockAcquisition() {
 	assert.Equal(t.T(), len(streamedData), n)
 	assert.Equal(t.T(), streamedData, output[:n])
 }
+
+func (t *fileTest) Test_Read_UnlinkedInodeWithActiveStreamingWrites_DoesNotFlushOrPanicAndUsesCallbackWhenNotUnlinked() {
+	config := &cfg.Config{
+		Write: cfg.WriteConfig{
+			EnableStreamingWrites: true,
+			BlockSizeMb:           1,
+			MaxBlocksPerFile:      2,
+		},
+	}
+	sem := semaphore.NewWeighted(100)
+	writeCtx := &inode.WriteContext{
+		Config:             config,
+		GlobalMaxBlocksSem: sem,
+		TraceHandle:        tracing.NewNoopTracer(),
+		MetricHandle:       metrics.NewNoopMetrics(),
+	}
+
+	t.Run("UnlinkedInode_DoesNotFlushOrInvokeCallbackOrPanicOnRepeatedReads", func() {
+		t.SetupTest()
+		parent := createDirInode(&t.bucket, &t.clock)
+		in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_unlinked_sw", []byte{}, false)
+		fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, sem, 0)
+
+		callbackCalls := 0
+		fh.SetFlushOrSyncCallback(func(ctx context.Context) error {
+			callbackCalls++
+			return in.Flush(ctx, writeCtx)
+		})
+
+		in.Lock()
+		in.RegisterFileHandle(false)
+		initialized, err := in.InitStreamingWriteHandlerIfEligible(t.ctx, writeMode, writeCtx)
+		require.NoError(t.T(), err)
+		require.True(t.T(), initialized)
+		_, err = in.Write(t.ctx, []byte("unlinked write data"), 0, writeMode, writeCtx)
+		require.NoError(t.T(), err)
+		require.True(t.T(), in.HasPendingStreamingWrites())
+
+		in.Unlink()
+		assert.True(t.T(), in.IsUnlinked())
+		assert.False(t.T(), in.HasPendingStreamingWrites())
+		in.Unlock()
+
+		// Repeated ReadWithReadManager and Read calls must not invoke the flush callback or panic.
+		for range 3 {
+			assert.NotPanics(t.T(), func() {
+				fh.inode.Lock()
+				_, _ = fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+					Buffer: make([]byte, 32),
+					Offset: 0,
+					Size:   32,
+				}, 200)
+			})
+			assert.NotPanics(t.T(), func() {
+				fh.inode.Lock()
+				_, _, _ = fh.Read(t.ctx, make([]byte, 32), 0, 200)
+			})
+		}
+		assert.Zero(t.T(), callbackCalls)
+	})
+
+	t.Run("NonUnlinkedInode_InvokesConfiguredFlushOrSyncCallback", func() {
+		t.SetupTest()
+		parent := createDirInode(&t.bucket, &t.clock)
+		in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_cb_sw", []byte{}, false)
+		fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, sem, 0)
+
+		callbackCalls := 0
+		fh.SetFlushOrSyncCallback(func(ctx context.Context) error {
+			callbackCalls++
+			return in.Flush(ctx, writeCtx)
+		})
+
+		expected := []byte("flushed via callback")
+		in.Lock()
+		in.RegisterFileHandle(false)
+		initialized, err := in.InitStreamingWriteHandlerIfEligible(t.ctx, writeMode, writeCtx)
+		require.NoError(t.T(), err)
+		require.True(t.T(), initialized)
+		_, err = in.Write(t.ctx, expected, 0, writeMode, writeCtx)
+		require.NoError(t.T(), err)
+		require.True(t.T(), in.HasPendingStreamingWrites())
+		in.Unlock()
+
+		dst := make([]byte, len(expected))
+		fh.inode.Lock()
+		resp, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+			Buffer: dst,
+			Offset: 0,
+			Size:   int64(len(dst)),
+		}, 200)
+		require.NoError(t.T(), err)
+		assert.Equal(t.T(), 1, callbackCalls)
+		assert.Equal(t.T(), len(expected), resp.Size)
+		assert.Equal(t.T(), expected, dst[:resp.Size])
+	})
+}
+
+func (t *fileTest) Test_ReadWithReadManager_RapidForwardTruncateAndSync_DoesNotResyncAndTakesRLockFastPath() {
+	zonalBucket := gcsx.NewSyncerBucket(
+		/*appendThreshold=*/ 1,
+		/*chunkRetryDeadlineSecs=*/ 120,
+		/*chunkTransferTimeoutSecs=*/ 10,
+		".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "zonal_bucket", gcs.BucketType{Zonal: true}),
+		false,
+	)
+	config := &cfg.Config{
+		Write: cfg.WriteConfig{
+			EnableStreamingWrites: true,
+			FinalizeFileForRapid:  true,
+			BlockSizeMb:           1,
+			MaxBlocksPerFile:      2,
+		},
+	}
+	sem := semaphore.NewWeighted(100)
+	writeCtx := &inode.WriteContext{
+		Config:             config,
+		GlobalMaxBlocksSem: sem,
+		TraceHandle:        tracing.NewNoopTracer(),
+		MetricHandle:       metrics.NewNoopMetrics(),
+	}
+	parent := createDirInode(&zonalBucket, &t.clock)
+	in := createFileInode(t.T(), &zonalBucket, &t.clock, config, parent, "test_obj_rapid_truncate", []byte{}, false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, sem, 0)
+
+	syncCallbackCalls := 0
+	fh.SetFlushOrSyncCallback(func(ctx context.Context) error {
+		syncCallbackCalls++
+		_, err := in.SyncPendingStreamingWrites(ctx)
+		return err
+	})
+
+	writtenData := []byte("hello")
+	const truncatedSize = 64
+
+	in.Lock()
+	in.RegisterFileHandle(false)
+	initialized, err := in.InitStreamingWriteHandlerIfEligible(t.ctx, writeMode, writeCtx)
+	require.NoError(t.T(), err)
+	require.True(t.T(), initialized)
+
+	_, err = in.Write(t.ctx, writtenData, 0, writeMode, writeCtx)
+	require.NoError(t.T(), err)
+	assert.True(t.T(), in.HasPendingStreamingWrites())
+
+	_, err = in.Truncate(t.ctx, truncatedSize, writeCtx)
+	require.NoError(t.T(), err)
+	assert.True(t.T(), in.HasPendingStreamingWrites())
+
+	// Sync pending streaming writes explicitly after forward Truncate.
+	_, err = in.SyncPendingStreamingWrites(t.ctx)
+	require.NoError(t.T(), err)
+	assert.False(t.T(), in.HasPendingStreamingWrites())
+	// Backing object size is still len(writtenData), while SourceGeneration().Size is truncatedSize.
+	assert.Equal(t.T(), uint64(len(writtenData)), in.Source().Size)
+	assert.Equal(t.T(), uint64(truncatedSize), in.SourceGeneration().Size)
+	in.Unlock()
+
+	// First ReadWithReadManager creates readManager with minObj.Size = SourceGeneration().Size
+	// and must not re-trigger SyncPendingStreamingWrites.
+	dst1 := make([]byte, len(writtenData))
+	fh.inode.Lock()
+	resp1, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+		Buffer: dst1,
+		Offset: 0,
+		Size:   int64(len(dst1)),
+	}, 200)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), len(writtenData), resp1.Size)
+	assert.Equal(t.T(), writtenData, dst1[:resp1.Size])
+	assert.Zero(t.T(), syncCallbackCalls)
+
+	fh.mu.RLock()
+	fh.inode.Lock()
+	rmAfterFirstRead := fh.readManager
+	require.NotNil(t.T(), rmAfterFirstRead)
+	assert.Equal(t.T(), uint64(truncatedSize), fh.readManager.Object().Size)
+	assert.True(t.T(), fh.isValidReadManagerRLocked())
+	assert.False(t.T(), fh.hasPendingStreamingWritesLocked())
+	fh.inode.Unlock()
+	fh.mu.RUnlock()
+
+	// Subsequent ReadWithReadManager calls must not re-trigger SyncPendingStreamingWrites
+	// and must reuse the existing readManager via the RLock fast path.
+	dst2 := make([]byte, len(writtenData))
+	fh.inode.Lock()
+	resp2, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+		Buffer: dst2,
+		Offset: 0,
+		Size:   int64(len(dst2)),
+	}, 200)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), len(writtenData), resp2.Size)
+	assert.Equal(t.T(), writtenData, dst2[:resp2.Size])
+	assert.Zero(t.T(), syncCallbackCalls)
+	assert.Same(t.T(), rmAfterFirstRead, fh.readManager)
+}

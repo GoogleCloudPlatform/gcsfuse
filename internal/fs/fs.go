@@ -2246,7 +2246,7 @@ func (fs *fileSystem) CreateFile(
 
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[op.Handle] = handle.NewFileHandle(
+	fh := handle.NewFileHandle(
 		child.(*inode.FileInode),
 		fs.fileCacheHandler,
 		fs.sharedChunkCacheManager,
@@ -2259,6 +2259,13 @@ func (fs *fileSystem) CreateFile(
 		fs.globalMaxReadBlocksSem,
 		op.Handle,
 	)
+	fh.SetFlushOrSyncCallback(func(ctx context.Context) error {
+		if fh.Inode().Bucket().BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && fs.newConfig.Write.FinalizeFileForRapid {
+			return fs.syncFile(ctx, fh.Inode())
+		}
+		return fs.flushFile(ctx, fh.Inode())
+	})
+	fs.handles[op.Handle] = fh
 
 	fs.mu.Unlock()
 
@@ -3060,7 +3067,7 @@ func (fs *fileSystem) OpenFile(
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op.OpenFlags)
-	fs.handles[op.Handle] = handle.NewFileHandle(
+	fh := handle.NewFileHandle(
 		in,
 		fs.fileCacheHandler,
 		fs.sharedChunkCacheManager,
@@ -3073,6 +3080,13 @@ func (fs *fileSystem) OpenFile(
 		fs.globalMaxReadBlocksSem,
 		op.Handle,
 	)
+	fh.SetFlushOrSyncCallback(func(ctx context.Context) error {
+		if fh.Inode().Bucket().BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && fs.newConfig.Write.FinalizeFileForRapid {
+			return fs.syncFile(ctx, fh.Inode())
+		}
+		return fs.flushFile(ctx, fh.Inode())
+	})
+	fs.handles[op.Handle] = fh
 
 	// When we observe object generations that we didn't create, we assign them
 	// new inode IDs. So for a given inode, all modifications go through the
@@ -3169,7 +3183,6 @@ func (fs *fileSystem) ReadFile(
 		req.Buffer = op.Dst
 	}
 
-	wasLocal := fh.Inode().IsLocal()
 	if fs.newConfig.FileSystem.EnableKernelReader {
 		var resp gcsx.ReadResponse
 		resp, err = fh.ReadWithKernelReader(ctx, &req)
@@ -3184,13 +3197,6 @@ func (fs *fileSystem) ReadFile(
 		op.Callback = resp.Callback
 	} else {
 		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
-	}
-	if wasLocal {
-		fh.Inode().Lock()
-		if !fh.Inode().IsLocal() {
-			fs.promoteToGenerationBacked(fh.Inode())
-		}
-		fh.Inode().Unlock()
 	}
 
 	// A FileClobberedError indicates the underlying GCS object has changed,

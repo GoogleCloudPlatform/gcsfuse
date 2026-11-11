@@ -550,7 +550,8 @@ func (p *simpleTestBufferPool) Put(b *[]byte) {
 }
 
 func TestLargeReadTCPConn_ReadAndReadOnReady(t *testing.T) {
-	t.Parallel()
+	origPreseeded := preseededALTSPool.Load()
+	defer preseededALTSPool.Store(origPreseeded)
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -626,10 +627,12 @@ func TestLargeReadTCPConn_ReadAndReadOnReady(t *testing.T) {
 
 type testConstBufferPool struct {
 	buf      []byte
+	getCount int
 	putCount int
 }
 
 func (p *testConstBufferPool) Get(int) *[]byte {
+	p.getCount++
 	return &p.buf
 }
 
@@ -674,14 +677,14 @@ func TestLargeReadTCPConn_TLSAndPartialALTSAndConstPool(t *testing.T) {
 		wn, err := lrc.Write(tlsHello)
 		require.NoError(t, err)
 		assert.Equal(t, len(tlsHello), wn)
-		assert.True(t, lrc.firstWriteDone)
-		assert.True(t, lrc.nonALTS)
+		assert.True(t, lrc.firstWriteDone.Load())
+		assert.True(t, lrc.nonALTS.Load())
 
 		// Reading with a 36 KiB slice must NOT trigger the single-frame ALTS split.
 		buf := make([]byte, altsInitialProtectedCap)
 		rn, err := lrc.Read(buf)
 		require.NoError(t, err)
-		assert.False(t, lrc.altsInitDone)
+		assert.False(t, lrc.altsInitDone.Load())
 		assert.Equal(t, altsTotalFrame+len(trailing), rn)
 		<-serverDone
 	})
@@ -761,7 +764,8 @@ func TestLargeReadTCPConn_TLSAndPartialALTSAndConstPool(t *testing.T) {
 		assert.Equal(t, altsReadBufferInitialSize, cap(*gotBuf))
 		assert.Equal(t, len(want), n)
 		assert.Equal(t, want, (*gotBuf)[:n])
-		assert.Zero(t, constPool.putCount)
+		assert.GreaterOrEqual(t, constPool.getCount, 1)
+		assert.Equal(t, 1, constPool.getCount-constPool.putCount)
 		assert.False(t, preseededALTSPool.Load(), "constBufferPool must not trigger or poison preseededALTSPool")
 	})
 }

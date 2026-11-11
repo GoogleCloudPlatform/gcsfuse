@@ -272,9 +272,9 @@ type largeReadTCPConn struct {
 	raw            syscall.RawConn
 	state          largeReadState
 	doRead         func(fd uintptr) bool
-	firstWriteDone bool
-	nonALTS        bool
-	altsInitDone   bool
+	firstWriteDone atomic.Bool
+	nonALTS        atomic.Bool
+	altsInitDone   atomic.Bool
 }
 
 func wrapLargeReadTCPConn(conn net.Conn) net.Conn {
@@ -339,10 +339,9 @@ func readFullEOF(r io.Reader, buf []byte) (int, error) {
 }
 
 func (c *largeReadTCPConn) Write(b []byte) (int, error) {
-	if !c.firstWriteDone && len(b) > 0 {
-		c.firstWriteDone = true
+	if len(b) > 0 && c.firstWriteDone.CompareAndSwap(false, true) {
 		if len(b) >= 5 && b[0] == 0x16 && b[1] == 0x03 && b[2] >= 0x01 && b[2] <= 0x04 {
-			c.nonALTS = true
+			c.nonALTS.Store(true)
 		}
 	}
 	return c.TCPConn.Write(b)
@@ -357,8 +356,7 @@ func (c *largeReadTCPConn) Read(b []byte) (int, error) {
 	// is empty after decryption, causing dropProtectedIfEmtpy() to release the
 	// 36 KiB buffer and invoke ReadOnReady to upgrade the connection to a
 	// 512 KiB protected buffer.
-	if !c.nonALTS && !c.altsInitDone && len(b) == altsInitialProtectedCap && cap(b) == altsInitialProtectedCap {
-		c.altsInitDone = true
+	if !c.nonALTS.Load() && len(b) == altsInitialProtectedCap && cap(b) == altsInitialProtectedCap && c.altsInitDone.CompareAndSwap(false, true) {
 		n, err := readFullEOF(c.TCPConn, b[:8])
 		if err != nil {
 			if n > 0 {
