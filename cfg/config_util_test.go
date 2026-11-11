@@ -15,16 +15,19 @@
 package cfg
 
 import (
+	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_DefaultMaxBackground(t *testing.T) {
 	cpus := runtime.NumCPU()
-	memKb := systemTotalMemoryKb()
+	memKb := effectiveTotalMemoryKb()
 	assert.Equal(t, StorageClassRapid.defaultMaxBackgroundFor(cpus, memKb), StorageClassRapid.DefaultMaxBackground())
 	assert.Equal(t, StorageClassStandard.defaultMaxBackgroundFor(cpus, memKb), StorageClassStandard.DefaultMaxBackground())
 }
@@ -118,6 +121,78 @@ func Test_DefaultMaxBackgroundFor(t *testing.T) {
 			assert.Equal(t, tc.wantStandard, StorageClassStandard.defaultMaxBackgroundFor(tc.cpus, tc.totalMemKb))
 		})
 	}
+}
+
+func Test_EffectiveTotalMemoryKbFrom_CgroupLimits(t *testing.T) {
+	writeFile := func(t *testing.T, p, content string) {
+		t.Helper()
+		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+		require.NoError(t, os.WriteFile(p, []byte(content), 0o644))
+	}
+
+	t.Run("CgroupV2NestedTakesTighterParentLimit", func(t *testing.T) {
+		dir := t.TempDir()
+		meminfo := filepath.Join(dir, "meminfo")
+		procCgroup := filepath.Join(dir, "cgroup")
+		cgV2 := filepath.Join(dir, "sys/fs/cgroup")
+		cgV1 := filepath.Join(dir, "sys/fs/cgroup/memory")
+
+		writeFile(t, meminfo, "MemTotal:       134217728 kB\n")
+		writeFile(t, procCgroup, "0::/kubepods.slice/pod123/container\n")
+		writeFile(t, filepath.Join(cgV2, "kubepods.slice/pod123/memory.max"), "2147483648\n") // 2 GiB
+		writeFile(t, filepath.Join(cgV2, "kubepods.slice/pod123/container/memory.max"), "max\n")
+
+		got := effectiveTotalMemoryKbFrom(meminfo, procCgroup, cgV2, cgV1)
+		assert.Equal(t, int64(2*1024*1024), got)
+		// On a 32-vCPU host with 2 GiB cgroup limit, non-rapid (16 MiB req) caps at 2 GiB/4/16 MiB = 32.
+		assert.Equal(t, 32, StorageClassStandard.defaultMaxBackgroundFor(32, got))
+		assert.Equal(t, rapidMaxBackground, StorageClassRapid.defaultMaxBackgroundFor(32, got))
+	})
+
+	t.Run("CgroupV2MaxFallsBackToHostMemTotal", func(t *testing.T) {
+		dir := t.TempDir()
+		meminfo := filepath.Join(dir, "meminfo")
+		procCgroup := filepath.Join(dir, "cgroup")
+		cgV2 := filepath.Join(dir, "sys/fs/cgroup")
+		cgV1 := filepath.Join(dir, "sys/fs/cgroup/memory")
+
+		writeFile(t, meminfo, "MemTotal:       67108864 kB\n")
+		writeFile(t, procCgroup, "0::/\n")
+		writeFile(t, filepath.Join(cgV2, "memory.max"), "max\n")
+
+		got := effectiveTotalMemoryKbFrom(meminfo, procCgroup, cgV2, cgV1)
+		assert.Equal(t, int64(67108864), got)
+	})
+
+	t.Run("CgroupV1FiniteVsUnlimitedSentinel", func(t *testing.T) {
+		dir := t.TempDir()
+		meminfo := filepath.Join(dir, "meminfo")
+		procCgroup := filepath.Join(dir, "cgroup")
+		cgV2 := filepath.Join(dir, "sys/fs/cgroup")
+		cgV1 := filepath.Join(dir, "sys/fs/cgroup/memory")
+
+		writeFile(t, meminfo, "MemTotal:       67108864 kB\n")
+		writeFile(t, procCgroup, "4:memory:/docker/abc\n")
+		// Tight finite limit (1 GiB).
+		writeFile(t, filepath.Join(cgV1, "docker/abc/memory.limit_in_bytes"), "1073741824\n")
+		assert.Equal(t, int64(1024*1024), effectiveTotalMemoryKbFrom(meminfo, procCgroup, cgV2, cgV1))
+
+		// Kernel unlimited sentinel (> MemTotal) falls back to host MemTotal.
+		writeFile(t, filepath.Join(cgV1, "docker/abc/memory.limit_in_bytes"), "9223372036854771712\n")
+		assert.Equal(t, int64(67108864), effectiveTotalMemoryKbFrom(meminfo, procCgroup, cgV2, cgV1))
+	})
+
+	t.Run("NonContainerizedFallback", func(t *testing.T) {
+		dir := t.TempDir()
+		meminfo := filepath.Join(dir, "meminfo")
+		writeFile(t, meminfo, "MemTotal:       33554432 kB\n")
+		assert.Equal(t, int64(33554432), effectiveTotalMemoryKbFrom(
+			meminfo,
+			filepath.Join(dir, "missing_cgroup"),
+			filepath.Join(dir, "missing_v2"),
+			filepath.Join(dir, "missing_v1"),
+		))
+	})
 }
 
 func Test_DefaultCongestionThreshold(t *testing.T) {
