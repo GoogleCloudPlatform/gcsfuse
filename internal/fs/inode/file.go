@@ -32,6 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/kernel_readers"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
@@ -40,7 +41,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/sync/semaphore"
 )
@@ -109,7 +109,7 @@ type FileInode struct {
 
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
-	mu syncutil.InvariantMutex
+	mu locker.RWLocker
 
 	// GUARDED_BY(mu)
 	lc lookupCount
@@ -223,7 +223,7 @@ func NewFileInode(
 	}
 
 	f.lc.Init(id)
-	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
+	f.mu = locker.NewRW("FileInode", f.checkInvariants)
 
 	return
 }
@@ -441,6 +441,18 @@ func (f *FileInode) Lock() {
 
 func (f *FileInode) Unlock() {
 	f.mu.Unlock()
+}
+
+func (f *FileInode) RLock() {
+	f.mu.RLock()
+}
+
+func (f *FileInode) RUnlock() {
+	f.mu.RUnlock()
+}
+
+func (f *FileInode) LocalFileCache() bool {
+	return f.localFileCache
 }
 
 func (f *FileInode) ID() fuseops.InodeID {

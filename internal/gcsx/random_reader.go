@@ -207,7 +207,9 @@ type readInfo struct {
 }
 
 func (rr *randomReader) CheckInvariants() {
-	rr.mu.Lock()
+	if !rr.mu.TryLock() {
+		return
+	}
 	defer rr.mu.Unlock()
 
 	// INVARIANT: (reader == nil) == (cancel == nil)

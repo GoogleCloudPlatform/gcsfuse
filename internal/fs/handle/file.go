@@ -203,8 +203,9 @@ func (fh *FileHandle) unlockHandleAndInode(rLock bool) {
 }
 
 // TryFastReadWithReadManager executes the steady-state read path when readManager
-// is already initialized and valid, acquiring fh.mu.RLock() before fh.inode.Lock()
-// to avoid the double inode lock/unlock round-trip per FUSE ReadFile op.
+// is already initialized and valid, acquiring fh.mu.RLock() before fh.inode.RLock()
+// to avoid the double inode lock/unlock round-trip per FUSE ReadFile op and allow
+// concurrent reads while blocking exclusive inode mutations across ReadAt.
 //
 // LOCKS_EXCLUDED(fh.mu)
 // LOCKS_EXCLUDED(fh.inode.mu)
@@ -214,24 +215,14 @@ func (fh *FileHandle) TryFastReadWithReadManager(ctx context.Context, req *gcsx.
 		fh.mu.RUnlock()
 		return gcsx.ReadResponse{}, false, nil
 	}
-	fh.inode.Lock()
-	if fh.inode.IsUsingStreamingWriteHandler() || !fh.inode.SourceGenerationIsAuthoritative() || !fh.isValidReadManagerRLocked() {
-		fh.inode.Unlock()
+	fh.inode.RLock()
+	if fh.inode.LocalFileCache() || fh.inode.IsUsingStreamingWriteHandler() || !fh.inode.SourceGenerationIsAuthoritative() || !fh.isValidReadManagerRLocked() {
+		fh.inode.RUnlock()
 		fh.mu.RUnlock()
 		return gcsx.ReadResponse{}, false, nil
 	}
-	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
-		fh.inode.Unlock()
-		fh.mu.RUnlock()
-		return gcsx.ReadResponse{}, true, fmt.Errorf("failed to ensure inode content: %w", err)
-	}
-	if !fh.inode.SourceGenerationIsAuthoritative() || !fh.isValidReadManagerRLocked() {
-		fh.inode.Unlock()
-		fh.mu.RUnlock()
-		return gcsx.ReadResponse{}, false, nil
-	}
-	fh.inode.Unlock()
 	defer fh.mu.RUnlock()
+	defer fh.inode.RUnlock()
 
 	req.SkipSizeChecks = fh.shouldSkipSizeChecks(req)
 
@@ -272,7 +263,14 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 	for {
 		if !fh.hasPendingStreamingWritesLocked() && fh.inode.SourceGenerationIsAuthoritative() && fh.isValidReadManagerRLocked() {
 			fh.inode.Unlock()
-			break
+			fh.inode.RLock()
+			if !fh.hasPendingStreamingWritesLocked() && fh.inode.SourceGenerationIsAuthoritative() && fh.isValidReadManagerRLocked() {
+				defer fh.inode.RUnlock()
+				break
+			}
+			fh.inode.RUnlock()
+			fh.inode.Lock()
+			continue
 		}
 
 		// Acquire an exclusive lock on file handle as we will update readManager
@@ -400,7 +398,14 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 	for {
 		if !fh.hasPendingStreamingWritesLocked() && fh.inode.SourceGenerationIsAuthoritative() && fh.isValidReaderRLocked() {
 			fh.inode.Unlock()
-			break
+			fh.inode.RLock()
+			if !fh.hasPendingStreamingWritesLocked() && fh.inode.SourceGenerationIsAuthoritative() && fh.isValidReaderRLocked() {
+				defer fh.inode.RUnlock()
+				break
+			}
+			fh.inode.RUnlock()
+			fh.inode.Lock()
+			continue
 		}
 
 		// Acquire an exclusive lock on file handle as we will update reader

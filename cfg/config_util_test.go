@@ -15,6 +15,7 @@
 package cfg
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
@@ -22,8 +23,101 @@ import (
 )
 
 func Test_DefaultMaxBackground(t *testing.T) {
-	assert.Equal(t, rapidMaxBackground, StorageClassRapid.DefaultMaxBackground())
-	assert.Equal(t, nonRapidMaxBackground, StorageClassStandard.DefaultMaxBackground())
+	cpus := runtime.NumCPU()
+	memKb := systemTotalMemoryKb()
+	assert.Equal(t, StorageClassRapid.defaultMaxBackgroundFor(cpus, memKb), StorageClassRapid.DefaultMaxBackground())
+	assert.Equal(t, StorageClassStandard.defaultMaxBackgroundFor(cpus, memKb), StorageClassStandard.DefaultMaxBackground())
+}
+
+func Test_DefaultMaxBackgroundFor(t *testing.T) {
+	const mibKb = int64(1024)
+	const gibKb = int64(1024 * 1024)
+
+	testCases := []struct {
+		name         string
+		cpus         int
+		totalMemKb   int64
+		wantRapid    int
+		wantStandard int
+	}{
+		{
+			name:         "1 vCPU / 512 MiB RAM (floor at 12)",
+			cpus:         1,
+			totalMemKb:   512 * mibKb,
+			wantRapid:    12,
+			wantStandard: 12,
+		},
+		{
+			name:         "2 vCPU / 2 GiB RAM",
+			cpus:         2,
+			totalMemKb:   2 * gibKb,
+			wantRapid:    16,
+			wantStandard: 16,
+		},
+		{
+			name:         "4 vCPU / 4 GiB RAM",
+			cpus:         4,
+			totalMemKb:   4 * gibKb,
+			wantRapid:    32,
+			wantStandard: 32,
+		},
+		{
+			name:         "4 vCPU / 1 GiB RAM (memory-capped non-rapid)",
+			cpus:         4,
+			totalMemKb:   1 * gibKb,
+			wantRapid:    32,
+			wantStandard: 16,
+		},
+		{
+			name:         "4 vCPU / 512 MiB RAM (memory floor at 12)",
+			cpus:         4,
+			totalMemKb:   512 * mibKb,
+			wantRapid:    32,
+			wantStandard: 12,
+		},
+		{
+			name:         "24 vCPU / 64 GiB RAM (rapid reaches cap)",
+			cpus:         24,
+			totalMemKb:   64 * gibKb,
+			wantRapid:    rapidMaxBackground,
+			wantStandard: 192,
+		},
+		{
+			name:         "32 vCPU / 64 GiB RAM (high-throughput VM)",
+			cpus:         32,
+			totalMemKb:   64 * gibKb,
+			wantRapid:    rapidMaxBackground,
+			wantStandard: nonRapidMaxBackground,
+		},
+		{
+			name:         "64 vCPU / 256 GiB RAM (high-throughput VM)",
+			cpus:         64,
+			totalMemKb:   256 * gibKb,
+			wantRapid:    rapidMaxBackground,
+			wantStandard: nonRapidMaxBackground,
+		},
+		{
+			name:         "2 vCPU / unknown memory (0 KiB)",
+			cpus:         2,
+			totalMemKb:   0,
+			wantRapid:    16,
+			wantStandard: 16,
+		},
+		{
+			name:         "32 vCPU / unknown memory (0 KiB)",
+			cpus:         32,
+			totalMemKb:   0,
+			wantRapid:    rapidMaxBackground,
+			wantStandard: nonRapidMaxBackground,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.wantRapid, StorageClassRapid.defaultMaxBackgroundFor(tc.cpus, tc.totalMemKb))
+			assert.Equal(t, tc.wantStandard, StorageClassStandard.defaultMaxBackgroundFor(tc.cpus, tc.totalMemKb))
+		})
+	}
 }
 
 func Test_DefaultCongestionThreshold(t *testing.T) {

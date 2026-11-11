@@ -291,7 +291,7 @@ func wrapLargeReadTCPConn(conn net.Conn) net.Conn {
 		return conn
 	}
 	_ = raw.Control(func(fd uintptr) {
-		_ = unix.SetsockoptInt(int(fd), syscall.IPPROTO_TCP, unix.TCP_USER_TIMEOUT, defaultTCPUserTimeoutMs)
+		setTCPUserTimeout(fd)
 	})
 	c := &largeReadTCPConn{
 		TCPConn: tcpConn,

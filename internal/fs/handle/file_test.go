@@ -2262,3 +2262,106 @@ func (t *fileTest) Test_ReadWithReadManager_RapidForwardTruncateAndSync_DoesNotR
 	assert.Zero(t.T(), syncCallbackCalls)
 	assert.Same(t.T(), rmAfterFirstRead, fh.readManager)
 }
+
+type blockingReadManager struct {
+	object   *gcs.MinObject
+	started  chan struct{}
+	released chan struct{}
+}
+
+func (m *blockingReadManager) CheckInvariants() {}
+
+func (m *blockingReadManager) ReaderName() string { return "blockingReadManager" }
+
+func (m *blockingReadManager) Destroy() {}
+
+func (m *blockingReadManager) Object() *gcs.MinObject { return m.object }
+
+func (m *blockingReadManager) ReadAt(_ context.Context, _ *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
+	m.started <- struct{}{}
+	<-m.released
+	return gcsx.ReadResponse{Size: 4}, nil
+}
+
+func (t *fileTest) Test_TryFastReadWithReadManager_ConcurrentReadsRunInParallelAndBlockExclusiveInodeLock() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_fast_rlock", []byte("data"), false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+
+	obj := *in.Source()
+	rm := &blockingReadManager{
+		object:   &obj,
+		started:  make(chan struct{}, 2),
+		released: make(chan struct{}),
+	}
+	fh.readManager = rm
+
+	const numReaders = 2
+	resps := make([]gcsx.ReadResponse, numReaders)
+	handled := make([]bool, numReaders)
+	errs := make([]error, numReaders)
+	var wg sync.WaitGroup
+	wg.Add(numReaders)
+	for i := range numReaders {
+		go func(idx int) {
+			defer wg.Done()
+			resps[idx], handled[idx], errs[idx] = fh.TryFastReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+				Buffer: make([]byte, 4),
+				Offset: 0,
+				Size:   4,
+			})
+		}(i)
+	}
+
+	// Both concurrent TryFastReadWithReadManager calls must enter ReadAt in parallel under RLock.
+	for range numReaders {
+		select {
+		case <-rm.started:
+		case <-time.After(5 * time.Second):
+			close(rm.released)
+			t.T().Fatal("timed out waiting for concurrent TryFastReadWithReadManager calls to enter ReadAt")
+		}
+	}
+
+	// Exclusive inode.Lock() must block while ReadAt is in flight.
+	lockAcquired := make(chan struct{})
+	go func() {
+		fh.inode.Lock()
+		close(lockAcquired)
+		fh.inode.Unlock()
+	}()
+
+	select {
+	case <-lockAcquired:
+		close(rm.released)
+		t.T().Fatal("expected exclusive fh.inode.Lock() to block while ReadAt is in flight")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(rm.released)
+
+	readsDone := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(readsDone)
+	}()
+
+	select {
+	case <-readsDone:
+	case <-time.After(5 * time.Second):
+		t.T().Fatal("timed out waiting for TryFastReadWithReadManager calls to complete")
+	}
+
+	select {
+	case <-lockAcquired:
+	case <-time.After(5 * time.Second):
+		t.T().Fatal("timed out waiting for exclusive fh.inode.Lock() after ReadAt completed")
+	}
+
+	for i := range numReaders {
+		assert.NoError(t.T(), errs[i])
+		assert.True(t.T(), handled[i])
+		assert.Equal(t.T(), 4, resps[i].Size)
+	}
+}

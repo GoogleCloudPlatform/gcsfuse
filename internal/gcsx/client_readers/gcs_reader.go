@@ -213,7 +213,9 @@ func (gr *GCSReader) Destroy() {
 }
 
 func (gr *GCSReader) CheckInvariants() {
-	gr.mu.Lock()
+	if !gr.mu.TryLock() {
+		return
+	}
 	defer gr.mu.Unlock()
 	gr.rangeReader.checkInvariants()
 }

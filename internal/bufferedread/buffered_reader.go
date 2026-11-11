@@ -635,7 +635,9 @@ func (p *BufferedReader) releaseOrMarkEvicted(entry *blockQueueEntry) {
 // CheckInvariants checks for internal consistency of the reader.
 // LOCKS_EXCLUDED(p.mu)
 func (p *BufferedReader) CheckInvariants() {
-	p.mu.Lock()
+	if !p.mu.TryLock() {
+		return
+	}
 	defer p.mu.Unlock()
 
 	// The prefetch block size must be positive.

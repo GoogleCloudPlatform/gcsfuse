@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -50,12 +51,48 @@ func MaxPagesForRequestSizeKb(requestSizeKb int) int {
 	return ((requestSizeKb * 1024) + kernelPageSize - 1) / kernelPageSize
 }
 
-func (sc StorageClass) DefaultMaxBackground() int {
+// systemTotalMemoryKb returns the total system memory in KiB from /proc/meminfo on Linux,
+// or 0 on non-Linux systems or if /proc/meminfo cannot be read or parsed.
+func systemTotalMemoryKb() int64 {
+	if runtime.GOOS != "linux" {
+		return 0
+	}
+	data, err := os.ReadFile("/proc/meminfo")
+	if err != nil {
+		return 0
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if !strings.HasPrefix(line, "MemTotal:") {
+			continue
+		}
+		fields := strings.Fields(strings.TrimPrefix(line, "MemTotal:"))
+		if len(fields) == 0 {
+			return 0
+		}
+		kb, err := strconv.ParseInt(fields[0], 10, 64)
+		if err != nil || kb <= 0 {
+			return 0
+		}
+		return kb
+	}
+	return 0
+}
+
+func (sc StorageClass) defaultMaxBackgroundFor(cpus int, totalMemKb int64) int {
 	limit := nonRapidMaxBackground
 	if sc == StorageClassRapid {
 		limit = rapidMaxBackground
 	}
-	return limit
+	scaled := min(max(12, 8*cpus), limit)
+	if totalMemKb > 0 {
+		memLimit := max(12, int((totalMemKb/4)/int64(sc.DefaultFuseMaxRequestSizeKb())))
+		scaled = min(scaled, memLimit)
+	}
+	return scaled
+}
+
+func (sc StorageClass) DefaultMaxBackground() int {
+	return sc.defaultMaxBackgroundFor(runtime.NumCPU(), systemTotalMemoryKb())
 }
 
 func (sc StorageClass) DefaultCongestionThreshold() int {
