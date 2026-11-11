@@ -21,7 +21,10 @@ import (
 	"hash/crc32"
 	"io"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"unsafe"
 
@@ -114,18 +117,30 @@ func TestDirtyBufferPoolPinAndRelease(t *testing.T) {
 	bufPtr := defaultDirtyBufferPool.Get(32 * 1024)
 	sub1 := (*bufPtr)[100:4096]
 	sub2 := (*bufPtr)[4096:16384]
+	subTail := (*bufPtr)[32*1024-512 : 32*1024]
 
 	tok1 := TryPinDirtySlice(sub1)
 	tok2 := TryPinDirtySlice(sub2)
+	tokTail := TryPinDirtySlice(subTail)
 	assert.NotNil(t, tok1)
 	assert.Equal(t, tok1, tok2)
+	assert.Equal(t, tok1, tokTail)
 
 	// Simulate gRPC mem.BufferSlice.Free() returning bufPtr to pool while pinned.
 	defaultDirtyBufferPool.Put(bufPtr)
 
-	// Release both pins.
+	// Release all three pins.
 	ReleaseDirtyBuffer(tok1)
 	ReleaseDirtyBuffer(tok2)
+	ReleaseDirtyBuffer(tokTail)
+
+	// Non-zero start offset sub-slice of a 2 KiB (1<<11) pooled buffer.
+	buf2k := defaultDirtyBufferPool.Get(1 << 11)
+	sub2k := (*buf2k)[16:2048]
+	tok2k := TryPinDirtySlice(sub2k)
+	assert.NotNil(t, tok2k)
+	defaultDirtyBufferPool.Put(buf2k)
+	ReleaseDirtyBuffer(tok2k)
 
 	// Non-pooled slice must return nil.
 	plain := make([]byte, 4096, 8192)
@@ -607,5 +622,184 @@ func TestLargeReadTCPConn_ReadAndReadOnReady(t *testing.T) {
 	pool.Put(bufPtr)
 
 	<-serverDone
+}
+
+type testConstBufferPool struct {
+	buf      []byte
+	putCount int
+}
+
+func (p *testConstBufferPool) Get(int) *[]byte {
+	return &p.buf
+}
+
+func (p *testConstBufferPool) Put(*[]byte) {
+	p.putCount++
+}
+
+func TestLargeReadTCPConn_TLSAndPartialALTSAndConstPool(t *testing.T) {
+	t.Run("TLSClientHelloDisablesALTSHeuristic", func(t *testing.T) {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer func() { _ = listener.Close() }()
+
+		const altsPayloadLen = 96
+		const altsFrameLen = 4 + altsPayloadLen
+		const altsTotalFrame = 4 + altsFrameLen
+		altsRecord := make([]byte, altsTotalFrame)
+		binary.LittleEndian.PutUint32(altsRecord[:4], uint32(altsFrameLen))
+		binary.LittleEndian.PutUint32(altsRecord[4:8], 6)
+		trailing := bytes.Repeat([]byte("T"), 200)
+
+		serverDone := make(chan struct{})
+		go func() {
+			defer close(serverDone)
+			srvConn, aErr := listener.Accept()
+			if aErr != nil {
+				return
+			}
+			defer func() { _ = srvConn.Close() }()
+			hello := make([]byte, 10)
+			_, _ = io.ReadFull(srvConn, hello)
+			_, _ = srvConn.Write(append(altsRecord, trailing...))
+		}()
+
+		clientConn, err := dialLargeReadTCP(context.Background(), listener.Addr().String())
+		require.NoError(t, err)
+		defer func() { _ = clientConn.Close() }()
+		lrc := clientConn.(*largeReadTCPConn)
+
+		// Write TLS 1.0/1.2 ClientHello record header (0x16, 0x03, 0x01, ...).
+		tlsHello := []byte{0x16, 0x03, 0x01, 0x00, 0x05, 'h', 'e', 'l', 'l', 'o'}
+		wn, err := lrc.Write(tlsHello)
+		require.NoError(t, err)
+		assert.Equal(t, len(tlsHello), wn)
+		assert.True(t, lrc.firstWriteDone)
+		assert.True(t, lrc.nonALTS)
+
+		// Reading with a 36 KiB slice must NOT trigger the single-frame ALTS split.
+		buf := make([]byte, altsInitialProtectedCap)
+		rn, err := lrc.Read(buf)
+		require.NoError(t, err)
+		assert.False(t, lrc.altsInitDone)
+		assert.Equal(t, altsTotalFrame+len(trailing), rn)
+		<-serverDone
+	})
+
+	t.Run("PartialALTSBodyReadPreservesHeaderBytes", func(t *testing.T) {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer func() { _ = listener.Close() }()
+
+		const altsFrameLen = 100 // expects 4 + 100 = 104 total bytes (96 body bytes)
+		partialRecord := make([]byte, 8+20)
+		binary.LittleEndian.PutUint32(partialRecord[:4], uint32(altsFrameLen))
+		binary.LittleEndian.PutUint32(partialRecord[4:8], 6)
+		for i := 8; i < len(partialRecord); i++ {
+			partialRecord[i] = byte(i)
+		}
+
+		go func() {
+			srvConn, aErr := listener.Accept()
+			if aErr != nil {
+				return
+			}
+			_, _ = srvConn.Write(partialRecord)
+			_ = srvConn.Close()
+		}()
+
+		clientConn, err := dialLargeReadTCP(context.Background(), listener.Addr().String())
+		require.NoError(t, err)
+		defer func() { _ = clientConn.Close() }()
+		lrc := clientConn.(*largeReadTCPConn)
+
+		buf := make([]byte, altsInitialProtectedCap)
+		n, err := lrc.Read(buf)
+		require.NoError(t, err, "partial frame read after 8-byte header must return nil error so header bytes are not dropped")
+		assert.Equal(t, len(partialRecord), n)
+		assert.Equal(t, partialRecord, buf[:n])
+
+		// Subsequent read returns EOF.
+		n2, err2 := lrc.Read(buf)
+		assert.Zero(t, n2)
+		assert.Equal(t, io.EOF, err2)
+	})
+
+	t.Run("ReadOnReadyWithConstBufferPoolDoesNotReallocateOrPoisonALTSPool", func(t *testing.T) {
+		origPreseeded := preseededALTSPool.Load()
+		preseededALTSPool.Store(false)
+		defer preseededALTSPool.Store(origPreseeded)
+
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer func() { _ = listener.Close() }()
+
+		want := []byte("const-buffer-pool-payload-bytes")
+		go func() {
+			srvConn, aErr := listener.Accept()
+			if aErr != nil {
+				return
+			}
+			defer func() { _ = srvConn.Close() }()
+			_, _ = srvConn.Write(want)
+		}()
+
+		clientConn, err := dialLargeReadTCP(context.Background(), listener.Addr().String())
+		require.NoError(t, err)
+		defer func() { _ = clientConn.Close() }()
+		lrc := clientConn.(*largeReadTCPConn)
+
+		backing := make([]byte, altsReadBufferInitialSize)
+		origPtr := unsafe.SliceData(backing)
+		constPool := &testConstBufferPool{buf: backing}
+
+		gotBuf, n, err := lrc.ReadOnReady(altsReadBufferInitialSize, constPool)
+		require.NoError(t, err)
+		require.NotNil(t, gotBuf)
+		assert.Same(t, &constPool.buf, gotBuf)
+		assert.Equal(t, origPtr, unsafe.SliceData(*gotBuf), "constBufferPool backing slice must not be reallocated")
+		assert.Equal(t, altsReadBufferInitialSize, cap(*gotBuf))
+		assert.Equal(t, len(want), n)
+		assert.Equal(t, want, (*gotBuf)[:n])
+		assert.Zero(t, constPool.putCount)
+		assert.False(t, preseededALTSPool.Load(), "constBufferPool must not trigger or poison preseededALTSPool")
+	})
+}
+
+func TestResolveGRPCLayout_CachesNonGRPCReader(t *testing.T) {
+	t.Parallel()
+	const payload = "http-reader-non-grpc-cache-test"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "31")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(payload))
+	}))
+	defer srv.Close()
+
+	ctx := context.Background()
+	httpClient, err := storagev2.NewClient(ctx, option.WithEndpoint(srv.URL), option.WithoutAuthentication())
+	require.NoError(t, err)
+	defer func() { _ = httpClient.Close() }()
+
+	r, err := httpClient.Bucket("test-bucket").Object("test-obj").NewReader(ctx)
+	require.NoError(t, err)
+	frc := newGCSFullReadCloser(r)
+
+	initSROffsets()
+	require.True(t, srOffsetsValid)
+	rIface := (*ifaceHeader)(unsafe.Add(unsafe.Pointer(r), offSRReader))
+	require.NotNil(t, rIface.tab)
+
+	buf := make([]byte, len(payload))
+	slices, n, cb, err := frc.ReadVectored(buf)
+	require.NoError(t, err)
+	assert.Nil(t, slices)
+	assert.Nil(t, cb)
+	assert.Equal(t, len(payload), n)
+	assert.Equal(t, payload, string(buf))
+	assert.Equal(t, rIface.tab, atomic.LoadPointer(&tabNonGRPC), "non-gRPC reader type must be cached in tabNonGRPC")
+
+	// Subsequent ReadVectored and Close hit the lock-free tabNonGRPC fast path.
+	require.NoError(t, frc.Close())
 }
 

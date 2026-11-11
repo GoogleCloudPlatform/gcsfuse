@@ -695,3 +695,50 @@ func (t *rangeReaderTest) Test_ReadAt_ForceCreateReader() {
 	assert.NotEqual(t.T(), firstReader, secondReader)
 	t.mockBucket.AssertExpectations(t.T())
 }
+
+type fakeVectoredReader struct {
+	*fake.FakeReader
+	readVectoredFn func(p []byte) ([][]byte, int, func(), error)
+}
+
+func (f *fakeVectoredReader) ReadVectored(p []byte) ([][]byte, int, func(), error) {
+	return f.readVectoredFn(p)
+}
+
+func (t *rangeReaderTest) Test_ReadFromRangeReader_CopiesZeroCopyVectoredSlicesIntoCallerBufferBeforeCallback() {
+	s1 := []byte("hello ")
+	s2 := []byte("world")
+	callbackCalled := false
+
+	vr := &fakeVectoredReader{
+		FakeReader: &fake.FakeReader{
+			ReadCloser: getReadCloser(nil),
+			Handle:     []byte(fakeHandleData),
+		},
+		readVectoredFn: func(p []byte) ([][]byte, int, func(), error) {
+			cb := func() {
+				callbackCalled = true
+				for i := range s1 {
+					s1[i] = 0
+				}
+				for i := range s2 {
+					s2[i] = 0
+				}
+			}
+			return [][]byte{s1, s2}, len(s1) + len(s2), cb, nil
+		},
+	}
+
+	t.rangeReader.start = 0
+	t.rangeReader.limit = 11
+	t.rangeReader.reader = vr
+	t.rangeReader.cancel = func() {}
+
+	buf := make([]byte, 11)
+	n, err := t.rangeReader.readFromRangeReader(t.ctx, buf, 0, 11, metrics.ReadTypeUnknown)
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 11, n)
+	assert.True(t.T(), callbackCalled, "Callback must be invoked by readFromRangeReader")
+	assert.Equal(t.T(), "hello world", string(buf), "Zero-copy slices must be copied into p before Callback zeroes/releases them")
+}

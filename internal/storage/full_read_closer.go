@@ -97,6 +97,7 @@ var (
 	layoutReadObject grpcZeroCopyLayout
 	tabBidi          unsafe.Pointer
 	layoutBidi       grpcZeroCopyLayout
+	tabNonGRPC       unsafe.Pointer
 )
 
 func initSROffsets() {
@@ -148,6 +149,9 @@ func resolveGRPCLayout(sr *storagev2.Reader, tab unsafe.Pointer) *grpcZeroCopyLa
 	if tab == atomic.LoadPointer(&tabBidi) {
 		return &layoutBidi
 	}
+	if tab == atomic.LoadPointer(&tabNonGRPC) {
+		return nil
+	}
 
 	srVal := reflect.ValueOf(sr).Elem()
 	readerIface := srVal.FieldByName("reader")
@@ -161,6 +165,7 @@ func resolveGRPCLayout(sr *storagev2.Reader, tab unsafe.Pointer) *grpcZeroCopyLa
 	grType := grElem.Type()
 	grName := grType.Name()
 	if grName != "gRPCReadObjectReader" && grName != "gRPCReader" {
+		atomic.StorePointer(&tabNonGRPC, tab)
 		return nil
 	}
 
@@ -291,6 +296,9 @@ func (frc gcsFullReadCloser) ReadVectored(buf []byte) (data [][]byte, n int, cal
 		layout = &layoutReadObject
 	} else if tab == atomic.LoadPointer(&tabBidi) {
 		layout = &layoutBidi
+	} else if tab == atomic.LoadPointer(&tabNonGRPC) {
+		n, err = frc.Read(buf)
+		return nil, n, nil, err
 	} else {
 		layout = resolveGRPCLayout(sr, tab)
 		if layout == nil || !layout.valid {
@@ -446,6 +454,8 @@ func (frc gcsFullReadCloser) freeUnreadCurrMsg(sr *storagev2.Reader) {
 		layout = &layoutReadObject
 	} else if tab == atomic.LoadPointer(&tabBidi) {
 		layout = &layoutBidi
+	} else if tab == atomic.LoadPointer(&tabNonGRPC) {
+		return
 	} else {
 		layout = resolveGRPCLayout(sr, tab)
 	}

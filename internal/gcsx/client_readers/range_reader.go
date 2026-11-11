@@ -141,6 +141,12 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 
 func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType int64) (int, error) {
 	resp, err := rr.readFromRangeReaderResp(ctx, p, offset, end, readType)
+	if len(resp.Data) > 0 && !(len(resp.Data) == 1 && len(resp.Data[0]) > 0 && len(p) > 0 && &resp.Data[0][0] == &p[0]) {
+		pos := 0
+		for _, s := range resp.Data {
+			pos += copy(p[pos:], s)
+		}
+	}
 	if resp.Callback != nil {
 		resp.Callback()
 	}

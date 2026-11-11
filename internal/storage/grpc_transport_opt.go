@@ -38,6 +38,10 @@ const (
 	// in a single syscall.
 	minSocketReadBufferSize = 512 * 1024
 
+	// altsReadBufferInitialSize is the exact 33,280-byte size passed by
+	// google.golang.org/grpc/credentials/alts/internal/conn.ReadOnReady.
+	altsReadBufferInitialSize = 32*1024 + 512
+
 	// altsInitialProtectedCap is the initial 36 KiB capacity allocated by
 	// alts.NewConnWithMaxFrameSize when readBufPool is empty (33280 rounded
 	// up to a 4 KiB page boundary).
@@ -132,7 +136,7 @@ func (p *dirtySizedPool) Put(buf *[]byte) {
 // from defaultDirtyBufferPool.
 func TryPinDirtySlice(p []byte) unsafe.Pointer {
 	c := cap(p)
-	if len(p) == 0 || c < (1<<11)+dirtyBufFooterSize || c-len(p) < dirtyBufFooterSize {
+	if len(p) == 0 || c-len(p) < dirtyBufFooterSize {
 		return nil
 	}
 	ftrPtr := unsafe.Add(unsafe.Pointer(unsafe.SliceData(p)), c-dirtyBufFooterSize)
@@ -251,11 +255,13 @@ func init() {
 }
 
 type largeReadState struct {
-	bufSize   int
-	pool      mem.BufferPool
-	readError error
-	bytesRead int
-	buf       *[]byte
+	bufSize     int
+	origBufSize int
+	isALTSPool  bool
+	pool        mem.BufferPool
+	readError   error
+	bytesRead   int
+	buf         *[]byte
 }
 
 // largeReadTCPConn wraps *net.TCPConn and implements readyreader.Reader
@@ -263,9 +269,12 @@ type largeReadState struct {
 // to coalesce small ALTS socket reads into 512 KiB non-blocking reads.
 type largeReadTCPConn struct {
 	*net.TCPConn
-	raw    syscall.RawConn
-	state  largeReadState
-	doRead func(fd uintptr) bool
+	raw            syscall.RawConn
+	state          largeReadState
+	doRead         func(fd uintptr) bool
+	firstWriteDone bool
+	nonALTS        bool
+	altsInitDone   bool
 }
 
 func wrapLargeReadTCPConn(conn net.Conn) net.Conn {
@@ -286,24 +295,32 @@ func wrapLargeReadTCPConn(conn net.Conn) net.Conn {
 	}
 	c.doRead = func(fd uintptr) bool {
 		s := &c.state
-		if s.pool != defaultDirtyBufferPool {
-			if preseededALTSPool.CompareAndSwap(false, true) {
-				for range 64 {
-					b := make([]byte, s.bufSize)
-					s.pool.Put(&b)
-				}
-			}
+		var readSlice []byte
+		if s.isALTSPool {
 			cand := s.pool.Get(altsInitialProtectedCap)
-			if cap(*cand) >= s.bufSize {
-				*cand = (*cand)[:s.bufSize]
+			if len(*cand) == altsInitialProtectedCap && cap(*cand) >= altsInitialProtectedCap {
+				if preseededALTSPool.CompareAndSwap(false, true) {
+					for range 256 {
+						b := make([]byte, s.bufSize)
+						s.pool.Put(&b)
+					}
+				}
+				if cap(*cand) >= s.bufSize {
+					*cand = (*cand)[:s.bufSize]
+				} else {
+					*cand = make([]byte, s.bufSize)
+				}
+				s.buf = cand
+				readSlice = *s.buf
 			} else {
-				*cand = make([]byte, s.bufSize)
+				readSlice = (*cand)[:min(len(*cand), s.origBufSize)]
+				s.buf = cand
 			}
-			s.buf = cand
 		} else {
 			s.buf = s.pool.Get(s.bufSize)
+			readSlice = (*s.buf)[:min(len(*s.buf), s.origBufSize)]
 		}
-		s.bytesRead, s.readError = syscall.Read(int(fd), *s.buf)
+		s.bytesRead, s.readError = syscall.Read(int(fd), readSlice)
 		if s.readError != nil {
 			s.pool.Put(s.buf)
 			s.buf = nil
@@ -321,6 +338,16 @@ func readFullEOF(r io.Reader, buf []byte) (int, error) {
 	return n, err
 }
 
+func (c *largeReadTCPConn) Write(b []byte) (int, error) {
+	if !c.firstWriteDone && len(b) > 0 {
+		c.firstWriteDone = true
+		if len(b) >= 5 && b[0] == 0x16 && b[1] == 0x03 && b[2] >= 0x01 && b[2] <= 0x04 {
+			c.nonALTS = true
+		}
+	}
+	return c.TCPConn.Write(b)
+}
+
 func (c *largeReadTCPConn) Read(b []byte) (int, error) {
 	// An initial 36 KiB ALTS protected buffer passed by alts.conn.ReadOnReady
 	// has len(b) == altsInitialProtectedCap && cap(b) == altsInitialProtectedCap
@@ -330,17 +357,21 @@ func (c *largeReadTCPConn) Read(b []byte) (int, error) {
 	// is empty after decryption, causing dropProtectedIfEmtpy() to release the
 	// 36 KiB buffer and invoke ReadOnReady to upgrade the connection to a
 	// 512 KiB protected buffer.
-	if len(b) == altsInitialProtectedCap && cap(b) == altsInitialProtectedCap {
+	if !c.nonALTS && !c.altsInitDone && len(b) == altsInitialProtectedCap && cap(b) == altsInitialProtectedCap {
+		c.altsInitDone = true
 		n, err := readFullEOF(c.TCPConn, b[:8])
 		if err != nil {
-			return n, err
+			if n > 0 {
+				return n, nil
+			}
+			return 0, err
 		}
 		frameLen := int(binary.LittleEndian.Uint32(b[:4]))
 		msgType := binary.LittleEndian.Uint32(b[4:8])
 		totalFrame := 4 + frameLen
 		if msgType == 6 && frameLen >= 20 && totalFrame <= 1024*1024 {
-			m, err := readFullEOF(c.TCPConn, b[8:min(totalFrame, len(b))])
-			return n + m, err
+			m, _ := readFullEOF(c.TCPConn, b[8:min(totalFrame, len(b))])
+			return n + m, nil
 		}
 		return n, nil
 	}
@@ -348,12 +379,16 @@ func (c *largeReadTCPConn) Read(b []byte) (int, error) {
 }
 
 func (c *largeReadTCPConn) ReadOnReady(bufSize int, pool mem.BufferPool) (*[]byte, int, error) {
-	if bufSize < minSocketReadBufferSize {
+	isALTSPool := bufSize == altsReadBufferInitialSize && pool != defaultDirtyBufferPool
+	origBufSize := bufSize
+	if isALTSPool && bufSize < minSocketReadBufferSize {
 		bufSize = minSocketReadBufferSize
 	}
 	c.state = largeReadState{
-		bufSize: bufSize,
-		pool:    pool,
+		bufSize:     bufSize,
+		origBufSize: origBufSize,
+		isALTSPool:  isALTSPool,
+		pool:        pool,
 	}
 	err := c.raw.Read(c.doRead)
 	buf := c.state.buf

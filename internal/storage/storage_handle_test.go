@@ -46,6 +46,7 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
@@ -1270,8 +1271,8 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithGrp
 	require.NoError(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), optsWithoutMetrics)
 	assert.Len(testSuite.T(), optsWithMetrics, len(optsWithoutMetrics))
-	assert.Len(testSuite.T(), optsNonGKE, len(optsWithoutMetrics)-1)
-	assert.Len(testSuite.T(), optsNoopMP, len(optsWithoutMetrics)-1)
+	assert.Len(testSuite.T(), optsNonGKE, len(optsWithoutMetrics))
+	assert.Len(testSuite.T(), optsNoopMP, len(optsWithoutMetrics))
 }
 
 func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_AuthFailures() {
@@ -1718,6 +1719,58 @@ func (testSuite *StorageHandleTest) TestGetClient_Regional_EnableGrpcByDefault_R
 	require.NoError(testSuite.T(), err)
 	assert.Same(testSuite.T(), cachedClient, client)
 	assert.Nil(testSuite.T(), sh.httpClient)
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_WarmGRPCClientConnectivity_RapidUsesBidiAndStandardUsesUnary() {
+	var getObjectCount, bidiCount atomic.Int32
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(testSuite.T(), err)
+	grpcServer := grpc.NewServer(grpc.UnknownServiceHandler(func(srv any, stream grpc.ServerStream) error {
+		method, _ := grpc.MethodFromServerStream(stream)
+		switch method {
+		case "/google.storage.v2.Storage/GetObject":
+			getObjectCount.Add(1)
+		case "/google.storage.v2.Storage/BidiReadObject":
+			bidiCount.Add(1)
+		}
+		return status.Error(codes.NotFound, "object not found")
+	}))
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST", "")
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST_GRPC", "")
+
+	client, err := storage.NewGRPCClient(
+		testSuite.ctx,
+		option.WithEndpoint(listener.Addr().String()),
+		option.WithoutAuthentication(),
+		option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		storage.WithGRPCBidiReads(),
+		storage.WithDisabledClientMetrics(),
+	)
+	require.NoError(testSuite.T(), err)
+	defer func() { _ = client.Close() }()
+
+	sh := &storageClient{
+		clientConfig: storageutil.StorageClientConfig{
+			OnlyDir: "prefix/",
+		},
+	}
+
+	// Standard bucket: warms only unary GetObject (:443).
+	sh.warmGRPCClientConnectivity(testSuite.ctx, client.Bucket(TestBucketName), false)
+	assert.GreaterOrEqual(testSuite.T(), getObjectCount.Load(), int32(1))
+	assert.Equal(testSuite.T(), int32(0), bidiCount.Load())
+
+	// Rapid bucket: warms both unary GetObject (:443) and BidiReadObject (:4xxx).
+	getObjectCount.Store(0)
+	bidiCount.Store(0)
+	sh.warmGRPCClientConnectivity(testSuite.ctx, client.Bucket(TestBucketName), true)
+	assert.GreaterOrEqual(testSuite.T(), getObjectCount.Load(), int32(1))
+	assert.GreaterOrEqual(testSuite.T(), bidiCount.Load(), int32(1))
 }
 
 // Test_GrpcKeepaliveDefaultParams verifies that the production gRPC client

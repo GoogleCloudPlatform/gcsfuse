@@ -173,6 +173,7 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		clientOpts = append(clientOpts, storage.WithGRPCBidiReads())
 	}
 
+	enableDirectZeroCopyRead := !(clientConfig.CustomEndpoint != "" && clientConfig.AnonymousAccess) && os.Getenv("STORAGE_EMULATOR_HOST_GRPC") == ""
 	if clientConfig.LocalSocketAddress != "" {
 		dialer := &net.Dialer{}
 		// The port can be 0, in which case the OS will choose a local port.
@@ -186,18 +187,27 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 			if err != nil {
 				return nil, err
 			}
-			return wrapLargeReadTCPConn(conn), nil
+			if enableDirectZeroCopyRead {
+				return wrapLargeReadTCPConn(conn), nil
+			}
+			return conn, nil
 		})))
-	} else {
+	} else if enableDirectZeroCopyRead {
 		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithContextDialer(dialLargeReadTCP)))
+	}
+	initialStreamWin := int32(4 * 1024 * 1024)
+	initialConnWin := int32(32 * 1024 * 1024)
+	if enableBidiConfig {
+		initialStreamWin = 16 * 1024 * 1024
+		initialConnWin = 64 * 1024 * 1024
 	}
 	clientOpts = append(clientOpts,
 		option.WithGRPCDialOption(grpc_experimental.WithBufferPool(defaultDirtyBufferPool)),
 		option.WithGRPCDialOption(grpc.WithSharedWriteBuffer(true)),
-		option.WithGRPCDialOption(grpc.WithInitialWindowSize(16*1024*1024)),
-		option.WithGRPCDialOption(grpc.WithInitialConnWindowSize(64*1024*1024)),
+		option.WithGRPCDialOption(grpc.WithInitialWindowSize(initialStreamWin)),
+		option.WithGRPCDialOption(grpc.WithInitialConnWindowSize(initialConnWin)),
 	)
-	if !(clientConfig.CustomEndpoint != "" && clientConfig.AnonymousAccess) && os.Getenv("STORAGE_EMULATOR_HOST_GRPC") == "" {
+	if enableDirectZeroCopyRead {
 		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithReadBufferSize(0)))
 	}
 
@@ -212,15 +222,20 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		Timeout: grpcKeepaliveTimeout,
 	})))
 
-	if clientConfig.EnableGrpcMetrics && clientConfig.IsGKE {
-		// Pass the OpenTelemetry MeterProvider to the Go storage client,
-		// using the new WithMeterProvider client option.
-		mp := otel.GetMeterProvider()
-		if sdkmp, ok := mp.(*sdkmetric.MeterProvider); ok {
-			// pass in if sdkmp is of type *sdkmetric.MeterProvider (not a No-op)
+	if clientConfig.EnableGrpcMetrics {
+		// Pass GCSFuse's configured OpenTelemetry MeterProvider (which applies
+		// dropDisallowedMetricsView to filter out high-overhead per-message size
+		// histograms) to the Go storage client when OTel metrics are active.
+		// When no SDK MeterProvider is active (e.g. default noop.MeterProvider when
+		// GCSFuse metrics are not enabled), explicitly disable the storage client's
+		// internal fallback MeterProvider so it does not record 200-bucket
+		// per-frame histograms on every gRPC read message.
+		if sdkmp, ok := otel.GetMeterProvider().(*sdkmetric.MeterProvider); ok {
 			clientOpts = append(clientOpts, experimental.WithMeterProvider(sdkmp))
+		} else {
+			clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
 		}
-	} else if !clientConfig.EnableGrpcMetrics {
+	} else {
 		clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
 	}
 
@@ -328,12 +343,11 @@ func (sh *storageClient) warmGRPCClientConnectivity(ctx context.Context, bh *sto
 		testObject = sh.clientConfig.OnlyDir + testObject
 	}
 	bh = bh.Retryer(storage.WithMaxAttempts(1))
+	_, _ = bh.Object(testObject).Attrs(warmCtx)
 	if isRapid {
 		if mrd, err := bh.Object(testObject).NewMultiRangeDownloader(warmCtx); err == nil && mrd != nil {
 			_ = mrd.Close()
 		}
-	} else {
-		_, _ = bh.Object(testObject).Attrs(warmCtx)
 	}
 }
 

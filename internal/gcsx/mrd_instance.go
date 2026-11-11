@@ -622,23 +622,82 @@ type MrdPrefetchChunk struct {
 	Length   int
 	Consumed int
 
-	done     chan struct{}
-	refs     atomic.Int32
-	slices   [][]byte
-	tokens   []unsafe.Pointer
-	fallback []byte
-	written  int
-	err      error
-	releaseF func()
+	done          chan struct{}
+	refs          atomic.Int32
+	slices        [][]byte
+	tokens        []unsafe.Pointer
+	consumedSpans [][2]int
+	fallback      []byte
+	written       int
+	err           error
+	releaseF      func()
 }
 
 var mrdPrefetchChunkPool = sync.Pool{
 	New: func() any {
 		return &MrdPrefetchChunk{
-			slices: make([][]byte, 0, 288),
-			tokens: make([]unsafe.Pointer, 0, 288),
+			slices:        make([][]byte, 0, 288),
+			tokens:        make([]unsafe.Pointer, 0, 288),
+			consumedSpans: make([][2]int, 0, 16),
 		}
 	},
+}
+
+func (c *MrdPrefetchChunk) recomputeConsumed() {
+	if len(c.consumedSpans) == 0 {
+		c.Consumed = 0
+		return
+	}
+	total := 0
+	curStart := c.consumedSpans[0][0]
+	curEnd := c.consumedSpans[0][1]
+	for i := 1; i < len(c.consumedSpans); i++ {
+		s := c.consumedSpans[i][0]
+		e := c.consumedSpans[i][1]
+		if s <= curEnd {
+			if e > curEnd {
+				curEnd = e
+			}
+		} else {
+			total += curEnd - curStart
+			curStart = s
+			curEnd = e
+		}
+	}
+	total += curEnd - curStart
+	c.Consumed = total
+}
+
+func (c *MrdPrefetchChunk) AddConsumed(relStart, relEnd int) {
+	relStart = max(0, relStart)
+	relEnd = min(c.Length, relEnd)
+	if relEnd <= relStart {
+		return
+	}
+	insertIdx := len(c.consumedSpans)
+	for i, sp := range c.consumedSpans {
+		if sp[0] > relStart || (sp[0] == relStart && sp[1] > relEnd) {
+			insertIdx = i
+			break
+		}
+	}
+	c.consumedSpans = append(c.consumedSpans, [2]int{})
+	copy(c.consumedSpans[insertIdx+1:], c.consumedSpans[insertIdx:])
+	c.consumedSpans[insertIdx] = [2]int{relStart, relEnd}
+	c.recomputeConsumed()
+}
+
+func (c *MrdPrefetchChunk) RemoveConsumed(relStart, relEnd int) {
+	relStart = max(0, relStart)
+	relEnd = min(c.Length, relEnd)
+	for i, sp := range c.consumedSpans {
+		if sp[0] == relStart && sp[1] == relEnd {
+			copy(c.consumedSpans[i:], c.consumedSpans[i+1:])
+			c.consumedSpans = c.consumedSpans[:len(c.consumedSpans)-1]
+			c.recomputeConsumed()
+			return
+		}
+	}
 }
 
 func (c *MrdPrefetchChunk) Write(b []byte) (int, error) {
@@ -695,6 +754,7 @@ func (c *MrdPrefetchChunk) Release() {
 		c.slices[i] = nil
 	}
 	c.slices = c.slices[:0]
+	c.consumedSpans = c.consumedSpans[:0]
 	c.done = nil
 	c.err = nil
 	mrdPrefetchChunkPool.Put(c)
@@ -780,6 +840,7 @@ func (mi *MrdInstance) StartPrefetchChunk(offset int64, length int, metrics metr
 	chunk.Offset = offset
 	chunk.Length = length
 	chunk.Consumed = 0
+	chunk.consumedSpans = chunk.consumedSpans[:0]
 	chunk.done = make(chan struct{})
 	chunk.refs.Store(2) // 1 for MRD callback completion, 1 for caller's prefetch queue
 	chunk.written = 0

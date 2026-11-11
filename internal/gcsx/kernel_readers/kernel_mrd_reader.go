@@ -36,9 +36,10 @@ const (
 )
 
 type inFlightRange struct {
-	id    uint64
-	start int64
-	end   int64
+	id         uint64
+	start      int64
+	end        int64
+	coveredEnd int64
 }
 
 type prefetchSpan struct {
@@ -80,12 +81,14 @@ func (kmr *KernelMRDReader) clearPrefetchLocked() {
 		kmr.chunks[i] = nil
 	}
 	kmr.chunks = kmr.chunks[:0]
+	kmr.nextPrefetchOffset = 0
 }
 
 func (kmr *KernelMRDReader) clearPrefetch() {
 	kmr.mu.Lock()
 	kmr.clearPrefetchLocked()
 	kmr.seqReads = 0
+	kmr.lastReadEnd = 0
 	kmr.mu.Unlock()
 }
 
@@ -147,11 +150,41 @@ func (kmr *KernelMRDReader) contiguousInFlightEndLocked(base int64) int64 {
 	}
 }
 
-func (kmr *KernelMRDReader) connectsToSequentialLocked(reqStart int64) bool {
-	if kmr.contiguousInFlightEndLocked(kmr.lastReadEnd) >= reqStart {
-		return true
+func (kmr *KernelMRDReader) completeInFlightLocked(id uint64, reqStart, reqEnd int64) (int64, int64) {
+	coveredEnd := reqEnd
+	for i, r := range kmr.inFlight {
+		if r.id == id {
+			if r.coveredEnd > coveredEnd {
+				coveredEnd = r.coveredEnd
+			}
+			copy(kmr.inFlight[i:], kmr.inFlight[i+1:])
+			kmr.inFlight = kmr.inFlight[:len(kmr.inFlight)-1]
+			break
+		}
 	}
-	return kmr.contiguousInFlightEndLocked(0) >= reqStart
+	chainStart := reqStart
+	for {
+		advanced := false
+		for _, r := range kmr.inFlight {
+			if r.start < chainStart && r.end >= chainStart {
+				chainStart = r.start
+				advanced = true
+			}
+		}
+		if !advanced {
+			break
+		}
+	}
+	if chainStart < reqStart {
+		for i := range kmr.inFlight {
+			if kmr.inFlight[i].start >= chainStart && kmr.inFlight[i].start < reqEnd {
+				if coveredEnd > kmr.inFlight[i].coveredEnd {
+					kmr.inFlight[i].coveredEnd = coveredEnd
+				}
+			}
+		}
+	}
+	return chainStart, coveredEnd
 }
 
 func (kmr *KernelMRDReader) maybeScheduleMorePrefetch() {
@@ -176,6 +209,7 @@ func (kmr *KernelMRDReader) acquirePrefetchSpans(offset int64, length int) []pre
 		if gen != kmr.prefetchGeneration || reqEnd > int64(objSize) || kmr.nextPrefetchOffset > int64(objSize) {
 			kmr.clearPrefetchLocked()
 			kmr.seqReads = 0
+			kmr.lastReadEnd = 0
 			return nil
 		}
 	}
@@ -193,6 +227,7 @@ func (kmr *KernelMRDReader) acquirePrefetchSpans(offset int64, length int) []pre
 		// Non-sequential jump: discard stale lookahead.
 		kmr.clearPrefetchLocked()
 		kmr.seqReads = 0
+		kmr.lastReadEnd = 0
 		return nil
 	}
 
@@ -228,6 +263,7 @@ func (kmr *KernelMRDReader) acquirePrefetchSpans(offset int64, length int) []pre
 		// Not completely covered by contiguous prefetched chunks: discard stale lookahead.
 		kmr.clearPrefetchLocked()
 		kmr.seqReads = 0
+		kmr.lastReadEnd = 0
 		return nil
 	}
 
@@ -236,9 +272,8 @@ func (kmr *KernelMRDReader) acquirePrefetchSpans(offset int64, length int) []pre
 		c := kmr.chunks[idx]
 		subStart := max(offset, c.Offset) - c.Offset
 		subEnd := min(reqEnd, c.Offset+int64(c.Length)) - c.Offset
-		subLen := int(subEnd - subStart)
 		c.Retain()
-		c.Consumed += subLen
+		c.AddConsumed(int(subStart), int(subEnd))
 		spans = append(spans, prefetchSpan{
 			chunk:    c,
 			relStart: int(subStart),
@@ -252,7 +287,7 @@ func (kmr *KernelMRDReader) acquirePrefetchSpans(offset int64, length int) []pre
 		if idx >= startIdx && idx <= endIdx {
 			evict = c.Consumed >= c.Length
 		} else if idx < startIdx {
-			evict = c.Consumed >= c.Length || (c.Consumed > 0 && kmr.lastReadEnd >= c.Offset+int64(c.Length))
+			evict = c.Consumed >= c.Length || offset >= c.Offset+int64(c.Length)+int64(prefetchChunkSize)
 		}
 		if evict {
 			c.Release()
@@ -284,8 +319,7 @@ func (kmr *KernelMRDReader) rollbackPrefetchSpans(spans []prefetchSpan) {
 		sameGen = (gen == kmr.prefetchGeneration)
 	}
 	for _, sp := range spans {
-		subLen := sp.relEnd - sp.relStart
-		sp.chunk.Consumed = max(0, sp.chunk.Consumed-subLen)
+		sp.chunk.RemoveConsumed(sp.relStart, sp.relEnd)
 		if sameGen && sp.chunk.Consumed < sp.chunk.Length {
 			inQueue := false
 			insertIdx := len(kmr.chunks)
@@ -298,7 +332,7 @@ func (kmr *KernelMRDReader) rollbackPrefetchSpans(spans []prefetchSpan) {
 					insertIdx = i
 				}
 			}
-			if !inQueue && len(kmr.chunks) < maxPrefetchChunks {
+			if !inQueue {
 				sp.chunk.Retain()
 				kmr.chunks = append(kmr.chunks, nil)
 				copy(kmr.chunks[insertIdx+1:], kmr.chunks[insertIdx:])
@@ -502,23 +536,26 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 		reqStart := req.Offset
 		reqEnd := req.Offset + int64(bytesRead)
 		kmr.mu.Lock()
-		sequential := reqStart == 0 || reqStart <= kmr.lastReadEnd || kmr.connectsToSequentialLocked(reqStart)
-		kmr.removeInFlightLocked(inFlightID)
-		if sequential {
+		chainStart, coveredEnd := kmr.completeInFlightLocked(inFlightID, reqStart, reqEnd)
+		continuesStream := (kmr.lastReadEnd > 0 && chainStart == kmr.lastReadEnd) ||
+			(kmr.lastReadEnd == 0 && chainStart == 0) ||
+			coveredEnd > reqEnd
+		if continuesStream {
 			kmr.seqReads++
+			if coveredEnd > kmr.lastReadEnd {
+				kmr.lastReadEnd = coveredEnd
+			}
 		} else {
 			kmr.clearPrefetchLocked()
 			kmr.seqReads = 1
-		}
-		if reqEnd > kmr.lastReadEnd {
-			kmr.lastReadEnd = reqEnd
+			kmr.lastReadEnd = coveredEnd
 		}
 		n := 0
 		for _, c := range kmr.chunks {
 			ovStart := max(reqStart, c.Offset)
 			ovEnd := min(reqEnd, c.Offset+int64(c.Length))
 			if ovEnd > ovStart {
-				c.Consumed += int(ovEnd - ovStart)
+				c.AddConsumed(int(ovStart-c.Offset), int(ovEnd-c.Offset))
 			}
 			if c.Consumed >= c.Length {
 				c.Release()
@@ -535,7 +572,7 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 		contiguousEnd := kmr.contiguousInFlightEndLocked(kmr.lastReadEnd)
 		if reqStart == 0 || kmr.seqReads >= 2 {
 			if len(kmr.chunks) == 0 || kmr.nextPrefetchOffset < contiguousEnd {
-				kmr.nextPrefetchOffset = max(kmr.nextPrefetchOffset, contiguousEnd)
+				kmr.nextPrefetchOffset = contiguousEnd
 			}
 			kmr.schedulePrefetchLocked()
 		}
@@ -550,9 +587,10 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 			kmr.mu.Lock()
 			if req.Offset == kmr.lastReadEnd && err == nil {
 				kmr.lastReadEnd = req.Offset + int64(bytesRead)
-			} else if len(kmr.chunks) > 0 || kmr.seqReads > 0 {
+			} else if len(kmr.chunks) > 0 || kmr.seqReads > 0 || kmr.lastReadEnd > 0 {
 				kmr.clearPrefetchLocked()
 				kmr.seqReads = 0
+				kmr.lastReadEnd = 0
 			}
 			kmr.mu.Unlock()
 		}

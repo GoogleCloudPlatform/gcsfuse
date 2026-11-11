@@ -880,3 +880,286 @@ func (t *KernelMRDReaderTest) TestReadAt_ContextCancellationDuringChunkWait_Roll
 
 	t.reader.Destroy()
 }
+
+func (t *KernelMRDReaderTest) TestReadAt_FooterReadFollowedByRandomReadsAndBackwardSequentialSeek() {
+	t.object.Size = 96 * gcsx.MiB
+	pool := mem.DefaultBufferPool()
+
+	var (
+		mu             sync.Mutex
+		requestedSpans [][2]int64
+	)
+
+	mrd := &pinnedFakeMRD{
+		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+			mu.Lock()
+			requestedSpans = append(requestedSpans, [2]int64{offset, length})
+			mu.Unlock()
+
+			rawBuf := pool.Get(int(length))
+			slice := (*rawBuf)[:length]
+			for i := range slice {
+				slice[i] = byte((offset + int64(i)) / gcsx.MiB)
+			}
+			n, _ := output.Write(slice)
+			pool.Put(rawBuf)
+			callback(offset, int64(n), nil)
+		},
+	}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Once()
+
+	// 1. High-offset footer read at [90 MiB, 91 MiB).
+	respFooter, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: make([]byte, 1*gcsx.MiB),
+		Offset: 90 * gcsx.MiB,
+	})
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 1*gcsx.MiB, respFooter.Size)
+	if respFooter.Callback != nil {
+		respFooter.Callback()
+	}
+
+	// 2. Non-contiguous random reads below 90 MiB must NOT trigger false prefetches.
+	for _, off := range []int64{50 * gcsx.MiB, 20 * gcsx.MiB, 70 * gcsx.MiB} {
+		respRand, errRand := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+			Buffer: make([]byte, 1*gcsx.MiB),
+			Offset: off,
+		})
+		assert.NoError(t.T(), errRand)
+		assert.Equal(t.T(), 1*gcsx.MiB, respRand.Size)
+		if respRand.Callback != nil {
+			respRand.Callback()
+		}
+		t.reader.mu.Lock()
+		assert.Empty(t.T(), t.reader.chunks, "Disjoint random reads below previous footer read must not trigger prefetch")
+		assert.Equal(t.T(), 1, t.reader.seqReads)
+		t.reader.mu.Unlock()
+	}
+
+	// 3. Backward seek to 10 MiB followed by sequential reads [10 MiB, 11 MiB), [11 MiB, 12 MiB), [12 MiB, 13 MiB).
+	resp10, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: make([]byte, 1*gcsx.MiB),
+		Offset: 10 * gcsx.MiB,
+	})
+	assert.NoError(t.T(), err)
+	if resp10.Callback != nil {
+		resp10.Callback()
+	}
+
+	resp11, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: make([]byte, 1*gcsx.MiB),
+		Offset: 11 * gcsx.MiB,
+	})
+	assert.NoError(t.T(), err)
+	if resp11.Callback != nil {
+		resp11.Callback()
+	}
+
+	// After 2 sequential reads [10 MiB, 11 MiB) and [11 MiB, 12 MiB), prefetch must be scheduled at 12 MiB (NOT 91 MiB).
+	t.reader.mu.Lock()
+	assert.NotEmpty(t.T(), t.reader.chunks)
+	assert.Equal(t.T(), int64(12*gcsx.MiB), t.reader.chunks[0].Offset, "Prefetch after backward seek must start at 12 MiB")
+	t.reader.mu.Unlock()
+
+	mu.Lock()
+	countBefore12 := len(requestedSpans)
+	mu.Unlock()
+
+	// Reading [12 MiB, 13 MiB) must hit the prefetched chunk zero-copy without issuing a synchronous ReadVectored for [12 MiB, 13 MiB).
+	resp12, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: make([]byte, 1*gcsx.MiB),
+		Offset: 12 * gcsx.MiB,
+	})
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 1*gcsx.MiB, resp12.Size)
+	assert.NotNil(t.T(), resp12.Callback)
+	resp12.Callback()
+
+	mu.Lock()
+	for _, sp := range requestedSpans[countBefore12:] {
+		assert.NotEqual(t.T(), [2]int64{12 * gcsx.MiB, 1 * gcsx.MiB}, sp, "Read at 12 MiB must be served from prefetched chunk")
+	}
+	mu.Unlock()
+
+	t.reader.Destroy()
+}
+
+func (t *KernelMRDReaderTest) TestReadAt_ContextCancellationAtMaxPrefetchChunks_RestoresEvictedHeadChunk() {
+	t.object.Size = 600 * gcsx.MiB
+	t.config = &cfg.Config{Mrd: cfg.MrdConfig{PoolSize: 4}}
+	t.mrdInstance = gcsx.NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.config)
+	t.reader = NewKernelMRDReader(t.mrdInstance, metrics.NewNoopMetrics())
+
+	pool := mem.DefaultBufferPool()
+	finishChunk0 := make(chan struct{})
+
+	mrd := &pinnedFakeMRD{
+		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+			go func() {
+				if offset == 4*gcsx.MiB {
+					<-finishChunk0
+				}
+				rawBuf := pool.Get(int(length))
+				slice := (*rawBuf)[:length]
+				for i := range slice {
+					slice[i] = 'M'
+				}
+				n, _ := output.Write(slice)
+				pool.Put(rawBuf)
+				callback(offset, int64(n), nil)
+			}()
+		},
+	}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Times(4)
+
+	// Perform initial read at [0, 4 MiB) to initialize the MRD pool, wait for all 4 MRDs in the pool to be ready,
+	// and ensure 6 prefetch chunks starting at 4 MiB are scheduled.
+	initResp, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: make([]byte, 4*gcsx.MiB),
+		Offset: 0,
+	})
+	assert.NoError(t.T(), err)
+	if initResp.Callback != nil {
+		initResp.Callback()
+	}
+	assert.Eventually(t.T(), func() bool {
+		return t.mrdInstance.ReadySize() == 4
+	}, time.Second, time.Millisecond)
+
+	t.reader.mu.Lock()
+	t.reader.schedulePrefetchLocked()
+	assert.Len(t.T(), t.reader.chunks, maxPrefetchChunks)
+	origChunk0 := t.reader.chunks[0]
+	assert.Equal(t.T(), int64(4*gcsx.MiB), origChunk0.Offset)
+	t.reader.mu.Unlock()
+
+	// Cancel a full-chunk read [4 MiB, 8 MiB): acquirePrefetchSpans evicts origChunk0 and refills kmr.chunks to maxPrefetchChunks (6),
+	// then Wait() returns context.Canceled and rollbackPrefetchSpans must re-insert origChunk0 at index 0 despite len(kmr.chunks) == maxPrefetchChunks.
+	cancelCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	resp, err := t.reader.ReadAt(cancelCtx, &gcsx.ReadRequest{
+		Buffer: make([]byte, 4*gcsx.MiB),
+		Offset: 4 * gcsx.MiB,
+	})
+	assert.ErrorIs(t.T(), err, context.Canceled)
+	assert.Equal(t.T(), 0, resp.Size)
+
+	t.reader.mu.Lock()
+	assert.Same(t.T(), origChunk0, t.reader.chunks[0], "Evicted head chunk must be re-inserted at index 0 even when queue was refilled to maxPrefetchChunks")
+	assert.Equal(t.T(), 0, origChunk0.Consumed)
+	t.reader.mu.Unlock()
+
+	// Unblock origChunk0 and retry [4 MiB, 8 MiB): must hit origChunk0 zero-copy.
+	close(finishChunk0)
+	retryResp, retryErr := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: make([]byte, 4*gcsx.MiB),
+		Offset: 4 * gcsx.MiB,
+	})
+	assert.NoError(t.T(), retryErr)
+	assert.Equal(t.T(), 4*gcsx.MiB, retryResp.Size)
+	assert.NotNil(t.T(), retryResp.Callback)
+	retryResp.Callback()
+
+	t.reader.Destroy()
+}
+
+func (t *KernelMRDReaderTest) TestAcquirePrefetchSpans_DuplicateAndOverlappingReads_DoNotPrematurelyEvictChunk() {
+	t.object.Size = 16 * gcsx.MiB
+	data := bytes.Repeat([]byte("D"), int(t.object.Size))
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, data)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+
+	// Seed prefetch queue at offset 1 MiB: chunk[0] is [1 MiB, 3 MiB) (2 MiB).
+	t.reader.mu.Lock()
+	t.reader.lastReadEnd = 1 * gcsx.MiB
+	t.reader.nextPrefetchOffset = 1 * gcsx.MiB
+	t.reader.seqReads = 1
+	t.reader.schedulePrefetchLocked()
+	assert.Len(t.T(), t.reader.chunks, 2)
+	chunk0 := t.reader.chunks[0]
+	t.reader.mu.Unlock()
+
+	// 1. Read [1 MiB, 2 MiB) first time -> Consumed == 1 MiB.
+	c1, _, _ := t.reader.acquirePrefetchChunk(1*gcsx.MiB, 1*gcsx.MiB)
+	assert.Same(t.T(), chunk0, c1)
+	assert.Equal(t.T(), int(1*gcsx.MiB), chunk0.Consumed)
+	c1.Release()
+
+	// 2. Duplicate read [1 MiB, 2 MiB) second time -> Consumed must remain 1 MiB and chunk0 must NOT be evicted.
+	c2, _, _ := t.reader.acquirePrefetchChunk(1*gcsx.MiB, 1*gcsx.MiB)
+	assert.Same(t.T(), chunk0, c2)
+	assert.Equal(t.T(), int(1*gcsx.MiB), chunk0.Consumed, "Duplicate read of same sub-range must not double-count Consumed")
+	c2.Release()
+
+	t.reader.mu.Lock()
+	assert.Same(t.T(), chunk0, t.reader.chunks[0], "Chunk must still be in queue while [2 MiB, 3 MiB) is unconsumed")
+	t.reader.mu.Unlock()
+
+	// 3. Overlapping read [1.5 MiB, 2.5 MiB) -> Consumed union is [1 MiB, 2.5 MiB) = 1.5 MiB, chunk0 still in queue.
+	c3, _, _ := t.reader.acquirePrefetchChunk(1*gcsx.MiB+512*1024, 1*gcsx.MiB)
+	assert.Same(t.T(), chunk0, c3)
+	assert.Equal(t.T(), int(1*gcsx.MiB+512*1024), chunk0.Consumed)
+	c3.Release()
+
+	t.reader.mu.Lock()
+	assert.Same(t.T(), chunk0, t.reader.chunks[0])
+	t.reader.mu.Unlock()
+
+	// 4. Read remaining [2.5 MiB, 3 MiB) -> Consumed reaches 2 MiB and chunk0 is now evicted.
+	c4, _, _ := t.reader.acquirePrefetchChunk(2*gcsx.MiB+512*1024, 512*1024)
+	assert.Same(t.T(), chunk0, c4)
+	assert.Equal(t.T(), int(2*gcsx.MiB), chunk0.Consumed)
+	c4.Release()
+
+	t.reader.mu.Lock()
+	assert.Equal(t.T(), int64(3*gcsx.MiB), t.reader.chunks[0].Offset, "Chunk0 must be evicted once full [1 MiB, 3 MiB) union is consumed")
+	t.reader.mu.Unlock()
+
+	t.reader.Destroy()
+}
+
+func (t *KernelMRDReaderTest) TestAcquirePrefetchSpans_OutOfOrderAcrossChunkBoundary_PreservesPartiallyConsumedPreviousChunk() {
+	t.object.Size = 16 * gcsx.MiB
+	data := bytes.Repeat([]byte("P"), int(t.object.Size))
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, data)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+
+	// Seed prefetch queue at offset 1 MiB:
+	// chunk[0] = [1 MiB, 3 MiB) (2 MiB), chunk[1] = [3 MiB, 7 MiB) (4 MiB).
+	t.reader.mu.Lock()
+	t.reader.lastReadEnd = 1 * gcsx.MiB
+	t.reader.nextPrefetchOffset = 1 * gcsx.MiB
+	t.reader.seqReads = 1
+	t.reader.schedulePrefetchLocked()
+	assert.Len(t.T(), t.reader.chunks, 2)
+	chunk0 := t.reader.chunks[0]
+	chunk1 := t.reader.chunks[1]
+	t.reader.mu.Unlock()
+
+	// Concurrent FUSE workers arrive out-of-order across the 3 MiB chunk boundary:
+	// Worker B ([2 MiB, 3 MiB) in chunk0) and Worker C ([3 MiB, 4 MiB) in chunk1) arrive BEFORE Worker A ([1 MiB, 2 MiB) in chunk0).
+	cB, _, _ := t.reader.acquirePrefetchChunk(2*gcsx.MiB, 1*gcsx.MiB)
+	assert.Same(t.T(), chunk0, cB)
+	cB.Release()
+
+	cC, _, _ := t.reader.acquirePrefetchChunk(3*gcsx.MiB, 1*gcsx.MiB)
+	assert.Same(t.T(), chunk1, cC)
+	cC.Release()
+
+	// Chunk 0 ([1 MiB, 3 MiB)) is only half-consumed (1 MiB of 2 MiB) and must NOT be evicted by Worker C ([3 MiB, 4 MiB)).
+	t.reader.mu.Lock()
+	assert.Same(t.T(), chunk0, t.reader.chunks[0], "Partially-consumed chunk0 must not be evicted when adjacent chunk1 is accessed out-of-order")
+	t.reader.mu.Unlock()
+
+	// Now Worker A ([1 MiB, 2 MiB)) arrives: must hit chunk0, finish consuming chunk0 (2 MiB / 2 MiB), and evict chunk0 without clearing the queue!
+	cA, _, _ := t.reader.acquirePrefetchChunk(1*gcsx.MiB, 1*gcsx.MiB)
+	assert.Same(t.T(), chunk0, cA, "Late-arriving Worker A must hit chunk0 instead of seeing startIdx==-1 and wiping the prefetch queue")
+	cA.Release()
+
+	t.reader.mu.Lock()
+	assert.NotEmpty(t.T(), t.reader.chunks)
+	assert.Same(t.T(), chunk1, t.reader.chunks[0], "Chunk0 should now be evicted and chunk1 should be at the head of the queue")
+	t.reader.mu.Unlock()
+
+	t.reader.Destroy()
+}
