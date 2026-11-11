@@ -202,6 +202,25 @@ func (fh *FileHandle) unlockHandleAndInode(rLock bool) {
 	}
 }
 
+func (fh *FileHandle) tryAcquireFastReadLocks(useKernelReader bool) bool {
+	fh.mu.RLock()
+	if (useKernelReader && fh.kernelReader == nil) || (!useKernelReader && fh.readManager == nil) {
+		fh.mu.RUnlock()
+		return false
+	}
+	fh.inode.RLock()
+	ready := fh.kernelReader != nil
+	if !useKernelReader {
+		ready = fh.isValidReadManagerRLocked()
+	}
+	if fh.inode.LocalFileCache() || fh.inode.IsUsingStreamingWriteHandler() || !fh.inode.SourceGenerationIsAuthoritative() || !ready {
+		fh.inode.RUnlock()
+		fh.mu.RUnlock()
+		return false
+	}
+	return true
+}
+
 // TryFastReadWithReadManager executes the steady-state read path when readManager
 // is already initialized and valid, acquiring fh.mu.RLock() before fh.inode.RLock()
 // to avoid the double inode lock/unlock round-trip per FUSE ReadFile op and allow
@@ -210,15 +229,7 @@ func (fh *FileHandle) unlockHandleAndInode(rLock bool) {
 // LOCKS_EXCLUDED(fh.mu)
 // LOCKS_EXCLUDED(fh.inode.mu)
 func (fh *FileHandle) TryFastReadWithReadManager(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, bool, error) {
-	fh.mu.RLock()
-	if fh.readManager == nil {
-		fh.mu.RUnlock()
-		return gcsx.ReadResponse{}, false, nil
-	}
-	fh.inode.RLock()
-	if fh.inode.LocalFileCache() || fh.inode.IsUsingStreamingWriteHandler() || !fh.inode.SourceGenerationIsAuthoritative() || !fh.isValidReadManagerRLocked() {
-		fh.inode.RUnlock()
-		fh.mu.RUnlock()
+	if !fh.tryAcquireFastReadLocks(false) {
 		return gcsx.ReadResponse{}, false, nil
 	}
 	defer fh.mu.RUnlock()
@@ -232,6 +243,24 @@ func (fh *FileHandle) TryFastReadWithReadManager(ctx context.Context, req *gcsx.
 	}
 	readResponse, err = normalizeReadResponse(readResponse, err)
 	return readResponse, true, err
+}
+
+// TryFastReadWithKernelReader executes the steady-state kernel-reader read path,
+// acquiring fh.mu.RLock() before fh.inode.RLock() to avoid the double inode
+// lock/unlock round-trip per FUSE ReadFile op and allow concurrent reads while
+// blocking exclusive inode mutations across ReadAt.
+//
+// LOCKS_EXCLUDED(fh.mu)
+// LOCKS_EXCLUDED(fh.inode.mu)
+func (fh *FileHandle) TryFastReadWithKernelReader(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, bool, error) {
+	if !fh.tryAcquireFastReadLocks(true) {
+		return gcsx.ReadResponse{}, false, nil
+	}
+	defer fh.mu.RUnlock()
+	defer fh.inode.RUnlock()
+
+	resp, err := normalizeReadResponse(fh.kernelReader.ReadAt(ctx, req))
+	return resp, true, err
 }
 
 // ReadWithReadManager reads data at the given offset using the read manager if available,
@@ -349,15 +378,48 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 // LOCKS_REQUIRED(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
 func (fh *FileHandle) ReadWithKernelReader(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
+	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
+		fh.inode.Unlock()
+		return gcsx.ReadResponse{}, fmt.Errorf("failed to ensure inode content: %w", err)
+	}
+
+	if err := fh.ensureStreamingWritesFlushedLocked(ctx); err != nil {
+		fh.inode.Unlock()
+		return gcsx.ReadResponse{}, err
+	}
+
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		// Read from inode if source generation is not authoritative.
 		defer fh.inode.Unlock()
 		return normalizeReadResponse(fh.inode.Read(ctx, req))
 	}
-	fh.inode.Unlock()
 
-	fh.mu.RLock()
+	fh.lockHandleAndRelockInode(true)
 	defer fh.mu.RUnlock()
+
+	for {
+		if !fh.hasPendingStreamingWritesLocked() && fh.inode.SourceGenerationIsAuthoritative() {
+			fh.inode.Unlock()
+			fh.inode.RLock()
+			if !fh.hasPendingStreamingWritesLocked() && fh.inode.SourceGenerationIsAuthoritative() {
+				defer fh.inode.RUnlock()
+				break
+			}
+			fh.inode.RUnlock()
+			fh.inode.Lock()
+			continue
+		}
+
+		if err := fh.ensureStreamingWritesFlushedLocked(ctx); err != nil {
+			fh.inode.Unlock()
+			return gcsx.ReadResponse{}, err
+		}
+
+		if !fh.inode.SourceGenerationIsAuthoritative() {
+			defer fh.inode.Unlock()
+			return normalizeReadResponse(fh.inode.Read(ctx, req))
+		}
+	}
 
 	if fh.kernelReader == nil {
 		return gcsx.ReadResponse{}, errors.New("kernelReader is not initialized")

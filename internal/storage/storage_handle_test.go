@@ -45,6 +45,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric/noop"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -1269,8 +1270,52 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithGrp
 	require.NoError(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), optsWithoutMetrics)
 
-	assert.Len(testSuite.T(), optsWithMetrics, len(optsWithoutMetrics))
+	assert.Len(testSuite.T(), optsWithMetrics, len(optsWithoutMetrics)+2)
 	assert.Len(testSuite.T(), optsNoopMP, len(optsWithoutMetrics))
+}
+
+func (testSuite *StorageHandleTest) Test_DirectPathFallbackClose_DoesNotShutdownGlobalMeterProvider() {
+	oldProvider := otel.GetMeterProvider()
+	defer otel.SetMeterProvider(oldProvider)
+
+	reader := sdkmetric.NewManualReader()
+	sdkProvider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+	defer func() {
+		_ = sdkProvider.Shutdown(testSuite.ctx)
+	}()
+	otel.SetMeterProvider(sdkProvider)
+
+	sh := &storageClient{
+		clientConfig: storageutil.StorageClientConfig{
+			ClientProtocol:      "",
+			EnableGrpcByDefault: true,
+			GrpcPathStrategy:    cfg.DirectPathWithFallback,
+			AnonymousAccess:     true,
+			EnableGrpcMetrics:   true,
+		},
+	}
+	defer func() {
+		if sh.httpClient != nil {
+			_ = sh.httpClient.Close()
+		}
+		if sh.grpcClient != nil {
+			_ = sh.grpcClient.Close()
+		}
+	}()
+
+	// Empty bucket name makes verifyDirectPathConnectivity fail immediately and call sc.Close()
+	// before falling back to HTTP1.
+	client, err := sh.getClient(testSuite.ctx, false, "", "")
+	require.NoError(testSuite.T(), err)
+	assert.Equal(testSuite.T(), sh.httpClient, client)
+
+	counter, err := otel.GetMeterProvider().Meter("gcsfuse.test").Int64Counter("post_fallback_counter")
+	require.NoError(testSuite.T(), err)
+	counter.Add(testSuite.ctx, 1)
+
+	var rm metricdata.ResourceMetrics
+	require.NoError(testSuite.T(), reader.Collect(testSuite.ctx, &rm))
+	assert.NotEmpty(testSuite.T(), rm.ScopeMetrics, "global MeterProvider must remain active after DirectPath fallback sc.Close()")
 }
 
 func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_AuthFailures() {

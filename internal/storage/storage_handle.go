@@ -46,8 +46,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	grpc_experimental "google.golang.org/grpc/experimental"
+	grpcstats "google.golang.org/grpc/experimental/stats"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
+	otelgrpcstats "google.golang.org/grpc/stats/opentelemetry"
 
 	// Side effect to run grpc client with direct-path on gcp machine.
 	_ "google.golang.org/grpc/balancer/rls"
@@ -263,21 +265,32 @@ func createClientOptionForGRPCClientWithTransport(ctx context.Context, clientCon
 		Timeout: grpcKeepaliveTimeout,
 	})))
 
+	// Always disable cloud.google.com/go/storage's built-in metrics context so
+	// sc.Close() (including DirectPath fallback probing) never shuts down
+	// GCSFuse's global MeterProvider and never spins up a fallback exporter
+	// with 200-bucket per-frame histograms.
+	clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
 	if clientConfig.EnableGrpcMetrics {
-		// Pass GCSFuse's configured OpenTelemetry MeterProvider (which applies
-		// dropDisallowedMetricsView to filter out high-overhead per-message size
-		// histograms) to the Go storage client when OTel metrics are active.
-		// When no SDK MeterProvider is active (e.g. default noop.MeterProvider when
-		// GCSFuse metrics are not enabled), explicitly disable the storage client's
-		// internal fallback MeterProvider so it does not record 200-bucket
-		// per-frame histograms on every gRPC read message.
+		// Wire gRPC OpenTelemetry instrumentation directly to GCSFuse's active
+		// global MeterProvider (matching allowedGRPCMetrics in monitor) so zero-copy
+		// reads retain low CPU without per-frame histogram overhead.
 		if sdkmp, ok := otel.GetMeterProvider().(*sdkmetric.MeterProvider); ok {
-			clientOpts = append(clientOpts, experimental.WithMeterProvider(sdkmp))
-		} else {
-			clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
+			clientOpts = append(clientOpts,
+				option.WithGRPCDialOption(otelgrpcstats.DialOption(otelgrpcstats.Options{
+					MetricsOptions: otelgrpcstats.MetricsOptions{
+						MeterProvider: sdkmp,
+						Metrics: grpcstats.NewMetrics(
+							"grpc.client.attempt.started",
+							"grpc.client.call.duration",
+							"grpc.lb.rls.default_target_picks",
+							"grpc.lb.rls.failed_picks",
+						),
+						OptionalLabels: []string{"grpc.lb.locality"},
+					},
+				})),
+				option.WithGRPCDialOption(grpc.WithDefaultCallOptions(grpc.StaticMethodCallOption{})),
+			)
 		}
-	} else {
-		clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
 	}
 
 	clientOpts = addReadStallTimeoutOptions(clientConfig, clientOpts)

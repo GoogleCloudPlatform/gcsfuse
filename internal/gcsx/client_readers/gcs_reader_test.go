@@ -687,3 +687,50 @@ func (t *gcsReaderTest) Test_ReadAt_ShortReadRetryFails_InvokesCallbackAndClears
 	assert.Nil(t.T(), resp.Callback)
 	assert.Equal(t.T(), int32(1), cb1Count.Load(), "Pinned buffer callback from first read must be invoked on retry failure")
 }
+
+type spareCapVectoredReader struct {
+	fake.FakeReader
+	backing [][]byte
+}
+
+func (r *spareCapVectoredReader) ReadVectored(_ []byte) ([][]byte, int, func(), error) {
+	return r.backing[:1], len(r.backing[0]), func() {}, nil
+}
+
+func (r *spareCapVectoredReader) Close() error { return nil }
+
+func (t *gcsReaderTest) Test_ReadAt_ShortReadRetry_DoesNotMutatePooledSliceSpareCapacity() {
+	t.object.Size = 10
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
+	t.gcsReader.readTypeClassifier = gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 10)
+
+	backing := make([][]byte, 1, 4)
+	backing[0] = []byte("hello")
+	t.gcsReader.rangeReader.reader = &spareCapVectoredReader{backing: backing}
+	t.gcsReader.rangeReader.cancel = func() {}
+	t.gcsReader.rangeReader.start = 0
+	t.gcsReader.rangeReader.limit = 10
+
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(
+		&vectoredStubReader{data: []byte("world")}, nil).Once()
+
+	buf := make([]byte, 10)
+	resp, err := t.gcsReader.ReadAt(t.ctx, &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: 0,
+		ReadInfo: gcsx.ReadInfo{
+			ReadType:       metrics.ReadTypeSequential,
+			ExpectedOffset: 0,
+		},
+	})
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), 10, resp.Size)
+	require.Len(t.T(), resp.Data, 2)
+	assert.Equal(t.T(), []byte("hello"), resp.Data[0])
+	assert.Equal(t.T(), []byte("world"), resp.Data[1])
+	assert.Nil(t.T(), backing[:4][1], "retry merge must not overwrite spare capacity of first reader's pooled slice")
+	if resp.Callback != nil {
+		resp.Callback()
+	}
+}

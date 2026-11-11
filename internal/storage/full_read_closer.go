@@ -430,7 +430,7 @@ func (frc gcsFullReadCloser) ReadVectored(buf []byte) (data [][]byte, n int, cal
 		state.release()
 		return nil, 0, nil, err
 	}
-	return state.slices, totalRead, state.callback, err
+	return state.slices[:len(state.slices):len(state.slices)], totalRead, state.callback, err
 }
 
 func (frc gcsFullReadCloser) ReadHandle() (rh storagev2.ReadHandle) {

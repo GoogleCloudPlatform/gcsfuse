@@ -2365,3 +2365,190 @@ func (t *fileTest) Test_TryFastReadWithReadManager_ConcurrentReadsRunInParallelA
 		assert.Equal(t.T(), 4, resps[i].Size)
 	}
 }
+
+func (t *fileTest) Test_ReadWithKernelReader_ConcurrentStreamingWriteDuringLockAcquisition() {
+	config := &cfg.Config{
+		FileSystem: cfg.FileSystemConfig{EnableKernelReader: true},
+		Write: cfg.WriteConfig{
+			EnableStreamingWrites: true,
+			BlockSizeMb:           1,
+			MaxBlocksPerFile:      2,
+		},
+	}
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_concurrent_sw_kr", []byte{}, false)
+	sem := semaphore.NewWeighted(100)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, sem, 0)
+	require.NotNil(t.T(), fh.kernelReader)
+
+	fh.mu.Lock()
+
+	streamedData := []byte("streamed during kernel reader lock acquisition")
+	readDone := make(chan struct{})
+	var resp gcsx.ReadResponse
+	var readErr error
+	dst := make([]byte, len(streamedData))
+
+	fh.inode.Lock()
+	go func() {
+		defer close(readDone)
+		resp, readErr = fh.ReadWithKernelReader(t.ctx, &gcsx.ReadRequest{
+			Buffer: dst,
+			Offset: 0,
+			Size:   int64(len(dst)),
+		})
+	}()
+
+	in.Lock()
+	writeCtx := &inode.WriteContext{
+		Config:             config,
+		GlobalMaxBlocksSem: sem,
+		TraceHandle:        tracing.NewNoopTracer(),
+		MetricHandle:       metrics.NewNoopMetrics(),
+	}
+	in.RegisterFileHandle(false)
+	initialized, err := in.InitStreamingWriteHandlerIfEligible(t.ctx, writeMode, writeCtx)
+	require.NoError(t.T(), err)
+	require.True(t.T(), initialized)
+	_, err = in.Write(t.ctx, streamedData, 0, writeMode, writeCtx)
+	require.NoError(t.T(), err)
+	require.True(t.T(), in.IsUsingStreamingWriteHandler())
+	in.Unlock()
+
+	fh.mu.Unlock()
+
+	select {
+	case <-readDone:
+	case <-time.After(5 * time.Second):
+		t.T().Fatal("ReadWithKernelReader timed out")
+	}
+
+	require.NoError(t.T(), readErr)
+	assert.Equal(t.T(), len(streamedData), resp.Size)
+	assert.Equal(t.T(), streamedData, dst[:resp.Size])
+}
+
+func (t *fileTest) Test_ReadWithKernelReader_ConcurrentLocalWriteDuringLockAcquisition() {
+	config := &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_concurrent_local_kr", []byte("orig"), false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+	require.NotNil(t.T(), fh.kernelReader)
+
+	fh.mu.Lock()
+
+	localData := []byte("dirty local bytes")
+	readDone := make(chan struct{})
+	var resp gcsx.ReadResponse
+	var readErr error
+	dst := make([]byte, len(localData))
+
+	fh.inode.Lock()
+	go func() {
+		defer close(readDone)
+		resp, readErr = fh.ReadWithKernelReader(t.ctx, &gcsx.ReadRequest{
+			Buffer: dst,
+			Offset: 0,
+			Size:   int64(len(dst)),
+		})
+	}()
+
+	// Acquire in.Lock() while ReadWithKernelReader waits on fh.mu.RLock(), and dirty the inode.
+	in.Lock()
+	_, err := in.Write(t.ctx, localData, 0, writeMode, getWriteContext())
+	require.NoError(t.T(), err)
+	require.False(t.T(), in.SourceGenerationIsAuthoritative())
+	in.Unlock()
+
+	fh.mu.Unlock()
+
+	select {
+	case <-readDone:
+	case <-time.After(5 * time.Second):
+		t.T().Fatal("ReadWithKernelReader timed out")
+	}
+
+	require.NoError(t.T(), readErr)
+	assert.Equal(t.T(), len(localData), resp.Size)
+	assert.Equal(t.T(), localData, dst[:resp.Size])
+}
+
+func (t *fileTest) Test_TryFastReadWithKernelReader_ConcurrentReadsRunInParallelAndBlockExclusiveInodeLock() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_fast_kr_rlock", []byte("data"), false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+
+	kr := &blockingReadManager{
+		object:   in.Source(),
+		started:  make(chan struct{}, 2),
+		released: make(chan struct{}),
+	}
+	fh.kernelReader = kr
+
+	const numReaders = 2
+	resps := make([]gcsx.ReadResponse, numReaders)
+	handled := make([]bool, numReaders)
+	errs := make([]error, numReaders)
+	var wg sync.WaitGroup
+	wg.Add(numReaders)
+	for i := range numReaders {
+		go func(idx int) {
+			defer wg.Done()
+			resps[idx], handled[idx], errs[idx] = fh.TryFastReadWithKernelReader(t.ctx, &gcsx.ReadRequest{
+				Buffer: make([]byte, 4),
+				Offset: 0,
+				Size:   4,
+			})
+		}(i)
+	}
+
+	for range numReaders {
+		select {
+		case <-kr.started:
+		case <-time.After(5 * time.Second):
+			close(kr.released)
+			t.T().Fatal("timed out waiting for concurrent TryFastReadWithKernelReader calls to enter ReadAt")
+		}
+	}
+
+	lockAcquired := make(chan struct{})
+	go func() {
+		fh.inode.Lock()
+		close(lockAcquired)
+		fh.inode.Unlock()
+	}()
+
+	select {
+	case <-lockAcquired:
+		close(kr.released)
+		t.T().Fatal("expected exclusive fh.inode.Lock() to block while kernelReader.ReadAt is in flight")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(kr.released)
+
+	readsDone := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(readsDone)
+	}()
+
+	select {
+	case <-readsDone:
+	case <-time.After(5 * time.Second):
+		t.T().Fatal("timed out waiting for TryFastReadWithKernelReader calls to complete")
+	}
+
+	select {
+	case <-lockAcquired:
+	case <-time.After(5 * time.Second):
+		t.T().Fatal("timed out waiting for exclusive fh.inode.Lock() after kernelReader.ReadAt completed")
+	}
+
+	for i := range numReaders {
+		assert.NoError(t.T(), errs[i])
+		assert.True(t.T(), handled[i])
+		assert.Equal(t.T(), 4, resps[i].Size)
+	}
+}

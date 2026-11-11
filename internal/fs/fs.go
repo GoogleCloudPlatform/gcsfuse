@@ -3108,7 +3108,25 @@ func (fs *fileSystem) ReadFile(
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
 	fs.mu.RUnlock()
 
-	if !fs.newConfig.FileSystem.EnableKernelReader && fs.newConfig.EnableNewReader && (op.Size == 0 || op.Dst != nil) {
+	if fs.newConfig.FileSystem.EnableKernelReader {
+		if op.Size == 0 || op.Dst != nil || !fh.Inode().Bucket().BucketType().IsRapid() {
+			req := gcsx.ReadRequest{
+				Offset: op.Offset,
+				Size:   op.Size,
+			}
+			if op.Size > 0 && op.Dst == nil {
+				req.BufferPool = fs.readBufferPool
+			} else {
+				req.Buffer = op.Dst
+			}
+			if resp, handled, fastErr := fh.TryFastReadWithKernelReader(ctx, &req); handled {
+				op.BytesRead = resp.Size
+				op.Data = resp.Data
+				op.Callback = resp.Callback
+				return fs.finalizeReadFileOp(op, fastErr)
+			}
+		}
+	} else if fs.newConfig.EnableNewReader && (op.Size == 0 || op.Dst != nil) {
 		req := gcsx.ReadRequest{
 			Buffer: op.Dst,
 			Offset: op.Offset,
@@ -3118,27 +3136,7 @@ func (fs *fileSystem) ReadFile(
 			op.BytesRead = resp.Size
 			op.Data = resp.Data
 			op.Callback = resp.Callback
-			err = fastErr
-			if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
-				var clobberedErr *gcsfuse_errors.FileClobberedError
-				if err != nil && errors.As(err, &clobberedErr) {
-					if invalidateErr := fs.invalidateCachedEntry(op.Inode); invalidateErr != nil {
-						err = fmt.Errorf("%w; additionally failed to invalidate entry: %w", err, invalidateErr)
-					}
-				}
-			}
-			if errors.Is(err, io.EOF) {
-				err = nil
-			}
-			if err != nil {
-				if op.Callback != nil {
-					op.Callback()
-					op.Callback = nil
-				}
-				op.Data = nil
-				op.BytesRead = 0
-			}
-			return err
+			return fs.finalizeReadFileOp(op, fastErr)
 		}
 	}
 
@@ -3199,6 +3197,10 @@ func (fs *fileSystem) ReadFile(
 		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 	}
 
+	return fs.finalizeReadFileOp(op, err)
+}
+
+func (fs *fileSystem) finalizeReadFileOp(op *fuseops.ReadFileOp, err error) error {
 	// A FileClobberedError indicates the underlying GCS object has changed,
 	// making the kernel's dentry for this file stale. We use the notifier to
 	// invalidate this entry, providing feedback to the kernel about the dynamic
@@ -3224,7 +3226,7 @@ func (fs *fileSystem) ReadFile(
 		op.BytesRead = 0
 	}
 
-	return
+	return err
 }
 
 // LOCKS_EXCLUDED(fs.mu)
