@@ -697,46 +697,111 @@ func (testSuite *StorageHandleTest) TestCreateHTTPClientHandleWithHTTPMtls_LibAu
 	assert.Nil(testSuite.T(), storageClient)
 }
 
-func (testSuite *StorageHandleTest) TestCreateGRPCClientWithSocketAddress() {
-	// Start a local server to inspect incoming connections.
+// startFakeControlServer starts a fake gRPC storage control server on the
+// given address. It returns the server, its listener and a function that stops
+// it; the server's remoteAddr is safe to read once stop returns. The server is
+// also stopped when the test ends. The test is skipped if the address isn't
+// available, e.g. "[::1]:0" on a host without IPv6.
+func (testSuite *StorageHandleTest) startFakeControlServer(address string) (*fakeStorageControlServer, net.Listener, func()) {
+	t := testSuite.T()
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		t.Skipf("Can't listen on %s: %v", address, err)
+	}
 	server := &fakeStorageControlServer{}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(testSuite.T(), err)
-	serveErr := make(chan error, 1)
 	grpcServer := grpc.NewServer()
 	controlpb.RegisterStorageControlServer(grpcServer, server)
+	serveErr := make(chan error, 1)
 	go func() {
 		serveErr <- grpcServer.Serve(listener)
 	}()
-
-	defer grpcServer.Stop()
-	// Configure the client to use a specific local IP address.
-	testSuite.clientConfig.CustomEndpoint = listener.Addr().String()
-	testSuite.clientConfig.LocalSocketAddress = "127.0.0.1"
-	testSuite.clientConfig.AnonymousAccess = true
-	ctx := context.Background()
-	clientOpts, err := createClientOptionForGRPCClient(ctx, testSuite.clientConfig, false)
-	require.NoError(testSuite.T(), err)
-	controlClient, err := storageutil.CreateGRPCControlClient(ctx, clientOpts, false)
-	require.NoError(testSuite.T(), err)
-	require.NotNil(testSuite.T(), controlClient)
-
-	// Have the client connect to the test server.
-	// This will not fail, as we have implemented the "CreateFolder" method.
-	_, err = controlClient.CreateFolder(ctx, &controlpb.CreateFolderRequest{})
-	assert.NoError(testSuite.T(), err)
-	// Stop the server and check for any serving errors.
-	grpcServer.Stop()
-	err = <-serveErr
-	if err != nil && err != grpc.ErrServerStopped {
-		testSuite.T().Fatalf("grpcServer.Serve failed: %v", err)
+	var once sync.Once
+	stop := func() {
+		once.Do(func() {
+			grpcServer.Stop()
+			if err := <-serveErr; err != nil && err != grpc.ErrServerStopped {
+				t.Errorf("grpcServer.Serve failed: %v", err)
+			}
+		})
 	}
-	// The defer call will also try to stop, which is fine.
+	t.Cleanup(stop)
+	return server, listener, stop
+}
 
-	// Verify on the server side that the client's connection originates from the specified IP address.
-	host, _, err := net.SplitHostPort(server.remoteAddr.String())
-	require.NoError(testSuite.T(), err)
-	assert.Equal(testSuite.T(), testSuite.clientConfig.LocalSocketAddress, host)
+func (testSuite *StorageHandleTest) TestCreateGRPCClientWithSocketAddress() {
+	for _, tc := range []struct {
+		name               string
+		serverAddress      string
+		localSocketAddress string
+		wantClientIP       string
+	}{
+		{name: "IPv4", serverAddress: "127.0.0.1:0", localSocketAddress: "127.0.0.1", wantClientIP: "127.0.0.1"},
+		{name: "IPv6", serverAddress: "[::1]:0", localSocketAddress: "::1", wantClientIP: "::1"},
+		{name: "BracketedIPv6", serverAddress: "[::1]:0", localSocketAddress: "[::1]", wantClientIP: "::1"},
+	} {
+		testSuite.Run(tc.name, func() {
+			// Start a local server to inspect incoming connections.
+			server, listener, stop := testSuite.startFakeControlServer(tc.serverAddress)
+			// Configure the client to use a specific local IP address.
+			clientConfig := *testSuite.clientConfig
+			clientConfig.CustomEndpoint = listener.Addr().String()
+			clientConfig.LocalSocketAddress = tc.localSocketAddress
+			clientConfig.AnonymousAccess = true
+			ctx := context.Background()
+			clientOpts, err := createClientOptionForGRPCClient(ctx, &clientConfig, false)
+			require.NoError(testSuite.T(), err)
+			controlClient, err := storageutil.CreateGRPCControlClient(ctx, clientOpts, false)
+			require.NoError(testSuite.T(), err)
+			defer func() { _ = controlClient.Close() }()
+
+			// This succeeds because the fake server implements CreateFolder.
+			_, err = controlClient.CreateFolder(ctx, &controlpb.CreateFolderRequest{})
+
+			require.NoError(testSuite.T(), err)
+			stop()
+			// Verify on the server side that the connection originates from the configured address.
+			host, _, err := net.SplitHostPort(server.remoteAddr.String())
+			require.NoError(testSuite.T(), err)
+			assert.Equal(testSuite.T(), tc.wantClientIP, host)
+		})
+	}
+}
+
+// A client bound to an address of one family must fail to reach a server of
+// the other family, instead of dialing without the local address. On a
+// multi-NIC machine, such a fallback would send traffic out of the wrong NIC.
+func (testSuite *StorageHandleTest) TestCreateGRPCClientWithSocketAddressDoesNotFallBackToOtherFamily() {
+	for _, tc := range []struct {
+		name               string
+		serverAddress      string
+		localSocketAddress string
+	}{
+		{name: "IPv6AddressToIPv4Server", serverAddress: "127.0.0.1:0", localSocketAddress: "::1"},
+		{name: "IPv4AddressToIPv6Server", serverAddress: "[::1]:0", localSocketAddress: "127.0.0.1"},
+	} {
+		testSuite.Run(tc.name, func() {
+			server, listener, stop := testSuite.startFakeControlServer(tc.serverAddress)
+			clientConfig := *testSuite.clientConfig
+			clientConfig.CustomEndpoint = listener.Addr().String()
+			clientConfig.LocalSocketAddress = tc.localSocketAddress
+			clientConfig.AnonymousAccess = true
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			clientOpts, err := createClientOptionForGRPCClient(ctx, &clientConfig, false)
+			require.NoError(testSuite.T(), err)
+			// Disable retries, so that the RPC fails as soon as the dial fails.
+			controlClient, err := storageutil.CreateGRPCControlClient(ctx, clientOpts, true)
+			require.NoError(testSuite.T(), err)
+			defer func() { _ = controlClient.Close() }()
+
+			_, err = controlClient.CreateFolder(ctx, &controlpb.CreateFolderRequest{})
+
+			assert.Error(testSuite.T(), err)
+			assert.NotErrorIs(testSuite.T(), ctx.Err(), context.DeadlineExceeded, "The RPC should fail on the dial, not time out.")
+			stop()
+			assert.Nil(testSuite.T(), server.remoteAddr, "The server shouldn't receive any request.")
+		})
+	}
 }
 
 func (testSuite *StorageHandleTest) TestCreateGRPCClientWithInvalidSocketAddress() {
