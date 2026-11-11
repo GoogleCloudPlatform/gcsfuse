@@ -78,9 +78,9 @@ func newFakeBucket() gcs.Bucket {
 	return fake.NewFakeBucket(timeutil.RealClock(), "FakeBucketName", gcs.BucketType{})
 }
 
-// newMockBucket returns a mock bucket that creates writer. writerCtx returns
-// the context that the writer was created with.
-func newMockBucket(writer gcs.Writer) (bucket *storagemock.TestifyMockBucket, writerCtx func() context.Context) {
+// newMockBucketWithWriter returns a mock bucket that creates writer. writerCtx
+// returns the context that the writer was created with.
+func newMockBucketWithWriter(writer gcs.Writer) (bucket *storagemock.TestifyMockBucket, writerCtx func() context.Context) {
 	var ctx context.Context
 	bucket = new(storagemock.TestifyMockBucket)
 	bucket.On("CreateObjectChunkWriter", mock.Anything, mock.Anything).
@@ -191,12 +191,12 @@ func TestUnbufferedWriteHandler_FlushFinalizesWrittenContent(t *testing.T) {
 			expectedContent: "foo\x00\x00bar",
 		},
 		{
-			name:            "WriteIntoTruncatedGap",
+			name:            "WriteAtCurrentSizeWithPendingTruncate",
 			ops:             []handlerOp{writeOp("foo", 0), truncateOp(8), writeOp("bar", 3)},
 			expectedContent: "foobar\x00\x00",
 		},
 		{
-			name:            "WritePastTruncatedSize",
+			name:            "WriteAtCurrentSizePastPendingTruncate",
 			ops:             []handlerOp{writeOp("foo", 0), truncateOp(4), writeOp("barbaz", 3)},
 			expectedContent: "foobarbaz",
 		},
@@ -292,6 +292,8 @@ func TestUnbufferedWriteHandler_OutOfOrderWrite(t *testing.T) {
 }
 
 func TestUnbufferedWriteHandler_Truncate(t *testing.T) {
+	// Each test case writes initialData first, so the current size is 3.
+	const initialData = "foo"
 	testCases := []struct {
 		name                  string
 		size                  int64
@@ -323,7 +325,7 @@ func TestUnbufferedWriteHandler_Truncate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			wh := newUnbufferedWriteHandlerForTest(newFakeBucket(), nil)
-			require.NoError(t, wh.Write(ctx, []byte("foo"), 0))
+			require.NoError(t, wh.Write(ctx, []byte(initialData), 0))
 
 			err := wh.Truncate(tc.size)
 
@@ -364,7 +366,7 @@ func TestUnbufferedWriteHandler_SyncWritesPendingZeroPadding(t *testing.T) {
 			ctx := context.Background()
 			writer := new(storagemock.Writer)
 			writer.On("Write", mock.Anything).Return(2, nil)
-			bucket, _ := newMockBucket(writer)
+			bucket, _ := newMockBucketWithWriter(writer)
 			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
 			for _, op := range tc.ops {
 				require.NoError(t, op(ctx, wh))
@@ -418,7 +420,7 @@ func TestUnbufferedWriteHandler_CreatesWriterOnceWithPrecondition(t *testing.T) 
 			ctx := context.Background()
 			writer := new(storagemock.Writer)
 			writer.On("Write", mock.Anything).Return(3, nil)
-			bucket, _ := newMockBucket(writer)
+			bucket, _ := newMockBucketWithWriter(writer)
 			wh := newUnbufferedWriteHandlerForTest(bucket, tc.obj)
 
 			require.NoError(t, wh.Write(ctx, []byte("foo"), 0))
@@ -437,7 +439,7 @@ func TestUnbufferedWriteHandler_CreatesWriterOnceWithPrecondition(t *testing.T) 
 func TestUnbufferedWriteHandler_WriterContextOutlivesOperationContext(t *testing.T) {
 	writer := new(storagemock.Writer)
 	writer.On("Write", mock.Anything).Return(3, nil)
-	bucket, writerCtx := newMockBucket(writer)
+	bucket, writerCtx := newMockBucketWithWriter(writer)
 	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
 	opCtx, cancelOp := context.WithCancel(context.Background())
 	require.NoError(t, wh.Write(opCtx, []byte("foo"), 0))
@@ -516,7 +518,7 @@ func TestUnbufferedWriteHandler_ZeroPaddingErrorIsSticky(t *testing.T) {
 			writer := new(storagemock.Writer)
 			writer.On("Write", []byte("ab")).Return(2, nil)
 			writer.On("Write", []byte{0, 0}).Return(0, errUploadFailure)
-			bucket, writerCtx := newMockBucket(writer)
+			bucket, writerCtx := newMockBucketWithWriter(writer)
 			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
 			require.NoError(t, wh.Write(ctx, []byte("ab"), 0))
 			require.NoError(t, wh.Truncate(4))
@@ -543,7 +545,7 @@ func TestUnbufferedWriteHandler_WriteErrorCancelsUploadAndIsSticky(t *testing.T)
 	ctx := context.Background()
 	writer := new(storagemock.Writer)
 	writer.On("Write", mock.Anything).Return(0, errUploadFailure)
-	bucket, writerCtx := newMockBucket(writer)
+	bucket, writerCtx := newMockBucketWithWriter(writer)
 	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
 	require.ErrorIs(t, wh.Write(ctx, []byte("foo"), 0), errUploadFailure)
 
@@ -592,7 +594,7 @@ func TestUnbufferedWriteHandler_WriteErrorKeepsGCSErrorType(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			writer := new(storagemock.Writer)
 			writer.On("Write", mock.Anything).Return(0, tc.writeErr)
-			bucket, _ := newMockBucket(writer)
+			bucket, _ := newMockBucketWithWriter(writer)
 			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
 
 			err := wh.Write(context.Background(), []byte("foo"), 0)
@@ -606,7 +608,7 @@ func TestUnbufferedWriteHandler_FinalizeErrorCancelsUploadAndIsSticky(t *testing
 	ctx := context.Background()
 	writer := new(storagemock.Writer)
 	writer.On("Write", mock.Anything).Return(3, nil)
-	bucket, writerCtx := newMockBucket(writer)
+	bucket, writerCtx := newMockBucketWithWriter(writer)
 	bucket.On("FinalizeUpload", mock.Anything, writer).Return((*gcs.MinObject)(nil), errUploadFailure)
 	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
 	require.NoError(t, wh.Write(ctx, []byte("foo"), 0))
@@ -647,7 +649,7 @@ func TestUnbufferedWriteHandler_FlushWithUnexpectedObjectIsSticky(t *testing.T) 
 			ctx := context.Background()
 			writer := new(storagemock.Writer)
 			writer.On("Write", mock.Anything).Return(3, nil)
-			bucket, _ := newMockBucket(writer)
+			bucket, _ := newMockBucketWithWriter(writer)
 			bucket.On("FinalizeUpload", mock.Anything, writer).Return(tc.finalizedObj, nil)
 			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
 			require.NoError(t, wh.Write(ctx, []byte("foo"), 0))
@@ -675,7 +677,7 @@ func TestUnbufferedWriteHandler_FlushReleasesWriterContext(t *testing.T) {
 	ctx := context.Background()
 	writer := new(storagemock.Writer)
 	writer.On("Write", mock.Anything).Return(3, nil)
-	bucket, writerCtx := newMockBucket(writer)
+	bucket, writerCtx := newMockBucketWithWriter(writer)
 	bucket.On("FinalizeUpload", mock.Anything, writer).Return(&gcs.MinObject{Name: objectName, Size: 3}, nil)
 	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
 	require.NoError(t, wh.Write(ctx, []byte("foo"), 0))
@@ -690,7 +692,7 @@ func TestUnbufferedWriteHandler_FlushReleasesWriterContext(t *testing.T) {
 func TestUnbufferedWriteHandler_FlushIsDetachedFromOperationContext(t *testing.T) {
 	writer := new(storagemock.Writer)
 	writer.On("Write", mock.Anything).Return(3, nil)
-	bucket, _ := newMockBucket(writer)
+	bucket, _ := newMockBucketWithWriter(writer)
 	var finalizeCtx context.Context
 	bucket.On("FinalizeUpload", mock.Anything, writer).
 		Run(func(args mock.Arguments) { finalizeCtx = args.Get(0).(context.Context) }).
