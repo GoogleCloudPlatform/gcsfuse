@@ -304,12 +304,17 @@ func wrapLargeReadTCPConn(conn net.Conn) net.Conn {
 		if !s.isALTSPool {
 			readSlice = readSlice[:min(len(readSlice), max(0, s.origBufSize))]
 		}
-		s.bytesRead, s.readError = syscall.Read(int(fd), readSlice)
+		for {
+			s.bytesRead, s.readError = syscall.Read(int(fd), readSlice)
+			if s.readError != syscall.EINTR {
+				break
+			}
+		}
 		if s.readError != nil {
 			s.pool.Put(s.buf)
 			s.buf = nil
 		}
-		return !(s.readError == syscall.EAGAIN || s.readError == syscall.EWOULDBLOCK || s.readError == syscall.EINTR)
+		return !(s.readError == syscall.EAGAIN || s.readError == syscall.EWOULDBLOCK)
 	}
 	return c
 }
