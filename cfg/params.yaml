@@ -1594,6 +1594,13 @@ params:
       streaming writes. The value should be >= 1 or -1 (for infinite blocks).
     default: 1
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        # TODO(b/584557180): 4 is a placeholder value; update once experiments complete and the optimal value is determined.
+        - bucket-type: "rcu"
+          conditions:
+            write.experimental-enable-parallel-upload: true
+          value: 4
 
   - config-path: "write.rapid-write"
     proto-tag: 162

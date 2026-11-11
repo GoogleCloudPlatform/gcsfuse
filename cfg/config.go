@@ -234,6 +234,18 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: int64(1600),
 		},
 	},
+}, "write.max-blocks-per-file": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketTypes: shared.BucketTypeList{
+				"rcu",
+			},
+			Conditions: map[string]any{
+				"write.experimental-enable-parallel-upload": true,
+			},
+			Value: int64(4),
+		},
+	},
 },
 }
 
@@ -448,6 +460,18 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 				if c.Write.GlobalMaxBlocks != val {
 					c.Write.GlobalMaxBlocks = val
 					optimizedFlags["write.global-max-blocks"] = result
+				}
+			}
+		}
+	}
+	if !v.IsSet("write.max-blocks-per-file") {
+		rules := AllFlagOptimizationRules["write.max-blocks-per-file"]
+		result := getOptimizedValue(&rules, c.Write.MaxBlocksPerFile, profileName, machineType, input, machineTypeToGroupMap, c)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.Write.MaxBlocksPerFile != val {
+					c.Write.MaxBlocksPerFile = val
+					optimizedFlags["write.max-blocks-per-file"] = result
 				}
 			}
 		}
