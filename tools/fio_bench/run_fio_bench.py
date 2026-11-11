@@ -99,26 +99,29 @@ def main():
     parser.add_argument(
         "--bucket",
         default=os.environ.get(
-            "BUCKET", os.environ.get("BUCKET_NAME", "kislayk-c4-usw4-hns")
+            "BUCKET", os.environ.get("BUCKET_NAME", "kislayk-c4-usw4-rapid-hns")
         ),
     )
     parser.add_argument("--mnt", default="/mnt/gcs")
     parser.add_argument(
         "--flags",
-        default=os.environ.get("GCSFUSE_FLAGS", "--client-protocol=grpc"),
+        default=os.environ.get(
+            "GCSFUSE_FLAGS",
+            "--client-protocol=grpc --implicit-dirs --metadata-cache-ttl-secs=-1 --stat-cache-max-size-mb=-1 --type-cache-max-size-mb=-1",
+        ),
     )
     parser.add_argument(
         "--gcsfuse-cpus", default=os.environ.get("GCSFUSE_CPUS", None)
     )
     parser.add_argument("--fio-cpus", default=os.environ.get("FIO_CPUS", None))
     parser.add_argument(
-        "--numjobs", type=int, default=int(os.environ.get("NUMJOBS", "56"))
+        "--numjobs", type=int, default=int(os.environ.get("NUMJOBS", "36"))
     )
     parser.add_argument(
         "--nrfiles",
         type=int,
         default=int(
-            os.environ.get("NR_FILES", os.environ.get("NRFILES", "3"))
+            os.environ.get("NR_FILES", os.environ.get("NRFILES", "2"))
         ),
     )
     parser.add_argument("--bs", default=os.environ.get("BLOCK_SIZE", "1M"))

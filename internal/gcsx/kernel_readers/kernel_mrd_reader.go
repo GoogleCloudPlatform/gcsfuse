@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -27,13 +28,25 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const (
+	minPrefetchReadSize      = 256 * 1024
+	initialPrefetchChunkSize = 2 * 1024 * 1024
+	prefetchChunkSize        = 4 * 1024 * 1024
+	maxPrefetchChunks        = 6
+)
+
 // KernelMRDReader is a reader that uses an MRD Instance to read data from a GCS object.
 // This reader is kernel-optimized compared to the GCSReader as it doesn't have complex logic
 // to switch between sequential and random read strategies.
 type KernelMRDReader struct {
-	mrdInstanceInUse atomic.Bool
-	mrdInstance      *gcsx.MrdInstance
-	metrics          metrics.MetricHandle
+	mrdInstanceInUse   atomic.Bool
+	mrdInstance        *gcsx.MrdInstance
+	metrics            metrics.MetricHandle
+	mu                 sync.Mutex
+	chunks             []*gcsx.MrdPrefetchChunk
+	nextPrefetchOffset int64
+	lastReadEnd        int64
+	seqReads           int
 }
 
 // NewKernelMRDReader creates a new KernelMRDReader that uses the provided
@@ -42,7 +55,92 @@ func NewKernelMRDReader(mrdInstance *gcsx.MrdInstance, metricsHandle metrics.Met
 	return &KernelMRDReader{
 		mrdInstance: mrdInstance,
 		metrics:     metricsHandle,
+		chunks:      make([]*gcsx.MrdPrefetchChunk, 0, maxPrefetchChunks),
 	}
+}
+
+func (kmr *KernelMRDReader) clearPrefetchLocked() {
+	for i, c := range kmr.chunks {
+		c.Release()
+		kmr.chunks[i] = nil
+	}
+	kmr.chunks = kmr.chunks[:0]
+}
+
+func (kmr *KernelMRDReader) clearPrefetch() {
+	kmr.mu.Lock()
+	kmr.clearPrefetchLocked()
+	kmr.seqReads = 0
+	kmr.mu.Unlock()
+}
+
+func (kmr *KernelMRDReader) schedulePrefetchLocked() {
+	if kmr.mrdInstance == nil {
+		return
+	}
+	objSize := int64(kmr.mrdInstance.ObjectSize())
+	ready := max(1, kmr.mrdInstance.ReadySize())
+	limit := min(maxPrefetchChunks, ready+1)
+	if ready > 1 {
+		limit = min(maxPrefetchChunks, ready+2)
+	}
+	for len(kmr.chunks) < limit && kmr.nextPrefetchOffset < objSize {
+		rem := objSize - kmr.nextPrefetchOffset
+		targetSize := int64(prefetchChunkSize)
+		if kmr.nextPrefetchOffset <= 1024*1024 && ready == 1 {
+			targetSize = int64(initialPrefetchChunkSize)
+		}
+		chunkLen := int(min(targetSize, rem))
+		chunk, err := kmr.mrdInstance.StartPrefetchChunk(kmr.nextPrefetchOffset, chunkLen)
+		if err != nil {
+			break
+		}
+		kmr.chunks = append(kmr.chunks, chunk)
+		kmr.nextPrefetchOffset += int64(chunkLen)
+	}
+}
+
+func (kmr *KernelMRDReader) maybeScheduleMorePrefetch() {
+	kmr.mu.Lock()
+	if len(kmr.chunks) < maxPrefetchChunks && kmr.seqReads > 0 {
+		kmr.schedulePrefetchLocked()
+	}
+	kmr.mu.Unlock()
+}
+
+func (kmr *KernelMRDReader) acquirePrefetchChunk(offset int64, length int) (*gcsx.MrdPrefetchChunk, int, int) {
+	kmr.mu.Lock()
+	defer kmr.mu.Unlock()
+
+	if len(kmr.chunks) == 0 {
+		return nil, 0, 0
+	}
+
+	reqEnd := offset + int64(length)
+	for i, c := range kmr.chunks {
+		cEnd := c.Offset + int64(c.Length)
+		if offset >= c.Offset && reqEnd <= cEnd {
+			relStart := int(offset - c.Offset)
+			relEnd := relStart + length
+			c.Retain()
+			c.Consumed += length
+			if c.Consumed >= c.Length || relEnd >= c.Length {
+				c.Release()
+				copy(kmr.chunks[i:], kmr.chunks[i+1:])
+				kmr.chunks[len(kmr.chunks)-1] = nil
+				kmr.chunks = kmr.chunks[:len(kmr.chunks)-1]
+			}
+			kmr.lastReadEnd = reqEnd
+			kmr.seqReads++
+			kmr.schedulePrefetchLocked()
+			return c, relStart, relEnd
+		}
+	}
+
+	// Non-sequential jump or chunk boundary straddle: discard stale lookahead.
+	kmr.clearPrefetchLocked()
+	kmr.seqReads = 0
+	return nil, 0, 0
 }
 
 // isShortRead determines what constitutes a short read for retry purposes.
@@ -101,9 +199,37 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 		kmr.metrics.GcsReadBytesCount(int64(bytesRead))
 	}()
 
-	var err error
-	bytesRead, err = kmr.mrdInstance.Read(ctx, req.Buffer, req.Offset, kmr.metrics)
+	if len(req.Buffer) >= minPrefetchReadSize {
+		if chunk, relStart, relEnd := kmr.acquirePrefetchChunk(req.Offset, len(req.Buffer)); chunk != nil {
+			wErr := chunk.Wait(ctx, kmr.mrdInstance.IgnoreInterrupts())
+			if wErr == nil {
+				kmr.maybeScheduleMorePrefetch()
+				if resp, ok := chunk.Slice(relStart, relEnd); ok {
+					bytesRead = resp.Size
+					return resp, nil
+				}
+			}
+			chunk.Release()
+			if errors.Is(wErr, context.Canceled) || errors.Is(wErr, context.DeadlineExceeded) {
+				return gcsx.ReadResponse{}, wErr
+			}
+			kmr.clearPrefetch()
+		}
+	}
+
+	resp, err := kmr.mrdInstance.ReadVectored(ctx, req.Buffer, req.Offset, kmr.metrics)
+	bytesRead = resp.Size
 	if isShortRead(bytesRead, len(req.Buffer), err) {
+		kmr.clearPrefetch()
+		if resp.Callback != nil {
+			pos := 0
+			for _, s := range resp.Data {
+				pos += copy(req.Buffer[pos:], s)
+			}
+			resp.Callback()
+			resp.Data = nil
+			resp.Callback = nil
+		}
 		logger.Tracef("Short read detected: read %d bytes out of %d requested. Retrying...", bytesRead, len(req.Buffer))
 		if err = kmr.mrdInstance.RecreateMRD(); err != nil {
 			logger.Warnf("Failed to recreate MRD for short read retry. Will retry with older MRD: %v", err)
@@ -113,14 +239,35 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 		var bytesReadOnRetry int
 		bytesReadOnRetry, err = kmr.mrdInstance.Read(ctx, retryBuffer, retryOffset, kmr.metrics)
 		bytesRead += bytesReadOnRetry
+		return gcsx.ReadResponse{Size: bytesRead}, err
 	}
-	return gcsx.ReadResponse{Size: bytesRead}, err
+
+	if err == nil && bytesRead == len(req.Buffer) && len(req.Buffer) >= minPrefetchReadSize && resp.Callback != nil {
+		kmr.mu.Lock()
+		if req.Offset == 0 || req.Offset == kmr.lastReadEnd {
+			kmr.seqReads++
+		} else {
+			kmr.clearPrefetchLocked()
+			kmr.seqReads = 1
+		}
+		kmr.lastReadEnd = req.Offset + int64(bytesRead)
+		if req.Offset == 0 || kmr.seqReads >= 2 {
+			if len(kmr.chunks) == 0 {
+				kmr.nextPrefetchOffset = kmr.lastReadEnd
+			}
+			kmr.schedulePrefetchLocked()
+		}
+		kmr.mu.Unlock()
+	}
+
+	return resp, err
 }
 
 // Destroy cleans up the resources used by the reader, primarily by destroying
 // the associated MrdInstance. This should be called when the reader is no
 // longer needed.
 func (kmr *KernelMRDReader) Destroy() {
+	kmr.clearPrefetch()
 	// No need to take lock as Destroy will only be called when file handle is being released
 	// and there will be no read calls at that point.
 	if kmr.mrdInstance != nil {

@@ -21,12 +21,15 @@ import (
 	"io"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
@@ -416,9 +419,345 @@ func (mi *MrdInstance) Size() uint64 {
 	return 0
 }
 
+// ReadySize returns the number of currently initialized MRD streams in the pool.
+func (mi *MrdInstance) ReadySize() int {
+	mi.poolMu.RLock()
+	defer mi.poolMu.RUnlock()
+	if mi.mrdPool != nil {
+		return int(mi.mrdPool.currentSize.Load())
+	}
+	return 1
+}
+
 // RefCount returns the reference count of the MrdInstance. Used for testing.
 func (mi *MrdInstance) RefCount() int64 {
 	mi.refCountMu.Lock()
 	defer mi.refCountMu.Unlock()
 	return mi.refCount
+}
+
+// ObjectSize returns the cached size of the underlying GCS object.
+func (mi *MrdInstance) ObjectSize() uint64 {
+	mi.poolMu.RLock()
+	defer mi.poolMu.RUnlock()
+	if mi.object != nil {
+		return mi.object.Size
+	}
+	return 0
+}
+
+// IgnoreInterrupts reports whether context interrupts are ignored by config.
+func (mi *MrdInstance) IgnoreInterrupts() bool {
+	return mi.config != nil && mi.config.FileSystem.IgnoreInterrupts
+}
+
+type mrdVectoredState struct {
+	slices   [][]byte
+	tokens   []unsafe.Pointer
+	callback func()
+}
+
+var mrdVectoredStatePool = sync.Pool{
+	New: func() any {
+		return &mrdVectoredState{
+			slices: make([][]byte, 0, 48),
+			tokens: make([]unsafe.Pointer, 0, 48),
+		}
+	},
+}
+
+func (s *mrdVectoredState) release() {
+	for i, tok := range s.tokens {
+		storage.ReleaseDirtyBuffer(tok)
+		s.tokens[i] = nil
+	}
+	s.tokens = s.tokens[:0]
+	for i := range s.slices {
+		s.slices[i] = nil
+	}
+	s.slices = s.slices[:0]
+	mrdVectoredStatePool.Put(s)
+}
+
+type mrdVectoredWriter struct {
+	dst      []byte
+	state    *mrdVectoredState
+	written  int
+	pinned   int
+	reqState atomic.Int32 // 0: in-flight, 1: claimed by caller, 2: aborted by caller
+}
+
+func (w *mrdVectoredWriter) Write(b []byte) (int, error) {
+	if len(b) == 0 {
+		return 0, nil
+	}
+	origLen := len(b)
+	rem := len(w.dst) - w.written
+	if rem <= 0 {
+		return origLen, nil
+	}
+	if len(b) > rem {
+		b = b[:rem]
+	}
+	start := w.written
+	w.written += len(b)
+	if tok := storage.TryPinDirtySlice(b); tok != nil {
+		w.state.tokens = append(w.state.tokens, tok)
+		w.state.slices = append(w.state.slices, b)
+		w.pinned++
+		return origLen, nil
+	}
+	copy(w.dst[start:start+len(b)], b)
+	w.state.slices = append(w.state.slices, w.dst[start:start+len(b)])
+	return origLen, nil
+}
+
+// ReadVectored downloads data from the GCS object starting at offset, pinning
+// underlying gRPC transport buffers directly without copying payload bytes into
+// p whenever possible. When non-pooled buffers are used (e.g. unit test fakes),
+// it falls back to copying into p.
+func (mi *MrdInstance) ReadVectored(ctx context.Context, p []byte, offset int64, metrics metrics.MetricHandle) (ReadResponse, error) {
+	if len(p) == 0 {
+		return ReadResponse{}, nil
+	}
+
+	entry, err := mi.getMRDEntry()
+	if err != nil {
+		return ReadResponse{}, err
+	}
+
+	entry.mu.RLock()
+	if entry.mrd == nil {
+		entry.mu.RUnlock()
+		return ReadResponse{}, fmt.Errorf("MrdInstance::ReadVectored: mrd is nil")
+	}
+
+	state := mrdVectoredStatePool.Get().(*mrdVectoredState)
+	if state.callback == nil {
+		state.callback = state.release
+	}
+	writer := &mrdVectoredWriter{
+		dst:   p,
+		state: state,
+	}
+	done := make(chan readResult, 1)
+
+	start := time.Now()
+	defer monitor.CaptureMultiRangeDownloaderMetrics(ctx, metrics, "MultiRangeDownloader::Add", start)
+	entry.mrd.Add(writer, offset, int64(len(p)), func(_ int64, bytesReadAddCallback int64, e error) {
+		done <- readResult{bytesRead: int(bytesReadAddCallback), err: e}
+		if !writer.reqState.CompareAndSwap(0, 1) {
+			state.release()
+		}
+	})
+	entry.mu.RUnlock()
+
+	var res readResult
+	if !mi.config.FileSystem.IgnoreInterrupts {
+		select {
+		case <-ctx.Done():
+			if !writer.reqState.CompareAndSwap(0, 2) {
+				<-done
+				state.release()
+			}
+			return ReadResponse{}, ctx.Err()
+		case res = <-done:
+			if ctx.Err() != nil {
+				state.release()
+				return ReadResponse{}, ctx.Err()
+			}
+		}
+	} else {
+		res = <-done
+	}
+
+	if res.err != nil && res.err != io.EOF {
+		state.release()
+		return ReadResponse{Size: res.bytesRead}, fmt.Errorf("Error in Add call: %w", res.err)
+	}
+	if writer.pinned == 0 {
+		state.release()
+		return ReadResponse{Size: res.bytesRead}, res.err
+	}
+	return ReadResponse{
+		Data:     state.slices,
+		Size:     res.bytesRead,
+		Callback: state.callback,
+	}, res.err
+}
+
+// MrdPrefetchChunk holds an asynchronously prefetched range [Offset, Offset+Length)
+// backed by zero-copy pinned gRPC transport buffers.
+type MrdPrefetchChunk struct {
+	Offset   int64
+	Length   int
+	Consumed int
+
+	done     chan struct{}
+	refs     atomic.Int32
+	slices   [][]byte
+	tokens   []unsafe.Pointer
+	fallback []byte
+	written  int
+	err      error
+	releaseF func()
+}
+
+var mrdPrefetchChunkPool = sync.Pool{
+	New: func() any {
+		return &MrdPrefetchChunk{
+			slices: make([][]byte, 0, 288),
+			tokens: make([]unsafe.Pointer, 0, 288),
+		}
+	},
+}
+
+func (c *MrdPrefetchChunk) Write(b []byte) (int, error) {
+	if len(b) == 0 {
+		return 0, nil
+	}
+	origLen := len(b)
+	rem := c.Length - c.written
+	if rem <= 0 {
+		return origLen, nil
+	}
+	if len(b) > rem {
+		b = b[:rem]
+	}
+	start := c.written
+	c.written += len(b)
+	if tok := storage.TryPinDirtySlice(b); tok != nil {
+		c.tokens = append(c.tokens, tok)
+		c.slices = append(c.slices, b)
+		return origLen, nil
+	}
+	if cap(c.fallback) < c.Length {
+		c.fallback = make([]byte, c.Length)
+	} else {
+		c.fallback = c.fallback[:c.Length]
+	}
+	copy(c.fallback[start:start+len(b)], b)
+	c.slices = append(c.slices, c.fallback[start:start+len(b)])
+	return origLen, nil
+}
+
+// Retain increments the reference count of the prefetch chunk.
+func (c *MrdPrefetchChunk) Retain() {
+	if c.refs.Add(1) <= 1 {
+		panic("MrdPrefetchChunk::Retain on released chunk")
+	}
+}
+
+// Release decrements the reference count of the prefetch chunk and releases all
+// pinned transport buffers when the reference count drops to zero.
+func (c *MrdPrefetchChunk) Release() {
+	if c.refs.Add(-1) != 0 {
+		return
+	}
+	for i, tok := range c.tokens {
+		storage.ReleaseDirtyBuffer(tok)
+		c.tokens[i] = nil
+	}
+	c.tokens = c.tokens[:0]
+	for i := range c.slices {
+		c.slices[i] = nil
+	}
+	c.slices = c.slices[:0]
+	c.done = nil
+	c.err = nil
+	mrdPrefetchChunkPool.Put(c)
+}
+
+// Wait blocks until the asynchronous download of the chunk completes or ctx is cancelled.
+func (c *MrdPrefetchChunk) Wait(ctx context.Context, ignoreInterrupts bool) error {
+	if ignoreInterrupts {
+		<-c.done
+	} else {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-c.done:
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+		}
+	}
+	if c.err != nil && c.err != io.EOF {
+		return fmt.Errorf("Error in Add call: %w", c.err)
+	}
+	return nil
+}
+
+// Slice extracts a zero-copy ReadResponse for [relStart, relEnd) within the completed chunk.
+// On success (ok == true), the caller's Retain() reference is transferred to ReadResponse.Callback.
+func (c *MrdPrefetchChunk) Slice(relStart, relEnd int) (ReadResponse, bool) {
+	if relStart < 0 || relEnd <= relStart || relEnd > c.written {
+		return ReadResponse{}, false
+	}
+	want := relEnd - relStart
+	out := make([][]byte, 0, (want/(16*1024))+4)
+	pos := 0
+	for _, s := range c.slices {
+		sLen := len(s)
+		sEnd := pos + sLen
+		if sEnd <= relStart {
+			pos = sEnd
+			continue
+		}
+		if pos >= relEnd {
+			break
+		}
+		subStart := 0
+		if relStart > pos {
+			subStart = relStart - pos
+		}
+		subEnd := sLen
+		if relEnd < sEnd {
+			subEnd = relEnd - pos
+		}
+		out = append(out, s[subStart:subEnd])
+		pos = sEnd
+	}
+	return ReadResponse{
+		Data:     out,
+		Size:     want,
+		Callback: c.releaseF,
+	}, true
+}
+
+// StartPrefetchChunk initiates a non-blocking asynchronous range download of
+// [offset, offset+length) on the next available MRD stream in the pool.
+func (mi *MrdInstance) StartPrefetchChunk(offset int64, length int) (*MrdPrefetchChunk, error) {
+	if length <= 0 {
+		return nil, fmt.Errorf("MrdInstance::StartPrefetchChunk: invalid length %d", length)
+	}
+	entry, err := mi.getMRDEntry()
+	if err != nil {
+		return nil, err
+	}
+	entry.mu.RLock()
+	if entry.mrd == nil {
+		entry.mu.RUnlock()
+		return nil, fmt.Errorf("MrdInstance::StartPrefetchChunk: mrd is nil")
+	}
+
+	chunk := mrdPrefetchChunkPool.Get().(*MrdPrefetchChunk)
+	if chunk.releaseF == nil {
+		chunk.releaseF = chunk.Release
+	}
+	chunk.Offset = offset
+	chunk.Length = length
+	chunk.Consumed = 0
+	chunk.done = make(chan struct{})
+	chunk.refs.Store(2) // 1 for MRD callback completion, 1 for caller's prefetch queue
+	chunk.written = 0
+	chunk.err = nil
+
+	entry.mrd.Add(chunk, offset, int64(length), func(_ int64, _ int64, e error) {
+		chunk.err = e
+		close(chunk.done)
+		chunk.Release()
+	})
+	entry.mu.RUnlock()
+	return chunk, nil
 }

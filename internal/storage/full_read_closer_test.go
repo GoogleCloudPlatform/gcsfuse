@@ -94,3 +94,27 @@ func TestFullReaderCloser(t *testing.T) {
 		})
 	}
 }
+
+func TestDirtyBufferPoolPinAndRelease(t *testing.T) {
+	t.Parallel()
+
+	bufPtr := defaultDirtyBufferPool.Get(32 * 1024)
+	sub1 := (*bufPtr)[100:4096]
+	sub2 := (*bufPtr)[4096:16384]
+
+	tok1 := TryPinDirtySlice(sub1)
+	tok2 := TryPinDirtySlice(sub2)
+	assert.NotNil(t, tok1)
+	assert.Equal(t, tok1, tok2)
+
+	// Simulate gRPC mem.BufferSlice.Free() returning bufPtr to pool while pinned.
+	defaultDirtyBufferPool.Put(bufPtr)
+
+	// Release both pins.
+	ReleaseDirtyBuffer(tok1)
+	ReleaseDirtyBuffer(tok2)
+
+	// Non-pooled slice must return nil.
+	plain := make([]byte, 4096, 8192)
+	assert.Nil(t, TryPinDirtySlice(plain))
+}

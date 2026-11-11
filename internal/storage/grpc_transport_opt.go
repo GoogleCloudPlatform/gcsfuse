@@ -43,42 +43,150 @@ const (
 
 	// defaultTCPUserTimeoutMs matches grpc-go default tcpUserTimeoutOp (20s).
 	defaultTCPUserTimeoutMs = 20000
+
+	// dirtyBufFooterSize reserves 16 trailing bytes at the end of every pooled
+	// buffer's capacity [defaultSize : defaultSize+16] for zero-copy reference
+	// counting across MultiRangeDownloader and FUSE writev.
+	dirtyBufFooterSize = 16
+
+	// dirtyBufMagic identifies buffers allocated by dirtyTieredBufferPool.
+	dirtyBufMagic = uint64(0x474353465553455a) // "GCSFUSEZ"
+)
+
+// dirtyBufFooter is placed in the trailing 16 bytes [defaultSize : defaultSize+16]
+// of every pooled buffer's backing array. It contains no Go pointers so the
+// backing []byte allocation remains valid noscan memory for the Go garbage collector.
+type dirtyBufFooter struct {
+	magic uint64
+	exp   uint32
+	refs  atomic.Int32
+}
+
+var (
+	_ [16 - unsafe.Sizeof(dirtyBufFooter{})]byte
+	_ [unsafe.Sizeof(dirtyBufFooter{}) - 16]byte
+
+	sliceHeaderPool = sync.Pool{
+		New: func() any {
+			var s []byte
+			return &s
+		},
+	}
 )
 
 // dirtySizedPool pools fixed-capacity byte slices without zeroing them on Get,
-// eliminating runtime.memclrNoHeapPointers overhead on the gRPC read path.
+// eliminating runtime.memclrNoHeapPointers overhead on the gRPC read path and
+// embedding a 16-byte reference-count footer in the unused capacity tail.
 type dirtySizedPool struct {
 	pool        sync.Pool
 	defaultSize int
+	exp         uint32
 }
 
 func (p *dirtySizedPool) Get(size int) *[]byte {
 	buf, ok := p.pool.Get().(*[]byte)
 	if !ok {
-		b := make([]byte, size, p.defaultSize)
-		return &b
+		raw := make([]byte, p.defaultSize+dirtyBufFooterSize)
+		b := raw[:size]
+		buf = &b
+	} else {
+		*buf = (*buf)[:size]
 	}
-	*buf = (*buf)[:size]
+	ftr := (*dirtyBufFooter)(unsafe.Add(unsafe.Pointer(unsafe.SliceData(*buf)), p.defaultSize))
+	ftr.magic = dirtyBufMagic
+	ftr.exp = p.exp
+	ftr.refs.Store(1)
 	return buf
 }
 
 func (p *dirtySizedPool) Put(buf *[]byte) {
-	if buf == nil || cap(*buf) < p.defaultSize {
+	if buf == nil || cap(*buf) != p.defaultSize+dirtyBufFooterSize {
 		return
 	}
-	p.pool.Put(buf)
+	ftr := (*dirtyBufFooter)(unsafe.Add(unsafe.Pointer(unsafe.SliceData(*buf)), p.defaultSize))
+	if ftr.refs.Add(-1) == 0 {
+		p.pool.Put(buf)
+		return
+	}
+	*buf = nil
+	sliceHeaderPool.Put(buf)
+}
+
+// TryPinDirtySlice checks if p is a sub-slice of a buffer allocated from
+// defaultDirtyBufferPool and, if so, increments its reference count in O(1)
+// so the backing buffer stays alive after gRPC frees its mem.BufferSlice.
+// Returns an opaque token to pass to ReleaseDirtyBuffer, or nil if p is not
+// from defaultDirtyBufferPool.
+func TryPinDirtySlice(p []byte) unsafe.Pointer {
+	c := cap(p)
+	if len(p) == 0 || c < (1<<11)+dirtyBufFooterSize || c-len(p) < dirtyBufFooterSize {
+		return nil
+	}
+	ftrPtr := unsafe.Add(unsafe.Pointer(unsafe.SliceData(p)), c-dirtyBufFooterSize)
+	if uintptr(ftrPtr)&7 != 0 {
+		return nil
+	}
+	ftr := (*dirtyBufFooter)(ftrPtr)
+	if ftr.magic != dirtyBufMagic {
+		return nil
+	}
+	exp := ftr.exp
+	if exp < 11 || exp > 22 || c > (1<<exp)+dirtyBufFooterSize {
+		return nil
+	}
+	for {
+		cur := ftr.refs.Load()
+		if cur <= 0 {
+			return nil
+		}
+		if ftr.refs.CompareAndSwap(cur, cur+1) {
+			return ftrPtr
+		}
+	}
+}
+
+// ReleaseDirtyBuffer decrements the reference count of a buffer previously
+// pinned by TryPinDirtySlice, returning it to defaultDirtyBufferPool when
+// the reference count reaches zero.
+func ReleaseDirtyBuffer(tok unsafe.Pointer) {
+	if tok == nil {
+		return
+	}
+	ftr := (*dirtyBufFooter)(tok)
+	if ftr.refs.Add(-1) != 0 {
+		return
+	}
+	exp := ftr.exp
+	if exp < 11 || exp > 22 {
+		return
+	}
+	sp := defaultDirtyBufferPool.pools[exp]
+	basePtr := (*byte)(unsafe.Add(tok, -sp.defaultSize))
+	hdr, _ := sliceHeaderPool.Get().(*[]byte)
+	if hdr == nil {
+		s := unsafe.Slice(basePtr, sp.defaultSize+dirtyBufFooterSize)[:sp.defaultSize]
+		hdr = &s
+	} else {
+		*hdr = unsafe.Slice(basePtr, sp.defaultSize+dirtyBufFooterSize)[:sp.defaultSize]
+	}
+	sp.pool.Put(hdr)
 }
 
 // dirtyTieredBufferPool implements mem.BufferPool using power-of-two sub-pools
-// without zeroing buffers upon retrieval.
+// without zeroing buffers upon retrieval. Starting at exp=11 (2048 bytes >
+// grpc/mem.BufferPoolingThreshold=1024) ensures 100% of allocated buffers are
+// wrapped in pooled mem.Buffers and returned via Put.
 type dirtyTieredBufferPool struct {
 	pools [24]*dirtySizedPool
 }
 
 func newDirtyTieredBufferPool() *dirtyTieredBufferPool {
 	p := &dirtyTieredBufferPool{}
-	for exp := 8; exp <= 22; exp++ {
-		p.pools[exp] = &dirtySizedPool{defaultSize: 1 << exp}
+	for exp := 11; exp <= 22; exp++ {
+		p.pools[exp] = &dirtySizedPool{
+			defaultSize: 1 << exp,
+			exp:         uint32(exp),
+		}
 	}
 	return p
 }
@@ -88,8 +196,8 @@ func (p *dirtyTieredBufferPool) Get(size int) *[]byte {
 		b := make([]byte, 0)
 		return &b
 	}
-	exp := 8
-	if size > 256 {
+	exp := 11
+	if size > 2048 {
 		exp = bits.Len(uint(size - 1))
 	}
 	if exp <= 22 {
@@ -104,11 +212,11 @@ func (p *dirtyTieredBufferPool) Put(buf *[]byte) {
 		return
 	}
 	c := cap(*buf)
-	if c < 256 {
+	if c < (1<<11)+dirtyBufFooterSize {
 		return
 	}
 	exp := bits.Len(uint(c)) - 1
-	if exp >= 8 && exp <= 22 {
+	if exp >= 11 && exp <= 22 && c == (1<<exp)+dirtyBufFooterSize {
 		p.pools[exp].Put(buf)
 	}
 }

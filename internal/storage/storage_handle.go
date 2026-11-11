@@ -193,10 +193,10 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 	}
 	clientOpts = append(clientOpts,
 		option.WithGRPCDialOption(grpc_experimental.WithBufferPool(defaultDirtyBufferPool)),
-		option.WithGRPCDialOption(grpc.WithReadBufferSize(32 * 1024)),
+		option.WithGRPCDialOption(grpc.WithReadBufferSize(0)),
 		option.WithGRPCDialOption(grpc.WithSharedWriteBuffer(true)),
-		option.WithGRPCDialOption(grpc.WithInitialWindowSize(4*1024*1024)),
-		option.WithGRPCDialOption(grpc.WithInitialConnWindowSize(32*1024*1024)),
+		option.WithGRPCDialOption(grpc.WithInitialWindowSize(16*1024*1024)),
+		option.WithGRPCDialOption(grpc.WithInitialConnWindowSize(64*1024*1024)),
 	)
 
 	if clientConfig.TracingEnabled {
@@ -217,8 +217,10 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		if sdkmp, ok := mp.(*sdkmetric.MeterProvider); ok {
 			// pass in if sdkmp is of type *sdkmetric.MeterProvider (not a No-op)
 			clientOpts = append(clientOpts, experimental.WithMeterProvider(sdkmp))
+		} else {
+			clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
 		}
-	} else if !clientConfig.EnableGrpcMetrics {
+	} else {
 		clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
 	}
 
@@ -307,9 +309,34 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 			return nil, verifyErr
 		}
 		logger.Infof("DirectPath verification succeeded, continuing with DirectPath.")
+	} else {
+		warmGRPCClientConnectivity(ctx, clientConfig, bucketName, sc, billingProject, enableBidiConfig)
 	}
 	setRetryConfig(ctx, sc, clientConfig)
 	return sc, nil
+}
+
+func warmGRPCClientConnectivity(ctx context.Context, clientConfig *storageutil.StorageClientConfig, bucketName string, sc *storage.Client, billingProject string, enableBidiConfig bool) {
+	if bucketName == "" || clientConfig.CustomEndpoint != "" || clientConfig.AnonymousAccess || clientConfig.KeyFile != "" || clientConfig.TokenUrl != "" || os.Getenv("STORAGE_EMULATOR_HOST_GRPC") != "" {
+		return
+	}
+	warmCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	testObject := nonExistentObjectName
+	if clientConfig.OnlyDir != "" {
+		testObject = clientConfig.OnlyDir + testObject
+	}
+	bh := sc.Bucket(bucketName)
+	if billingProject != "" {
+		bh = bh.UserProject(billingProject)
+	}
+	bh = bh.Retryer(storage.WithMaxAttempts(1))
+	_, _ = bh.Object(testObject).Attrs(warmCtx)
+	if enableBidiConfig {
+		if mrd, err := bh.Object(testObject).NewMultiRangeDownloader(warmCtx); err == nil && mrd != nil {
+			_ = mrd.Close()
+		}
+	}
 }
 
 func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil.StorageClientConfig, bucketName string, sc *storage.Client, billingProject string) error {
