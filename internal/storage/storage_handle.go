@@ -106,6 +106,7 @@ type StorageHandle interface {
 }
 
 type storageClient struct {
+	mu                       sync.Mutex
 	httpClient               *storage.Client
 	grpcClient               *storage.Client
 	grpcClientWithBidiConfig *storage.Client
@@ -623,7 +624,23 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	return
 }
 
+func (sh *storageClient) getClientWithMeta(ctx context.Context, isBucketRapid bool, bucketName string, billingProject string) (client *storage.Client, isStandardGRPC bool, isRealStdGRPC bool, isRealBidiGRPC bool, err error) {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+
+	client, err = sh.getClientLocked(ctx, isBucketRapid, bucketName, billingProject)
+	isStandardGRPC = client != nil && client == sh.grpcClient
+	isRealStdGRPC = isStandardGRPC && sh.grpcClientCreated
+	isRealBidiGRPC = client != nil && client == sh.grpcClientWithBidiConfig && sh.grpcBidiClientCreated
+	return client, isStandardGRPC, isRealStdGRPC, isRealBidiGRPC, err
+}
+
 func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, bucketName string, billingProject string) (*storage.Client, error) {
+	client, _, _, _, err := sh.getClientWithMeta(ctx, isBucketRapid, bucketName, billingProject)
+	return client, err
+}
+
+func (sh *storageClient) getClientLocked(ctx context.Context, isBucketRapid bool, bucketName string, billingProject string) (*storage.Client, error) {
 	var err error
 	// Rapid (zonal) buckets always require a bi-directional streaming gRPC client.
 	if isBucketRapid {
@@ -704,13 +721,12 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 }
 
 func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error) {
-	var client *storage.Client
 	bucketType, err := sh.lookupBucketType(bucketName)
 	if err != nil {
 		return nil, fmt.Errorf("storageLayout call failed: %s", err)
 	}
 
-	client, err = sh.getClient(ctx, bucketType.IsRapid(), bucketName, billingProject)
+	client, isStandardGRPC, isRealStdGRPC, isRealBidiGRPC, err := sh.getClientWithMeta(ctx, bucketType.IsRapid(), bucketName, billingProject)
 	if err != nil {
 		return nil, err
 	}
@@ -719,20 +735,26 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	if billingProject != "" {
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
+	ranNonHNSCheck := false
 	if sh.storageControlClient == nil && sh.clientConfig.EnableMountRetries {
 		err = sh.verifyNonHNSBucketAccess(ctx, storageBucketHandle, bucketName)
 		if err != nil {
 			return nil, fmt.Errorf("bucket access check failed for %q: %s", bucketName, err)
 		}
+		ranNonHNSCheck = true
 	}
-	if bucketType.IsRapid() && client == sh.grpcClientWithBidiConfig && sh.grpcBidiClientCreated {
+	if isRealBidiGRPC {
 		sh.warmBidiGRPCOnce.Do(func() {
-			sh.warmGRPCClientConnectivity(ctx, storageBucketHandle, true)
+			sh.warmGRPCClientConnectivity(context.WithoutCancel(ctx), storageBucketHandle, true)
 		})
-	} else if !bucketType.IsRapid() && client == sh.grpcClient && sh.grpcClientCreated && sh.clientConfig.ClientProtocol == cfg.GRPC {
-		sh.warmGRPCOnce.Do(func() {
-			sh.warmGRPCClientConnectivity(ctx, storageBucketHandle, false)
-		})
+	} else if !bucketType.IsRapid() && isRealStdGRPC && sh.clientConfig.ClientProtocol == cfg.GRPC {
+		if ranNonHNSCheck {
+			sh.warmGRPCOnce.Do(func() {})
+		} else {
+			sh.warmGRPCOnce.Do(func() {
+				sh.warmGRPCClientConnectivity(context.WithoutCancel(ctx), storageBucketHandle, false)
+			})
+		}
 	}
 
 	var controlClient StorageControlClient
@@ -747,7 +769,7 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	disableGrpcReadChecksums := !sh.clientConfig.EnableGrpcReadChecksums
 	// If the user configures an HTTP connection on a Standard (regional) bucket, grpc checksums
 	// do not apply, so we unconditionally disable them regardless of the flag's value.
-	if !bucketType.IsRapid() && client != sh.grpcClient {
+	if !bucketType.IsRapid() && !isStandardGRPC {
 		disableGrpcReadChecksums = true
 	}
 

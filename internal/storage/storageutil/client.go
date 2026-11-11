@@ -100,9 +100,6 @@ type StorageClientConfig struct {
 
 	EnableGrpcMetrics bool
 
-	// IsGKE inspects the mountPoint and indicates if running in a GKE environment.
-	IsGKE bool
-
 	// EnableGrpcByDefault enforces DirectPath connectivity for gRPC and falls back to HTTP if unavailable.
 	EnableGrpcByDefault bool
 

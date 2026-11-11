@@ -1287,7 +1287,7 @@ params:
     proto-tag: 124
     flag-name: "experimental-enable-grpc-metrics"
     type: "bool"
-    usage: "Enables support for gRPC metrics"
+    usage: "Enables support for gRPC metrics when GCSFuse metrics export is enabled (--cloud-metrics-export-interval-secs > 0 or --prometheus-port > 0)."
     default: true
     hide-flag: true
 

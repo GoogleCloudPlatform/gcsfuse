@@ -292,7 +292,6 @@ func createTestFileSystemWithGrpcMetrics(ctx context.Context, t *testing.T, para
 		ClientProtocol:    cfg.GRPC,
 		CustomEndpoint:    lis.Addr().String(),
 		EnableGrpcMetrics: true,
-		IsGKE:             true,
 		AnonymousAccess:   true,
 		MetricHandle:      mh,
 		WriteConfig:       &cfg.WriteConfig{},

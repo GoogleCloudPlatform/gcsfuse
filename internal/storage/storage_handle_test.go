@@ -1241,37 +1241,33 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithGrp
 	oldProvider := otel.GetMeterProvider()
 	defer otel.SetMeterProvider(oldProvider)
 
+	// EnableGrpcMetrics = true with an active *sdkmetric.MeterProvider.
 	sdkProvider := sdkmetric.NewMeterProvider()
 	otel.SetMeterProvider(sdkProvider)
 
 	scWithMetrics := storageutil.GetDefaultStorageClientConfig(keyFile)
 	scWithMetrics.ClientProtocol = cfg.GRPC
 	scWithMetrics.EnableGrpcMetrics = true
-	scWithMetrics.IsGKE = true
 
 	optsWithMetrics, err := createClientOptionForGRPCClient(context.TODO(), &scWithMetrics, false)
-	assert.Nil(testSuite.T(), err)
+	require.NoError(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), optsWithMetrics)
 
-	scNonGKE := scWithMetrics
-	scNonGKE.IsGKE = false
-	optsNonGKE, err := createClientOptionForGRPCClient(context.TODO(), &scNonGKE, false)
-	require.NoError(testSuite.T(), err)
-	assert.NotNil(testSuite.T(), optsNonGKE)
-
+	// EnableGrpcMetrics = true with noop.NewMeterProvider() (WithDisabledClientMetrics).
 	otel.SetMeterProvider(noop.NewMeterProvider())
 	optsNoopMP, err := createClientOptionForGRPCClient(context.TODO(), &scWithMetrics, false)
 	require.NoError(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), optsNoopMP)
 
+	// EnableGrpcMetrics = false (WithDisabledClientMetrics).
 	scWithoutMetrics := storageutil.GetDefaultStorageClientConfig(keyFile)
 	scWithoutMetrics.ClientProtocol = cfg.GRPC
 	scWithoutMetrics.EnableGrpcMetrics = false
 	optsWithoutMetrics, err := createClientOptionForGRPCClient(context.TODO(), &scWithoutMetrics, false)
 	require.NoError(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), optsWithoutMetrics)
+
 	assert.Len(testSuite.T(), optsWithMetrics, len(optsWithoutMetrics))
-	assert.Len(testSuite.T(), optsNonGKE, len(optsWithoutMetrics))
 	assert.Len(testSuite.T(), optsNoopMP, len(optsWithoutMetrics))
 }
 
@@ -1970,6 +1966,256 @@ func (testSuite *StorageHandleTest) TestBucketHandle_WarmGRPCClientConnectivity_
 		assert.Equal(testSuite.T(), int32(0), getObjectCount.Load())
 		assert.Equal(testSuite.T(), int32(0), bidiCount.Load())
 	})
+}
+
+type mockWarmingGRPCStats struct {
+	getObjectCount           atomic.Int32
+	bidiCount                atomic.Int32
+	getObjectCtxNonCancelled atomic.Bool
+	bidiCtxNonCancelled      atomic.Bool
+}
+
+func (s *mockWarmingGRPCStats) reset() {
+	s.getObjectCount.Store(0)
+	s.bidiCount.Store(0)
+	s.getObjectCtxNonCancelled.Store(false)
+	s.bidiCtxNonCancelled.Store(false)
+}
+
+func startMockWarmingGRPCServer(t *testing.T) (string, *mockWarmingGRPCStats, func()) {
+	t.Helper()
+	stats := &mockWarmingGRPCStats{}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	grpcServer := grpc.NewServer(grpc.UnknownServiceHandler(func(srv any, stream grpc.ServerStream) error {
+		method, _ := grpc.MethodFromServerStream(stream)
+		switch method {
+		case "/google.storage.v2.Storage/GetObject":
+			stats.getObjectCount.Add(1)
+			if stream.Context().Err() == nil {
+				stats.getObjectCtxNonCancelled.Store(true)
+			}
+		case "/google.storage.v2.Storage/BidiReadObject":
+			stats.bidiCount.Add(1)
+			if stream.Context().Err() == nil {
+				stats.bidiCtxNonCancelled.Store(true)
+			}
+		}
+		return status.Error(codes.NotFound, "object not found")
+	}))
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	return listener.Addr().String(), stats, grpcServer.Stop
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_Concurrent_InitializesClientAndWarmsOnce() {
+	testSuite.Run("InitializesGRPCClientOnceUnderConcurrency", func() {
+		addr, _, stopServer := startMockWarmingGRPCServer(testSuite.T())
+		defer stopServer()
+
+		testSuite.T().Setenv("STORAGE_EMULATOR_HOST", addr)
+		testSuite.T().Setenv("STORAGE_EMULATOR_HOST_GRPC", addr)
+
+		sh := &storageClient{
+			clientConfig: storageutil.StorageClientConfig{
+				ClientProtocol:  cfg.GRPC,
+				AnonymousAccess: true,
+			},
+		}
+		defer func() {
+			if sh.grpcClient != nil {
+				_ = sh.grpcClient.Close()
+			}
+		}()
+
+		const numGoroutines = 16
+		startCh := make(chan struct{})
+		var wg sync.WaitGroup
+		bhs := make([]*bucketHandle, numGoroutines)
+		errs := make([]error, numGoroutines)
+		for i := range numGoroutines {
+			wg.Add(1)
+			go func(idx int) {
+				defer wg.Done()
+				<-startCh
+				bhs[idx], errs[idx] = sh.BucketHandle(testSuite.ctx, fmt.Sprintf("bucket-%d", idx), "")
+			}(i)
+		}
+		close(startCh)
+		wg.Wait()
+
+		for i := range numGoroutines {
+			require.NoError(testSuite.T(), errs[i])
+			require.NotNil(testSuite.T(), bhs[i])
+		}
+		assert.NotNil(testSuite.T(), sh.grpcClient)
+		assert.True(testSuite.T(), sh.grpcClientCreated)
+	})
+
+	testSuite.Run("WarmsStandardGRPCClientOnceUnderConcurrency", func() {
+		addr, stats, stopServer := startMockWarmingGRPCServer(testSuite.T())
+		defer stopServer()
+
+		testSuite.T().Setenv("STORAGE_EMULATOR_HOST", "")
+		testSuite.T().Setenv("STORAGE_EMULATOR_HOST_GRPC", "")
+
+		client, err := storage.NewGRPCClient(
+			testSuite.ctx,
+			option.WithEndpoint(addr),
+			option.WithoutAuthentication(),
+			option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+			storage.WithDisabledClientMetrics(),
+		)
+		require.NoError(testSuite.T(), err)
+		defer func() { _ = client.Close() }()
+
+		sh := &storageClient{
+			grpcClient:        client,
+			grpcClientCreated: true,
+			clientConfig: storageutil.StorageClientConfig{
+				ClientProtocol: cfg.GRPC,
+			},
+		}
+
+		const numGoroutines = 16
+		startCh := make(chan struct{})
+		var wg sync.WaitGroup
+		bhs := make([]*bucketHandle, numGoroutines)
+		errs := make([]error, numGoroutines)
+		for i := range numGoroutines {
+			wg.Add(1)
+			go func(idx int) {
+				defer wg.Done()
+				<-startCh
+				bhs[idx], errs[idx] = sh.BucketHandle(testSuite.ctx, fmt.Sprintf("bucket-%d", idx), "")
+			}(i)
+		}
+		close(startCh)
+		wg.Wait()
+
+		for i := range numGoroutines {
+			require.NoError(testSuite.T(), errs[i])
+			require.NotNil(testSuite.T(), bhs[i])
+		}
+		assert.Equal(testSuite.T(), int32(1), stats.getObjectCount.Load())
+		assert.Equal(testSuite.T(), int32(0), stats.bidiCount.Load())
+	})
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_WarmGRPCClientConnectivity_IgnoresCancelledCallerContext() {
+	addr, stats, stopServer := startMockWarmingGRPCServer(testSuite.T())
+	defer stopServer()
+
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST", "")
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST_GRPC", "")
+
+	client, err := storage.NewGRPCClient(
+		testSuite.ctx,
+		option.WithEndpoint(addr),
+		option.WithoutAuthentication(),
+		option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		storage.WithGRPCBidiReads(),
+		storage.WithDisabledClientMetrics(),
+	)
+	require.NoError(testSuite.T(), err)
+	defer func() { _ = client.Close() }()
+
+	canceledCtx, cancel := context.WithCancel(testSuite.ctx)
+	cancel()
+
+	testSuite.Run("StandardBucket", func() {
+		stats.reset()
+		sh := &storageClient{
+			grpcClient:        client,
+			grpcClientCreated: true,
+			clientConfig: storageutil.StorageClientConfig{
+				ClientProtocol: cfg.GRPC,
+			},
+		}
+
+		bh1, err := sh.BucketHandle(canceledCtx, TestBucketName, "")
+		require.NoError(testSuite.T(), err)
+		require.NotNil(testSuite.T(), bh1)
+		assert.Equal(testSuite.T(), int32(1), stats.getObjectCount.Load())
+		assert.True(testSuite.T(), stats.getObjectCtxNonCancelled.Load(), "expected warming GetObject RPC to receive a non-cancelled context")
+		assert.Equal(testSuite.T(), int32(0), stats.bidiCount.Load())
+
+		bh2, err := sh.BucketHandle(testSuite.ctx, "second-bucket", "")
+		require.NoError(testSuite.T(), err)
+		require.NotNil(testSuite.T(), bh2)
+		assert.Equal(testSuite.T(), int32(1), stats.getObjectCount.Load())
+	})
+
+	testSuite.Run("RapidBucket", func() {
+		stats.reset()
+		mockCtrl := new(MockStorageControlClient)
+		mockCtrl.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(&controlpb.StorageLayout{
+			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+			LocationType:          zonalLocationType,
+		}, nil)
+
+		sh := &storageClient{
+			grpcClientWithBidiConfig: client,
+			grpcBidiClientCreated:    true,
+			storageControlClient:     mockCtrl,
+			clientConfig: storageutil.StorageClientConfig{
+				ClientProtocol: cfg.GRPC,
+			},
+		}
+
+		bh, err := sh.BucketHandle(canceledCtx, TestBucketName, "")
+		require.NoError(testSuite.T(), err)
+		require.NotNil(testSuite.T(), bh)
+		assert.Equal(testSuite.T(), int32(1), stats.getObjectCount.Load())
+		assert.True(testSuite.T(), stats.getObjectCtxNonCancelled.Load(), "expected warming GetObject RPC to receive a non-cancelled context")
+		assert.Equal(testSuite.T(), int32(1), stats.bidiCount.Load())
+		assert.True(testSuite.T(), stats.bidiCtxNonCancelled.Load(), "expected warming BidiReadObject RPC to receive a non-cancelled context")
+	})
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_StandardBucket_NonHNSWithMountRetries_SendsSingleGetObject() {
+	addr, stats, stopServer := startMockWarmingGRPCServer(testSuite.T())
+	defer stopServer()
+
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST", "")
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST_GRPC", "")
+
+	client, err := storage.NewGRPCClient(
+		testSuite.ctx,
+		option.WithEndpoint(addr),
+		option.WithoutAuthentication(),
+		option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		storage.WithDisabledClientMetrics(),
+	)
+	require.NoError(testSuite.T(), err)
+	defer func() { _ = client.Close() }()
+
+	sh := &storageClient{
+		grpcClient:           client,
+		grpcClientCreated:    true,
+		storageControlClient: nil,
+		clientConfig: storageutil.StorageClientConfig{
+			EnableHNS:          false,
+			EnableMountRetries: true,
+			ClientProtocol:     cfg.GRPC,
+			MaxRetryAttempts:   1,
+			MaxRetrySleep:      time.Microsecond,
+			RetryMultiplier:    1.0,
+		},
+	}
+
+	bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+	require.NoError(testSuite.T(), err)
+	require.NotNil(testSuite.T(), bh)
+	assert.Equal(testSuite.T(), int32(1), stats.getObjectCount.Load(), "expected only 1 GetObject RPC from verifyNonHNSBucketAccess, without duplicate warming RPC")
+	assert.Equal(testSuite.T(), int32(0), stats.bidiCount.Load())
+
+	warmedAgain := false
+	sh.warmGRPCOnce.Do(func() {
+		warmedAgain = true
+	})
+	assert.False(testSuite.T(), warmedAgain, "expected warmGRPCOnce to be marked completed")
 }
 
 func (testSuite *StorageHandleTest) TestBucketHandle_WarmGRPCClientConnectivity_IndependentTimeoutsWhenAttrsStalls() {

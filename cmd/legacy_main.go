@@ -171,7 +171,7 @@ func getMountConfigsHeader(mountConfig *cfg.Config, mountInstanceID string) stri
 	return base64.RawURLEncoding.EncodeToString(data)
 }
 
-func createStorageHandle(newConfig *cfg.Config, userAgent string, mountConfigsHeader string, metricHandle metrics.MetricHandle, isGKE bool, isDynamicMount bool) (storageHandle storage.StorageHandle, err error) {
+func createStorageHandle(newConfig *cfg.Config, userAgent string, mountConfigsHeader string, metricHandle metrics.MetricHandle, isDynamicMount bool) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             newConfig.GcsConnection.ClientProtocol,
 		MaxConnsPerHost:            int(newConfig.GcsConnection.MaxConnsPerHost),
@@ -203,7 +203,6 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, mountConfigsHe
 		S2AAddress:                 newConfig.GcsAuth.S2aAddress,
 		S2ASpiffeID:                newConfig.GcsAuth.S2aSpiffeId,
 		EnableGrpcMetrics:          newConfig.Metrics.ExperimentalEnableGrpcMetrics,
-		IsGKE:                      isGKE,
 		EnableGrpcByDefault:        newConfig.GcsConnection.EnableGrpcByDefault,
 		WriteConfig:                &newConfig.Write,
 	}
@@ -228,8 +227,6 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	if newConfig.Debug.LogMutex {
 		locker.EnableDebugMessages()
 	}
-	// Parse the mountPoint string and detect whether or not in GKE environment
-	isGKE := cfg.IsGKEEnvironment(mountPoint)
 
 	// Grab the connection.
 	//
@@ -241,7 +238,7 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig), mountInstanceID)
 		mountConfigsHeader := getMountConfigsHeader(newConfig, mountInstanceID)
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(newConfig, userAgent, mountConfigsHeader, metricHandle, isGKE, isDynamicMount(bucketName))
+		storageHandle, err = createStorageHandle(newConfig, userAgent, mountConfigsHeader, metricHandle, isDynamicMount(bucketName))
 		if err != nil {
 			err = fmt.Errorf("failed to create storage handle using createStorageHandle: %w", err)
 			return

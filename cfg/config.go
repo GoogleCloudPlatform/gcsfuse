@@ -1107,7 +1107,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.BoolP("experimental-enable-grpc-metrics", "", true, "Enables support for gRPC metrics")
+	flagSet.BoolP("experimental-enable-grpc-metrics", "", true, "Enables support for gRPC metrics when GCSFuse metrics export is enabled (--cloud-metrics-export-interval-secs > 0 or --prometheus-port > 0).")
 
 	if err := flagSet.MarkHidden("experimental-enable-grpc-metrics"); err != nil {
 		return err
