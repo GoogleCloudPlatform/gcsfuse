@@ -276,8 +276,7 @@ func (wh *unbufferedWriteHandlerImpl) ensureWriter(ctx context.Context) error {
 	return nil
 }
 
-// handleUploadFailure makes err the sticky error of the upload and cancels the
-// upload.
+// handleUploadFailure records err as a sticky upload error and cancels any active // upload.
 func (wh *unbufferedWriteHandlerImpl) handleUploadFailure(err error) {
 	wh.uploadError = err
 	if wh.cancelFunc != nil {
