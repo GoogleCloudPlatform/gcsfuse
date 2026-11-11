@@ -97,7 +97,10 @@ def main():
         description="Run GCSFuse gRPC FIO read benchmark with CPU telemetry"
     )
     parser.add_argument(
-        "--bucket", default=os.environ.get("BUCKET", "kislayk-c4-usw4-hns")
+        "--bucket",
+        default=os.environ.get(
+            "BUCKET", os.environ.get("BUCKET_NAME", "kislayk-c4-usw4-hns")
+        ),
     )
     parser.add_argument("--mnt", default="/mnt/gcs")
     parser.add_argument(
@@ -109,10 +112,14 @@ def main():
     )
     parser.add_argument("--fio-cpus", default=os.environ.get("FIO_CPUS", None))
     parser.add_argument(
-        "--numjobs", type=int, default=int(os.environ.get("NUMJOBS", "112"))
+        "--numjobs", type=int, default=int(os.environ.get("NUMJOBS", "56"))
     )
     parser.add_argument(
-        "--nrfiles", type=int, default=int(os.environ.get("NR_FILES", "2"))
+        "--nrfiles",
+        type=int,
+        default=int(
+            os.environ.get("NR_FILES", os.environ.get("NRFILES", "3"))
+        ),
     )
     parser.add_argument("--bs", default=os.environ.get("BLOCK_SIZE", "1M"))
     parser.add_argument("--filesize", default=os.environ.get("FILE_SIZE", "1G"))

@@ -13,18 +13,30 @@
 # limitations under the License.
 
 # Build the optimized gcsfuse .deb package (referencing kislaykishore/fuse-pool)
-# and run the 1 MiB / 1 GiB / 112-job gRPC read FIO benchmark to demonstrate
-# maximum throughput (~20-21+ GB/s) with reduced CPU core usage (< 50 cores):
+# and run the 1 MiB / 1 GiB / 56-job gRPC read FIO benchmark to demonstrate
+# maximum throughput (~20.3-21.1 GB/s) with reduced CPU core usage (15-24 physical cores):
 #
 #   docker build -t gcsfuse-grpc-opt .
 #
-#   # Example 1: Restrict container to 26 physical cores (16-41) via Docker cpuset:
-#   docker run --rm --privileged --network=host --cpuset-cpus="16-41" \
+#   # Example 1: Restrict container to 23 physical cores / 23 vCPUs (16-38) -> ~20.31 GB/s:
+#   docker run --rm --privileged --network=host --cpuset-cpus="16-38" \
 #     gcsfuse-grpc-opt --bucket kislayk-c4-usw4-hns
 #
-#   # Example 2: Restrict container to 18 physical cores / 36 vCPUs (16-33,64-81):
-#   docker run --rm --privileged --network=host --cpuset-cpus="16-33,64-81" \
+#   # Example 2: Restrict container to 24 physical cores / 24 vCPUs (16-39) -> ~20.51 GB/s:
+#   docker run --rm --privileged --network=host --cpuset-cpus="16-39" \
 #     gcsfuse-grpc-opt --bucket kislayk-c4-usw4-hns
+#
+#   # Example 3: Restrict container to 15 physical cores / 30 vCPUs (16-30,64-78) -> ~20.30 GB/s:
+#   docker run --rm --privileged --network=host --cpuset-cpus="16-30,64-78" \
+#     gcsfuse-grpc-opt --bucket kislayk-c4-usw4-hns
+#
+#   # Example 4: Restrict container to 16 physical cores / 32 vCPUs (16-31,64-79) -> ~20.87 GB/s:
+#   docker run --rm --privileged --network=host --cpuset-cpus="16-31,64-79" \
+#     gcsfuse-grpc-opt --bucket kislayk-c4-usw4-hns
+#
+#   # Example 5: Restrict container to 26 physical cores (16-41) with NUMJOBS=72 -> ~21.06 GB/s:
+#   docker run --rm --privileged --network=host --cpuset-cpus="16-41" \
+#     gcsfuse-grpc-opt --bucket kislayk-c4-usw4-hns --numjobs 72
 
 ARG GO_VERSION=1.27.2
 
