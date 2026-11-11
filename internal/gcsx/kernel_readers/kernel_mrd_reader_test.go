@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -36,6 +37,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/mem"
 	"google.golang.org/grpc/status"
 )
 
@@ -359,4 +361,202 @@ func (t *KernelMRDReaderTest) TestReadAt_ContextCanceled() {
 
 	assert.ErrorIs(t.T(), err, context.Canceled)
 	assert.Equal(t.T(), 0, resp.Size)
+}
+
+type pinnedFakeMRD struct {
+	gcs.MultiRangeDownloader
+	addFn func(output io.Writer, offset, length int64, callback func(int64, int64, error))
+}
+
+func (m *pinnedFakeMRD) Add(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+	m.addFn(output, offset, length, callback)
+}
+
+func (m *pinnedFakeMRD) Close() error      { return nil }
+func (m *pinnedFakeMRD) Wait()             {}
+func (m *pinnedFakeMRD) Error() error      { return nil }
+func (m *pinnedFakeMRD) GetHandle() []byte { return nil }
+
+func (t *KernelMRDReaderTest) TestReadAt_PartialShortReadWithPinnedBuffer_OutOfRangeRetryPreservesPrefix() {
+	outOfRangeErr := status.Error(codes.OutOfRange, "out of range")
+	pool := mem.DefaultBufferPool()
+	rawBuf := pool.Get(2048)
+	copy((*rawBuf)[:6], "hello ")
+	pinnedSlice := (*rawBuf)[:6]
+
+	firstMRD := &pinnedFakeMRD{
+		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+			n, _ := output.Write(pinnedSlice)
+			pool.Put(rawBuf)
+			callback(offset, int64(n), outOfRangeErr)
+		},
+	}
+	secondMRD := fake.NewFakeMultiRangeDownloader(t.object, []byte("hello world"))
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(firstMRD, nil).Once()
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(secondMRD, nil).Once()
+
+	buf := make([]byte, 11)
+	resp, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: 0,
+	})
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 11, resp.Size)
+	assert.Equal(t.T(), "hello world", string(buf))
+	t.bucket.AssertExpectations(t.T())
+}
+
+func (t *KernelMRDReaderTest) TestAcquirePrefetchChunk_OutOfOrderConcurrentReadahead_DoesNotPrematurelyEvict() {
+	t.object.Size = 16 * gcsx.MiB
+	data := bytes.Repeat([]byte("A"), int(t.object.Size))
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, data)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+
+	// Seed prefetch queue at offset 1 MiB.
+	t.reader.mu.Lock()
+	t.reader.lastReadEnd = 1 * gcsx.MiB
+	t.reader.nextPrefetchOffset = 1 * gcsx.MiB
+	t.reader.seqReads = 1
+	t.reader.schedulePrefetchLocked()
+	// First chunk is [1 MiB, 3 MiB) (2 MiB initialPrefetchChunkSize), second is [3 MiB, 7 MiB).
+	assert.Len(t.T(), t.reader.chunks, 2)
+	assert.Equal(t.T(), int64(1*gcsx.MiB), t.reader.chunks[0].Offset)
+	assert.Equal(t.T(), int(2*gcsx.MiB), t.reader.chunks[0].Length)
+	t.reader.mu.Unlock()
+
+	// Out-of-order lock acquisition: [2 MiB, 3 MiB) acquires lock before [1 MiB, 2 MiB).
+	c2, s2, e2 := t.reader.acquirePrefetchChunk(2*gcsx.MiB, 1*gcsx.MiB)
+	assert.NotNil(t.T(), c2)
+	assert.Equal(t.T(), int(1*gcsx.MiB), s2)
+	assert.Equal(t.T(), int(2*gcsx.MiB), e2)
+
+	// Chunk [1 MiB, 3 MiB) must still be in kmr.chunks because only 1 MiB of 2 MiB was consumed.
+	t.reader.mu.Lock()
+	assert.Equal(t.T(), int64(1*gcsx.MiB), t.reader.chunks[0].Offset)
+	assert.Equal(t.T(), int64(3*gcsx.MiB), t.reader.lastReadEnd)
+	t.reader.mu.Unlock()
+
+	// Now [1 MiB, 2 MiB) acquires lock: should hit the same chunk, evict it as fully consumed,
+	// preserve the lookahead queue, and keep lastReadEnd monotonic at 3 MiB.
+	c1, s1, e1 := t.reader.acquirePrefetchChunk(1*gcsx.MiB, 1*gcsx.MiB)
+	assert.Same(t.T(), c2, c1)
+	assert.Equal(t.T(), 0, s1)
+	assert.Equal(t.T(), int(1*gcsx.MiB), e1)
+
+	t.reader.mu.Lock()
+	assert.NotEmpty(t.T(), t.reader.chunks)
+	assert.Equal(t.T(), int64(3*gcsx.MiB), t.reader.chunks[0].Offset)
+	assert.Equal(t.T(), int64(3*gcsx.MiB), t.reader.lastReadEnd)
+	t.reader.mu.Unlock()
+
+	c1.Release()
+	c2.Release()
+	t.reader.Destroy()
+}
+
+func (t *KernelMRDReaderTest) TestReadAt_InvalidatesPrefetchOnGenerationOrSizeChange() {
+	t.object.Size = 8 * gcsx.MiB
+	oldData := bytes.Repeat([]byte("O"), int(t.object.Size))
+	fakeMRD1 := fake.NewFakeMultiRangeDownloader(t.object, oldData)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD1, nil).Once()
+
+	// Seed prefetch queue for generation 1234 starting at offset 1 MiB.
+	t.reader.mu.Lock()
+	t.reader.lastReadEnd = 1 * gcsx.MiB
+	t.reader.nextPrefetchOffset = 1 * gcsx.MiB
+	t.reader.seqReads = 1
+	t.reader.schedulePrefetchLocked()
+	assert.NotEmpty(t.T(), t.reader.chunks)
+	t.reader.mu.Unlock()
+
+	// Update object generation to 1235 with new data.
+	newObj := &gcs.MinObject{
+		Name:       t.object.Name,
+		Size:       8 * gcsx.MiB,
+		Generation: 1235,
+	}
+	newData := bytes.Repeat([]byte("N"), int(newObj.Size))
+	fakeMRD2 := fake.NewFakeMultiRangeDownloader(newObj, newData)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD2, nil).Once()
+	assert.NoError(t.T(), t.mrdInstance.SetMinObject(newObj))
+
+	// Read [1 MiB, 2 MiB): must invalidate stale gen-1234 prefetch chunks and serve new gen-1235 data.
+	buf := make([]byte, 1*gcsx.MiB)
+	resp, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: 1 * gcsx.MiB,
+	})
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 1*gcsx.MiB, resp.Size)
+	assert.Equal(t.T(), byte('N'), buf[0])
+	if resp.Callback != nil {
+		resp.Callback()
+	}
+
+	// Re-seed prefetch queue for gen 1235, then simulate truncation to 512 KiB.
+	t.reader.mu.Lock()
+	t.reader.lastReadEnd = 1 * gcsx.MiB
+	t.reader.nextPrefetchOffset = 1 * gcsx.MiB
+	t.reader.seqReads = 1
+	t.reader.schedulePrefetchLocked()
+	assert.NotEmpty(t.T(), t.reader.chunks)
+	t.reader.mu.Unlock()
+
+	truncatedObj := &gcs.MinObject{
+		Name:       t.object.Name,
+		Size:       512 * 1024,
+		Generation: 1235,
+	}
+	assert.NoError(t.T(), t.mrdInstance.SetMinObject(truncatedObj))
+
+	chunk, _, _ := t.reader.acquirePrefetchChunk(1*gcsx.MiB, 1*gcsx.MiB)
+	assert.Nil(t.T(), chunk)
+	t.reader.mu.Lock()
+	assert.Empty(t.T(), t.reader.chunks)
+	t.reader.mu.Unlock()
+}
+
+func (t *KernelMRDReaderTest) TestReadAt_SmallReadsConsumeAndClearPrefetch() {
+	t.object.Size = 8 * gcsx.MiB
+	data := bytes.Repeat([]byte("P"), int(t.object.Size))
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, data)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+
+	// Seed prefetch queue at offset 256 KiB.
+	t.reader.mu.Lock()
+	t.reader.lastReadEnd = 256 * 1024
+	t.reader.nextPrefetchOffset = 256 * 1024
+	t.reader.seqReads = 1
+	t.reader.schedulePrefetchLocked()
+	assert.Len(t.T(), t.reader.chunks, 2)
+	t.reader.mu.Unlock()
+
+	// 1. Small sequential read (< minPrefetchReadSize = 256 KiB) at offset 256 KiB hits prefetched chunk.
+	smallSeqBuf := make([]byte, 64*1024)
+	resp, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: smallSeqBuf,
+		Offset: 256 * 1024,
+	})
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 64*1024, resp.Size)
+	assert.NotNil(t.T(), resp.Callback, "Small sequential read should be served zero-copy from prefetched chunk")
+	resp.Callback()
+
+	// 2. Small random read (< 256 KiB) outside prefetched range clears stale lookahead chunks.
+	smallRandBuf := make([]byte, 4096)
+	resp2, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: smallRandBuf,
+		Offset: 7 * gcsx.MiB,
+	})
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 4096, resp2.Size)
+	if resp2.Callback != nil {
+		resp2.Callback()
+	}
+
+	t.reader.mu.Lock()
+	assert.Empty(t.T(), t.reader.chunks, "Small random read must clear stale prefetched chunks")
+	assert.Equal(t.T(), 0, t.reader.seqReads)
+	t.reader.mu.Unlock()
 }

@@ -207,6 +207,9 @@ type readInfo struct {
 }
 
 func (rr *randomReader) CheckInvariants() {
+	rr.mu.Lock()
+	defer rr.mu.Unlock()
+
 	// INVARIANT: (reader == nil) == (cancel == nil)
 	if (rr.reader == nil) != (rr.cancel == nil) {
 		panic(fmt.Sprintf("Mismatch: %v vs. %v", rr.reader == nil, rr.cancel == nil))
@@ -538,6 +541,7 @@ func (rr *randomReader) startRead(ctx context.Context, start int64, end int64, r
 	var notFoundError *gcs.NotFoundError
 	if errors.As(err, &notFoundError) {
 		defer cancel()
+		rr.reader = nil
 		err = &gcsfuse_errors.FileClobberedError{
 			Err:        fmt.Errorf("NewReader: %w", err),
 			ObjectName: rr.object.Name,
@@ -547,6 +551,7 @@ func (rr *randomReader) startRead(ctx context.Context, start int64, end int64, r
 
 	if err != nil {
 		defer cancel()
+		rr.reader = nil
 		err = fmt.Errorf("NewReaderWithReadHandle: %w", err)
 		return
 	}

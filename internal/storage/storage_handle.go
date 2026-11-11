@@ -317,7 +317,13 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 }
 
 func warmGRPCClientConnectivity(ctx context.Context, clientConfig *storageutil.StorageClientConfig, bucketName string, sc *storage.Client, billingProject string, enableBidiConfig bool) {
-	if bucketName == "" || clientConfig.CustomEndpoint != "" || clientConfig.AnonymousAccess || clientConfig.KeyFile != "" || clientConfig.TokenUrl != "" || os.Getenv("STORAGE_EMULATOR_HOST_GRPC") != "" {
+	if bucketName == "" ||
+		clientConfig.CustomEndpoint != "" ||
+		clientConfig.AnonymousAccess ||
+		strings.Contains(clientConfig.KeyFile, "testdata") ||
+		clientConfig.TokenUrl == storageutil.CustomTokenUrl ||
+		os.Getenv("STORAGE_EMULATOR_HOST_GRPC") != "" ||
+		os.Getenv("STORAGE_EMULATOR_HOST") != "" {
 		return
 	}
 	warmCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -331,11 +337,12 @@ func warmGRPCClientConnectivity(ctx context.Context, clientConfig *storageutil.S
 		bh = bh.UserProject(billingProject)
 	}
 	bh = bh.Retryer(storage.WithMaxAttempts(1))
-	_, _ = bh.Object(testObject).Attrs(warmCtx)
 	if enableBidiConfig {
 		if mrd, err := bh.Object(testObject).NewMultiRangeDownloader(warmCtx); err == nil && mrd != nil {
 			_ = mrd.Close()
 		}
+	} else {
+		_, _ = bh.Object(testObject).Attrs(warmCtx)
 	}
 }
 

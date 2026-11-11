@@ -243,9 +243,10 @@ type largeReadState struct {
 // to coalesce small ALTS socket reads into 512 KiB non-blocking reads.
 type largeReadTCPConn struct {
 	*net.TCPConn
-	raw    syscall.RawConn
-	state  largeReadState
-	doRead func(fd uintptr) bool
+	raw                 syscall.RawConn
+	state               largeReadState
+	doRead              func(fd uintptr) bool
+	drainInitialALTSBuf atomic.Bool
 }
 
 func wrapLargeReadTCPConn(conn net.Conn) net.Conn {
@@ -266,19 +267,21 @@ func wrapLargeReadTCPConn(conn net.Conn) net.Conn {
 	}
 	c.doRead = func(fd uintptr) bool {
 		s := &c.state
-		if preseededALTSPool.CompareAndSwap(false, true) {
-			for range 64 {
-				b := make([]byte, s.bufSize)
-				s.pool.Put(&b)
+		if c.drainInitialALTSBuf.CompareAndSwap(true, false) && s.pool != defaultDirtyBufferPool {
+			cand := s.pool.Get(altsInitialProtectedCap)
+			if cap(*cand) >= s.bufSize {
+				*cand = (*cand)[:s.bufSize]
+			} else {
+				*cand = make([]byte, s.bufSize)
 			}
-		}
-		cand := s.pool.Get(altsInitialProtectedCap)
-		if cap(*cand) >= s.bufSize {
-			*cand = (*cand)[:s.bufSize]
 			s.buf = cand
+			if preseededALTSPool.CompareAndSwap(false, true) {
+				for range 64 {
+					b := make([]byte, s.bufSize)
+					s.pool.Put(&b)
+				}
+			}
 		} else {
-			// Discard any initial 36 KiB ALTS buffer so only >= 512 KiB buffers
-			// remain in readBufPool.
 			s.buf = s.pool.Get(s.bufSize)
 		}
 		s.bytesRead, s.readError = syscall.Read(int(fd), *s.buf)
@@ -292,38 +295,28 @@ func wrapLargeReadTCPConn(conn net.Conn) net.Conn {
 }
 
 func (c *largeReadTCPConn) Read(b []byte) (int, error) {
-	// Any read into the initial 36 KiB ALTS protected buffer has
-	// cap(b) <= altsInitialProtectedCap (36,864 bytes), whereas ALTS handshake
-	// reads use 64 KiB and upgraded buffers use 512 KiB.
-	// Read only the exact remaining bytes of the single in-progress ALTS record
-	// so nextFrame is empty after decryption, causing dropProtectedIfEmtpy() to
-	// release the 36 KiB buffer and invoke ReadOnReady to upgrade the connection
-	// to a 512 KiB protected buffer.
-	if len(b) > 0 && len(b) == cap(b) && cap(b) <= altsInitialProtectedCap {
-		already := altsInitialProtectedCap - cap(b)
-		basePtr := unsafe.Add(unsafe.Pointer(&b[0]), -already)
-		fullBuf := unsafe.Slice((*byte)(basePtr), altsInitialProtectedCap)
-		readSoFar := 0
-		if already < 4 {
-			needHdr := 4 - already
-			if needHdr <= len(b) {
-				n, err := io.ReadFull(c.TCPConn, b[:needHdr])
-				readSoFar += n
-				if err != nil {
-					return readSoFar, err
-				}
-			}
+	// An initial 36 KiB ALTS protected buffer passed by alts.conn.ReadOnReady
+	// has len(b) == altsInitialProtectedCap && cap(b) == altsInitialProtectedCap
+	// (36,864 bytes), whereas ALTS handshake reads use 64 KiB and upgraded
+	// buffers use 512 KiB.
+	// Read only the exact bytes of the single initial ALTS record so nextFrame
+	// is empty after decryption, causing dropProtectedIfEmtpy() to release the
+	// 36 KiB buffer and invoke ReadOnReady to upgrade the connection to a
+	// 512 KiB protected buffer.
+	if len(b) == altsInitialProtectedCap && cap(b) == altsInitialProtectedCap {
+		n, err := io.ReadFull(c.TCPConn, b[:8])
+		if err != nil {
+			return n, err
 		}
-		frameLen := int(binary.LittleEndian.Uint32(fullBuf[:4]))
+		frameLen := int(binary.LittleEndian.Uint32(b[:4]))
+		msgType := binary.LittleEndian.Uint32(b[4:8])
 		totalFrame := 4 + frameLen
-		needTotal := totalFrame - already
-		if frameLen > 0 && needTotal > readSoFar && needTotal <= len(b) {
-			n, err := io.ReadFull(c.TCPConn, b[readSoFar:needTotal])
-			return readSoFar + n, err
+		if msgType == 6 && frameLen >= 20 && totalFrame <= len(b) {
+			c.drainInitialALTSBuf.Store(true)
+			m, err := io.ReadFull(c.TCPConn, b[8:totalFrame])
+			return n + m, err
 		}
-		if readSoFar > 0 {
-			return readSoFar, nil
-		}
+		return n, nil
 	}
 	return c.TCPConn.Read(b)
 }

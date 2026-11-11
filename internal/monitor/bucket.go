@@ -17,6 +17,7 @@ package monitor
 import (
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	storagev2 "cloud.google.com/go/storage"
@@ -250,7 +251,10 @@ func (mrc *monitoringReadCloser) ReadVectored(p []byte) (data [][]byte, n int, c
 		mrc.metricHandle.GcsReadBytesCount(int64(n))
 		return
 	}
-	n, err = mrc.Read(p)
+	n, err = io.ReadFull(mrc, p)
+	if err == io.ErrUnexpectedEOF {
+		err = io.EOF
+	}
 	return nil, n, nil, err
 }
 

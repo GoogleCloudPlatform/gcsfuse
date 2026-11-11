@@ -1416,8 +1416,8 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 		Read: cfg.ReadConfig{
 			EnableBufferedRead:   true,
 			MaxBlocksPerHandle:   10,
-			StartBlocksPerHandle: 2,
-			BlockSizeMb:          1,
+			StartBlocksPerHandle: 0,
+			BlockSizeMb:          3,
 			RandomSeekThreshold:  3,
 		},
 	}
@@ -1533,4 +1533,262 @@ func getWriteContext() *inode.WriteContext {
 		TraceHandle:        tracing.NewNoopTracer(),
 		MetricHandle:       metrics.NewNoopMetrics(),
 	}
+}
+
+func (t *fileTest) Test_IsValidReadManagerRLocked() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	const objectName = "test_obj_rm_rlocked"
+	const objectContent = "some data"
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, objectName, []byte(objectContent), false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+	fh.mu.RLock()
+	defer fh.mu.RUnlock()
+	fh.inode.Lock()
+	defer fh.inode.Unlock()
+
+	// Nil readManager should return false.
+	fh.readManager = nil
+	assert.False(t.T(), fh.isValidReadManagerRLocked())
+
+	// Matching generation and size should return true.
+	minObj := in.Source()
+	fh.readManager = read_manager.NewReadManager(minObj, &t.bucket, &read_manager.ReadManagerConfig{Config: config})
+	assert.True(t.T(), fh.isValidReadManagerRLocked())
+
+	// Matching generation but mismatched size should return false without mutating Object().Size.
+	minObjSizeMismatch := in.Source()
+	minObjSizeMismatch.Size = 999
+	fh.readManager = read_manager.NewReadManager(minObjSizeMismatch, &t.bucket, &read_manager.ReadManagerConfig{Config: config})
+	assert.False(t.T(), fh.isValidReadManagerRLocked())
+	assert.Equal(t.T(), uint64(999), fh.readManager.Object().Size)
+}
+
+func (t *fileTest) Test_IsValidReaderRLocked() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	const objectName = "test_obj_reader_rlocked"
+	const objectContent = "some data"
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, objectName, []byte(objectContent), false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+	fh.mu.RLock()
+	defer fh.mu.RUnlock()
+	fh.inode.Lock()
+	defer fh.inode.Unlock()
+
+	// Nil reader should return false.
+	fh.reader = nil
+	assert.False(t.T(), fh.isValidReaderRLocked())
+
+	// Matching generation and size should return true.
+	minObj := in.Source()
+	fh.reader = gcsx.NewRandomReader(minObj, &t.bucket, 200, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), in.MRDWrapper, config, 0)
+	assert.True(t.T(), fh.isValidReaderRLocked())
+
+	// Matching generation but mismatched size should return false without mutating Object().Size.
+	minObjSizeMismatch := in.Source()
+	minObjSizeMismatch.Size = 999
+	fh.reader = gcsx.NewRandomReader(minObjSizeMismatch, &t.bucket, 200, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), in.MRDWrapper, config, 0)
+	assert.False(t.T(), fh.isValidReaderRLocked())
+	assert.Equal(t.T(), uint64(999), fh.reader.Object().Size)
+}
+
+func (t *fileTest) Test_ReadWithReadManager_CallbackAndPartialEOFHandling() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	objectData := []byte("data")
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_cb", objectData, false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+	dst := make([]byte, 100)
+
+	t.Run("PartialReadWithEOF_PreservesResponseAndCallback", func() {
+		cbCalled := false
+		expectedResp := gcsx.ReadResponse{
+			Size:     4,
+			Callback: func() { cbCalled = true },
+		}
+		object := *in.Source()
+		mockRM := new(read_manager.MockReadManager)
+		mockRM.On("Object").Return(&object)
+		mockRM.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(expectedResp, io.EOF).Once()
+		fh.readManager = mockRM
+
+		fh.inode.Lock()
+		resp, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{Buffer: dst, Offset: 0}, 200)
+
+		assert.ErrorIs(t.T(), err, io.EOF)
+		assert.Equal(t.T(), 4, resp.Size)
+		assert.NotNil(t.T(), resp.Callback)
+		assert.False(t.T(), cbCalled)
+		resp.Callback()
+		assert.True(t.T(), cbCalled)
+		mockRM.AssertExpectations(t.T())
+	})
+
+	t.Run("ZeroByteEOF_InvokesCallback", func() {
+		cbCalled := false
+		expectedResp := gcsx.ReadResponse{
+			Size:     0,
+			Callback: func() { cbCalled = true },
+		}
+		object := *in.Source()
+		mockRM := new(read_manager.MockReadManager)
+		mockRM.On("Object").Return(&object)
+		mockRM.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(expectedResp, io.EOF).Once()
+		fh.readManager = mockRM
+
+		fh.inode.Lock()
+		resp, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{Buffer: dst, Offset: 0}, 200)
+
+		assert.ErrorIs(t.T(), err, io.EOF)
+		assert.Zero(t.T(), resp.Size)
+		assert.Nil(t.T(), resp.Callback)
+		assert.True(t.T(), cbCalled)
+		mockRM.AssertExpectations(t.T())
+	})
+
+	t.Run("ErrorWithCallback_InvokesCallback", func() {
+		cbCalled := false
+		expectedResp := gcsx.ReadResponse{
+			Size:     4,
+			Callback: func() { cbCalled = true },
+		}
+		object := *in.Source()
+		mockRM := new(read_manager.MockReadManager)
+		mockRM.On("Object").Return(&object)
+		mockRM.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(expectedResp, errors.New("boom")).Once()
+		fh.readManager = mockRM
+
+		fh.inode.Lock()
+		resp, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{Buffer: dst, Offset: 0}, 200)
+
+		assert.ErrorContains(t.T(), err, "boom")
+		assert.Zero(t.T(), resp.Size)
+		assert.Nil(t.T(), resp.Callback)
+		assert.True(t.T(), cbCalled)
+		mockRM.AssertExpectations(t.T())
+	})
+}
+
+func (t *fileTest) Test_TryFastReadWithReadManager_CallbackAndPartialEOFHandling() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	objectData := []byte("data")
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_fast_cb", objectData, false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+	dst := make([]byte, 100)
+
+	t.Run("SizeMismatch_ReturnsNotHandled", func() {
+		object := *in.Source()
+		object.Size = 999
+		mockRM := new(read_manager.MockReadManager)
+		mockRM.On("Object").Return(&object)
+		fh.readManager = mockRM
+
+		resp, handled, err := fh.TryFastReadWithReadManager(t.ctx, &gcsx.ReadRequest{Buffer: dst, Offset: 0})
+
+		assert.NoError(t.T(), err)
+		assert.False(t.T(), handled)
+		assert.Zero(t.T(), resp.Size)
+		assert.Equal(t.T(), uint64(999), object.Size)
+	})
+
+	t.Run("PartialReadWithEOF_PreservesResponseAndCallback", func() {
+		cbCalled := false
+		expectedResp := gcsx.ReadResponse{
+			Size:     4,
+			Callback: func() { cbCalled = true },
+		}
+		object := *in.Source()
+		mockRM := new(read_manager.MockReadManager)
+		mockRM.On("Object").Return(&object)
+		mockRM.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(expectedResp, io.EOF).Once()
+		fh.readManager = mockRM
+
+		resp, handled, err := fh.TryFastReadWithReadManager(t.ctx, &gcsx.ReadRequest{Buffer: dst, Offset: 0})
+
+		assert.True(t.T(), handled)
+		assert.ErrorIs(t.T(), err, io.EOF)
+		assert.Equal(t.T(), 4, resp.Size)
+		assert.NotNil(t.T(), resp.Callback)
+		assert.False(t.T(), cbCalled)
+		resp.Callback()
+		assert.True(t.T(), cbCalled)
+		mockRM.AssertExpectations(t.T())
+	})
+
+	t.Run("ErrorWithCallback_InvokesCallback", func() {
+		cbCalled := false
+		expectedResp := gcsx.ReadResponse{
+			Size:     4,
+			Callback: func() { cbCalled = true },
+		}
+		object := *in.Source()
+		mockRM := new(read_manager.MockReadManager)
+		mockRM.On("Object").Return(&object)
+		mockRM.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(expectedResp, errors.New("fast boom")).Once()
+		fh.readManager = mockRM
+
+		resp, handled, err := fh.TryFastReadWithReadManager(t.ctx, &gcsx.ReadRequest{Buffer: dst, Offset: 0})
+
+		assert.True(t.T(), handled)
+		assert.ErrorContains(t.T(), err, "fast boom")
+		assert.Zero(t.T(), resp.Size)
+		assert.Nil(t.T(), resp.Callback)
+		assert.True(t.T(), cbCalled)
+		mockRM.AssertExpectations(t.T())
+	})
+}
+
+func (t *fileTest) Test_Read_ConcurrentWithCheckInvariants() {
+	const (
+		fileSize    = 512 * 1024 // 512 KiB
+		numReaders  = 10
+		maxReadSize = 16 * 1024 // 16 KiB
+	)
+	objectContent := make([]byte, fileSize)
+	_, err := crypto_rand.Read(objectContent)
+	require.NoError(t.T(), err)
+
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, &cfg.Config{}, parent, "concurrent_invariants_obj", objectContent, false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{}, nil, nil, 0)
+
+	stopInvariants := make(chan struct{})
+	var invWg sync.WaitGroup
+	invWg.Add(1)
+	go func() {
+		defer invWg.Done()
+		for {
+			select {
+			case <-stopInvariants:
+				return
+			default:
+				fh.mu.RLock()
+				fh.checkInvariants()
+				fh.mu.RUnlock()
+			}
+		}
+	}()
+
+	var wg sync.WaitGroup
+	wg.Add(numReaders)
+	for range numReaders {
+		go func() {
+			defer wg.Done()
+			readSize := rand.Intn(maxReadSize-1) + 1
+			offset := rand.Intn(fileSize - readSize)
+			dst := make([]byte, readSize)
+
+			fh.inode.Lock()
+			_, n, readErr := fh.Read(t.ctx, dst, int64(offset), 200)
+			assert.NoError(t.T(), readErr)
+			assert.Equal(t.T(), readSize, n)
+			assert.Equal(t.T(), objectContent[offset:offset+readSize], dst[:n])
+		}()
+	}
+
+	wg.Wait()
+	close(stopInvariants)
+	invWg.Wait()
 }

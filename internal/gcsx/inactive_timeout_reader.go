@@ -17,6 +17,7 @@ package gcsx
 import (
 	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"context"
@@ -187,7 +188,7 @@ func (itr *InactiveTimeoutReader) ReadVectored(p []byte) (data [][]byte, n int, 
 		return data, n, callback, err
 	}
 
-	n, err = itr.gcsReader.Read(p)
+	n, err = io.ReadFull(itr.gcsReader, p)
 	itr.seen += uint64(n)
 	return nil, n, nil, err
 }

@@ -18,9 +18,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -36,6 +38,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/mem"
+	"google.golang.org/grpc/status"
 )
 
 type MrdInstanceTest struct {
@@ -971,4 +976,153 @@ func (t *MrdInstanceTest) Test_Cache_MultipleEvictions() {
 		assert.NotNil(t.T(), instances[i].mrdPool, "Instance %d should be in cache", i)
 		instances[i].poolMu.RUnlock()
 	}
+}
+
+type customAddMRD struct {
+	gcs.MultiRangeDownloader
+	addFn func(output io.Writer, offset, length int64, callback func(int64, int64, error))
+}
+
+func (m *customAddMRD) Add(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+	m.addFn(output, offset, length, callback)
+}
+
+func (m *customAddMRD) Close() error      { return nil }
+func (m *customAddMRD) Wait()             {}
+func (m *customAddMRD) Error() error      { return nil }
+func (m *customAddMRD) GetHandle() []byte { return nil }
+
+type countingMetricHandle struct {
+	metrics.MetricHandle
+	addCount     atomic.Int64
+	latencyCount atomic.Int64
+}
+
+func (m *countingMetricHandle) GcsRequestCount(inc int64, method metrics.GcsMethod) {
+	if method == "MultiRangeDownloader::Add" {
+		m.addCount.Add(inc)
+	}
+}
+
+func (m *countingMetricHandle) GcsRequestLatencies(_ context.Context, _ time.Duration, method metrics.GcsMethod) {
+	if method == "MultiRangeDownloader::Add" {
+		m.latencyCount.Add(1)
+	}
+}
+
+func (t *MrdInstanceTest) TestReadVectored_PartialShortReadWithPinnedBuffers_CopiesToDestOnError() {
+	outOfRangeErr := status.Error(codes.OutOfRange, "out of range")
+	pool := mem.DefaultBufferPool()
+	rawBuf := pool.Get(2048)
+	copy((*rawBuf)[:6], "hello ")
+	pinnedSlice := (*rawBuf)[:6]
+
+	mrd := &customAddMRD{
+		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+			n, _ := output.Write(pinnedSlice)
+			pool.Put(rawBuf)
+			callback(offset, int64(n), outOfRangeErr)
+		},
+	}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Once()
+
+	dst := make([]byte, 11)
+	resp, err := t.mrdInstance.ReadVectored(context.Background(), dst, 0, metrics.NewNoopMetrics())
+
+	assert.ErrorIs(t.T(), err, outOfRangeErr)
+	assert.Equal(t.T(), 6, resp.Size)
+	assert.Nil(t.T(), resp.Data)
+	assert.Nil(t.T(), resp.Callback)
+	assert.Equal(t.T(), "hello ", string(dst[:6]))
+}
+
+func (t *MrdInstanceTest) TestReadVectored_ContextCancelled_DoesNotMutateCallerBufferInBackground() {
+	writeStarted := make(chan struct{})
+	allowBackgroundWrite := make(chan struct{})
+	bgDone := make(chan struct{})
+
+	mrd := &customAddMRD{
+		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+			go func() {
+				defer close(bgDone)
+				close(writeStarted)
+				<-allowBackgroundWrite
+				_, _ = output.Write([]byte("mutated"))
+				callback(offset, 7, nil)
+			}()
+		},
+	}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Once()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-writeStarted
+		cancel()
+	}()
+
+	dst := []byte("initial")
+	resp, err := t.mrdInstance.ReadVectored(ctx, dst, 0, metrics.NewNoopMetrics())
+	assert.ErrorIs(t.T(), err, context.Canceled)
+	assert.Equal(t.T(), 0, resp.Size)
+
+	// Unblock background MRD write after ReadVectored has returned and access dst concurrently.
+	close(allowBackgroundWrite)
+	assert.Equal(t.T(), "initial", string(dst))
+	<-bgDone
+	assert.Equal(t.T(), "initial", string(dst))
+}
+
+func (t *MrdInstanceTest) TestMrdPrefetchChunk_Write_SkipsWhenAbandoned() {
+	chunk := mrdPrefetchChunkPool.Get().(*MrdPrefetchChunk)
+	chunk.Offset = 0
+	chunk.Length = 1024
+	chunk.Consumed = 0
+	chunk.done = make(chan struct{})
+	chunk.refs.Store(2)
+	chunk.written = 0
+	chunk.err = nil
+	chunk.fallback = nil
+
+	// Release queue reference so refs drops to 1 (only MRD callback ref left).
+	chunk.Release()
+	assert.Equal(t.T(), int32(1), chunk.refs.Load())
+
+	n, err := chunk.Write([]byte("abandoned payload"))
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), len("abandoned payload"), n)
+	assert.Equal(t.T(), 0, chunk.written)
+	assert.Empty(t.T(), chunk.slices)
+	assert.Empty(t.T(), chunk.tokens)
+	assert.Nil(t.T(), chunk.fallback)
+
+	// Final release from MRD callback returns chunk to pool.
+	chunk.Release()
+}
+
+func (t *MrdInstanceTest) TestStartPrefetchChunk_CapturesMetrics() {
+	data := []byte("hello world")
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, data)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+
+	mh := &countingMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	chunk, err := t.mrdInstance.StartPrefetchChunk(0, 5, mh)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), chunk)
+
+	err = chunk.Wait(context.Background(), false)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), int64(1), mh.addCount.Load())
+	assert.Equal(t.T(), int64(1), mh.latencyCount.Load())
+	chunk.Release()
+}
+
+func (t *MrdInstanceTest) TestObjectSizeAndGeneration() {
+	size, gen := t.mrdInstance.ObjectSizeAndGeneration()
+	assert.Equal(t.T(), t.object.Size, size)
+	assert.Equal(t.T(), t.object.Generation, gen)
+
+	t.mrdInstance.object = nil
+	size, gen = t.mrdInstance.ObjectSizeAndGeneration()
+	assert.Equal(t.T(), uint64(0), size)
+	assert.Equal(t.T(), int64(0), gen)
 }

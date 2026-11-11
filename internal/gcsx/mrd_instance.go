@@ -446,6 +446,16 @@ func (mi *MrdInstance) ObjectSize() uint64 {
 	return 0
 }
 
+// ObjectSizeAndGeneration returns the cached size and generation of the underlying GCS object.
+func (mi *MrdInstance) ObjectSizeAndGeneration() (uint64, int64) {
+	mi.poolMu.RLock()
+	defer mi.poolMu.RUnlock()
+	if mi.object != nil {
+		return mi.object.Size, mi.object.Generation
+	}
+	return 0, 0
+}
+
 // IgnoreInterrupts reports whether context interrupts are ignored by config.
 func (mi *MrdInstance) IgnoreInterrupts() bool {
 	return mi.config != nil && mi.config.FileSystem.IgnoreInterrupts
@@ -480,6 +490,7 @@ func (s *mrdVectoredState) release() {
 }
 
 type mrdVectoredWriter struct {
+	mu       sync.Mutex
 	dst      []byte
 	state    *mrdVectoredState
 	written  int
@@ -490,6 +501,9 @@ type mrdVectoredWriter struct {
 func (w *mrdVectoredWriter) Write(b []byte) (int, error) {
 	if len(b) == 0 {
 		return 0, nil
+	}
+	if w.reqState.Load() != 0 {
+		return len(b), nil
 	}
 	origLen := len(b)
 	rem := len(w.dst) - w.written
@@ -507,8 +521,14 @@ func (w *mrdVectoredWriter) Write(b []byte) (int, error) {
 		w.pinned++
 		return origLen, nil
 	}
+	w.mu.Lock()
+	if w.reqState.Load() != 0 {
+		w.mu.Unlock()
+		return origLen, nil
+	}
 	copy(w.dst[start:start+len(b)], b)
 	w.state.slices = append(w.state.slices, w.dst[start:start+len(b)])
+	w.mu.Unlock()
 	return origLen, nil
 }
 
@@ -559,6 +579,9 @@ func (mi *MrdInstance) ReadVectored(ctx context.Context, p []byte, offset int64,
 			if !writer.reqState.CompareAndSwap(0, 2) {
 				<-done
 				state.release()
+			} else {
+				writer.mu.Lock()
+				writer.mu.Unlock()
 			}
 			return ReadResponse{}, ctx.Err()
 		case res = <-done:
@@ -572,6 +595,12 @@ func (mi *MrdInstance) ReadVectored(ctx context.Context, p []byte, offset int64,
 	}
 
 	if res.err != nil && res.err != io.EOF {
+		if res.bytesRead > 0 && writer.pinned > 0 {
+			pos := 0
+			for _, s := range state.slices {
+				pos += copy(p[pos:], s)
+			}
+		}
 		state.release()
 		return ReadResponse{Size: res.bytesRead}, fmt.Errorf("Error in Add call: %w", res.err)
 	}
@@ -615,6 +644,9 @@ var mrdPrefetchChunkPool = sync.Pool{
 func (c *MrdPrefetchChunk) Write(b []byte) (int, error) {
 	if len(b) == 0 {
 		return 0, nil
+	}
+	if c.refs.Load() <= 1 {
+		return len(b), nil
 	}
 	origLen := len(b)
 	rem := c.Length - c.written
@@ -727,7 +759,7 @@ func (c *MrdPrefetchChunk) Slice(relStart, relEnd int) (ReadResponse, bool) {
 
 // StartPrefetchChunk initiates a non-blocking asynchronous range download of
 // [offset, offset+length) on the next available MRD stream in the pool.
-func (mi *MrdInstance) StartPrefetchChunk(offset int64, length int) (*MrdPrefetchChunk, error) {
+func (mi *MrdInstance) StartPrefetchChunk(offset int64, length int, metrics metrics.MetricHandle) (*MrdPrefetchChunk, error) {
 	if length <= 0 {
 		return nil, fmt.Errorf("MrdInstance::StartPrefetchChunk: invalid length %d", length)
 	}
@@ -753,7 +785,11 @@ func (mi *MrdInstance) StartPrefetchChunk(offset int64, length int) (*MrdPrefetc
 	chunk.written = 0
 	chunk.err = nil
 
+	start := time.Now()
 	entry.mrd.Add(chunk, offset, int64(length), func(_ int64, _ int64, e error) {
+		if metrics != nil {
+			monitor.CaptureMultiRangeDownloaderMetrics(context.Background(), metrics, "MultiRangeDownloader::Add", start)
+		}
 		chunk.err = e
 		close(chunk.done)
 		chunk.Release()

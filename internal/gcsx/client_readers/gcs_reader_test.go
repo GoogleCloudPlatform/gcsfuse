@@ -16,9 +16,11 @@ package client_readers
 
 import (
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -573,4 +575,115 @@ func (t *gcsReaderTest) Test_ReadAt_ParallelRandomReads() {
 		}(task.offset, task.size)
 	}
 	wg.Wait()
+}
+
+type vectoredStubReader struct {
+	fake.FakeReader
+	data     []byte
+	cbCalled *atomic.Int32
+	onRead   func()
+	err      error
+}
+
+func (r *vectoredStubReader) Read(p []byte) (int, error) {
+	if r.onRead != nil {
+		r.onRead()
+	}
+	n := copy(p, r.data)
+	return n, r.err
+}
+
+func (r *vectoredStubReader) ReadVectored(p []byte) ([][]byte, int, func(), error) {
+	if r.onRead != nil {
+		r.onRead()
+	}
+	if len(r.data) == 0 {
+		return nil, 0, nil, r.err
+	}
+	n := min(len(p), len(r.data))
+	slice := r.data[:n]
+	cb := func() {
+		if r.cbCalled != nil {
+			r.cbCalled.Add(1)
+		}
+	}
+	return [][]byte{slice}, n, cb, r.err
+}
+
+func (r *vectoredStubReader) Close() error { return nil }
+
+func (t *gcsReaderTest) Test_ReadAt_ShortReadRetryHitsEOF_ReturnsPartialDataAndCallback() {
+	t.object.Size = 20
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
+
+	t.gcsReader.readTypeClassifier = gcsx.NewReadTypeClassifier(int64(sequentialReadSizeInMb), 10)
+	var cb1Count atomic.Int32
+	// First read uses RangeReader and returns a 5-byte short read with a pinned buffer callback.
+	t.gcsReader.rangeReader.reader = &vectoredStubReader{
+		data:     []byte("hello"),
+		cbCalled: &cb1Count,
+		onRead: func() {
+			// Advance classifier expectedOffset so retry re-evaluates GetReadInfo and switches to MRD.
+			t.gcsReader.readTypeClassifier.RecordRead(0, 10)
+		},
+		err: nil,
+	}
+	t.gcsReader.rangeReader.cancel = func() {}
+	t.gcsReader.rangeReader.start = 0
+	t.gcsReader.rangeReader.limit = 20
+
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{}, nil)
+	require.NoError(t.T(), err)
+	t.gcsReader.mrr.mrdWrapper = fakeMRDWrapper
+	eofMRD := fake.NewFakeMultiRangeDownloaderWithSleepAndDefaultError(t.object, nil, 0, io.EOF)
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(eofMRD, nil).Once()
+
+	buf := make([]byte, 10)
+	resp, err := t.gcsReader.ReadAt(t.ctx, &gcsx.ReadRequest{
+		Buffer: buf,
+		Offset: 0,
+		ReadInfo: gcsx.ReadInfo{
+			ReadType:       metrics.ReadTypeSequential,
+			ExpectedOffset: 0,
+		},
+	})
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), 5, resp.Size)
+	require.NotNil(t.T(), resp.Callback)
+	assert.Equal(t.T(), int32(0), cb1Count.Load(), "Callback should not be invoked prematurely on EOF retry")
+	resp.Callback()
+	assert.Equal(t.T(), int32(1), cb1Count.Load(), "Returned callback must release pinned buffers from first read")
+}
+
+func (t *gcsReaderTest) Test_ReadAt_ShortReadRetryFails_InvokesCallbackAndClearsSize() {
+	t.object.Size = 20
+	t.mockBucket.On("BucketType", mock.Anything).Return(gcs.BucketType{Zonal: true})
+
+	var cb1Count atomic.Int32
+	t.gcsReader.rangeReader.reader = &vectoredStubReader{
+		data:     []byte("hello"),
+		cbCalled: &cb1Count,
+		err:      nil,
+	}
+	t.gcsReader.rangeReader.cancel = func() {}
+	t.gcsReader.rangeReader.start = 0
+	t.gcsReader.rangeReader.limit = 20
+
+	// Retry fails with a non-EOF error.
+	retryErr := errors.New("connection reset on retry")
+	t.mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(nil, retryErr).Once()
+
+	buf := make([]byte, 10)
+	readInfo := t.gcsReader.readTypeClassifier.GetReadInfo(0, false)
+	resp, err := t.gcsReader.ReadAt(t.ctx, &gcsx.ReadRequest{
+		Buffer:   buf,
+		Offset:   0,
+		ReadInfo: readInfo,
+	})
+
+	require.ErrorIs(t.T(), err, retryErr)
+	assert.Equal(t.T(), 0, resp.Size)
+	assert.Nil(t.T(), resp.Callback)
+	assert.Equal(t.T(), int32(1), cb1Count.Load(), "Pinned buffer callback from first read must be invoked on retry failure")
 }

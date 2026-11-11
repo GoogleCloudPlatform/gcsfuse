@@ -271,12 +271,10 @@ func (frc gcsFullReadCloser) ReadVectored(buf []byte) (data [][]byte, n int, cal
 		n, err = frc.Read(buf)
 		return nil, n, nil, err
 	}
+	initSROffsets()
 	if !srOffsetsValid {
-		initSROffsets()
-		if !srOffsetsValid {
-			n, err = frc.Read(buf)
-			return nil, n, nil, err
-		}
+		n, err = frc.Read(buf)
+		return nil, n, nil, err
 	}
 
 	srPtr := unsafe.Pointer(sr)
@@ -367,6 +365,11 @@ func (frc gcsFullReadCloser) ReadVectored(buf []byte) (data [][]byte, n int, cal
 
 		var msgRead int64
 		for totalRead < want {
+			if offsets.currBuf >= len(databufs) || (offsets.currBuf == offsets.endBuf && offsets.currOff >= offsets.endOff) {
+				*(*bool)(unsafe.Add(currMsg, layout.offDecDone)) = true
+				databufs.Free()
+				break
+			}
 			databuf := databufs[offsets.currBuf]
 			raw := databuf.ReadOnlyData()
 			start := offsets.currOff
@@ -390,14 +393,14 @@ func (frc gcsFullReadCloser) ReadVectored(buf []byte) (data [][]byte, n int, cal
 				offsets.currOff += uint64(take)
 			}
 
-			if offsets.currBuf == offsets.endBuf && offsets.currOff >= offsets.endOff {
-				*(*bool)(unsafe.Add(currMsg, layout.offDecDone)) = true
-				databufs.Free()
-				break
-			}
 			if offsets.currBuf != offsets.endBuf && offsets.currOff >= uint64(len(raw)) {
 				offsets.currOff = 0
 				offsets.currBuf++
+			}
+			if offsets.currBuf >= len(databufs) || (offsets.currBuf == offsets.endBuf && offsets.currOff >= offsets.endOff) {
+				*(*bool)(unsafe.Add(currMsg, layout.offDecDone)) = true
+				databufs.Free()
+				break
 			}
 		}
 
@@ -426,6 +429,42 @@ func (frc gcsFullReadCloser) ReadHandle() (rh storagev2.ReadHandle) {
 	return frc.wrapped.ReadHandle()
 }
 
+func (frc gcsFullReadCloser) freeUnreadCurrMsg(sr *storagev2.Reader) {
+	initSROffsets()
+	if !srOffsetsValid {
+		return
+	}
+	srPtr := unsafe.Pointer(sr)
+	rIface := (*ifaceHeader)(unsafe.Add(srPtr, offSRReader))
+	grPtr := rIface.data
+	tab := rIface.tab
+	if grPtr == nil || tab == nil {
+		return
+	}
+	var layout *grpcZeroCopyLayout
+	if tab == atomic.LoadPointer(&tabReadObject) {
+		layout = &layoutReadObject
+	} else if tab == atomic.LoadPointer(&tabBidi) {
+		layout = &layoutBidi
+	} else {
+		layout = resolveGRPCLayout(sr, tab)
+	}
+	if layout == nil || !layout.valid {
+		return
+	}
+	currMsg := *(*unsafe.Pointer)(unsafe.Add(grPtr, layout.offGRCurrMsg))
+	if currMsg == nil || *(*bool)(unsafe.Add(currMsg, layout.offDecDone)) {
+		return
+	}
+	*(*bool)(unsafe.Add(currMsg, layout.offDecDone)) = true
+	databufsPtr := (*mem.BufferSlice)(unsafe.Add(currMsg, layout.offDecDatabufs))
+	databufsPtr.Free()
+	*databufsPtr = nil
+}
+
 func (frc gcsFullReadCloser) Close() (err error) {
+	if sr, ok := frc.wrapped.(*storagev2.Reader); ok {
+		frc.freeUnreadCurrMsg(sr)
+	}
 	return frc.wrapped.Close()
 }

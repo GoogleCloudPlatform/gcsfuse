@@ -41,6 +41,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric/noop"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -1245,10 +1246,22 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithGrp
 	scWithMetrics := storageutil.GetDefaultStorageClientConfig(keyFile)
 	scWithMetrics.ClientProtocol = cfg.GRPC
 	scWithMetrics.EnableGrpcMetrics = true
+	scWithMetrics.IsGKE = true
 
 	optsWithMetrics, err := createClientOptionForGRPCClient(context.TODO(), &scWithMetrics, false)
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), optsWithMetrics)
+
+	scNonGKE := scWithMetrics
+	scNonGKE.IsGKE = false
+	optsNonGKE, err := createClientOptionForGRPCClient(context.TODO(), &scNonGKE, false)
+	require.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), optsNonGKE)
+
+	otel.SetMeterProvider(noop.NewMeterProvider())
+	optsNoopMP, err := createClientOptionForGRPCClient(context.TODO(), &scWithMetrics, false)
+	require.NoError(testSuite.T(), err)
+	assert.NotNil(testSuite.T(), optsNoopMP)
 
 	scWithoutMetrics := storageutil.GetDefaultStorageClientConfig(keyFile)
 	scWithoutMetrics.ClientProtocol = cfg.GRPC

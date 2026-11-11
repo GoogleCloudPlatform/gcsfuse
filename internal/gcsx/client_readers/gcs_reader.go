@@ -156,6 +156,16 @@ func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest) 
 		readResponse.Size += retryResp.Size
 	}
 
+	if errors.Is(err, io.EOF) && readResponse.Size > 0 {
+		err = nil
+	}
+	if err != nil {
+		if readResponse.Callback != nil {
+			readResponse.Callback()
+		}
+		return gcsx.ReadResponse{}, err
+	}
+
 	return readResponse, err
 }
 
@@ -203,5 +213,7 @@ func (gr *GCSReader) Destroy() {
 }
 
 func (gr *GCSReader) CheckInvariants() {
+	gr.mu.Lock()
+	defer gr.mu.Unlock()
 	gr.rangeReader.checkInvariants()
 }
