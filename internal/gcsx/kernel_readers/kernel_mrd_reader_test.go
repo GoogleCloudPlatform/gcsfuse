@@ -2260,3 +2260,158 @@ func (t *KernelMRDReaderTest) TestReadAt_StaleEpochMaybeScheduleMorePrefetch_Doe
 
 	t.reader.Destroy()
 }
+
+func (t *KernelMRDReaderTest) TestReadAt_StaleEpochClearPrefetch_DoesNotClobberNewerPrefetch() {
+	testCases := []struct {
+		name       string
+		readOffset int64
+		readLen    int64
+	}{
+		{
+			name:       "SingleSpan",
+			readOffset: 1 * gcsx.MiB,
+			readLen:    1 * gcsx.MiB,
+		},
+		{
+			name:       "MultiSpan",
+			readOffset: 2 * gcsx.MiB,
+			readLen:    4 * gcsx.MiB,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.SetupTest()
+			t.object.Size = 200 * gcsx.MiB
+			pool := mem.DefaultBufferPool()
+			chunk0Started := make(chan struct{})
+			releaseChunk0 := make(chan struct{})
+			fallbackStarted := make(chan struct{})
+			releaseFallback := make(chan struct{})
+
+			var (
+				mu            sync.Mutex
+				blockedChunk0 bool
+				fallbackOnce  bool
+			)
+
+			mrd := &pinnedFakeMRD{
+				addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+					go func() {
+						mu.Lock()
+						isBlockedChunk0 := offset == 1*gcsx.MiB && !blockedChunk0
+						if isBlockedChunk0 {
+							blockedChunk0 = true
+						}
+						isFallback := blockedChunk0 && offset == tc.readOffset && length == tc.readLen && !fallbackOnce
+						if isFallback {
+							fallbackOnce = true
+						}
+						mu.Unlock()
+
+						if isBlockedChunk0 {
+							close(chunk0Started)
+							<-releaseChunk0
+							callback(offset, 0, errors.New("stale prefetch chunk error"))
+							return
+						}
+						if isFallback {
+							close(fallbackStarted)
+							<-releaseFallback
+						}
+
+						for pos := int64(0); pos < length; pos += gcsx.MiB {
+							step := min(int64(gcsx.MiB), length-pos)
+							rawBuf := pool.Get(int(step))
+							slice := (*rawBuf)[:step]
+							for i := range slice {
+								slice[i] = byte('A' + ((offset+pos+int64(i))/gcsx.MiB)%26)
+							}
+							_, _ = output.Write(slice)
+							pool.Put(rawBuf)
+						}
+						callback(offset, length, nil)
+					}()
+				},
+			}
+			t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Maybe()
+
+			// 1. Read [0, 1 MiB) -> starts prefetch chunks starting at 1 MiB in epoch E.
+			resp0, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+				Buffer: make([]byte, 1*gcsx.MiB),
+				Offset: 0,
+			})
+			assert.NoError(t.T(), err)
+			assert.Equal(t.T(), 1*gcsx.MiB, resp0.Size)
+			if resp0.Callback != nil {
+				resp0.Callback()
+			}
+			<-chunk0Started
+
+			// 2. Start Reader A acquiring 1 span or 2 straddling spans at epoch E and blocking in Wait.
+			type readRes struct {
+				resp gcsx.ReadResponse
+				err  error
+			}
+			readADone := make(chan readRes, 1)
+			go func() {
+				r, rErr := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+					Buffer: make([]byte, tc.readLen),
+					Offset: tc.readOffset,
+				})
+				readADone <- readRes{resp: r, err: rErr}
+			}()
+
+			assert.Eventually(t.T(), func() bool {
+				t.reader.mu.Lock()
+				defer t.reader.mu.Unlock()
+				return len(t.reader.chunks) > 0 && t.reader.chunks[0].Offset == 1*gcsx.MiB && t.reader.chunks[0].Consumed > 0
+			}, time.Second, time.Millisecond)
+
+			// 3. Concurrently issue two sequential reads at [50 MiB, 51 MiB) and [51 MiB, 52 MiB)
+			//    to advance prefetchEpoch to E2 with active lookahead chunks starting at 52 MiB.
+			for _, off := range []int64{50 * gcsx.MiB, 51 * gcsx.MiB} {
+				r, rErr := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+					Buffer: make([]byte, 1*gcsx.MiB),
+					Offset: off,
+				})
+				assert.NoError(t.T(), rErr)
+				assert.Equal(t.T(), 1*gcsx.MiB, r.Size)
+				if r.Callback != nil {
+					r.Callback()
+				}
+			}
+
+			t.reader.mu.Lock()
+			epochE2 := t.reader.prefetchEpoch
+			assert.NotEmpty(t.T(), t.reader.chunks)
+			assert.Equal(t.T(), int64(52*gcsx.MiB), t.reader.chunks[0].Offset)
+			assert.Equal(t.T(), 2, t.reader.seqReads)
+			assert.Equal(t.T(), int64(52*gcsx.MiB), t.reader.lastReadEnd)
+			t.reader.mu.Unlock()
+
+			// 4. Fail Reader A's stale epoch-E chunk. clearPrefetchForEpoch(E) must NOT wipe
+			//    epoch E2's active prefetch chunks or sequential state before fallback ReadVectored runs.
+			close(releaseChunk0)
+			<-fallbackStarted
+
+			t.reader.mu.Lock()
+			assert.Equal(t.T(), epochE2, t.reader.prefetchEpoch)
+			assert.NotEmpty(t.T(), t.reader.chunks, "stale-epoch clearPrefetchForEpoch must preserve newer epoch prefetch chunks")
+			assert.Equal(t.T(), int64(52*gcsx.MiB), t.reader.chunks[0].Offset)
+			assert.Equal(t.T(), 2, t.reader.seqReads)
+			assert.Equal(t.T(), int64(52*gcsx.MiB), t.reader.lastReadEnd)
+			t.reader.mu.Unlock()
+
+			close(releaseFallback)
+			resA := <-readADone
+			assert.NoError(t.T(), resA.err)
+			assert.Equal(t.T(), int(tc.readLen), resA.resp.Size)
+			if resA.resp.Callback != nil {
+				resA.resp.Callback()
+			}
+
+			t.reader.Destroy()
+		})
+	}
+}

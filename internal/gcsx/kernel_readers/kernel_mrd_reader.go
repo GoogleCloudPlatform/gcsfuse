@@ -95,6 +95,16 @@ func (kmr *KernelMRDReader) clearPrefetch() {
 	kmr.mu.Unlock()
 }
 
+func (kmr *KernelMRDReader) clearPrefetchForEpoch(epoch uint64) {
+	kmr.mu.Lock()
+	if kmr.prefetchEpoch == epoch {
+		kmr.clearPrefetchLocked()
+		kmr.seqReads = 0
+		kmr.lastReadEnd = 0
+	}
+	kmr.mu.Unlock()
+}
+
 func (kmr *KernelMRDReader) activePrefetchChunksLocked(frontier int64) int {
 	active := 0
 	for _, c := range kmr.chunks {
@@ -582,7 +592,7 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 			return gcsx.ReadResponse{}, ctx.Err()
 		}
 		sp.chunk.Release()
-		kmr.clearPrefetch()
+		kmr.clearPrefetchForEpoch(sp.epoch)
 	} else if len(spans) > 1 {
 		ignoreInterrupts := kmr.mrdInstance.IgnoreInterrupts()
 		var wErr error
@@ -636,7 +646,7 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 		for _, sp := range spans {
 			sp.chunk.Release()
 		}
-		kmr.clearPrefetch()
+		kmr.clearPrefetchForEpoch(spans[0].epoch)
 	}
 
 	var inFlightID uint64
