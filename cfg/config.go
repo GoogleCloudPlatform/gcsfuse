@@ -1477,7 +1477,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 
 	flagSet.StringP("s2a-spiffe-id", "", "", "Local SPIFFE ID to assume for direct S2A authentication.")
 
-	flagSet.IntP("sequential-read-size-mb", "", 200, "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported")
+	flagSet.IntP("sequential-read-size-mb", "", 1024, "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported")
 
 	flagSet.DurationP("stackdriver-export-interval", "", 0*time.Nanosecond, "Export metrics to stackdriver with this interval. A value of 0 indicates no exporting.")
 

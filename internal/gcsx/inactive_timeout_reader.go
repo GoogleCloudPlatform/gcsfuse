@@ -169,6 +169,29 @@ func (itr *InactiveTimeoutReader) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
+func (itr *InactiveTimeoutReader) ReadVectored(p []byte) (data [][]byte, n int, callback func(), err error) {
+	itr.mu.Lock()
+	defer itr.mu.Unlock()
+
+	itr.isActive = true
+
+	if itr.gcsReader == nil {
+		if itr.gcsReader, err = itr.createGCSReader(); err != nil {
+			return nil, 0, nil, err
+		}
+	}
+
+	if vr, ok := itr.gcsReader.(gcs.VectoredStorageReader); ok {
+		data, n, callback, err = vr.ReadVectored(p)
+		itr.seen += uint64(n)
+		return data, n, callback, err
+	}
+
+	n, err = itr.gcsReader.Read(p)
+	itr.seen += uint64(n)
+	return nil, n, nil, err
+}
+
 // Close explicitly closes the underlying gcs.StorageReader if it's currently open.
 // It also signals the background monitor goroutine to stop.
 // Returns an error if closing the underlying reader fails.

@@ -43,6 +43,7 @@ import (
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	grpc_experimental "google.golang.org/grpc/experimental"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 
@@ -181,9 +182,22 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 			return nil, fmt.Errorf("failed to configure dialer with local-socket-address %q: %w", clientConfig.LocalSocketAddress, err)
 		}
 		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
-			return dialer.DialContext(ctx, "tcp", addr)
+			conn, err := dialer.DialContext(ctx, "tcp", addr)
+			if err != nil {
+				return nil, err
+			}
+			return wrapLargeReadTCPConn(conn), nil
 		})))
+	} else {
+		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithContextDialer(dialLargeReadTCP)))
 	}
+	clientOpts = append(clientOpts,
+		option.WithGRPCDialOption(grpc_experimental.WithBufferPool(defaultDirtyBufferPool)),
+		option.WithGRPCDialOption(grpc.WithReadBufferSize(32 * 1024)),
+		option.WithGRPCDialOption(grpc.WithSharedWriteBuffer(true)),
+		option.WithGRPCDialOption(grpc.WithInitialWindowSize(4*1024*1024)),
+		option.WithGRPCDialOption(grpc.WithInitialConnWindowSize(32*1024*1024)),
+	)
 
 	if clientConfig.TracingEnabled {
 		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithStatsHandler(otelgrpc.NewClientHandler())))

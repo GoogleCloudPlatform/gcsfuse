@@ -81,9 +81,6 @@ func NewGCSReader(obj *gcs.MinObject, bucket gcs.Bucket, config *GCSReaderConfig
 	}
 }
 
-// Detects whether the read was short or not and returns whether it should be retried or not.
-// Reads would only be retried in case of rapid buckets and when the read data was less than requested (& object size)
-// and there was no error apart from EOF or short reads.
 func shouldRetryForShortRead(err error, bytesRead int, p []byte, offset int64, objectSize uint64, bucketType gcs.BucketType, skipSizeChecks bool) bool {
 	if !bucketType.IsRapid() {
 		return false
@@ -109,7 +106,6 @@ func (gr *GCSReader) ReaderName() string {
 }
 
 func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest) (readResponse gcsx.ReadResponse, err error) {
-
 	if readRequest.Offset >= int64(gr.object.Size) && !readRequest.SkipSizeChecks {
 		return readResponse, io.EOF
 	} else if readRequest.Offset < 0 {
@@ -129,62 +125,61 @@ func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest) 
 		SkipSizeChecks:    readRequest.SkipSizeChecks,
 	}
 
-	bytesRead, err := gr.read(ctx, gcsReaderRequest)
-	readResponse.Size = bytesRead
+	readResponse, err = gr.read(ctx, gcsReaderRequest)
 
 	// Retry reading in case of short read.
-	if shouldRetryForShortRead(err, bytesRead, readRequest.Buffer, readRequest.Offset, gr.object.Size, gr.bucket.BucketType(), readRequest.SkipSizeChecks) {
+	if shouldRetryForShortRead(err, readResponse.Size, readRequest.Buffer, readRequest.Offset, gr.object.Size, gr.bucket.BucketType(), readRequest.SkipSizeChecks) {
+		bytesRead := readResponse.Size
 		gcsReaderRequest.Offset += int64(bytesRead)
 		gcsReaderRequest.Buffer = readRequest.Buffer[bytesRead:]
 		gcsReaderRequest.ForceCreateReader = true
-		var bytesReadOnRetry int
-		bytesReadOnRetry, err = gr.read(ctx, gcsReaderRequest)
-		readResponse.Size += bytesReadOnRetry
+		var retryResp gcsx.ReadResponse
+		retryResp, err = gr.read(ctx, gcsReaderRequest)
+		if len(readResponse.Data) > 0 || len(retryResp.Data) > 0 || readResponse.Callback != nil || retryResp.Callback != nil {
+			if len(readResponse.Data) == 0 && readResponse.Size > 0 {
+				readResponse.Data = [][]byte{readRequest.Buffer[:readResponse.Size]}
+			}
+			if len(retryResp.Data) == 0 && retryResp.Size > 0 {
+				retryResp.Data = [][]byte{gcsReaderRequest.Buffer[:retryResp.Size]}
+			}
+			readResponse.Data = append(readResponse.Data, retryResp.Data...)
+			cb1, cb2 := readResponse.Callback, retryResp.Callback
+			readResponse.Callback = func() {
+				if cb1 != nil {
+					cb1()
+				}
+				if cb2 != nil {
+					cb2()
+				}
+			}
+		}
+		readResponse.Size += retryResp.Size
 	}
 
 	return readResponse, err
 }
 
-func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (bytesRead int, err error) {
-	// We don't take a lock here to allow random reads to proceed without waiting.
-	// The read type is re-evaluated for zonal buckets inside the lock if necessary.
+func (gr *GCSReader) read(ctx context.Context, readReq *gcsx.GCSReaderRequest) (readResp gcsx.ReadResponse, err error) {
 	reqReaderType := gr.readerType(readReq.ReadType, gr.bucket.BucketType())
-	var readResp gcsx.ReadResponse
 
-	// In case readReq.SkipSizeChecks is true, it means requests can be beyond cached object size and hence
-	// it qualifies for scenario where only MRD must be used (RangeReader is not suitable here).
 	if reqReaderType == RangeReaderType && !readReq.SkipSizeChecks {
 		gr.mu.Lock()
 
-		// In case of multiple threads reading parallely, it is possible that many of them might be waiting
-		// at this lock and hence the earlier calculated value of readerType might not be valid once they
-		// acquire the lock. Hence, needs to be calculated again.
-		// We recalculate the read type if the expected offset has changed. This is important for both
-		// rapid and regional buckets. For rapid buckets, it allows switching to MRD for high-performance
-		// random reads. For regional buckets, it helps in adjusting the prefetch window for the range
-		// reader when the read pattern changes.
 		if readReq.ExpectedOffset != gr.readTypeClassifier.NextExpectedOffset() {
 			*readReq.ReadInfo = gr.readTypeClassifier.GetReadInfo(readReq.Offset, readReq.SeekRecorded)
 			reqReaderType = gr.readerType(readReq.ReadType, gr.bucket.BucketType())
 		}
-		// If the readerType is range reader after re calculation, then use range reader.
-		// Otherwise, fall back to MultiRange Downloader.
 		if reqReaderType == RangeReaderType {
 			defer gr.mu.Unlock()
-			// Calculate the end offset based on previous read requests.
-			// It will be used if a new range reader needs to be created.
 			readReq.EndOffset = gr.getEndOffset(readReq.Offset)
-			readResp, err = gr.rangeReader.ReadAt(ctx, readReq)
-			return readResp.Size, err
+			return gr.rangeReader.ReadAt(ctx, readReq)
 		}
 		gr.mu.Unlock()
 	}
 
-	readResp, err = gr.mrr.ReadAt(ctx, readReq)
-	return readResp.Size, err
+	return gr.mrr.ReadAt(ctx, readReq)
 }
 
-// readerType specifies the go-sdk interface to use for reads.
 func (gr *GCSReader) readerType(readType int64, bucketType gcs.BucketType) ReaderType {
 	if readType == metrics.ReadTypeRandom && bucketType.IsRapid() {
 		return MultiRangeReaderType

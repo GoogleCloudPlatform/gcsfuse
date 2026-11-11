@@ -132,43 +132,54 @@ func (rr *RangeReader) ReadAt(ctx context.Context, req *gcsx.GCSReaderRequest) (
 		rr.limit = -1
 	}
 
-	readResponse.Size, err = rr.readFromExistingReader(ctx, req)
+	readResponse, err = rr.readFromExistingReader(ctx, req)
 	if errors.Is(err, gcsx.FallbackToAnotherReader) {
-		readResponse.Size, err = rr.readFromRangeReader(ctx, req.Buffer, req.Offset, req.EndOffset, req.ReadType)
+		readResponse, err = rr.readFromRangeReaderResp(ctx, req.Buffer, req.Offset, req.EndOffset, req.ReadType)
 	}
 	return readResponse, err
 }
 
-// readFromRangeReader reads using the NewReader interface of go-sdk. It uses
+func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType int64) (int, error) {
+	resp, err := rr.readFromRangeReaderResp(ctx, p, offset, end, readType)
+	if resp.Callback != nil {
+		resp.Callback()
+	}
+	return resp.Size, err
+}
+
+// readFromRangeReaderResp reads using the NewReader interface of go-sdk. It uses
 // the existing reader if available, otherwise makes a call to GCS.
 // Before calling this method we have to use invalidateReaderIfMisalignedOrTooSmall to get the reader start at the correct position.
-func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset int64, end int64, readType int64) (int, error) {
+func (rr *RangeReader) readFromRangeReaderResp(ctx context.Context, p []byte, offset int64, end int64, readType int64) (gcsx.ReadResponse, error) {
 	var err error
-	// If we don't have a reader, start a read operation.
+	// If we do not have a reader, start a read operation.
 	if rr.reader == nil {
 		err = rr.startRead(ctx, offset, end, readType)
 		if err != nil {
 			err = fmt.Errorf("startRead: %w", err)
-			return 0, err
+			return gcsx.ReadResponse{}, err
 		}
 	}
 
-	var n int
-	n, err = rr.readFull(ctx, p)
-	rr.start += int64(n)
+	var resp gcsx.ReadResponse
+	resp, err = rr.readFull(ctx, p)
+	rr.start += int64(resp.Size)
 
 	// Sanity check.
 	if rr.start > rr.limit {
+		if resp.Callback != nil {
+			resp.Callback()
+		}
 		err = fmt.Errorf("reader returned extra bytes: %d", rr.start-rr.limit)
 
-		// Don't attempt to reuse the reader when it's malfunctioning.
+		// Do not attempt to reuse the reader when it is malfunctioning.
 		rr.closeReader()
 		rr.reader = nil
 		rr.cancel = nil
 		rr.start = -1
 		rr.limit = -1
 
-		return 0, err
+		return gcsx.ReadResponse{}, err
 	}
 
 	// Are we finished with this reader now?
@@ -182,28 +193,34 @@ func (rr *RangeReader) readFromRangeReader(ctx context.Context, p []byte, offset
 	switch {
 	case errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF):
 		// For a non-empty buffer, ReadFull returns EOF or ErrUnexpectedEOF only
-		// if the reader peters out early. That's fine, but it means we should
+		// if the reader peters out early. That is fine, but it means we should
 		// have hit the limit above.
 		if rr.reader != nil {
+			if resp.Callback != nil {
+				resp.Callback()
+			}
 			err = fmt.Errorf("range reader returned early by skipping %d bytes: %w", rr.limit-rr.start, util.ErrShortRead)
-			return 0, err
+			return gcsx.ReadResponse{}, err
 		}
 
 		err = nil
 
 	case err != nil:
+		if resp.Callback != nil {
+			resp.Callback()
+		}
 		// Propagate other errors.
 		err = fmt.Errorf("readFull: %w", err)
-		return 0, err
+		return gcsx.ReadResponse{}, err
 	}
 
-	return n, err
+	return resp, err
 }
 
 // Like io.ReadFull, but deals with the cancellation issues.
 //
 // REQUIRES: rr.reader != nil
-func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
+func (rr *RangeReader) readFull(ctx context.Context, p []byte) (gcsx.ReadResponse, error) {
 	if rr.config != nil && !rr.config.FileSystem.IgnoreInterrupts {
 		// Start a goroutine that will cancel the read operation we block on below if
 		// the calling context is cancelled, but only if this method has not already
@@ -229,7 +246,12 @@ func (rr *RangeReader) readFull(ctx context.Context, p []byte) (int, error) {
 		}()
 	}
 
-	return io.ReadFull(rr.reader, p)
+	if vr, ok := rr.reader.(gcs.VectoredStorageReader); ok {
+		data, n, cb, err := vr.ReadVectored(p)
+		return gcsx.ReadResponse{Data: data, Size: n, Callback: cb}, err
+	}
+	n, err := io.ReadFull(rr.reader, p)
+	return gcsx.ReadResponse{Size: n}, err
 }
 
 // Ensure that rr.reader is set up for a range for which [start, start+size) is
@@ -265,10 +287,6 @@ func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64, re
 			})
 	}
 
-	// If a file handle is open locally, but the corresponding object doesn't exist
-	// in GCS, it indicates a file clobbering scenario. This likely occurred because:
-	//  - The file was deleted in GCS while a local handle was still open.
-	//  - The file content was modified leading to different generation number.
 	var notFoundError *gcs.NotFoundError
 	if errors.As(err, &notFoundError) {
 		err = &gcsfuse_errors.FileClobberedError{
@@ -299,16 +317,9 @@ func (rr *RangeReader) startRead(ctx context.Context, start int64, end int64, re
 // discarding the existing reader. If possible, it reads and discards data to
 // maintain an active GCS connection, improving throughput for sequential reads.
 func (rr *RangeReader) skipBytes(offset int64) {
-	// When the offset is AFTER the reader position, try to seek forward, within reason.
-	// This happens when the kernel page cache serves some data. It's very common for
-	// concurrent reads, often by only a few 128kB fuse read requests. The aim is to
-	// re-use GCS connection and avoid throwing away already read data.
-	// For parallel sequential reads to a single file, not throwing away the connections
-	// is a 15-20x improvement in throughput: 150-200 MiB/s instead of 10 MiB/s.
 	if rr.reader != nil && rr.start < offset && offset-rr.start < maxReadSize {
 		bytesToSkip := offset - rr.start
 		discardedBytes, copyError := io.CopyN(io.Discard, rr.reader, bytesToSkip)
-		// io.EOF is expected if the reader is shorter than the requested offset to read.
 		if copyError != nil && !errors.Is(copyError, io.EOF) {
 			logger.Warnf("Error while skipping reader bytes: %v", copyError)
 		}
@@ -316,17 +327,7 @@ func (rr *RangeReader) skipBytes(offset int64) {
 	}
 }
 
-// invalidateReaderIfMisalignedOrTooSmall ensures that the existing reader is valid
-// for the requested offset and length. If the reader is misaligned (not at the requested
-// offset) or cannot serve the full request within its limit, it is closed and discarded.
-//
-// Parameters:
-//   - startOffset: the starting byte position of the requested read.
-//   - endOffset: the ending byte position of the requested read.
 func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endOffset int64) {
-	// If we have an existing reader, but it's positioned at the wrong place,
-	// clean it up and throw it away.
-	// We will also clean up the existing reader if it can't serve the entire request.
 	dataToRead := math.Min(float64(endOffset), float64(rr.object.Size))
 	if rr.reader != nil && (rr.start != startOffset || int64(dataToRead) > rr.limit) {
 		rr.closeReader()
@@ -335,18 +336,14 @@ func (rr *RangeReader) invalidateReaderIfMisalignedOrTooSmall(startOffset, endOf
 	}
 }
 
-// readFromExistingReader attempts to read data from an existing reader if one is available.
-// If a reader exists and the read is successful, the data is returned.
-// Otherwise, it returns an error indicating that a fallback to another reader is needed.
-func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCSReaderRequest) (int, error) {
+func (rr *RangeReader) readFromExistingReader(ctx context.Context, req *gcsx.GCSReaderRequest) (gcsx.ReadResponse, error) {
 	rr.skipBytes(req.Offset)
-	// Since we are reading from an existing reader, we only need to read what was requested.
 	endOffset := min(req.Offset + int64(len(req.Buffer)))
 
 	rr.invalidateReaderIfMisalignedOrTooSmall(req.Offset, endOffset)
 	if rr.reader != nil {
-		return rr.readFromRangeReader(ctx, req.Buffer, req.Offset, endOffset, req.ReadType)
+		return rr.readFromRangeReaderResp(ctx, req.Buffer, req.Offset, endOffset, req.ReadType)
 	}
 
-	return 0, gcsx.FallbackToAnotherReader
+	return gcsx.ReadResponse{}, gcsx.FallbackToAnotherReader
 }

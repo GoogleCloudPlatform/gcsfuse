@@ -27,6 +27,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/kernel_readers"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/read_manager"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
@@ -34,14 +35,13 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/syncutil"
 	"golang.org/x/sync/semaphore"
 )
 
 type FileHandle struct {
 	inode *inode.FileInode
 
-	mu syncutil.InvariantMutex
+	mu locker.RWLocker
 
 	// A random reader configured to some (potentially previous) generation of
 	// the object backing the inode, or nil.
@@ -124,7 +124,7 @@ func NewFileHandle(
 	}
 
 	fh.inode.RegisterFileHandle(fh.openMode.AccessMode() == util.ReadOnly)
-	fh.mu = syncutil.NewInvariantMutex(fh.checkInvariants)
+	fh.mu = locker.NewRW("FileHandle", fh.checkInvariants)
 
 	return
 }
@@ -191,6 +191,54 @@ func (fh *FileHandle) unlockHandleAndInode(rLock bool) {
 		fh.inode.Unlock()
 		fh.mu.Unlock()
 	}
+}
+
+// TryFastReadWithReadManager executes the steady-state read path when readManager
+// is already initialized and valid, acquiring fh.mu.RLock() before fh.inode.Lock()
+// to avoid the double inode lock/unlock round-trip per FUSE ReadFile op.
+//
+// LOCKS_EXCLUDED(fh.mu)
+// LOCKS_EXCLUDED(fh.inode.mu)
+func (fh *FileHandle) TryFastReadWithReadManager(ctx context.Context, req *gcsx.ReadRequest) (gcsx.ReadResponse, bool, error) {
+	fh.mu.RLock()
+	if fh.readManager == nil {
+		fh.mu.RUnlock()
+		return gcsx.ReadResponse{}, false, nil
+	}
+	fh.inode.Lock()
+	if fh.inode.IsUsingStreamingWriteHandler() || !fh.inode.SourceGenerationIsAuthoritative() || !fh.isValidReadManager() {
+		fh.inode.Unlock()
+		fh.mu.RUnlock()
+		return gcsx.ReadResponse{}, false, nil
+	}
+	if err := fh.inode.CacheEnsureContent(ctx); err != nil {
+		fh.inode.Unlock()
+		fh.mu.RUnlock()
+		return gcsx.ReadResponse{}, true, fmt.Errorf("failed to ensure inode content: %w", err)
+	}
+	if !fh.inode.SourceGenerationIsAuthoritative() {
+		fh.inode.Unlock()
+		fh.mu.RUnlock()
+		return gcsx.ReadResponse{}, false, nil
+	}
+	fh.inode.Unlock()
+	defer fh.mu.RUnlock()
+
+	req.SkipSizeChecks = fh.shouldSkipSizeChecks(req)
+
+	readResponse, err := fh.readManager.ReadAt(ctx, req)
+	switch {
+	case errors.Is(err, io.EOF):
+		if err != io.EOF {
+			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
+		}
+		return gcsx.ReadResponse{}, true, io.EOF
+
+	case err != nil:
+		return gcsx.ReadResponse{}, true, fmt.Errorf("fh.readManager.ReadAt: %w", err)
+	}
+
+	return readResponse, true, nil
 }
 
 // ReadWithReadManager reads data at the given offset using the read manager if available,

@@ -1,4 +1,4 @@
-# Copyright 2020 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,26 +12,69 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build an alpine image with gcsfuse installed from the source code:
-#  > docker build . -t gcsfuse
-# Mount the gcsfuse to /mnt/gcs:
-#  > docker run --privileged --device /fuse -v /mnt/gcs:/gcs:rw,rshared gcsfuse
-ARG GO_VERSION
+# Build the optimized gcsfuse .deb package (referencing kislaykishore/fuse-pool)
+# and run the 1 MiB / 1 GiB / 112-job gRPC read FIO benchmark to demonstrate
+# maximum throughput (~20-21+ GB/s) with reduced CPU core usage (< 50 cores):
+#
+#   docker build -t gcsfuse-grpc-opt .
+#
+#   # Example 1: Restrict container to 26 physical cores (16-41) via Docker cpuset:
+#   docker run --rm --privileged --network=host --cpuset-cpus="16-41" \
+#     gcsfuse-grpc-opt --bucket kislayk-c4-usw4-hns
+#
+#   # Example 2: Restrict container to 18 physical cores / 36 vCPUs (16-33,64-81):
+#   docker run --rm --privileged --network=host --cpuset-cpus="16-33,64-81" \
+#     gcsfuse-grpc-opt --bucket kislayk-c4-usw4-hns
 
-FROM golang:${GO_VERSION}-alpine AS builder
+ARG GO_VERSION=1.27.2
 
-RUN apk add git
+FROM golang:${GO_VERSION}-bookworm AS builder
 
-ARG GCSFUSE_REPO="/run/gcsfuse/"
-ADD . ${GCSFUSE_REPO}
-WORKDIR ${GCSFUSE_REPO}
-RUN go install ./tools/build_gcsfuse
-RUN build_gcsfuse . /tmp $(git log -1 --format=format:"%H")
+ARG GCSFUSE_VERSION=3.13.0-grpc-cpu-opt
+ARG ARCHITECTURE=amd64
 
-FROM alpine:3.21
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+ENV GO111MODULE=on
 
-RUN apk add --update --no-cache bash ca-certificates fuse
+WORKDIR /src/gcsfuse
+COPY . /src/gcsfuse
 
-COPY --from=builder /tmp/bin/gcsfuse /usr/local/bin/gcsfuse
-COPY --from=builder /tmp/sbin/mount.gcsfuse /usr/sbin/mount.gcsfuse
-ENTRYPOINT ["gcsfuse", "-o", "allow_other", "--foreground", "--implicit-dirs", "/gcs"]
+RUN go install ./tools/build_gcsfuse && \
+    PKG_DIR="/pkg/gcsfuse_${GCSFUSE_VERSION}_${ARCHITECTURE}" && \
+    mkdir -p "${PKG_DIR}" /packages && \
+    build_gcsfuse /src/gcsfuse "${PKG_DIR}" "${GCSFUSE_VERSION}" && \
+    mkdir -p "${PKG_DIR}/usr" && \
+    mv "${PKG_DIR}/bin" "${PKG_DIR}/usr/bin" && \
+    mkdir -p "${PKG_DIR}/DEBIAN" && \
+    cp /src/gcsfuse/DEBIAN/control "${PKG_DIR}/DEBIAN/control" && \
+    sed -i "s/^Version:.*/Version: ${GCSFUSE_VERSION}/" "${PKG_DIR}/DEBIAN/control" && \
+    sed -i "s/^Architecture:.*/Architecture: ${ARCHITECTURE}/" "${PKG_DIR}/DEBIAN/control" && \
+    sed -i "s/^Depends:.*/Depends: fuse3 | fuse/" "${PKG_DIR}/DEBIAN/control" && \
+    dpkg-deb --build "${PKG_DIR}" "/packages/gcsfuse_${GCSFUSE_VERSION}_${ARCHITECTURE}.deb"
+
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
+      ca-certificates \
+      fio \
+      fuse3 \
+      procps \
+      python3 \
+      util-linux && \
+    rm -rf /var/lib/apt/lists/* && \
+    echo "user_allow_other" > /etc/fuse.conf
+
+COPY --from=builder /packages/*.deb /packages/
+RUN dpkg -i /packages/gcsfuse_*.deb
+
+RUN mkdir -p /bench /mnt/gcs
+COPY --from=builder /src/gcsfuse/tools/fio_bench/read.fio /bench/read.fio
+COPY --from=builder /src/gcsfuse/tools/fio_bench/run_fio_bench.py /bench/run_fio_bench.py
+RUN chmod +x /bench/run_fio_bench.py
+
+ENTRYPOINT ["python3", "/bench/run_fio_bench.py"]

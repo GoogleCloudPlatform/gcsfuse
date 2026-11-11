@@ -244,6 +244,16 @@ func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
 	return
 }
 
+func (mrc *monitoringReadCloser) ReadVectored(p []byte) (data [][]byte, n int, callback func(), err error) {
+	if vr, ok := mrc.wrapped.(gcs.VectoredStorageReader); ok {
+		data, n, callback, err = vr.ReadVectored(p)
+		mrc.metricHandle.GcsReadBytesCount(int64(n))
+		return
+	}
+	n, err = mrc.Read(p)
+	return nil, n, nil, err
+}
+
 func (mrc *monitoringReadCloser) Close() (err error) {
 	err = mrc.wrapped.Close()
 	if err != nil {

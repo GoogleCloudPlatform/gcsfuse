@@ -15,7 +15,6 @@
 package cfg
 
 import (
-	"runtime"
 	"testing"
 	"time"
 
@@ -23,11 +22,8 @@ import (
 )
 
 func Test_DefaultMaxBackground(t *testing.T) {
-	expectedRapid := min(max(12, 2*runtime.NumCPU()), rapidMaxBackground)
-	assert.Equal(t, expectedRapid, StorageClassRapid.DefaultMaxBackground())
-
-	expectedStandard := min(max(12, 2*runtime.NumCPU()), nonRapidMaxBackground)
-	assert.Equal(t, expectedStandard, StorageClassStandard.DefaultMaxBackground())
+	assert.Equal(t, rapidMaxBackground, StorageClassRapid.DefaultMaxBackground())
+	assert.Equal(t, nonRapidMaxBackground, StorageClassStandard.DefaultMaxBackground())
 }
 
 func Test_DefaultCongestionThreshold(t *testing.T) {

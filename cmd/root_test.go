@@ -963,7 +963,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 					LimitOpsPerSec:             -1,
 					MaxConnsPerHost:            0,
 					MaxIdleConnsPerHost:        100,
-					SequentialReadSizeMb:       200,
+					SequentialReadSizeMb:       1024,
 					EnableHttpDnsCache:         false,
 				},
 			},

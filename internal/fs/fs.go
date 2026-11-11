@@ -306,7 +306,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 	root.Unlock()
 
 	// Set up invariant checking.
-	fs.mu = locker.New("FS", fs.checkInvariants)
+	fs.mu = locker.NewRW("FS", fs.checkInvariants)
 	return fs, nil
 }
 
@@ -510,7 +510,7 @@ type fileSystem struct {
 
 	// A lock protecting the state of the file system struct itself (distinct
 	// from per-inode locks). Make sure to see the notes on lock ordering above.
-	mu locker.Locker
+	mu locker.RWLocker
 
 	// The next inode ID to hand out. We assume that this will never overflow,
 	// since even if we were handing out inode IDs at 4 GHz, it would still take
@@ -1875,6 +1875,9 @@ func (fs *fileSystem) StatFS(
 // the original context.
 func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Context {
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
+		if ctx.Done() == nil {
+			return ctx
+		}
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context. It keeps collecting the op's metadata
 		// cache reads so that the op still records its metadata_cache/read_count.
@@ -1933,9 +1936,9 @@ func (fs *fileSystem) GetInodeAttributes(
 	op *fuseops.GetInodeAttributesOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
 	// Find the inode.
-	fs.mu.Lock()
+	fs.mu.RLock()
 	in := fs.inodeOrDie(op.Inode)
-	fs.mu.Unlock()
+	fs.mu.RUnlock()
 
 	in.Lock()
 	defer in.Unlock()
@@ -3086,10 +3089,36 @@ func (fs *fileSystem) ReadFile(
 	op *fuseops.ReadFileOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
 
-	// Find the handle and lock it.
-	fs.mu.Lock()
+	// Find the handle.
+	fs.mu.RLock()
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
-	fs.mu.Unlock()
+	fs.mu.RUnlock()
+
+	if !fs.newConfig.FileSystem.EnableKernelReader && fs.newConfig.EnableNewReader && (op.Size == 0 || op.Dst != nil) {
+		req := gcsx.ReadRequest{
+			Buffer: op.Dst,
+			Offset: op.Offset,
+			Size:   op.Size,
+		}
+		if resp, handled, fastErr := fh.TryFastReadWithReadManager(ctx, &req); handled {
+			op.BytesRead = resp.Size
+			op.Data = resp.Data
+			op.Callback = resp.Callback
+			err = fastErr
+			if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
+				var clobberedErr *gcsfuse_errors.FileClobberedError
+				if err != nil && errors.As(err, &clobberedErr) {
+					if invalidateErr := fs.invalidateCachedEntry(op.Inode); invalidateErr != nil {
+						err = fmt.Errorf("%w; additionally failed to invalidate entry: %w", err, invalidateErr)
+					}
+				}
+			}
+			if err == io.EOF {
+				err = nil
+			}
+			return err
+		}
+	}
 
 	fh.Inode().Lock()
 	if fh.Inode().IsUsingStreamingWriteHandler() {

@@ -840,7 +840,7 @@ params:
     flag-name: "sequential-read-size-mb"
     type: "int"
     usage: "File chunk size to read from GCS in one call. Need to specify the value in MB. ChunkSize less than 1MB is not supported"
-    default: "200"
+    default: "1024"
 
   - config-path: "gcs-retries.chunk-retry-deadline-secs"
     proto-tag: 84

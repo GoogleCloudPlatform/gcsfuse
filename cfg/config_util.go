@@ -31,7 +31,7 @@ const (
 
 // Non-rapid bucket defaults (flat, hierarchical)
 const (
-	nonRapidMaxBackground    = 96
+	nonRapidMaxBackground    = 256
 	nonRapidMaxReadAheadKb   = 128 * 1024 // 128 MiB
 	nonRapidMaxRequestSizeKb = 16 * 1024  // 16 MiB
 )
@@ -55,7 +55,7 @@ func (sc StorageClass) DefaultMaxBackground() int {
 	if sc == StorageClassRapid {
 		limit = rapidMaxBackground
 	}
-	return min(max(12, 2*runtime.NumCPU()), limit)
+	return limit
 }
 
 func (sc StorageClass) DefaultCongestionThreshold() int {
