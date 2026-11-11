@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -559,4 +560,323 @@ func (t *KernelMRDReaderTest) TestReadAt_SmallReadsConsumeAndClearPrefetch() {
 	assert.Empty(t.T(), t.reader.chunks, "Small random read must clear stale prefetched chunks")
 	assert.Equal(t.T(), 0, t.reader.seqReads)
 	t.reader.mu.Unlock()
+}
+
+func (t *KernelMRDReaderTest) TestReadAt_ConcurrentInitialSequentialReads_InOrderAndOutOfOrder() {
+	for _, outOfOrder := range []bool{false, true} {
+		name := "InOrder"
+		if outOfOrder {
+			name = "OutOfOrder"
+		}
+		t.Run(name, func() {
+			t.SetupTest()
+			t.object.Size = 16 * gcsx.MiB
+			pool := mem.DefaultBufferPool()
+
+			entered0 := make(chan struct{})
+			entered1 := make(chan struct{})
+			release0 := make(chan struct{})
+			release1 := make(chan struct{})
+
+			mrd := &pinnedFakeMRD{
+				addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+					go func() {
+						switch offset {
+						case 0:
+							close(entered0)
+							<-release0
+						case 1 * gcsx.MiB:
+							close(entered1)
+							<-release1
+						}
+						rawBuf := pool.Get(int(length))
+						slice := (*rawBuf)[:length]
+						fillByte := byte('A' + (offset / gcsx.MiB))
+						for i := range slice {
+							slice[i] = fillByte
+						}
+						n, _ := output.Write(slice)
+						pool.Put(rawBuf)
+						callback(offset, int64(n), nil)
+					}()
+				},
+			}
+			t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Once()
+
+			var (
+				resp0, resp1 gcsx.ReadResponse
+				err0, err1   error
+				done0        = make(chan struct{})
+				done1        = make(chan struct{})
+			)
+
+			go func() {
+				defer close(done0)
+				buf0 := make([]byte, 1*gcsx.MiB)
+				resp0, err0 = t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+					Buffer: buf0,
+					Offset: 0,
+				})
+			}()
+
+			go func() {
+				defer close(done1)
+				buf1 := make([]byte, 1*gcsx.MiB)
+				resp1, err1 = t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+					Buffer: buf1,
+					Offset: 1 * gcsx.MiB,
+				})
+			}()
+
+			// Wait until both concurrent initial reads are in-flight inside ReadVectored.
+			<-entered0
+			<-entered1
+
+			if !outOfOrder {
+				close(release0)
+				<-done0
+				close(release1)
+				<-done1
+			} else {
+				// Out-of-order completion: [1 MiB, 2 MiB) completes before [0, 1 MiB).
+				close(release1)
+				<-done1
+				t.reader.mu.Lock()
+				assert.Equal(t.T(), int64(2*gcsx.MiB), t.reader.lastReadEnd)
+				t.reader.mu.Unlock()
+
+				close(release0)
+				<-done0
+			}
+
+			assert.NoError(t.T(), err0)
+			assert.NoError(t.T(), err1)
+			assert.Equal(t.T(), 1*gcsx.MiB, resp0.Size)
+			assert.Equal(t.T(), 1*gcsx.MiB, resp1.Size)
+			if resp0.Callback != nil {
+				resp0.Callback()
+			}
+			if resp1.Callback != nil {
+				resp1.Callback()
+			}
+
+			t.reader.mu.Lock()
+			assert.Empty(t.T(), t.reader.inFlight)
+			assert.Equal(t.T(), int64(2*gcsx.MiB), t.reader.lastReadEnd, "lastReadEnd must never rewind to 1 MiB")
+			assert.Equal(t.T(), 2, t.reader.seqReads)
+			assert.NotEmpty(t.T(), t.reader.chunks)
+			assert.Equal(t.T(), int64(2*gcsx.MiB), t.reader.chunks[0].Offset, "Prefetch must start at 2 MiB past both concurrent in-flight ranges")
+			t.reader.mu.Unlock()
+
+			// Read [2 MiB, 6 MiB) in 1 MiB steps and verify no zombie chunks remain at the front.
+			for step := int64(2); step < 6; step++ {
+				buf := make([]byte, 1*gcsx.MiB)
+				resp, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+					Buffer: buf,
+					Offset: step * gcsx.MiB,
+				})
+				assert.NoError(t.T(), err)
+				assert.Equal(t.T(), 1*gcsx.MiB, resp.Size)
+				assert.NotNil(t.T(), resp.Callback)
+				resp.Callback()
+			}
+
+			t.reader.mu.Lock()
+			assert.NotEmpty(t.T(), t.reader.chunks)
+			assert.Equal(t.T(), int64(6*gcsx.MiB), t.reader.chunks[0].Offset, "Consumed chunks must be evicted without stuck zombie chunks")
+			t.reader.mu.Unlock()
+
+			t.reader.Destroy()
+		})
+	}
+}
+
+func (t *KernelMRDReaderTest) TestReadAt_StraddlingPrefetchChunkBoundary_ServedZeroCopyWithoutClearingQueue() {
+	t.object.Size = 16 * gcsx.MiB
+	pool := mem.DefaultBufferPool()
+
+	var (
+		mu             sync.Mutex
+		requestedSpans [][2]int64
+	)
+
+	mrd := &pinnedFakeMRD{
+		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+			mu.Lock()
+			requestedSpans = append(requestedSpans, [2]int64{offset, length})
+			mu.Unlock()
+
+			rawBuf := pool.Get(int(length))
+			slice := (*rawBuf)[:length]
+			for i := range slice {
+				slice[i] = byte((offset + int64(i)) / (256 * 1024))
+			}
+			n, _ := output.Write(slice)
+			pool.Put(rawBuf)
+			callback(offset, int64(n), nil)
+		},
+	}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Once()
+
+	// 1. Initial 256 KiB read at offset 0 triggers prefetch starting at 256 KiB:
+	//    chunk[0] = [256 KiB, 2304 KiB) (2 MiB), chunk[1] = [2304 KiB, 6400 KiB) (4 MiB).
+	resp1, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: make([]byte, 256*1024),
+		Offset: 0,
+	})
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 256*1024, resp1.Size)
+	assert.NotNil(t.T(), resp1.Callback)
+	resp1.Callback()
+
+	t.reader.mu.Lock()
+	assert.Len(t.T(), t.reader.chunks, 2)
+	assert.Equal(t.T(), int64(256*1024), t.reader.chunks[0].Offset)
+	assert.Equal(t.T(), int(2*gcsx.MiB), t.reader.chunks[0].Length)
+	assert.Equal(t.T(), int64(2304*1024), t.reader.chunks[1].Offset)
+	assert.Equal(t.T(), int(4*gcsx.MiB), t.reader.chunks[1].Length)
+	t.reader.mu.Unlock()
+
+	// 2. Read [256 KiB, 768 KiB) (512 KiB) from chunk[0].
+	resp2, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: make([]byte, 512*1024),
+		Offset: 256 * 1024,
+	})
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 512*1024, resp2.Size)
+	assert.NotNil(t.T(), resp2.Callback)
+	resp2.Callback()
+
+	// 3. Read [768 KiB, 1792 KiB) (1 MiB) from chunk[0].
+	resp3, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: make([]byte, 1*gcsx.MiB),
+		Offset: 768 * 1024,
+	})
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 1*gcsx.MiB, resp3.Size)
+	assert.NotNil(t.T(), resp3.Callback)
+	resp3.Callback()
+
+	// 4. Read [1792 KiB, 2816 KiB) (1 MiB) straddling the 2304 KiB boundary between chunk[0] and chunk[1].
+	resp4, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: make([]byte, 1*gcsx.MiB),
+		Offset: 1792 * 1024,
+	})
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 1*gcsx.MiB, resp4.Size)
+	assert.NotNil(t.T(), resp4.Callback, "Straddling sequential read must be served zero-copy from contiguous prefetch chunks")
+
+	// Verify concatenated payload across the 2304 KiB chunk boundary.
+	var got bytes.Buffer
+	for _, s := range resp4.Data {
+		got.Write(s)
+	}
+	assert.Equal(t.T(), 1*gcsx.MiB, got.Len())
+	gotBytes := got.Bytes()
+	assert.Equal(t.T(), byte((1792*1024)/(256*1024)), gotBytes[0])
+	assert.Equal(t.T(), byte((2304*1024-1)/(256*1024)), gotBytes[512*1024-1])
+	assert.Equal(t.T(), byte((2304*1024)/(256*1024)), gotBytes[512*1024])
+	assert.Equal(t.T(), byte((2816*1024-1)/(256*1024)), gotBytes[1*gcsx.MiB-1])
+	resp4.Callback()
+
+	// Verify chunk[0] ([256 KiB, 2304 KiB)) was evicted while chunk[1] ([2304 KiB, 6400 KiB)) remained
+	// with Consumed == 512 KiB and a new lookahead chunk [6400 KiB, 10496 KiB) was scheduled.
+	t.reader.mu.Lock()
+	assert.Len(t.T(), t.reader.chunks, 2, "Prefetch queue must not be cleared on straddling read")
+	assert.Equal(t.T(), int64(2304*1024), t.reader.chunks[0].Offset)
+	assert.Equal(t.T(), 512*1024, t.reader.chunks[0].Consumed)
+	assert.Equal(t.T(), int64(6400*1024), t.reader.chunks[1].Offset)
+	t.reader.mu.Unlock()
+
+	// Verify no synchronous fallback ReadVectored download occurred for [1792 KiB, 2816 KiB).
+	mu.Lock()
+	for _, sp := range requestedSpans {
+		assert.NotEqual(t.T(), [2]int64{1792 * 1024, 1 * gcsx.MiB}, sp, "Straddling read must not fall back to ReadVectored")
+	}
+	mu.Unlock()
+
+	t.reader.Destroy()
+}
+
+func (t *KernelMRDReaderTest) TestReadAt_ContextCancellationDuringChunkWait_RollsBackConsumedAndReinsertsEvictedChunk() {
+	t.object.Size = 16 * gcsx.MiB
+	pool := mem.DefaultBufferPool()
+
+	finishChunk0 := make(chan struct{})
+	mrd := &pinnedFakeMRD{
+		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+			go func() {
+				if offset == 1*gcsx.MiB {
+					<-finishChunk0
+				}
+				rawBuf := pool.Get(int(length))
+				slice := (*rawBuf)[:length]
+				for i := range slice {
+					slice[i] = 'Z'
+				}
+				n, _ := output.Write(slice)
+				pool.Put(rawBuf)
+				callback(offset, int64(n), nil)
+			}()
+		},
+	}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Once()
+
+	// Seed prefetch queue at offset 1 MiB: chunk[0] = [1 MiB, 3 MiB), chunk[1] = [3 MiB, 7 MiB).
+	t.reader.mu.Lock()
+	t.reader.lastReadEnd = 1 * gcsx.MiB
+	t.reader.nextPrefetchOffset = 1 * gcsx.MiB
+	t.reader.seqReads = 1
+	t.reader.schedulePrefetchLocked()
+	assert.Len(t.T(), t.reader.chunks, 2)
+	origChunk0 := t.reader.chunks[0]
+	t.reader.mu.Unlock()
+
+	// 1. Cancel a full-chunk read [1 MiB, 3 MiB) (which temporarily evicts chunk[0] in acquirePrefetchSpans).
+	cancelCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	resp, err := t.reader.ReadAt(cancelCtx, &gcsx.ReadRequest{
+		Buffer: make([]byte, 2*gcsx.MiB),
+		Offset: 1 * gcsx.MiB,
+	})
+	assert.ErrorIs(t.T(), err, context.Canceled)
+	assert.Equal(t.T(), 0, resp.Size)
+
+	// Verify chunk[0] had Consumed rolled back to 0 and was re-inserted at the head of kmr.chunks.
+	t.reader.mu.Lock()
+	assert.NotEmpty(t.T(), t.reader.chunks)
+	assert.Same(t.T(), origChunk0, t.reader.chunks[0], "Evicted chunk must be re-inserted at head of kmr.chunks on cancellation")
+	assert.Equal(t.T(), 0, t.reader.chunks[0].Consumed, "Consumed must be rolled back to 0 on cancellation")
+	t.reader.mu.Unlock()
+
+	// 2. Cancel a partial-chunk read [1 MiB, 2 MiB) and verify Consumed is rolled back to 0.
+	respPartial, errPartial := t.reader.ReadAt(cancelCtx, &gcsx.ReadRequest{
+		Buffer: make([]byte, 1*gcsx.MiB),
+		Offset: 1 * gcsx.MiB,
+	})
+	assert.ErrorIs(t.T(), errPartial, context.Canceled)
+	assert.Equal(t.T(), 0, respPartial.Size)
+
+	t.reader.mu.Lock()
+	assert.Same(t.T(), origChunk0, t.reader.chunks[0])
+	assert.Equal(t.T(), 0, t.reader.chunks[0].Consumed)
+	t.reader.mu.Unlock()
+
+	// 3. Unblock chunk[0] download and retry [1 MiB, 3 MiB): must succeed zero-copy from origChunk0.
+	close(finishChunk0)
+	retryResp, retryErr := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: make([]byte, 2*gcsx.MiB),
+		Offset: 1 * gcsx.MiB,
+	})
+	assert.NoError(t.T(), retryErr)
+	assert.Equal(t.T(), 2*gcsx.MiB, retryResp.Size)
+	assert.NotNil(t.T(), retryResp.Callback, "Retried read after context cancellation must hit the restored prefetch chunk")
+	retryResp.Callback()
+
+	t.reader.mu.Lock()
+	assert.NotEmpty(t.T(), t.reader.chunks)
+	assert.Equal(t.T(), int64(3*gcsx.MiB), t.reader.chunks[0].Offset)
+	t.reader.mu.Unlock()
+
+	t.reader.Destroy()
 }

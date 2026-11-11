@@ -390,7 +390,9 @@ func TestReadVectored_GRPCReadObjectAndBidi(t *testing.T) {
 			require.NotNil(t, slices)
 			require.NotNil(t, cb)
 			assert.Equal(t, 3*1024, n)
-			assert.NotNil(t, TryPinDirtySlice(slices[0]))
+			tok := TryPinDirtySlice(slices[0])
+			assert.NotNil(t, tok)
+			ReleaseDirtyBuffer(tok)
 			got = append(got, flattenVectored(slices, buf, n)...)
 			cb()
 
@@ -439,9 +441,13 @@ func TestReadVectored_GRPCReadObjectAndBidi(t *testing.T) {
 			cb()
 			assert.Equal(t, int32(1), ftr.refs.Load(), "currMsg.databufs still holds 1 ref before Close")
 
+			pinTok := TryPinDirtySlice(s0)
+			require.NotNil(t, pinTok)
+
 			// Close mid-message; freeUnreadCurrMsg must release currMsg.databufs.
 			require.NoError(t, frc2.Close())
-			assert.Equal(t, int32(0), ftr.refs.Load(), "Close must free unread currMsg.databufs back to pool")
+			assert.Equal(t, int32(1), ftr.refs.Load(), "Close must decrement unread currMsg.databufs refcount")
+			ReleaseDirtyBuffer(pinTok)
 
 			// 3. Concurrent ReadVectored calls across multiple readers under -race.
 			var wg sync.WaitGroup
@@ -509,9 +515,9 @@ type simpleTestBufferPool struct {
 func (p *simpleTestBufferPool) Get(size int) *[]byte {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if n := len(p.buffers); n > 0 {
-		b := p.buffers[n-1]
-		p.buffers = p.buffers[:n-1]
+	if len(p.buffers) > 0 {
+		b := p.buffers[0]
+		p.buffers = p.buffers[1:]
 		if cap(*b) >= size {
 			*b = (*b)[:size]
 			return b
@@ -578,17 +584,14 @@ func TestLargeReadTCPConn_ReadAndReadOnReady(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 9, n)
 	assert.Equal(t, http2FrameHdr, hdrBuf)
-	assert.False(t, lrc.drainInitialALTSBuf.Load())
 
 	// 2. Initial 36,864-byte ALTS protected buffer read must read only the exact
-	// single ALTS frame (104 bytes) even though readyPayload is already queued,
-	// and mark drainInitialALTSBuf = true.
+	// single ALTS frame (104 bytes) even though readyPayload is already queued.
 	initialALTSBuf := make([]byte, altsInitialProtectedCap)
 	n, err = lrc.Read(initialALTSBuf)
 	require.NoError(t, err)
 	assert.Equal(t, altsTotalFrame, n)
 	assert.Equal(t, altsRecord, initialALTSBuf[:n])
-	assert.True(t, lrc.drainInitialALTSBuf.Load())
 
 	// 3. Simulate ALTS dropProtectedIfEmtpy() returning the 36 KiB buffer to pool
 	// and then calling ReadOnReady(33280, pool).
@@ -601,7 +604,6 @@ func TestLargeReadTCPConn_ReadAndReadOnReady(t *testing.T) {
 	assert.Greater(t, n, 0)
 	assert.Equal(t, minSocketReadBufferSize, cap(*bufPtr), "36 KiB buffer must be upgraded in-place to 512 KiB")
 	assert.Same(t, &initialALTSBuf, bufPtr, "36 KiB buffer handle should be upgraded in-place")
-	assert.False(t, lrc.drainInitialALTSBuf.Load())
 	pool.Put(bufPtr)
 
 	<-serverDone

@@ -1269,6 +1269,9 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithGrp
 	optsWithoutMetrics, err := createClientOptionForGRPCClient(context.TODO(), &scWithoutMetrics, false)
 	require.NoError(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), optsWithoutMetrics)
+	assert.Len(testSuite.T(), optsWithMetrics, len(optsWithoutMetrics))
+	assert.Len(testSuite.T(), optsNonGKE, len(optsWithoutMetrics)-1)
+	assert.Len(testSuite.T(), optsNoopMP, len(optsWithoutMetrics)-1)
 }
 
 func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_AuthFailures() {

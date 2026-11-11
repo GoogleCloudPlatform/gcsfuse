@@ -193,11 +193,13 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 	}
 	clientOpts = append(clientOpts,
 		option.WithGRPCDialOption(grpc_experimental.WithBufferPool(defaultDirtyBufferPool)),
-		option.WithGRPCDialOption(grpc.WithReadBufferSize(0)),
 		option.WithGRPCDialOption(grpc.WithSharedWriteBuffer(true)),
 		option.WithGRPCDialOption(grpc.WithInitialWindowSize(16*1024*1024)),
 		option.WithGRPCDialOption(grpc.WithInitialConnWindowSize(64*1024*1024)),
 	)
+	if !(clientConfig.CustomEndpoint != "" && clientConfig.AnonymousAccess) && os.Getenv("STORAGE_EMULATOR_HOST_GRPC") == "" {
+		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithReadBufferSize(0)))
+	}
 
 	if clientConfig.TracingEnabled {
 		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithStatsHandler(otelgrpc.NewClientHandler())))
@@ -217,10 +219,8 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		if sdkmp, ok := mp.(*sdkmetric.MeterProvider); ok {
 			// pass in if sdkmp is of type *sdkmetric.MeterProvider (not a No-op)
 			clientOpts = append(clientOpts, experimental.WithMeterProvider(sdkmp))
-		} else {
-			clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
 		}
-	} else {
+	} else if !clientConfig.EnableGrpcMetrics {
 		clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
 	}
 
@@ -309,19 +309,14 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 			return nil, verifyErr
 		}
 		logger.Infof("DirectPath verification succeeded, continuing with DirectPath.")
-	} else {
-		warmGRPCClientConnectivity(ctx, clientConfig, bucketName, sc, billingProject, enableBidiConfig)
 	}
 	setRetryConfig(ctx, sc, clientConfig)
 	return sc, nil
 }
 
-func warmGRPCClientConnectivity(ctx context.Context, clientConfig *storageutil.StorageClientConfig, bucketName string, sc *storage.Client, billingProject string, enableBidiConfig bool) {
-	if bucketName == "" ||
-		clientConfig.CustomEndpoint != "" ||
-		clientConfig.AnonymousAccess ||
-		strings.Contains(clientConfig.KeyFile, "testdata") ||
-		clientConfig.TokenUrl == storageutil.CustomTokenUrl ||
+func (sh *storageClient) warmGRPCClientConnectivity(ctx context.Context, bh *storage.BucketHandle, isRapid bool) {
+	if sh.clientConfig.CustomEndpoint != "" ||
+		sh.clientConfig.AnonymousAccess ||
 		os.Getenv("STORAGE_EMULATOR_HOST_GRPC") != "" ||
 		os.Getenv("STORAGE_EMULATOR_HOST") != "" {
 		return
@@ -329,15 +324,11 @@ func warmGRPCClientConnectivity(ctx context.Context, clientConfig *storageutil.S
 	warmCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	testObject := nonExistentObjectName
-	if clientConfig.OnlyDir != "" {
-		testObject = clientConfig.OnlyDir + testObject
-	}
-	bh := sc.Bucket(bucketName)
-	if billingProject != "" {
-		bh = bh.UserProject(billingProject)
+	if sh.clientConfig.OnlyDir != "" {
+		testObject = sh.clientConfig.OnlyDir + testObject
 	}
 	bh = bh.Retryer(storage.WithMaxAttempts(1))
-	if enableBidiConfig {
+	if isRapid {
 		if mrd, err := bh.Object(testObject).NewMultiRangeDownloader(warmCtx); err == nil && mrd != nil {
 			_ = mrd.Close()
 		}
@@ -676,6 +667,8 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		if err != nil {
 			return nil, fmt.Errorf("bucket access check failed for %q: %s", bucketName, err)
 		}
+	} else if sh.rawStorageControlClient != nil && (bucketType.IsRapid() || (client == sh.grpcClient && sh.clientConfig.ClientProtocol == cfg.GRPC)) {
+		sh.warmGRPCClientConnectivity(ctx, storageBucketHandle, bucketType.IsRapid())
 	}
 
 	var controlClient StorageControlClient

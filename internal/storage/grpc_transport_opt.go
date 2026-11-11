@@ -16,7 +16,9 @@ package storage
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"io"
 	"math/bits"
 	"net"
@@ -48,9 +50,6 @@ const (
 	// buffer's capacity [defaultSize : defaultSize+16] for zero-copy reference
 	// counting across MultiRangeDownloader and FUSE writev.
 	dirtyBufFooterSize = 16
-
-	// dirtyBufMagic identifies buffers allocated by dirtyTieredBufferPool.
-	dirtyBufMagic = uint64(0x474353465553455a) // "GCSFUSEZ"
 )
 
 // dirtyBufFooter is placed in the trailing 16 bytes [defaultSize : defaultSize+16]
@@ -66,6 +65,11 @@ var (
 	_ [16 - unsafe.Sizeof(dirtyBufFooter{})]byte
 	_ [unsafe.Sizeof(dirtyBufFooter{}) - 16]byte
 
+	// dirtyBufMagic identifies buffers allocated by dirtyTieredBufferPool.
+	// Initialized with cryptographic randomness at startup so payload bytes
+	// cannot forge a valid footer magic.
+	dirtyBufMagic uint64
+
 	sliceHeaderPool = sync.Pool{
 		New: func() any {
 			var s []byte
@@ -73,6 +77,14 @@ var (
 		},
 	}
 )
+
+func dirtyFooterTag(ftrPtr unsafe.Pointer, exp uint32) uint32 {
+	h := uint64(uintptr(ftrPtr)) ^ dirtyBufMagic
+	h ^= h >> 33
+	h *= 0xff51afd7ed558ccd
+	h ^= h >> 33
+	return (uint32(h>>40) << 8) | (exp & 0xff)
+}
 
 // dirtySizedPool pools fixed-capacity byte slices without zeroing them on Get,
 // eliminating runtime.memclrNoHeapPointers overhead on the gRPC read path and
@@ -92,9 +104,10 @@ func (p *dirtySizedPool) Get(size int) *[]byte {
 	} else {
 		*buf = (*buf)[:size]
 	}
-	ftr := (*dirtyBufFooter)(unsafe.Add(unsafe.Pointer(unsafe.SliceData(*buf)), p.defaultSize))
+	ftrPtr := unsafe.Add(unsafe.Pointer(unsafe.SliceData(*buf)), p.defaultSize)
+	ftr := (*dirtyBufFooter)(ftrPtr)
 	ftr.magic = dirtyBufMagic
-	ftr.exp = p.exp
+	ftr.exp = dirtyFooterTag(ftrPtr, p.exp)
 	ftr.refs.Store(1)
 	return buf
 }
@@ -130,8 +143,9 @@ func TryPinDirtySlice(p []byte) unsafe.Pointer {
 	if ftr.magic != dirtyBufMagic {
 		return nil
 	}
-	exp := ftr.exp
-	if exp < 11 || exp > 22 || c > (1<<exp)+dirtyBufFooterSize {
+	rawExp := ftr.exp
+	exp := rawExp & 0xff
+	if exp < 11 || exp > 22 || c > (1<<exp)+dirtyBufFooterSize || rawExp != dirtyFooterTag(ftrPtr, exp) {
 		return nil
 	}
 	for {
@@ -156,8 +170,8 @@ func ReleaseDirtyBuffer(tok unsafe.Pointer) {
 	if ftr.refs.Add(-1) != 0 {
 		return
 	}
-	exp := ftr.exp
-	if exp < 11 || exp > 22 {
+	exp := ftr.exp & 0xff
+	if ftr.magic != dirtyBufMagic || exp < 11 || exp > 22 || ftr.exp != dirtyFooterTag(tok, exp) {
 		return
 	}
 	sp := defaultDirtyBufferPool.pools[exp]
@@ -227,6 +241,12 @@ var (
 )
 
 func init() {
+	var b [8]byte
+	_, _ = rand.Read(b[:])
+	dirtyBufMagic = binary.LittleEndian.Uint64(b[:])
+	if dirtyBufMagic == 0 {
+		dirtyBufMagic = 0x474353465553455a // "GCSFUSEZ"
+	}
 	grpc_experimental.SetDefaultBufferPool(defaultDirtyBufferPool)
 }
 
@@ -243,10 +263,9 @@ type largeReadState struct {
 // to coalesce small ALTS socket reads into 512 KiB non-blocking reads.
 type largeReadTCPConn struct {
 	*net.TCPConn
-	raw                 syscall.RawConn
-	state               largeReadState
-	doRead              func(fd uintptr) bool
-	drainInitialALTSBuf atomic.Bool
+	raw    syscall.RawConn
+	state  largeReadState
+	doRead func(fd uintptr) bool
 }
 
 func wrapLargeReadTCPConn(conn net.Conn) net.Conn {
@@ -267,7 +286,13 @@ func wrapLargeReadTCPConn(conn net.Conn) net.Conn {
 	}
 	c.doRead = func(fd uintptr) bool {
 		s := &c.state
-		if c.drainInitialALTSBuf.CompareAndSwap(true, false) && s.pool != defaultDirtyBufferPool {
+		if s.pool != defaultDirtyBufferPool {
+			if preseededALTSPool.CompareAndSwap(false, true) {
+				for range 64 {
+					b := make([]byte, s.bufSize)
+					s.pool.Put(&b)
+				}
+			}
 			cand := s.pool.Get(altsInitialProtectedCap)
 			if cap(*cand) >= s.bufSize {
 				*cand = (*cand)[:s.bufSize]
@@ -275,12 +300,6 @@ func wrapLargeReadTCPConn(conn net.Conn) net.Conn {
 				*cand = make([]byte, s.bufSize)
 			}
 			s.buf = cand
-			if preseededALTSPool.CompareAndSwap(false, true) {
-				for range 64 {
-					b := make([]byte, s.bufSize)
-					s.pool.Put(&b)
-				}
-			}
 		} else {
 			s.buf = s.pool.Get(s.bufSize)
 		}
@@ -294,6 +313,14 @@ func wrapLargeReadTCPConn(conn net.Conn) net.Conn {
 	return c
 }
 
+func readFullEOF(r io.Reader, buf []byte) (int, error) {
+	n, err := io.ReadFull(r, buf)
+	if errors.Is(err, io.ErrUnexpectedEOF) {
+		err = io.EOF
+	}
+	return n, err
+}
+
 func (c *largeReadTCPConn) Read(b []byte) (int, error) {
 	// An initial 36 KiB ALTS protected buffer passed by alts.conn.ReadOnReady
 	// has len(b) == altsInitialProtectedCap && cap(b) == altsInitialProtectedCap
@@ -304,16 +331,15 @@ func (c *largeReadTCPConn) Read(b []byte) (int, error) {
 	// 36 KiB buffer and invoke ReadOnReady to upgrade the connection to a
 	// 512 KiB protected buffer.
 	if len(b) == altsInitialProtectedCap && cap(b) == altsInitialProtectedCap {
-		n, err := io.ReadFull(c.TCPConn, b[:8])
+		n, err := readFullEOF(c.TCPConn, b[:8])
 		if err != nil {
 			return n, err
 		}
 		frameLen := int(binary.LittleEndian.Uint32(b[:4]))
 		msgType := binary.LittleEndian.Uint32(b[4:8])
 		totalFrame := 4 + frameLen
-		if msgType == 6 && frameLen >= 20 && totalFrame <= len(b) {
-			c.drainInitialALTSBuf.Store(true)
-			m, err := io.ReadFull(c.TCPConn, b[8:totalFrame])
+		if msgType == 6 && frameLen >= 20 && totalFrame <= 1024*1024 {
+			m, err := readFullEOF(c.TCPConn, b[8:min(totalFrame, len(b))])
 			return n + m, err
 		}
 		return n, nil
