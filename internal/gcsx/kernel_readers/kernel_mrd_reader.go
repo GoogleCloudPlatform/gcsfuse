@@ -664,11 +664,12 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 	}
 
 	var inFlightID uint64
-	var startEpoch uint64
 	trackInFlight := len(req.Buffer) >= minPrefetchReadSize
+	kmr.mu.Lock()
+	startEpoch := kmr.prefetchEpoch.Load()
+	startLastReadEnd := kmr.lastReadEnd
+	startSeqReads := kmr.seqReads
 	if trackInFlight {
-		kmr.mu.Lock()
-		startEpoch = kmr.prefetchEpoch.Load()
 		kmr.nextInFlightID++
 		inFlightID = kmr.nextInFlightID
 		kmr.inFlight = append(kmr.inFlight, inFlightRange{
@@ -678,10 +679,8 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 			epoch:        startEpoch,
 			coveredEpoch: startEpoch,
 		})
-		kmr.mu.Unlock()
-	} else {
-		startEpoch = kmr.prefetchEpoch.Load()
 	}
+	kmr.mu.Unlock()
 
 	resp, err := kmr.mrdInstance.ReadVectored(ctx, req.Buffer, req.Offset, kmr.metrics)
 	bytesRead = resp.Size
@@ -727,6 +726,9 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 			return resp, err
 		}
 		if continuesStream {
+			if kmr.seqReads == 0 {
+				curEpoch = kmr.prefetchEpoch.Add(1)
+			}
 			kmr.seqReads++
 			if coveredEnd > kmr.lastReadEnd {
 				kmr.lastReadEnd = coveredEnd
@@ -803,7 +805,10 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 				}
 				kmr.chunks = kmr.chunks[:n]
 			}
-		} else if len(kmr.chunks) > 0 || kmr.seqReads > 0 || kmr.lastReadEnd > 0 {
+		} else if kmr.lastReadEnd == startLastReadEnd &&
+			kmr.seqReads == startSeqReads &&
+			len(kmr.chunks) == 0 &&
+			(kmr.seqReads > 0 || kmr.lastReadEnd > 0) {
 			kmr.clearPrefetchLocked()
 			kmr.seqReads = 0
 			kmr.lastReadEnd = 0

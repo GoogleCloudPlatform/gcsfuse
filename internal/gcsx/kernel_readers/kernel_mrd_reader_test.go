@@ -2795,4 +2795,126 @@ func (t *KernelMRDReaderTest) TestReadAt_ElseBranch_StaleOrSupersededDoesNotClob
 			})
 		}
 	})
+
+	t.Run("IdleZeroStartAndSameEpochSeq1ElseBranchDoesNotClobberPrefetch", func() {
+		for _, tc := range []struct {
+			name        string
+			preRead50M  bool
+			staleOffset int64
+			staleLen    int
+			cancelCtx   bool
+		}{
+			{name: "Idle_CancelledLargeAt10M_BeforeZeroStream", preRead50M: false, staleOffset: 10 * gcsx.MiB, staleLen: gcsx.MiB, cancelCtx: true},
+			{name: "Idle_Small64KAt10M_BeforeZeroStream", preRead50M: false, staleOffset: 10 * gcsx.MiB, staleLen: 64 * 1024},
+			{name: "Idle_Small64KAt0_BeforeZeroStream", preRead50M: false, staleOffset: 0, staleLen: 64 * 1024},
+			{name: "SameEpochSeq1_CancelledLargeAt10M_Before51M", preRead50M: true, staleOffset: 10 * gcsx.MiB, staleLen: gcsx.MiB, cancelCtx: true},
+			{name: "SameEpochSeq1_Small64KAt10M_Before51M", preRead50M: true, staleOffset: 10 * gcsx.MiB, staleLen: 64 * 1024},
+		} {
+			t.Run(tc.name, func() {
+				t.SetupTest()
+				t.object.Size = 200 * gcsx.MiB
+				pool := mem.DefaultBufferPool()
+
+				staleStarted := make(chan struct{})
+				releaseStale := make(chan struct{})
+				var onceStale sync.Once
+
+				mrd := &pinnedFakeMRD{
+					addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+						go func() {
+							isStale := offset == tc.staleOffset && length == int64(tc.staleLen)
+							if isStale {
+								onceStale.Do(func() { close(staleStarted) })
+								<-releaseStale
+							}
+							for pos := int64(0); pos < length; pos += gcsx.MiB {
+								step := min(int64(gcsx.MiB), length-pos)
+								rawBuf := pool.Get(int(step))
+								slice := (*rawBuf)[:step]
+								for i := range slice {
+									slice[i] = byte('A' + ((offset+pos+int64(i))/gcsx.MiB)%26)
+								}
+								_, _ = output.Write(slice)
+								pool.Put(rawBuf)
+							}
+							callback(offset, length, nil)
+						}()
+					},
+				}
+				t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Maybe()
+
+				if tc.preRead50M {
+					r50, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+						Buffer: make([]byte, 1*gcsx.MiB),
+						Offset: 50 * gcsx.MiB,
+					})
+					assert.NoError(t.T(), err)
+					if r50.Callback != nil {
+						r50.Callback()
+					}
+				}
+
+				ctx := context.Background()
+				var cancel context.CancelFunc = func() {}
+				if tc.cancelCtx {
+					ctx, cancel = context.WithCancel(ctx)
+				}
+				staleDone := make(chan error, 1)
+				go func() {
+					r, rErr := t.reader.ReadAt(ctx, &gcsx.ReadRequest{
+						Buffer: make([]byte, tc.staleLen),
+						Offset: tc.staleOffset,
+					})
+					if r.Callback != nil {
+						r.Callback()
+					}
+					staleDone <- rErr
+				}()
+				<-staleStarted
+
+				var seqOffsets []int64
+				var expectedEnd int64
+				if tc.preRead50M {
+					seqOffsets = []int64{51 * gcsx.MiB}
+					expectedEnd = 52 * gcsx.MiB
+				} else {
+					seqOffsets = []int64{0, 1 * gcsx.MiB}
+					expectedEnd = 2 * gcsx.MiB
+				}
+				for _, off := range seqOffsets {
+					r, rErr := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+						Buffer: make([]byte, 1*gcsx.MiB),
+						Offset: off,
+					})
+					assert.NoError(t.T(), rErr)
+					if r.Callback != nil {
+						r.Callback()
+					}
+				}
+
+				t.reader.mu.Lock()
+				epochActive := t.reader.prefetchEpoch.Load()
+				assert.Equal(t.T(), expectedEnd, t.reader.lastReadEnd)
+				assert.NotEmpty(t.T(), t.reader.chunks)
+				t.reader.mu.Unlock()
+
+				if tc.cancelCtx {
+					cancel()
+					assert.ErrorIs(t.T(), <-staleDone, context.Canceled)
+					close(releaseStale)
+				} else {
+					close(releaseStale)
+					assert.NoError(t.T(), <-staleDone)
+				}
+
+				t.reader.mu.Lock()
+				assert.Equal(t.T(), epochActive, t.reader.prefetchEpoch.Load())
+				assert.Equal(t.T(), expectedEnd, t.reader.lastReadEnd)
+				assert.NotEmpty(t.T(), t.reader.chunks, "stale concurrent read must not clobber sequential prefetch chunks")
+				t.reader.mu.Unlock()
+
+				t.reader.Destroy()
+			})
+		}
+	})
 }
