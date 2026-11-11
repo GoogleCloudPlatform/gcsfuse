@@ -23,6 +23,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -88,6 +89,11 @@ var (
 	// streams) could trigger GOAWAY(ENHANCE_YOUR_CALM, "too_many_pings").
 	grpcKeepaliveTime    = 30 * time.Second
 	grpcKeepaliveTimeout = 20 * time.Second
+
+	// Timeout for each independent gRPC connectivity warming RPC (Attrs and
+	// BidiReadObject MultiRangeDownloader). Defined as a var so unit tests can
+	// use a shorter interval.
+	grpcWarmTimeout = 5 * time.Second
 )
 
 type StorageHandle interface {
@@ -103,6 +109,10 @@ type storageClient struct {
 	httpClient               *storage.Client
 	grpcClient               *storage.Client
 	grpcClientWithBidiConfig *storage.Client
+	grpcClientCreated        bool
+	grpcBidiClientCreated    bool
+	warmGRPCOnce             sync.Once
+	warmBidiGRPCOnce         sync.Once
 	clientConfig             storageutil.StorageClientConfig
 	// rawStorageControlClient is the underlying base client without any retries configured.
 	// WARNING: Do not mutate this client or its CallOptions in-place after initialization.
@@ -113,8 +123,13 @@ type storageClient struct {
 	storageControlClient StorageControlClient
 }
 
-// Return clientOpts for both gRPC client and control client.
+// Return clientOpts for data-plane gRPC client.
 func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (clientOpts []option.ClientOption, err error) {
+	return createClientOptionForGRPCClientWithTransport(ctx, clientConfig, enableBidiConfig, true)
+}
+
+// Return clientOpts for gRPC data-plane or control-plane client.
+func createClientOptionForGRPCClientWithTransport(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool, allowDirectZeroCopyRead bool) (clientOpts []option.ClientOption, err error) {
 	// Add custom endpoint if provided.
 	if clientConfig.CustomEndpoint != "" {
 		clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint)))
@@ -173,7 +188,11 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		clientOpts = append(clientOpts, storage.WithGRPCBidiReads())
 	}
 
-	enableDirectZeroCopyRead := !(clientConfig.CustomEndpoint != "" && clientConfig.AnonymousAccess) && os.Getenv("STORAGE_EMULATOR_HOST_GRPC") == ""
+	enableDirectZeroCopyRead := allowDirectZeroCopyRead &&
+		clientConfig.CustomEndpoint == "" &&
+		clientConfig.S2AAddress == "" &&
+		os.Getenv("STORAGE_EMULATOR_HOST_GRPC") == "" &&
+		os.Getenv("STORAGE_EMULATOR_HOST") == ""
 	if clientConfig.LocalSocketAddress != "" {
 		dialer := &net.Dialer{}
 		// The port can be 0, in which case the OS will choose a local port.
@@ -336,19 +355,34 @@ func (sh *storageClient) warmGRPCClientConnectivity(ctx context.Context, bh *sto
 		os.Getenv("STORAGE_EMULATOR_HOST") != "" {
 		return
 	}
-	warmCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
 	testObject := nonExistentObjectName
 	if sh.clientConfig.OnlyDir != "" {
 		testObject = sh.clientConfig.OnlyDir + testObject
 	}
 	bh = bh.Retryer(storage.WithMaxAttempts(1))
-	_, _ = bh.Object(testObject).Attrs(warmCtx)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		attrsCtx, cancel := context.WithTimeout(ctx, grpcWarmTimeout)
+		defer cancel()
+		_, _ = bh.Object(testObject).Attrs(attrsCtx)
+	}()
+
 	if isRapid {
-		if mrd, err := bh.Object(testObject).NewMultiRangeDownloader(warmCtx); err == nil && mrd != nil {
-			_ = mrd.Close()
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			mrdCtx, cancel := context.WithTimeout(ctx, grpcWarmTimeout)
+			defer cancel()
+			if mrd, err := bh.Object(testObject).NewMultiRangeDownloader(mrdCtx); err == nil && mrd != nil {
+				_ = mrd.Close()
+			}
+		}()
 	}
+
+	wg.Wait()
 }
 
 func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil.StorageClientConfig, bucketName string, sc *storage.Client, billingProject string) error {
@@ -563,7 +597,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	if clientConfig.EnableHNS && !strings.Contains(clientConfig.CustomEndpoint, "/storage/v1") {
 		// For control client, we don't pass billingProject to avoid setting it globally via option.WithQuotaProject.
 		// The wrapper storageControlClientWithBillingProject will manually add it to the context for supported calls.
-		clientOpts, err = createClientOptionForGRPCClient(ctx, &clientConfig, false)
+		clientOpts, err = createClientOptionForGRPCClientWithTransport(ctx, &clientConfig, false, false)
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}
@@ -595,6 +629,9 @@ func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, buck
 	if isBucketRapid {
 		if sh.grpcClientWithBidiConfig == nil {
 			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, true, bucketName, billingProject)
+			if err == nil && sh.grpcClientWithBidiConfig != nil {
+				sh.grpcBidiClientCreated = true
+			}
 		}
 		return sh.grpcClientWithBidiConfig, err
 	}
@@ -617,6 +654,9 @@ func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, buck
 	if clientProtocol == cfg.GRPC {
 		if sh.grpcClient == nil {
 			sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, false, bucketName, billingProject)
+			if err == nil && sh.grpcClient != nil {
+				sh.grpcClientCreated = true
+			}
 		}
 		return sh.grpcClient, err
 	}
@@ -641,6 +681,9 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, true, false, bucketName, billingProject)
 	// No error means we are able to successfully create a grpc client with direct path. Return it.
 	if err == nil {
+		if sh.grpcClient != nil {
+			sh.grpcClientCreated = true
+		}
 		return sh.grpcClient, nil
 	}
 
@@ -681,8 +724,15 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 		if err != nil {
 			return nil, fmt.Errorf("bucket access check failed for %q: %s", bucketName, err)
 		}
-	} else if sh.rawStorageControlClient != nil && (bucketType.IsRapid() || (client == sh.grpcClient && sh.clientConfig.ClientProtocol == cfg.GRPC)) {
-		sh.warmGRPCClientConnectivity(ctx, storageBucketHandle, bucketType.IsRapid())
+	}
+	if bucketType.IsRapid() && client == sh.grpcClientWithBidiConfig && sh.grpcBidiClientCreated {
+		sh.warmBidiGRPCOnce.Do(func() {
+			sh.warmGRPCClientConnectivity(ctx, storageBucketHandle, true)
+		})
+	} else if !bucketType.IsRapid() && client == sh.grpcClient && sh.grpcClientCreated && sh.clientConfig.ClientProtocol == cfg.GRPC {
+		sh.warmGRPCOnce.Do(func() {
+			sh.warmGRPCClientConnectivity(ctx, storageBucketHandle, false)
+		})
 	}
 
 	var controlClient StorageControlClient

@@ -23,9 +23,11 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 	"unsafe"
 
 	storagev2 "cloud.google.com/go/storage"
@@ -550,9 +552,6 @@ func (p *simpleTestBufferPool) Put(b *[]byte) {
 }
 
 func TestLargeReadTCPConn_ReadAndReadOnReady(t *testing.T) {
-	origPreseeded := preseededALTSPool.Load()
-	defer preseededALTSPool.Store(origPreseeded)
-
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	defer func() { _ = listener.Close() }()
@@ -618,11 +617,127 @@ func TestLargeReadTCPConn_ReadAndReadOnReady(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, bufPtr)
 	assert.Greater(t, n, 0)
-	assert.Equal(t, minSocketReadBufferSize, cap(*bufPtr), "36 KiB buffer must be upgraded in-place to 512 KiB")
-	assert.Same(t, &initialALTSBuf, bufPtr, "36 KiB buffer handle should be upgraded in-place")
+	assert.Equal(t, minSocketReadBufferSize, cap(*bufPtr), "ReadOnReady must request a 512 KiB buffer from the ALTS pool")
+	assert.NotSame(t, &initialALTSBuf, bufPtr, "36 KiB buffer handle must not be mutated in-place")
 	pool.Put(bufPtr)
 
 	<-serverDone
+
+	t.Run("PartialUnder8ByteReadReturnsImmediately", func(t *testing.T) {
+		ln, lErr := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, lErr)
+		defer func() { _ = ln.Close() }()
+
+		partial := []byte{0x01, 0x02, 0x03}
+		readDone := make(chan struct{})
+		srvDone := make(chan struct{})
+		go func() {
+			defer close(srvDone)
+			srvConn, aErr := ln.Accept()
+			if aErr != nil {
+				return
+			}
+			defer func() { _ = srvConn.Close() }()
+			_, _ = srvConn.Write(partial)
+			<-readDone
+		}()
+
+		conn, dErr := dialLargeReadTCP(context.Background(), ln.Addr().String())
+		require.NoError(t, dErr)
+		defer func() { _ = conn.Close() }()
+		connLRC := conn.(*largeReadTCPConn)
+		require.NoError(t, connLRC.SetReadDeadline(time.Now().Add(5*time.Second)))
+
+		buf := make([]byte, altsInitialProtectedCap)
+		rn, rErr := connLRC.Read(buf)
+		close(readDone)
+		require.NoError(t, rErr)
+		assert.Equal(t, len(partial), rn)
+		assert.Equal(t, partial, buf[:rn])
+		assert.True(t, connLRC.altsInitDone.Load())
+		<-srvDone
+	})
+
+	t.Run("PropagatesDeadlineErrorOnBodyRead", func(t *testing.T) {
+		ln, lErr := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, lErr)
+		defer func() { _ = ln.Close() }()
+
+		hdr := make([]byte, 8)
+		binary.LittleEndian.PutUint32(hdr[:4], 100) // frameLen >= 20, totalFrame = 104
+		binary.LittleEndian.PutUint32(hdr[4:8], 6)   // msgType == 6
+
+		hdrWritten := make(chan struct{})
+		done := make(chan struct{})
+		srvDone := make(chan struct{})
+		go func() {
+			defer close(srvDone)
+			srvConn, aErr := ln.Accept()
+			if aErr != nil {
+				return
+			}
+			defer func() { _ = srvConn.Close() }()
+			_, _ = srvConn.Write(hdr)
+			close(hdrWritten)
+			<-done
+		}()
+
+		conn, dErr := dialLargeReadTCP(context.Background(), ln.Addr().String())
+		require.NoError(t, dErr)
+		defer func() { _ = conn.Close() }()
+		connLRC := conn.(*largeReadTCPConn)
+
+		<-hdrWritten
+		require.NoError(t, connLRC.SetReadDeadline(time.Now().Add(50*time.Millisecond)))
+
+		buf := make([]byte, altsInitialProtectedCap)
+		rn, rErr := connLRC.Read(buf)
+		close(done)
+		require.Error(t, rErr)
+		assert.ErrorIs(t, rErr, os.ErrDeadlineExceeded)
+		assert.Equal(t, 8, rn)
+		assert.Equal(t, hdr, buf[:rn])
+		<-srvDone
+	})
+
+	t.Run("HTTP2PrefaceDisablesALTSHeuristic", func(t *testing.T) {
+		ln, lErr := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, lErr)
+		defer func() { _ = ln.Close() }()
+
+		preface := []byte("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
+		trailing := bytes.Repeat([]byte("H"), 200)
+		srvDone := make(chan struct{})
+		go func() {
+			defer close(srvDone)
+			srvConn, aErr := ln.Accept()
+			if aErr != nil {
+				return
+			}
+			defer func() { _ = srvConn.Close() }()
+			gotPreface := make([]byte, len(preface))
+			_, _ = io.ReadFull(srvConn, gotPreface)
+			_, _ = srvConn.Write(append(append([]byte(nil), altsRecord...), trailing...))
+		}()
+
+		conn, dErr := dialLargeReadTCP(context.Background(), ln.Addr().String())
+		require.NoError(t, dErr)
+		defer func() { _ = conn.Close() }()
+		connLRC := conn.(*largeReadTCPConn)
+
+		wn, wErr := connLRC.Write(preface)
+		require.NoError(t, wErr)
+		assert.Equal(t, len(preface), wn)
+		assert.True(t, connLRC.firstWriteDone.Load())
+		assert.True(t, connLRC.nonALTS.Load())
+
+		buf := make([]byte, altsInitialProtectedCap)
+		rn, rErr := connLRC.Read(buf)
+		require.NoError(t, rErr)
+		assert.False(t, connLRC.altsInitDone.Load())
+		assert.Equal(t, altsTotalFrame+len(trailing), rn)
+		<-srvDone
+	})
 }
 
 type testConstBufferPool struct {
@@ -729,10 +844,6 @@ func TestLargeReadTCPConn_TLSAndPartialALTSAndConstPool(t *testing.T) {
 	})
 
 	t.Run("ReadOnReadyWithConstBufferPoolDoesNotReallocateOrPoisonALTSPool", func(t *testing.T) {
-		origPreseeded := preseededALTSPool.Load()
-		preseededALTSPool.Store(false)
-		defer preseededALTSPool.Store(origPreseeded)
-
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 		defer func() { _ = listener.Close() }()
@@ -766,7 +877,6 @@ func TestLargeReadTCPConn_TLSAndPartialALTSAndConstPool(t *testing.T) {
 		assert.Equal(t, want, (*gotBuf)[:n])
 		assert.GreaterOrEqual(t, constPool.getCount, 1)
 		assert.Equal(t, 1, constPool.getCount-constPool.putCount)
-		assert.False(t, preseededALTSPool.Load(), "constBufferPool must not trigger or poison preseededALTSPool")
 	})
 }
 
@@ -826,14 +936,21 @@ func TestDirtyBufferPool_PutWithExpandedCapRecyclesWithoutMutatingTail(t *testin
 
 	defaultDirtyBufferPool.Put(buf)
 
-	// Put must detect the expanded length / invalidated footer and recycle
-	// without decrementing ftr.refs, leaving sentinel payload bytes untouched.
+	// Put must detect the invalidated footer and return immediately without
+	// decrementing ftr.refs or recycling the corrupted buffer, leaving
+	// sentinel payload bytes and slice length untouched.
 	assert.Equal(t, sentinel, expanded[bufSize:])
-	assert.Equal(t, bufSize, len(*buf))
+	assert.Equal(t, bufSize+dirtyBufFooterSize, len(*buf))
 
-	// Subsequent Get(32 * 1024) must restore a valid pinnable footer.
+	// ReleaseDirtyBuffer on a corrupted footer must likewise leave sentinel bytes untouched.
+	ReleaseDirtyBuffer(unsafe.Pointer(&expanded[bufSize]))
+	assert.Equal(t, sentinel, expanded[bufSize:])
+
+	// Subsequent Get(32 * 1024) must allocate/return a fresh pinnable buffer,
+	// never the corrupted one.
 	buf2 := defaultDirtyBufferPool.Get(bufSize)
 	require.NotNil(t, buf2)
+	assert.NotSame(t, unsafe.SliceData(expanded), unsafe.SliceData(*buf2))
 	assert.Equal(t, bufSize, len(*buf2))
 	assert.Equal(t, bufSize+dirtyBufFooterSize, cap(*buf2))
 
@@ -841,6 +958,41 @@ func TestDirtyBufferPool_PutWithExpandedCapRecyclesWithoutMutatingTail(t *testin
 	require.NotNil(t, tok)
 	ReleaseDirtyBuffer(tok)
 	defaultDirtyBufferPool.Put(buf2)
+}
+
+func TestDirtyBufferPool_PutWithExpandedCapIntactFooterEnforcesRefcount(t *testing.T) {
+	const bufSize = 32 * 1024
+	buf := defaultDirtyBufferPool.Get(bufSize)
+	require.NotNil(t, buf)
+	require.Equal(t, bufSize+dirtyBufFooterSize, cap(*buf))
+	origDataPtr := unsafe.SliceData(*buf)
+
+	ftrPtr := unsafe.Add(unsafe.Pointer(origDataPtr), bufSize)
+	ftr := (*dirtyBufFooter)(ftrPtr)
+	require.Equal(t, int32(1), ftr.refs.Load())
+
+	// Pin a sub-slice (refcount: 1 -> 2).
+	tok := TryPinDirtySlice((*buf)[:4096])
+	require.NotNil(t, tok)
+	assert.Equal(t, ftrPtr, tok)
+	assert.Equal(t, int32(2), ftr.refs.Load())
+
+	// Expand slice length into tail capacity without overwriting the 16-byte footer.
+	*buf = (*buf)[:bufSize+8]
+
+	// Put must clamp *buf back to bufSize and decrement refcount from 2 to 1
+	// without prematurely returning buf to p.pool.
+	defaultDirtyBufferPool.Put(buf)
+	assert.Equal(t, int32(1), ftr.refs.Load())
+
+	other := defaultDirtyBufferPool.Get(bufSize)
+	require.NotNil(t, other)
+	assert.NotSame(t, origDataPtr, unsafe.SliceData(*other), "pinned buffer must not be returned to pool before ReleaseDirtyBuffer")
+	defaultDirtyBufferPool.Put(other)
+
+	// ReleaseDirtyBuffer decrements refcount from 1 to 0 and returns it cleanly.
+	ReleaseDirtyBuffer(tok)
+	assert.Equal(t, int32(0), ftr.refs.Load())
 }
 
 func TestLargeReadTCPConn_Preseeded512KBufferMarksALTSInitDone(t *testing.T) {
@@ -893,9 +1045,6 @@ func TestLargeReadTCPConn_Preseeded512KBufferMarksALTSInitDone(t *testing.T) {
 	})
 
 	t.Run("ReadOnReadyWithALTSPoolMarksALTSInitDone", func(t *testing.T) {
-		origPreseeded := preseededALTSPool.Load()
-		defer preseededALTSPool.Store(origPreseeded)
-
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 		defer func() { _ = listener.Close() }()

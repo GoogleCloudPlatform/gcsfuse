@@ -1781,6 +1781,269 @@ func (testSuite *StorageHandleTest) Test_GrpcKeepaliveDefaultParams() {
 	assert.Equal(testSuite.T(), 20*time.Second, grpcKeepaliveTimeout)
 }
 
+func (testSuite *StorageHandleTest) Test_GrpcWarmDefaultTimeout() {
+	assert.Equal(testSuite.T(), 5*time.Second, grpcWarmTimeout)
+}
+
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClientWithTransport_DirectZeroCopyReadGating() {
+	testCases := []struct {
+		name               string
+		modifyCfg          func(sc *storageutil.StorageClientConfig)
+		emulatorHost       string
+		emulatorHostGRPC   string
+		expectedExtraCount int
+	}{
+		{
+			name:               "DataPlaneDirectPath_EnablesDialerAndReadBufferSizeZero",
+			modifyCfg:          func(sc *storageutil.StorageClientConfig) {},
+			expectedExtraCount: 2,
+		},
+		{
+			name: "LocalSocketAddress_DataPlaneEnablesReadBufferSizeZero",
+			modifyCfg: func(sc *storageutil.StorageClientConfig) {
+				sc.LocalSocketAddress = "127.0.0.1"
+			},
+			expectedExtraCount: 1,
+		},
+		{
+			name: "CustomEndpoint_NonAnonymous_DisablesDirectZeroCopyRead",
+			modifyCfg: func(sc *storageutil.StorageClientConfig) {
+				sc.CustomEndpoint = "https://us-central1-storage.googleapis.com"
+			},
+			expectedExtraCount: 0,
+		},
+		{
+			name: "CustomEndpoint_WithLocalSocket_DisablesReadBufferSizeZero",
+			modifyCfg: func(sc *storageutil.StorageClientConfig) {
+				sc.CustomEndpoint = "https://us-central1-storage.googleapis.com"
+				sc.LocalSocketAddress = "127.0.0.1"
+			},
+			expectedExtraCount: 0,
+		},
+		{
+			name: "S2AAddress_DisablesDirectZeroCopyRead",
+			modifyCfg: func(sc *storageutil.StorageClientConfig) {
+				sc.S2AAddress = "localhost:8080"
+			},
+			expectedExtraCount: 0,
+		},
+		{
+			name:               "StorageEmulatorHost_DisablesDirectZeroCopyRead",
+			modifyCfg:          func(sc *storageutil.StorageClientConfig) {},
+			emulatorHost:       "localhost:9000",
+			expectedExtraCount: 0,
+		},
+		{
+			name:               "StorageEmulatorHostGRPC_DisablesDirectZeroCopyRead",
+			modifyCfg:          func(sc *storageutil.StorageClientConfig) {},
+			emulatorHostGRPC:   "localhost:9000",
+			expectedExtraCount: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			testSuite.T().Setenv("STORAGE_EMULATOR_HOST", tc.emulatorHost)
+			testSuite.T().Setenv("STORAGE_EMULATOR_HOST_GRPC", tc.emulatorHostGRPC)
+
+			sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+			tc.modifyCfg(&sc)
+
+			controlOpts, err := createClientOptionForGRPCClientWithTransport(testSuite.ctx, &sc, false, false)
+			require.NoError(testSuite.T(), err)
+			dataOpts, err := createClientOptionForGRPCClientWithTransport(testSuite.ctx, &sc, false, true)
+			require.NoError(testSuite.T(), err)
+			wrapperOpts, err := createClientOptionForGRPCClient(testSuite.ctx, &sc, false)
+			require.NoError(testSuite.T(), err)
+
+			assert.Len(testSuite.T(), dataOpts, len(controlOpts)+tc.expectedExtraCount)
+			assert.Len(testSuite.T(), wrapperOpts, len(dataOpts))
+		})
+	}
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_WarmGRPCClientConnectivity_OncePerClient() {
+	var getObjectCount, bidiCount atomic.Int32
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(testSuite.T(), err)
+	grpcServer := grpc.NewServer(grpc.UnknownServiceHandler(func(srv any, stream grpc.ServerStream) error {
+		method, _ := grpc.MethodFromServerStream(stream)
+		switch method {
+		case "/google.storage.v2.Storage/GetObject":
+			getObjectCount.Add(1)
+		case "/google.storage.v2.Storage/BidiReadObject":
+			bidiCount.Add(1)
+		}
+		return status.Error(codes.NotFound, "object not found")
+	}))
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST", "")
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST_GRPC", "")
+
+	client, err := storage.NewGRPCClient(
+		testSuite.ctx,
+		option.WithEndpoint(listener.Addr().String()),
+		option.WithoutAuthentication(),
+		option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		storage.WithGRPCBidiReads(),
+		storage.WithDisabledClientMetrics(),
+	)
+	require.NoError(testSuite.T(), err)
+	defer func() { _ = client.Close() }()
+
+	testSuite.Run("RapidBucket_WarmsOncePerClient", func() {
+		getObjectCount.Store(0)
+		bidiCount.Store(0)
+
+		mockCtrl := new(MockStorageControlClient)
+		mockCtrl.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(&controlpb.StorageLayout{
+			HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: true},
+			LocationType:          zonalLocationType,
+		}, nil)
+
+		sh := &storageClient{
+			grpcClientWithBidiConfig: client,
+			grpcBidiClientCreated:    true,
+			storageControlClient:     mockCtrl,
+			clientConfig: storageutil.StorageClientConfig{
+				ClientProtocol: cfg.GRPC,
+			},
+		}
+
+		bh1, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+		require.NoError(testSuite.T(), err)
+		require.NotNil(testSuite.T(), bh1)
+		assert.Equal(testSuite.T(), int32(1), getObjectCount.Load())
+		assert.Equal(testSuite.T(), int32(1), bidiCount.Load())
+
+		bh2, err := sh.BucketHandle(testSuite.ctx, "second-bucket", "")
+		require.NoError(testSuite.T(), err)
+		require.NotNil(testSuite.T(), bh2)
+		assert.Equal(testSuite.T(), int32(1), getObjectCount.Load())
+		assert.Equal(testSuite.T(), int32(1), bidiCount.Load())
+	})
+
+	testSuite.Run("StandardBucket_WarmsOnceWithoutControlClient", func() {
+		getObjectCount.Store(0)
+		bidiCount.Store(0)
+
+		sh := &storageClient{
+			grpcClient:        client,
+			grpcClientCreated: true,
+			clientConfig: storageutil.StorageClientConfig{
+				ClientProtocol: cfg.GRPC,
+			},
+		}
+
+		bh1, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+		require.NoError(testSuite.T(), err)
+		require.NotNil(testSuite.T(), bh1)
+		assert.Equal(testSuite.T(), int32(1), getObjectCount.Load())
+		assert.Equal(testSuite.T(), int32(0), bidiCount.Load())
+
+		bh2, err := sh.BucketHandle(testSuite.ctx, "second-bucket", "")
+		require.NoError(testSuite.T(), err)
+		require.NotNil(testSuite.T(), bh2)
+		assert.Equal(testSuite.T(), int32(1), getObjectCount.Load())
+		assert.Equal(testSuite.T(), int32(0), bidiCount.Load())
+	})
+
+	testSuite.Run("FakeUncreatedClient_DoesNotWarm", func() {
+		getObjectCount.Store(0)
+		bidiCount.Store(0)
+
+		sh := &storageClient{
+			grpcClient:        &storage.Client{},
+			grpcClientCreated: false,
+			clientConfig: storageutil.StorageClientConfig{
+				ClientProtocol: cfg.GRPC,
+			},
+		}
+
+		bh, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+		require.NoError(testSuite.T(), err)
+		require.NotNil(testSuite.T(), bh)
+		assert.Equal(testSuite.T(), int32(0), getObjectCount.Load())
+		assert.Equal(testSuite.T(), int32(0), bidiCount.Load())
+	})
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_WarmGRPCClientConnectivity_IndependentTimeoutsWhenAttrsStalls() {
+	origWarmTimeout := grpcWarmTimeout
+	grpcWarmTimeout = 400 * time.Millisecond
+	defer func() {
+		grpcWarmTimeout = origWarmTimeout
+	}()
+
+	var getObjectTimedOut, bidiCalled, bidiHasDeadline, bidiRanBeforeAttrsTimedOut atomic.Bool
+	var bidiRemainingBudgetNs atomic.Int64
+	getObjectDone := make(chan struct{})
+	var getObjectDoneOnce sync.Once
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(testSuite.T(), err)
+	grpcServer := grpc.NewServer(grpc.UnknownServiceHandler(func(srv any, stream grpc.ServerStream) error {
+		method, _ := grpc.MethodFromServerStream(stream)
+		switch method {
+		case "/google.storage.v2.Storage/GetObject":
+			<-stream.Context().Done()
+			getObjectTimedOut.Store(true)
+			getObjectDoneOnce.Do(func() { close(getObjectDone) })
+			return stream.Context().Err()
+		case "/google.storage.v2.Storage/BidiReadObject":
+			bidiCalled.Store(true)
+			if deadline, ok := stream.Context().Deadline(); ok {
+				bidiHasDeadline.Store(true)
+				bidiRemainingBudgetNs.Store(int64(time.Until(deadline)))
+			}
+			bidiRanBeforeAttrsTimedOut.Store(!getObjectTimedOut.Load())
+			return status.Error(codes.NotFound, "object not found")
+		}
+		return status.Error(codes.NotFound, "object not found")
+	}))
+	go func() {
+		_ = grpcServer.Serve(listener)
+	}()
+	defer grpcServer.Stop()
+
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST", "")
+	testSuite.T().Setenv("STORAGE_EMULATOR_HOST_GRPC", "")
+
+	client, err := storage.NewGRPCClient(
+		testSuite.ctx,
+		option.WithEndpoint(listener.Addr().String()),
+		option.WithoutAuthentication(),
+		option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		storage.WithGRPCBidiReads(),
+		storage.WithDisabledClientMetrics(),
+	)
+	require.NoError(testSuite.T(), err)
+	defer func() { _ = client.Close() }()
+
+	sh := &storageClient{}
+	start := time.Now()
+	sh.warmGRPCClientConnectivity(testSuite.ctx, client.Bucket(TestBucketName), true)
+	elapsed := time.Since(start)
+
+	select {
+	case <-getObjectDone:
+	case <-time.After(2 * time.Second):
+		testSuite.T().Fatal("timed out waiting for server GetObject handler to observe timeout cancellation")
+	}
+
+	assert.True(testSuite.T(), getObjectTimedOut.Load(), "expected stalled Attrs call to time out")
+	assert.True(testSuite.T(), bidiCalled.Load(), "expected NewMultiRangeDownloader to run concurrently despite Attrs stall")
+	assert.True(testSuite.T(), bidiHasDeadline.Load(), "expected NewMultiRangeDownloader to carry its own timeout deadline")
+	assert.True(testSuite.T(), bidiRanBeforeAttrsTimedOut.Load(), "expected NewMultiRangeDownloader to run before Attrs timed out")
+	assert.Greater(testSuite.T(), time.Duration(bidiRemainingBudgetNs.Load()), grpcWarmTimeout/2)
+	assert.LessOrEqual(testSuite.T(), time.Duration(bidiRemainingBudgetNs.Load()), grpcWarmTimeout)
+	assert.GreaterOrEqual(testSuite.T(), elapsed, grpcWarmTimeout-50*time.Millisecond)
+}
+
 // stallBlackholeConn wraps the first client-side net.Conn and, once blackhole()
 // is called after the initial object chunk is read, blocks all further Reads on
 // that connection until Close() is called.

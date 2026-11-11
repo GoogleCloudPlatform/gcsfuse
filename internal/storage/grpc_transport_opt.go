@@ -122,10 +122,11 @@ func (p *dirtySizedPool) Put(buf *[]byte) {
 	}
 	ftrPtr := unsafe.Add(unsafe.Pointer(unsafe.SliceData(*buf)), p.defaultSize)
 	ftr := (*dirtyBufFooter)(ftrPtr)
-	if len(*buf) > p.defaultSize || ftr.magic != dirtyBufMagic || ftr.exp != dirtyFooterTag(ftrPtr, p.exp) {
-		*buf = (*buf)[:p.defaultSize]
-		p.pool.Put(buf)
+	if ftr.magic != dirtyBufMagic || ftr.exp != dirtyFooterTag(ftrPtr, p.exp) {
 		return
+	}
+	if len(*buf) > p.defaultSize {
+		*buf = (*buf)[:p.defaultSize]
 	}
 	if ftr.refs.Add(-1) == 0 {
 		p.pool.Put(buf)
@@ -177,11 +178,11 @@ func ReleaseDirtyBuffer(tok unsafe.Pointer) {
 		return
 	}
 	ftr := (*dirtyBufFooter)(tok)
-	if ftr.refs.Add(-1) != 0 {
-		return
-	}
 	exp := ftr.exp & 0xff
 	if ftr.magic != dirtyBufMagic || exp < 11 || exp > 22 || ftr.exp != dirtyFooterTag(tok, exp) {
+		return
+	}
+	if ftr.refs.Add(-1) != 0 {
 		return
 	}
 	sp := defaultDirtyBufferPool.pools[exp]
@@ -245,10 +246,7 @@ func (p *dirtyTieredBufferPool) Put(buf *[]byte) {
 	}
 }
 
-var (
-	defaultDirtyBufferPool = newDirtyTieredBufferPool()
-	preseededALTSPool      atomic.Bool
-)
+var defaultDirtyBufferPool = newDirtyTieredBufferPool()
 
 func init() {
 	var b [8]byte
@@ -301,30 +299,10 @@ func wrapLargeReadTCPConn(conn net.Conn) net.Conn {
 	}
 	c.doRead = func(fd uintptr) bool {
 		s := &c.state
-		var readSlice []byte
-		if s.isALTSPool {
-			cand := s.pool.Get(altsInitialProtectedCap)
-			if len(*cand) == altsInitialProtectedCap && cap(*cand) >= altsInitialProtectedCap {
-				if preseededALTSPool.CompareAndSwap(false, true) {
-					for range 256 {
-						b := make([]byte, s.bufSize)
-						s.pool.Put(&b)
-					}
-				}
-				if cap(*cand) >= s.bufSize {
-					*cand = (*cand)[:s.bufSize]
-				} else {
-					*cand = make([]byte, s.bufSize)
-				}
-				s.buf = cand
-				readSlice = *s.buf
-			} else {
-				readSlice = (*cand)[:min(len(*cand), s.origBufSize)]
-				s.buf = cand
-			}
-		} else {
-			s.buf = s.pool.Get(s.bufSize)
-			readSlice = (*s.buf)[:min(len(*s.buf), s.origBufSize)]
+		s.buf = s.pool.Get(s.bufSize)
+		readSlice := *s.buf
+		if !s.isALTSPool {
+			readSlice = readSlice[:min(len(readSlice), s.origBufSize)]
 		}
 		s.bytesRead, s.readError = syscall.Read(int(fd), readSlice)
 		if s.readError != nil {
@@ -336,17 +314,11 @@ func wrapLargeReadTCPConn(conn net.Conn) net.Conn {
 	return c
 }
 
-func readFullEOF(r io.Reader, buf []byte) (int, error) {
-	n, err := io.ReadFull(r, buf)
-	if errors.Is(err, io.ErrUnexpectedEOF) {
-		err = io.EOF
-	}
-	return n, err
-}
-
 func (c *largeReadTCPConn) Write(b []byte) (int, error) {
 	if len(b) > 0 && c.firstWriteDone.CompareAndSwap(false, true) {
-		if len(b) >= 5 && b[0] == 0x16 && b[1] == 0x03 && b[2] >= 0x01 && b[2] <= 0x04 {
+		isTLS := len(b) >= 5 && b[0] == 0x16 && b[1] == 0x03 && b[2] >= 0x01 && b[2] <= 0x04
+		isH2Preface := len(b) >= 4 && string(b[:4]) == "PRI "
+		if isTLS || isH2Preface {
 			c.nonALTS.Store(true)
 		}
 	}
@@ -366,18 +338,24 @@ func (c *largeReadTCPConn) Read(b []byte) (int, error) {
 		if len(b) > 64*1024 {
 			c.altsInitDone.Store(true)
 		} else if len(b) == altsInitialProtectedCap && cap(b) == altsInitialProtectedCap && c.altsInitDone.CompareAndSwap(false, true) {
-			n, err := readFullEOF(c.TCPConn, b[:8])
+			n, err := c.TCPConn.Read(b[:8])
 			if err != nil {
-				if n > 0 {
+				if n > 0 && errors.Is(err, io.EOF) {
 					return n, nil
 				}
-				return 0, err
+				return n, err
+			}
+			if n < 8 {
+				return n, nil
 			}
 			frameLen := int(binary.LittleEndian.Uint32(b[:4]))
 			msgType := binary.LittleEndian.Uint32(b[4:8])
 			totalFrame := 4 + frameLen
-			if msgType == 6 && frameLen >= 20 && totalFrame <= 1024*1024 {
-				m, _ := readFullEOF(c.TCPConn, b[8:min(totalFrame, len(b))])
+			if (msgType&0xff) == 6 && frameLen >= 20 && totalFrame <= 1024*1024 && len(b) > 8 {
+				m, rErr := c.TCPConn.Read(b[8:min(totalFrame, len(b))])
+				if rErr != nil && !errors.Is(rErr, io.EOF) {
+					return n + m, rErr
+				}
 				return n + m, nil
 			}
 			return n, nil
@@ -387,7 +365,7 @@ func (c *largeReadTCPConn) Read(b []byte) (int, error) {
 }
 
 func (c *largeReadTCPConn) ReadOnReady(bufSize int, pool mem.BufferPool) (*[]byte, int, error) {
-	isALTSPool := bufSize == altsReadBufferInitialSize && pool != defaultDirtyBufferPool
+	isALTSPool := !c.nonALTS.Load() && bufSize == altsReadBufferInitialSize && pool != defaultDirtyBufferPool
 	origBufSize := bufSize
 	if isALTSPool {
 		c.altsInitDone.Store(true)
