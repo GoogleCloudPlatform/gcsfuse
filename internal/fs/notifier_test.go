@@ -50,6 +50,9 @@ func (t *NotifierTest) SetupSuite() {
 		},
 		Write: cfg.WriteConfig{
 			EnableStreamingWrites: true,
+			BlockSizeMb:           1,
+			MaxBlocksPerFile:      2,
+			GlobalMaxBlocks:       4,
 		},
 	}
 	t.fsTest.SetUpTestSuite()
@@ -132,4 +135,34 @@ func (t *NotifierTest) TestReadFileDoNotFailPersistently() {
 	// Attempt to read again, the entry has now been invalidated.
 	_, err = common.ReadFile(filePath)
 	assert.NoError(t.T(), err)
+}
+
+func (t *NotifierTest) TestReadFileOnStreamingWriteClobberedObjectInvalidatesDentry() {
+	filePath := path.Join(mntDir, "streaming_clobber_test")
+	fh, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
+	require.NoError(t.T(), err)
+	defer func() { _ = fh.Close() }()
+
+	// Write unfinalized bytes via streaming writes, then clobber on GCS before closing.
+	_, err = fh.Write([]byte("streaming content"))
+	require.NoError(t.T(), err)
+	_, err = storageutil.CreateObject(ctx, bucket, "streaming_clobber_test", []byte("modified"))
+	require.NoError(t.T(), err)
+
+	// Open with O_DIRECT to bypass the kernel page cache and force a FUSE ReadFileOp
+	// on the dirty streaming-write inode, which must fail on flush/sync and invalidate
+	// the cached dentry via finalizeReadFileOp.
+	fhRead, err := os.OpenFile(filePath, os.O_RDONLY|syscall.O_DIRECT, 0)
+	require.NoError(t.T(), err)
+	defer func() { _ = fhRead.Close() }()
+	buf := make([]byte, 4096)
+	_, err = fhRead.Read(buf)
+	require.Error(t.T(), err)
+	assert.Regexp(t.T(), syscall.ESTALE.Error(), err.Error())
+
+	// Before FlushFile runs on either open handle, ReadFile must have invalidated the
+	// cached dentry so opening & reading by path succeeds with the clobbered object.
+	got, err := common.ReadFile(filePath)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), "modified", string(got))
 }

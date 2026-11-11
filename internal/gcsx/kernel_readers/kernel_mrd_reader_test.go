@@ -2415,3 +2415,169 @@ func (t *KernelMRDReaderTest) TestReadAt_StaleEpochClearPrefetch_DoesNotClobberN
 		})
 	}
 }
+
+func (t *KernelMRDReaderTest) TestReadAt_OutOfOrderConcurrentReads_EpochGuardsFalsePrefetchAfterSeek() {
+	t.Run("InterveningSeekPreventsFalsePrefetch", func() {
+		for _, seekOffset := range []int64{50 * gcsx.MiB, 2 * gcsx.MiB} {
+			t.SetupTest()
+			t.object.Size = 200 * gcsx.MiB
+			pool := mem.DefaultBufferPool()
+
+			read10Started := make(chan struct{})
+			release10 := make(chan struct{})
+			var once10 sync.Once
+
+			var (
+				mu             sync.Mutex
+				requestedSpans [][2]int64
+			)
+			mrd := &pinnedFakeMRD{
+				addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+					go func() {
+						mu.Lock()
+						requestedSpans = append(requestedSpans, [2]int64{offset, length})
+						mu.Unlock()
+
+						if offset == 10*gcsx.MiB && length == 1*gcsx.MiB {
+							once10.Do(func() { close(read10Started) })
+							<-release10
+						}
+
+						rawBuf := pool.Get(int(length))
+						slice := (*rawBuf)[:length]
+						for i := range slice {
+							slice[i] = byte('A' + ((offset+int64(i))/gcsx.MiB)%26)
+						}
+						n, _ := output.Write(slice)
+						pool.Put(rawBuf)
+						callback(offset, int64(n), nil)
+					}()
+				},
+			}
+			t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Maybe()
+
+			// 1. Start [10 MiB, 11 MiB) and wait until it is registered in flight.
+			res10Ch := make(chan gcsx.ReadResponse, 1)
+			go func() {
+				r, rErr := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+					Buffer: make([]byte, 1*gcsx.MiB),
+					Offset: 10 * gcsx.MiB,
+				})
+				assert.NoError(t.T(), rErr)
+				res10Ch <- r
+			}()
+			<-read10Started
+
+			// 2. Concurrently complete [11 MiB, 12 MiB) first.
+			r11, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+				Buffer: make([]byte, 1*gcsx.MiB),
+				Offset: 11 * gcsx.MiB,
+			})
+			assert.NoError(t.T(), err)
+			if r11.Callback != nil {
+				r11.Callback()
+			}
+
+			// 3. Issue an intervening seek (forward or backward) -> sets seqReads = 1, lastReadEnd = seekOffset + 1 MiB.
+			rSeek, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+				Buffer: make([]byte, 1*gcsx.MiB),
+				Offset: seekOffset,
+			})
+			assert.NoError(t.T(), err)
+			if rSeek.Callback != nil {
+				rSeek.Callback()
+			}
+
+			mu.Lock()
+			spansAfterSeek := len(requestedSpans)
+			mu.Unlock()
+
+			// 4. Complete stale [10 MiB, 11 MiB): must NOT increment seqReads to 2, overwrite lastReadEnd, or launch prefetch.
+			close(release10)
+			r10 := <-res10Ch
+			if r10.Callback != nil {
+				r10.Callback()
+			}
+
+			mu.Lock()
+			assert.Empty(t.T(), requestedSpans[spansAfterSeek:], "stale out-of-order completion must not launch lookahead prefetch after seek")
+			mu.Unlock()
+
+			t.reader.mu.Lock()
+			assert.Equal(t.T(), 1, t.reader.seqReads)
+			assert.Equal(t.T(), seekOffset+1*gcsx.MiB, t.reader.lastReadEnd)
+			assert.Empty(t.T(), t.reader.chunks)
+			t.reader.mu.Unlock()
+
+			t.reader.Destroy()
+		}
+	})
+
+	t.Run("NoInterveningSeekStillTriggersPrefetch", func() {
+		t.SetupTest()
+		t.object.Size = 200 * gcsx.MiB
+		pool := mem.DefaultBufferPool()
+
+		read10Started := make(chan struct{})
+		release10 := make(chan struct{})
+		var once10 sync.Once
+
+		mrd := &pinnedFakeMRD{
+			addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+				go func() {
+					if offset == 10*gcsx.MiB && length == 1*gcsx.MiB {
+						once10.Do(func() { close(read10Started) })
+						<-release10
+					}
+					for pos := int64(0); pos < length; pos += gcsx.MiB {
+						step := min(int64(gcsx.MiB), length-pos)
+						rawBuf := pool.Get(int(step))
+						slice := (*rawBuf)[:step]
+						for i := range slice {
+							slice[i] = byte('A' + ((offset+pos+int64(i))/gcsx.MiB)%26)
+						}
+						_, _ = output.Write(slice)
+						pool.Put(rawBuf)
+					}
+					callback(offset, length, nil)
+				}()
+			},
+		}
+		t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Maybe()
+
+		res10Ch := make(chan gcsx.ReadResponse, 1)
+		go func() {
+			r, rErr := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+				Buffer: make([]byte, 1*gcsx.MiB),
+				Offset: 10 * gcsx.MiB,
+			})
+			assert.NoError(t.T(), rErr)
+			res10Ch <- r
+		}()
+		<-read10Started
+
+		r11, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+			Buffer: make([]byte, 1*gcsx.MiB),
+			Offset: 11 * gcsx.MiB,
+		})
+		assert.NoError(t.T(), err)
+		if r11.Callback != nil {
+			r11.Callback()
+		}
+
+		close(release10)
+		r10 := <-res10Ch
+		if r10.Callback != nil {
+			r10.Callback()
+		}
+
+		t.reader.mu.Lock()
+		assert.Equal(t.T(), 2, t.reader.seqReads)
+		assert.Equal(t.T(), int64(12*gcsx.MiB), t.reader.lastReadEnd)
+		assert.NotEmpty(t.T(), t.reader.chunks)
+		assert.Equal(t.T(), int64(12*gcsx.MiB), t.reader.chunks[0].Offset)
+		t.reader.mu.Unlock()
+
+		t.reader.Destroy()
+	})
+}

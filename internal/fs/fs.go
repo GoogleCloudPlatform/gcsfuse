@@ -3155,7 +3155,7 @@ func (fs *fileSystem) ReadFile(
 
 		if err != nil {
 			fh.Inode().Unlock()
-			return err
+			return fs.finalizeReadFileOp(op, err)
 		}
 	}
 	// Serve the read.
