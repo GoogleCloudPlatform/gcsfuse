@@ -80,7 +80,7 @@ func AddRetryID(req *http.Request, r RequestTypeAndInstruction) error {
 	}
 
 	if plantOp != "" {
-		testID, err := CreateRetryTest(gConfig.TargetHost, map[string][]string{r.Instruction: {plantOp}})
+		testID, err := CreateRetryTest(gConfig.TargetHost, map[string][]string{r.Instruction: {plantOp}}, "http")
 		if err != nil {
 			return fmt.Errorf("CreateRetryTest: %v", err)
 		}

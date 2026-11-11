@@ -15,7 +15,7 @@
 // Note: All the write operations take inode lock in fs.go, hence we don't need
 // any locks here as we will get calls to these methods serially.
 
-package bufferedwrites
+package streamingwrites
 
 import (
 	"context"
@@ -115,7 +115,7 @@ func (uh *UploadHandler) createObjectWriter(ctx context.Context) (err error) {
 	// We need a new context here, since the first writeFile() call will be complete
 	// (and context will be cancelled) by the time complete upload is done.
 	ctx, uh.cancelFunc = context.WithCancel(uh.traceHandle.PropagateTraceContext(context.Background(), ctx))
-	if uh.bucket.BucketType().RapidWritesEnabled() && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
+	if uh.bucket.BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && (uh.obj != nil && uh.obj.Finalized.IsZero()) {
 		chunkWriterReq := gcs.CreateObjectChunkWriterRequest{
 			CreateObjectRequest: *req,
 			ChunkSize:           int(uh.blockSize),

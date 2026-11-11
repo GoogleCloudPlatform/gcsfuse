@@ -40,7 +40,17 @@ import (
 const NameOfServiceAccount = "creds-integration-tests"
 const CredentialsSecretName = "gcsfuse-integration-tests"
 
-var WhitelistedGcpProjects = []string{"gcs-fuse-test", "gcs-fuse-test-ml"}
+// WhitelistedGcpProjects lists the GCP projects that have the credentials test
+// service accounts and Secret Manager secrets set up. The gcsfuse-* projects are
+// the dedicated CD pipeline projects (nightly, release, patch-release, dev-testing).
+var WhitelistedGcpProjects = []string{
+	"gcs-fuse-test",
+	"gcs-fuse-test-ml",
+	"gcsfuse-prod-nightly",
+	"gcsfuse-prod-release",
+	"gcsfuse-prod-patch-release",
+	"gcsfuse-cd-dev-testing",
+}
 
 func projectID(ctx context.Context) string {
 	// Fetching project-id to get service account id.
@@ -58,6 +68,12 @@ func projectID(ctx context.Context) string {
 		log.Printf("The active GCP project is not one of: %s. So the credentials test will not run.", strings.Join(WhitelistedGcpProjects, ", "))
 	}
 	return id
+}
+
+// ActiveProjectID returns the GCP project the tests run in (gcs-fuse-test on
+// cloudtop), the same project used to look up the test service accounts and secrets.
+func ActiveProjectID(ctx context.Context) string {
+	return projectID(ctx)
 }
 
 func CreateCredentials(ctx context.Context) (serviceAccount, localKeyFilePath string) {

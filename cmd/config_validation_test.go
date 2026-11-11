@@ -277,12 +277,13 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				Write: cfg.WriteConfig{
-					CreateEmptyFile:       false, // changed due to enabled streaming writes.
-					BlockSizeMb:           10,
-					EnableStreamingWrites: true,
-					GlobalMaxBlocks:       20,
-					MaxBlocksPerFile:      2,
-					RapidWrite:            cfg.RapidWriteStrategyEnabled,
+					CreateEmptyFile:                  false, // changed due to enabled streaming writes.
+					BlockSizeMb:                      10,
+					EnableStreamingWrites:            true,
+					GlobalMaxBlocks:                  20,
+					MaxBlocksPerFile:                 2,
+					RapidWrite:                       cfg.RapidWriteStrategyEnabled,
+					ExperimentalEnableParallelUpload: true,
 				},
 			},
 		},

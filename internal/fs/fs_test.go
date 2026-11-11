@@ -389,6 +389,7 @@ func (bm *fakeBucketManager) SetUpBucket(
 			bm.chunkTransferTimeoutSecs,
 			bm.tmpObjectPrefix,
 			gcsx.NewContentTypeBucket(bucket),
+			false,
 		)
 		return
 	}

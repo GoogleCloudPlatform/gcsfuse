@@ -115,7 +115,7 @@ func (t *commonFailureTestSuite) writingWithNewFileHandleAlsoFails(data []byte, 
 	operations.CloseFileShouldThrowError(t.T(), fh)
 }
 
-func (t *commonFailureTestSuite) writingAfterBwhReinitializationSucceeds() {
+func (t *commonFailureTestSuite) writingAfterStreamingWriteHandlerReinitializationSucceeds() {
 	t.T().Helper()
 	// Verify that expectation from GCS matches.
 	t.validateGcsObject()
@@ -146,10 +146,10 @@ func (t *commonFailureTestSuite) TestStreamingWritesFailsOnSecondChunkUploadFail
 
 	require.Error(t.T(), err)
 	t.writingWithNewFileHandleAlsoFails(t.data[4*operations.MiB:5*operations.MiB], 4*operations.MiB)
-	// Close file handle to reinitialize bwh.
+	// Close file handle to reinitialize the streaming write handler.
 	operations.CloseFileShouldThrowError(t.T(), t.fh1)
 	// Opening new file handle and writing to file succeeds.
-	t.writingAfterBwhReinitializationSucceeds()
+	t.writingAfterStreamingWriteHandlerReinitializationSucceeds()
 	// Close and validate object content found on GCS.
 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data), t.T())
 }
@@ -171,10 +171,10 @@ func (t *commonFailureTestSuite) TestStreamingWritesTruncateSmallerFailsOnSecond
 	err = t.fh1.Truncate(1 * operations.MiB)
 	assert.Error(t.T(), err)
 	t.writingWithNewFileHandleAlsoFails(t.data[4*operations.MiB:5*operations.MiB], 4*operations.MiB)
-	// Close file handle to reinitialize bwh.
+	// Close file handle to reinitialize the streaming write handler.
 	operations.CloseFileShouldThrowError(t.T(), t.fh1)
 	// Opening new file handle and writing to file succeeds.
-	t.writingAfterBwhReinitializationSucceeds()
+	t.writingAfterStreamingWriteHandlerReinitializationSucceeds()
 	// Close and validate object content found on GCS.
 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data), t.T())
 }
@@ -197,11 +197,11 @@ func (t *commonFailureTestSuite) TestStreamingWritesTruncateBiggerSucceedsOnSeco
 	// Truncate to bigger size succeeds.
 	err = fh2.Truncate(5 * operations.MiB)
 	assert.NoError(t.T(), err)
-	// Closing all file handles to reinitialize bwh.
+	// Closing all file handles to reinitialize the streaming write handler.
 	operations.CloseFileShouldThrowError(t.T(), fh2)
 	operations.CloseFileShouldThrowError(t.T(), t.fh1)
 	// Opening new file handle and writing to file succeeds.
-	t.writingAfterBwhReinitializationSucceeds()
+	t.writingAfterStreamingWriteHandlerReinitializationSucceeds()
 	// Truncate to bigger size succeeds.
 	err = t.fh1.Truncate(6 * operations.MiB)
 	assert.NoError(t.T(), err)
@@ -226,10 +226,10 @@ func (t *commonFailureTestSuite) TestStreamingWritesSyncFailsOnSecondChunkUpload
 	// Sync now reports failure from B block upload.
 	// Fuse:[] -> Go-SDK:[C]-> GCS[A, B -> upload fails]
 	operations.SyncFileShouldThrowError(t.T(), t.fh1)
-	// Close file handle to reinitialize bwh.
+	// Close file handle to reinitialize the streaming write handler.
 	operations.CloseFileShouldThrowError(t.T(), t.fh1)
 	// Opening new file handle and writing to file succeeds.
-	t.writingAfterBwhReinitializationSucceeds()
+	t.writingAfterStreamingWriteHandlerReinitializationSucceeds()
 	// Close and validate object content found on GCS.
 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data), t.T())
 }
@@ -245,7 +245,7 @@ func (t *commonFailureTestSuite) TestStreamingWritesCloseFailsOnSecondChunkUploa
 
 	require.Error(t.T(), err)
 	// Opening new file handle and writing to file succeeds.
-	t.writingAfterBwhReinitializationSucceeds()
+	t.writingAfterStreamingWriteHandlerReinitializationSucceeds()
 	// Close and validate object content found on GCS.
 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data), t.T())
 }
@@ -260,12 +260,12 @@ func (t *commonFailureTestSuite) TestStreamingWritesWhenFinalizeObjectFailure() 
 
 	require.Error(t.T(), err)
 	// Opening new file handle and writing to file succeeds.
-	t.writingAfterBwhReinitializationSucceeds()
+	t.writingAfterStreamingWriteHandlerReinitializationSucceeds()
 	// Close and validate object content found on GCS.
 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data), t.T())
 }
 
-func (t *commonFailureTestSuite) TestStreamingWritesBwhResetsWhenFileHandlesAreOpenInReadMode() {
+func (t *commonFailureTestSuite) TestStreamingWriteHandlerResetsWhenFileHandlesAreOpenInReadMode() {
 	// Write first 2 MB (say A,B) block to file succeeds but async upload of block B will result in error.
 	// Fuse:[B] -> Go-SDK:[A] -> GCS[]
 	_, err := t.fh1.WriteAt(t.data[:2*operations.MiB], 0)
@@ -283,7 +283,7 @@ func (t *commonFailureTestSuite) TestStreamingWritesBwhResetsWhenFileHandlesAreO
 	// Closing only file handle in write mode.
 	operations.CloseFileShouldThrowError(t.T(), t.fh1)
 	// Opening new file handle and writing to file succeeds when file handles in O_RDONLY mode are open.
-	t.writingAfterBwhReinitializationSucceeds()
+	t.writingAfterStreamingWriteHandlerReinitializationSucceeds()
 	operations.CloseFileShouldNotThrowError(t.T(), fh2)
 	// Close and validate object content found on GCS.
 	CloseFileAndValidateContentFromGCS(t.ctx, t.storageClient, t.fh1, testDirName, FileName1, string(t.data), t.T())

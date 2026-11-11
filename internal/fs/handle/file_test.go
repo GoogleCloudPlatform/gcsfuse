@@ -79,6 +79,7 @@ func (t *fileTest) SetupTest() {
 		/*chunkRetryDeadlineSecs=*/ 120,
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{}),
+		false,
 	)
 }
 
@@ -676,6 +677,7 @@ func (t *fileTest) Test_ReadWithKernelReader_Success() {
 				/*chunkRetryDeadlineSecs=*/ 120,
 				/*chunkTransferTimeoutSecs=*/ 10,
 				".gcsfuse_tmp/", mockBucket,
+				false,
 			)
 			parent := createDirInode(&mockSyncerBucket, &t.clock)
 			// Create the file inode and file handle. Setting EnableKernelReader to true initializes fh.kernelReader.
@@ -735,6 +737,7 @@ func (t *fileTest) Test_ReadWithKernelReader_NotAuthoritative() {
 				/*chunkRetryDeadlineSecs=*/ 120,
 				/*chunkTransferTimeoutSecs=*/ 10,
 				".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "test_bucket", gcs.BucketType{Zonal: tc.isZonal}),
+				false,
 			)
 			originalData := []byte("some data")
 			// Create file inode.
@@ -791,6 +794,7 @@ func (t *fileTest) Test_ReadWithKernelReader_NotAuthoritative_ReadError() {
 				/*chunkRetryDeadlineSecs=*/ 120,
 				/*chunkTransferTimeoutSecs=*/ 10,
 				".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "test_bucket", gcs.BucketType{Zonal: tc.isZonal}),
+				false,
 			)
 			originalData := []byte("some data")
 			// Create file inode.
@@ -846,6 +850,7 @@ func (t *fileTest) Test_ReadWithKernelReader_NilReader() {
 				/*chunkRetryDeadlineSecs=*/ 120,
 				/*chunkTransferTimeoutSecs=*/ 10,
 				".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "test_bucket", gcs.BucketType{Zonal: tc.isZonal}),
+				false,
 			)
 			// Create file inode.
 			parent := createDirInode(&bucket, &t.clock)
@@ -900,6 +905,7 @@ func (t *fileTest) Test_ReadWithKernelReader_ReadAtError() {
 				/*chunkRetryDeadlineSecs=*/ 120,
 				/*chunkTransferTimeoutSecs=*/ 10,
 				".gcsfuse_tmp/", mockBucket,
+				false,
 			)
 			// Create file inode & file handle with kernel reader enabled.
 			parent := createDirInode(&mockSyncerBucket, &t.clock)
@@ -1359,12 +1365,10 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 	bucketTypes := []struct {
 		name       string
 		bucketType gcs.BucketType
-		isRapid    bool
 	}{
-		{name: "Zonal", bucketType: gcs.BucketType{Zonal: true}, isRapid: true},
-		{name: "RCURapidWriteEnabled", bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled}, isRapid: true},
-		{name: "RCURapidWriteDisabled", bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesDisabled}, isRapid: true},
-		{name: "Standard", bucketType: gcs.BucketType{}, isRapid: false},
+		{name: "Zonal", bucketType: gcs.BucketType{Zonal: true}},
+		{name: "RCU", bucketType: gcs.BucketType{RCU: true}},
+		{name: "Standard", bucketType: gcs.BucketType{}},
 	}
 
 	for _, bt := range bucketTypes {
@@ -1376,6 +1380,7 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 					/*chunkRetryDeadlineSecs=*/ 120,
 					/*chunkTransferTimeoutSecs=*/ 10,
 					".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", bt.bucketType),
+					false,
 				)
 				parent := createDirInode(&t.bucket, &t.clock)
 				config := &cfg.Config{}
@@ -1393,7 +1398,7 @@ func (t *fileTest) Test_ShouldSkipSizeChecks() {
 
 				skip := fh.shouldSkipSizeChecks(req)
 
-				expected := tc.expectedForRapid && bt.isRapid
+				expected := tc.expectedForRapid && bt.bucketType.IsRapid()
 				assert.Equal(t.T(), expected, skip)
 			})
 		}

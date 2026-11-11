@@ -17,8 +17,10 @@ package gcs
 import (
 	"testing"
 	"time"
+	"unsafe"
 
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -49,4 +51,47 @@ func TestGCSFolder(t *testing.T) {
 
 	assert.Equal(t, attrs.Name, gcsFolder.Name)
 	assert.Equal(t, attrs.UpdateTime.AsTime(), gcsFolder.UpdateTime)
+}
+
+func TestUnsafeSizeOf_Folder(t *testing.T) {
+	var emptyFolder Folder
+	assert.Equal(t, int(unsafe.Sizeof(emptyFolder)), util.UnsafeSizeOf(&emptyFolder))
+
+	ptrToF := &emptyFolder
+	assert.Equal(t, int(unsafe.Sizeof(ptrToF)), util.UnsafeSizeOf(&ptrToF))
+}
+
+func TestNestedSizeOfGcsFolder(t *testing.T) {
+	f1 := &Folder{}
+	f2 := &Folder{
+		Name: "folder/name/",
+	}
+
+	testCases := []struct {
+		name     string
+		folder   *Folder
+		expected int
+	}{
+		{
+			name:     "NilFolder",
+			folder:   nil,
+			expected: 0,
+		},
+		{
+			name:     "EmptyFolder",
+			folder:   f1,
+			expected: util.UnsafeSizeOf(f1),
+		},
+		{
+			name:     "FolderWithName",
+			folder:   f2,
+			expected: util.UnsafeSizeOf(f2) + len(f2.Name),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(st *testing.T) {
+			assert.Equal(st, tc.expected, NestedSizeOfGcsFolder(tc.folder))
+		})
+	}
 }
