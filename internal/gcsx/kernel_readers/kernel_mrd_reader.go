@@ -46,6 +46,7 @@ type prefetchSpan struct {
 	chunk    *gcsx.MrdPrefetchChunk
 	relStart int
 	relEnd   int
+	epoch    uint64
 }
 
 // KernelMRDReader is a reader that uses an MRD Instance to read data from a GCS object.
@@ -63,6 +64,7 @@ type KernelMRDReader struct {
 	lastReadEnd        int64
 	seqReads           int
 	prefetchGeneration int64
+	prefetchEpoch      uint64
 }
 
 // NewKernelMRDReader creates a new KernelMRDReader that uses the provided
@@ -82,6 +84,7 @@ func (kmr *KernelMRDReader) clearPrefetchLocked() {
 	}
 	kmr.chunks = kmr.chunks[:0]
 	kmr.nextPrefetchOffset = 0
+	kmr.prefetchEpoch++
 }
 
 func (kmr *KernelMRDReader) clearPrefetch() {
@@ -92,7 +95,21 @@ func (kmr *KernelMRDReader) clearPrefetch() {
 	kmr.mu.Unlock()
 }
 
+func (kmr *KernelMRDReader) activePrefetchChunksLocked(frontier int64) int {
+	active := 0
+	for _, c := range kmr.chunks {
+		if c.Offset+int64(c.Length) > frontier {
+			active++
+		}
+	}
+	return active
+}
+
 func (kmr *KernelMRDReader) schedulePrefetchLocked() {
+	kmr.schedulePrefetchAtFrontierLocked(kmr.lastReadEnd)
+}
+
+func (kmr *KernelMRDReader) schedulePrefetchAtFrontierLocked(frontier int64) {
 	if kmr.mrdInstance == nil {
 		return
 	}
@@ -108,7 +125,7 @@ func (kmr *KernelMRDReader) schedulePrefetchLocked() {
 	if ready > 1 {
 		limit = min(maxPrefetchChunks, ready+2)
 	}
-	for len(kmr.chunks) < limit && kmr.nextPrefetchOffset < objSize {
+	for kmr.activePrefetchChunksLocked(frontier) < limit && kmr.nextPrefetchOffset < objSize {
 		rem := objSize - kmr.nextPrefetchOffset
 		targetSize := int64(prefetchChunkSize)
 		if kmr.nextPrefetchOffset <= 1024*1024 && ready == 1 {
@@ -189,7 +206,7 @@ func (kmr *KernelMRDReader) completeInFlightLocked(id uint64, reqStart, reqEnd i
 
 func (kmr *KernelMRDReader) maybeScheduleMorePrefetch() {
 	kmr.mu.Lock()
-	if len(kmr.chunks) < maxPrefetchChunks && kmr.seqReads > 0 {
+	if kmr.activePrefetchChunksLocked(kmr.lastReadEnd) < maxPrefetchChunks && kmr.seqReads > 0 {
 		kmr.schedulePrefetchLocked()
 	}
 	kmr.mu.Unlock()
@@ -235,8 +252,29 @@ func (kmr *KernelMRDReader) acquirePrefetchSpans(offset int64, length int) []pre
 	}
 
 	startChunk := kmr.chunks[startIdx]
+	if startIdx > 0 {
+		n := 0
+		newStartIdx := 0
+		for idx, c := range kmr.chunks {
+			if idx < startIdx && (c.Consumed >= c.Length || offset >= c.Offset+int64(c.Length)+int64(prefetchChunkSize)) {
+				c.Release()
+				continue
+			}
+			if idx == startIdx {
+				newStartIdx = n
+			}
+			kmr.chunks[n] = c
+			n++
+		}
+		for idx := n; idx < len(kmr.chunks); idx++ {
+			kmr.chunks[idx] = nil
+		}
+		kmr.chunks = kmr.chunks[:n]
+		startIdx = newStartIdx
+	}
+
 	if reqEnd > startChunk.Offset+int64(startChunk.Length) && reqEnd > kmr.nextPrefetchOffset && length >= minPrefetchReadSize {
-		kmr.schedulePrefetchLocked()
+		kmr.schedulePrefetchAtFrontierLocked(max(kmr.lastReadEnd, offset))
 		if startIdx >= len(kmr.chunks) || kmr.chunks[startIdx] != startChunk {
 			return nil
 		}
@@ -281,6 +319,7 @@ func (kmr *KernelMRDReader) acquirePrefetchSpans(offset int64, length int) []pre
 			chunk:    c,
 			relStart: int(subStart),
 			relEnd:   int(subEnd),
+			epoch:    kmr.prefetchEpoch,
 		})
 	}
 
@@ -355,17 +394,11 @@ func (kmr *KernelMRDReader) rollbackPrefetchSpans(spans []prefetchSpan) {
 			}
 			cStart := sp.chunk.Offset
 			cEnd := cStart + int64(sp.chunk.Length)
-			contiguous := false
-			if len(kmr.chunks) == 0 {
-				contiguous = (cEnd == kmr.nextPrefetchOffset)
-			} else if insertIdx < len(kmr.chunks) {
-				contiguous = cEnd == kmr.chunks[insertIdx].Offset &&
-					(insertIdx == 0 || kmr.chunks[insertIdx-1].Offset+int64(kmr.chunks[insertIdx-1].Length) == cStart)
-			} else {
-				prevEnd := kmr.chunks[insertIdx-1].Offset + int64(kmr.chunks[insertIdx-1].Length)
-				contiguous = prevEnd == cStart && cEnd == kmr.nextPrefetchOffset
-			}
-			if contiguous {
+			canReinsert := sp.epoch == kmr.prefetchEpoch &&
+				cEnd <= kmr.nextPrefetchOffset &&
+				(insertIdx == 0 || kmr.chunks[insertIdx-1].Offset+int64(kmr.chunks[insertIdx-1].Length) <= cStart) &&
+				(insertIdx == len(kmr.chunks) || cEnd <= kmr.chunks[insertIdx].Offset)
+			if canReinsert {
 				sp.chunk.Retain()
 				kmr.chunks = append(kmr.chunks, nil)
 				copy(kmr.chunks[insertIdx+1:], kmr.chunks[insertIdx:])
