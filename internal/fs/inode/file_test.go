@@ -2185,24 +2185,21 @@ func (t *FileTest) TestTempFileCleanup_StreamingWritesEnabled_RandomWriteFallbac
 	t.createInodeWithEmptyObject()
 	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 	t.createStreamingWriteHandler(true, WriteMode)
-
 	// Step 1: Open write handle.
 	t.in.RegisterFileHandle(false)
 	require.Equal(t.T(), int32(1), t.in.writeHandleCount)
-
 	// Step 2: Perform sequential write (handled by streamingWriteHandler).
 	gcsSynced, err := t.in.Write(t.ctx, []byte("hello"), 0, WriteMode, t.writeCtx)
 	require.NoError(t.T(), err)
-	assert.False(t.T(), gcsSynced)
-	assert.NotNil(t.T(), t.in.streamingWriteHandler)
-	assert.Nil(t.T(), t.in.content)
-
+	require.False(t.T(), gcsSynced)
+	require.NotNil(t.T(), t.in.streamingWriteHandler)
+	require.Nil(t.T(), t.in.content)
 	// Step 3: Perform out-of-order/random write at offset 1024 (triggers fallback to temp file).
 	gcsSynced, err = t.in.Write(t.ctx, []byte("world"), 1024, WriteMode, t.writeCtx)
 	require.NoError(t.T(), err)
-	assert.True(t.T(), gcsSynced)
-	assert.Nil(t.T(), t.in.streamingWriteHandler)
-	assert.NotNil(t.T(), t.in.content) // Temp file on disk is active
+	require.True(t.T(), gcsSynced)
+	require.Nil(t.T(), t.in.streamingWriteHandler)
+	require.NotNil(t.T(), t.in.content) // Temp file on disk is active
 
 	// Step 4: Application closes write handle without a successful flush (e.g. error on close or skipped flush).
 	t.in.DeRegisterFileHandle(false)
@@ -2217,23 +2214,20 @@ func (t *FileTest) TestTempFileCleanup_StreamingWritesDisabled_StagedWrites() {
 	t.createInodeWithEmptyObject()
 	// Disable streaming writes (pure staged writes / writeback cache mode).
 	t.writeCtx.Config = &cfg.Config{Write: cfg.WriteConfig{EnableStreamingWrites: false}}
-
 	// Step 1: Open write handle.
 	t.in.RegisterFileHandle(false)
 	require.Equal(t.T(), int32(1), t.in.writeHandleCount)
-
 	// Step 2: Perform random/staged write (goes directly to local temp file).
 	gcsSynced, err := t.in.Write(t.ctx, []byte("staged data"), 0, WriteMode, t.writeCtx)
 	require.NoError(t.T(), err)
-	assert.False(t.T(), gcsSynced)
-	assert.Nil(t.T(), t.in.streamingWriteHandler)
-	assert.NotNil(t.T(), t.in.content) // Local disk temp file is holding space
-
+	require.False(t.T(), gcsSynced)
+	require.Nil(t.T(), t.in.streamingWriteHandler)
+	require.NotNil(t.T(), t.in.content) // Local disk temp file is holding space
 	// Step 3: Perform second write at offset 4096.
 	gcsSynced, err = t.in.Write(t.ctx, []byte("random chunk"), 4096, WriteMode, t.writeCtx)
 	require.NoError(t.T(), err)
-	assert.False(t.T(), gcsSynced)
-	assert.NotNil(t.T(), t.in.content)
+	require.False(t.T(), gcsSynced)
+	require.NotNil(t.T(), t.in.content)
 
 	// Step 4: Write/flush fails and application closes the handle.
 	t.in.DeRegisterFileHandle(false)
@@ -2247,27 +2241,24 @@ func (t *FileTest) TestTempFileCleanup_MultipleWriteHandles() {
 	t.createInodeWithEmptyObject()
 	t.writeCtx.Config = &cfg.Config{Write: *getWriteConfig()}
 	t.createStreamingWriteHandler(true, WriteMode)
-
 	// Step 1: Open two write handles (concurrent writers on same inode).
 	t.in.RegisterFileHandle(false)
 	t.in.RegisterFileHandle(false)
 	require.Equal(t.T(), int32(2), t.in.writeHandleCount)
-
 	// Step 2: Trigger fallback to temp file via out-of-order write.
 	_, err := t.in.Write(t.ctx, []byte("random"), 500, WriteMode, t.writeCtx)
 	require.NoError(t.T(), err)
-	assert.NotNil(t.T(), t.in.content)
-
-	// Step 3: First writer closes its handle.
+	require.NotNil(t.T(), t.in.content)
+	// Step 3: First writer closes its handle; temp file must NOT be destroyed yet because second writer is still active.
 	t.in.DeRegisterFileHandle(false)
-	assert.Equal(t.T(), int32(1), t.in.writeHandleCount)
-	// Temp file must NOT be destroyed yet because second writer is still active!
-	assert.NotNil(t.T(), t.in.content)
+	require.Equal(t.T(), int32(1), t.in.writeHandleCount)
+	require.NotNil(t.T(), t.in.content)
 
 	// Step 4: Second writer closes its handle.
 	t.in.DeRegisterFileHandle(false)
-	assert.Equal(t.T(), int32(0), t.in.writeHandleCount)
+
 	// Now temp file is cleanly destroyed.
+	assert.Equal(t.T(), int32(0), t.in.writeHandleCount)
 	assert.Nil(t.T(), t.in.content)
 }
 
