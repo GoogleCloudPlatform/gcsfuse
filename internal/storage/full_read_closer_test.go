@@ -807,3 +807,141 @@ func TestResolveGRPCLayout_CachesNonGRPCReader(t *testing.T) {
 	require.NoError(t, frc.Close())
 }
 
+func TestDirtyBufferPool_PutWithExpandedCapRecyclesWithoutMutatingTail(t *testing.T) {
+	const bufSize = 32 * 1024
+	buf := defaultDirtyBufferPool.Get(bufSize)
+	require.NotNil(t, buf)
+	require.Equal(t, bufSize+dirtyBufFooterSize, cap(*buf))
+
+	// Expand slice to full capacity and overwrite the trailing 16 footer bytes
+	// with known sentinel payload bytes.
+	*buf = (*buf)[:cap(*buf)]
+	expanded := *buf
+	sentinel := []byte{
+		0xA1, 0xB2, 0xC3, 0xD4, 0xE5, 0xF6, 0x17, 0x28,
+		0x39, 0x4A, 0x5B, 0x6C, 0x7D, 0x8E, 0x9F, 0x01,
+	}
+	require.Len(t, sentinel, dirtyBufFooterSize)
+	copy(expanded[bufSize:], sentinel)
+
+	defaultDirtyBufferPool.Put(buf)
+
+	// Put must detect the expanded length / invalidated footer and recycle
+	// without decrementing ftr.refs, leaving sentinel payload bytes untouched.
+	assert.Equal(t, sentinel, expanded[bufSize:])
+	assert.Equal(t, bufSize, len(*buf))
+
+	// Subsequent Get(32 * 1024) must restore a valid pinnable footer.
+	buf2 := defaultDirtyBufferPool.Get(bufSize)
+	require.NotNil(t, buf2)
+	assert.Equal(t, bufSize, len(*buf2))
+	assert.Equal(t, bufSize+dirtyBufFooterSize, cap(*buf2))
+
+	tok := TryPinDirtySlice(*buf2)
+	require.NotNil(t, tok)
+	ReleaseDirtyBuffer(tok)
+	defaultDirtyBufferPool.Put(buf2)
+}
+
+func TestLargeReadTCPConn_Preseeded512KBufferMarksALTSInitDone(t *testing.T) {
+	t.Run("LargeReadOver64KMarksALTSInitDone", func(t *testing.T) {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer func() { _ = listener.Close() }()
+
+		firstPayload := []byte("preseeded-512k-payload")
+		secondPayload := []byte("ok") // < 8 bytes; would block if ALTS header read ran
+		firstReadDone := make(chan struct{})
+		secondReadDone := make(chan struct{})
+		serverDone := make(chan struct{})
+
+		go func() {
+			defer close(serverDone)
+			srvConn, aErr := listener.Accept()
+			if aErr != nil {
+				return
+			}
+			defer func() { _ = srvConn.Close() }()
+			_, _ = srvConn.Write(firstPayload)
+			<-firstReadDone
+			_, _ = srvConn.Write(secondPayload)
+			<-secondReadDone
+		}()
+
+		clientConn, err := dialLargeReadTCP(context.Background(), listener.Addr().String())
+		require.NoError(t, err)
+		defer func() { _ = clientConn.Close() }()
+		lrc := clientConn.(*largeReadTCPConn)
+		require.False(t, lrc.altsInitDone.Load())
+
+		// A > 64 KiB read (e.g. 512 KiB) must mark altsInitDone == true.
+		bigBuf := make([]byte, minSocketReadBufferSize)
+		n, err := lrc.Read(bigBuf)
+		require.NoError(t, err)
+		assert.Equal(t, firstPayload, bigBuf[:n])
+		assert.True(t, lrc.altsInitDone.Load())
+		close(firstReadDone)
+
+		// Subsequent 36,864-byte read must pass straight through TCPConn.Read
+		// without blocking for an 8-byte ALTS frame header.
+		buf36K := make([]byte, altsInitialProtectedCap)
+		n2, err := lrc.Read(buf36K)
+		require.NoError(t, err)
+		assert.Equal(t, secondPayload, buf36K[:n2])
+		close(secondReadDone)
+		<-serverDone
+	})
+
+	t.Run("ReadOnReadyWithALTSPoolMarksALTSInitDone", func(t *testing.T) {
+		origPreseeded := preseededALTSPool.Load()
+		defer preseededALTSPool.Store(origPreseeded)
+
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer func() { _ = listener.Close() }()
+
+		firstPayload := []byte("read-on-ready-alts-payload")
+		secondPayload := []byte("hi") // < 8 bytes; would block if ALTS header read ran
+		firstReadDone := make(chan struct{})
+		secondReadDone := make(chan struct{})
+		serverDone := make(chan struct{})
+
+		go func() {
+			defer close(serverDone)
+			srvConn, aErr := listener.Accept()
+			if aErr != nil {
+				return
+			}
+			defer func() { _ = srvConn.Close() }()
+			_, _ = srvConn.Write(firstPayload)
+			<-firstReadDone
+			_, _ = srvConn.Write(secondPayload)
+			<-secondReadDone
+		}()
+
+		clientConn, err := dialLargeReadTCP(context.Background(), listener.Addr().String())
+		require.NoError(t, err)
+		defer func() { _ = clientConn.Close() }()
+		lrc := clientConn.(*largeReadTCPConn)
+		require.False(t, lrc.altsInitDone.Load())
+
+		pool := &simpleTestBufferPool{}
+		gotBuf, n, err := lrc.ReadOnReady(altsReadBufferInitialSize, pool)
+		require.NoError(t, err)
+		require.NotNil(t, gotBuf)
+		assert.Equal(t, firstPayload, (*gotBuf)[:n])
+		pool.Put(gotBuf)
+		assert.True(t, lrc.altsInitDone.Load())
+		close(firstReadDone)
+
+		// Subsequent 36,864-byte read must pass straight through TCPConn.Read
+		// without blocking for an 8-byte ALTS frame header.
+		buf36K := make([]byte, altsInitialProtectedCap)
+		n2, err := lrc.Read(buf36K)
+		require.NoError(t, err)
+		assert.Equal(t, secondPayload, buf36K[:n2])
+		close(secondReadDone)
+		<-serverDone
+	})
+}
+
