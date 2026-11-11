@@ -2186,7 +2186,7 @@ func (t *KernelMRDReaderTest) TestReadAt_StaleEpochMaybeScheduleMorePrefetch_Doe
 	<-chunk0Started
 
 	t.reader.mu.Lock()
-	epochE := t.reader.prefetchEpoch
+	epochE := t.reader.prefetchEpoch.Load()
 	t.reader.mu.Unlock()
 
 	// 2. Start Reader A reading [1 MiB, 2 MiB), which acquires chunk0 at epoch E and blocks in sp.chunk.Wait.
@@ -2224,7 +2224,7 @@ func (t *KernelMRDReaderTest) TestReadAt_StaleEpochMaybeScheduleMorePrefetch_Doe
 	t.reader.mu.Lock()
 	assert.Empty(t.T(), t.reader.chunks)
 	assert.Equal(t.T(), int64(0), t.reader.nextPrefetchOffset)
-	assert.Greater(t.T(), t.reader.prefetchEpoch, epochE)
+	assert.Greater(t.T(), t.reader.prefetchEpoch.Load(), epochE)
 	assert.Equal(t.T(), 1, t.reader.seqReads)
 	assert.Equal(t.T(), int64(101*gcsx.MiB), t.reader.lastReadEnd)
 	t.reader.mu.Unlock()
@@ -2383,7 +2383,7 @@ func (t *KernelMRDReaderTest) TestReadAt_StaleEpochClearPrefetch_DoesNotClobberN
 			}
 
 			t.reader.mu.Lock()
-			epochE2 := t.reader.prefetchEpoch
+			epochE2 := t.reader.prefetchEpoch.Load()
 			assert.NotEmpty(t.T(), t.reader.chunks)
 			assert.Equal(t.T(), int64(52*gcsx.MiB), t.reader.chunks[0].Offset)
 			assert.Equal(t.T(), 2, t.reader.seqReads)
@@ -2396,7 +2396,7 @@ func (t *KernelMRDReaderTest) TestReadAt_StaleEpochClearPrefetch_DoesNotClobberN
 			<-fallbackStarted
 
 			t.reader.mu.Lock()
-			assert.Equal(t.T(), epochE2, t.reader.prefetchEpoch)
+			assert.Equal(t.T(), epochE2, t.reader.prefetchEpoch.Load())
 			assert.NotEmpty(t.T(), t.reader.chunks, "stale-epoch clearPrefetchForEpoch must preserve newer epoch prefetch chunks")
 			assert.Equal(t.T(), int64(52*gcsx.MiB), t.reader.chunks[0].Offset)
 			assert.Equal(t.T(), 2, t.reader.seqReads)
@@ -2579,5 +2579,220 @@ func (t *KernelMRDReaderTest) TestReadAt_OutOfOrderConcurrentReads_EpochGuardsFa
 		t.reader.mu.Unlock()
 
 		t.reader.Destroy()
+	})
+}
+
+func (t *KernelMRDReaderTest) TestReadAt_ElseBranch_StaleOrSupersededDoesNotClobberPrefetch() {
+	t.Run("StaleEpochSmallAndCancelledAndNonPooledReads", func() {
+		for _, tc := range []struct {
+			name      string
+			offset    int64
+			readLen   int
+			cancelCtx bool
+			nonPooled bool
+		}{
+			{name: "StaleCancelledLargeRead", offset: 10 * gcsx.MiB, readLen: gcsx.MiB, cancelCtx: true},
+			{name: "StaleNonPooledLargeRead", offset: 10 * gcsx.MiB, readLen: gcsx.MiB, nonPooled: true},
+			{name: "StaleSmallRead", offset: 10 * gcsx.MiB, readLen: 64 * 1024},
+		} {
+			t.Run(tc.name, func() {
+				t.SetupTest()
+				t.object.Size = 200 * gcsx.MiB
+				pool := mem.DefaultBufferPool()
+
+				staleStarted := make(chan struct{})
+				releaseStale := make(chan struct{})
+				var onceStale sync.Once
+
+				mrd := &pinnedFakeMRD{
+					addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+						go func() {
+							isStale := offset == tc.offset && length == int64(tc.readLen)
+							if isStale {
+								onceStale.Do(func() { close(staleStarted) })
+								<-releaseStale
+							}
+							if isStale && tc.nonPooled {
+								heapBuf := make([]byte, length)
+								_, _ = output.Write(heapBuf)
+								callback(offset, length, nil)
+								return
+							}
+							for pos := int64(0); pos < length; pos += gcsx.MiB {
+								step := min(int64(gcsx.MiB), length-pos)
+								rawBuf := pool.Get(int(step))
+								slice := (*rawBuf)[:step]
+								for i := range slice {
+									slice[i] = byte('A' + ((offset+pos+int64(i))/gcsx.MiB)%26)
+								}
+								_, _ = output.Write(slice)
+								pool.Put(rawBuf)
+							}
+							callback(offset, length, nil)
+						}()
+					},
+				}
+				t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Maybe()
+
+				ctx := context.Background()
+				var cancel context.CancelFunc = func() {}
+				if tc.cancelCtx {
+					ctx, cancel = context.WithCancel(ctx)
+				}
+				staleDone := make(chan error, 1)
+				go func() {
+					r, rErr := t.reader.ReadAt(ctx, &gcsx.ReadRequest{
+						Buffer: make([]byte, tc.readLen),
+						Offset: tc.offset,
+					})
+					if r.Callback != nil {
+						r.Callback()
+					}
+					staleDone <- rErr
+				}()
+				<-staleStarted
+
+				// Establish new epoch prefetch stream at 50 MiB, 51 MiB.
+				for _, off := range []int64{50 * gcsx.MiB, 51 * gcsx.MiB} {
+					r, rErr := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+						Buffer: make([]byte, 1*gcsx.MiB),
+						Offset: off,
+					})
+					assert.NoError(t.T(), rErr)
+					if r.Callback != nil {
+						r.Callback()
+					}
+				}
+
+				t.reader.mu.Lock()
+				epochNew := t.reader.prefetchEpoch.Load()
+				assert.Equal(t.T(), 2, t.reader.seqReads)
+				assert.Equal(t.T(), int64(52*gcsx.MiB), t.reader.lastReadEnd)
+				assert.NotEmpty(t.T(), t.reader.chunks)
+				t.reader.mu.Unlock()
+
+				if tc.cancelCtx {
+					cancel()
+					assert.ErrorIs(t.T(), <-staleDone, context.Canceled)
+					close(releaseStale)
+				} else {
+					close(releaseStale)
+					assert.NoError(t.T(), <-staleDone)
+				}
+
+				t.reader.mu.Lock()
+				assert.Equal(t.T(), epochNew, t.reader.prefetchEpoch.Load())
+				assert.Equal(t.T(), 2, t.reader.seqReads)
+				assert.Equal(t.T(), int64(52*gcsx.MiB), t.reader.lastReadEnd)
+				assert.NotEmpty(t.T(), t.reader.chunks, "stale-epoch else branch must not clobber active prefetch chunks")
+				t.reader.mu.Unlock()
+
+				t.reader.Destroy()
+			})
+		}
+	})
+
+	t.Run("SameEpochSupersededCancelledOrNonPooledZeroReadDoesNotClobberPrefetch", func() {
+		for _, tc := range []struct {
+			name      string
+			cancelCtx bool
+			nonPooled bool
+		}{
+			{name: "CancelledZeroRead", cancelCtx: true},
+			{name: "NonPooledZeroRead", nonPooled: true},
+		} {
+			t.Run(tc.name, func() {
+				t.SetupTest()
+				t.object.Size = 200 * gcsx.MiB
+				pool := mem.DefaultBufferPool()
+
+				zeroStarted := make(chan struct{})
+				releaseZero := make(chan struct{})
+				var onceZero sync.Once
+
+				mrd := &pinnedFakeMRD{
+					addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+						go func() {
+							isZero := offset == 0 && length == 1*gcsx.MiB
+							if isZero {
+								onceZero.Do(func() { close(zeroStarted) })
+								<-releaseZero
+								if tc.nonPooled {
+									heapBuf := make([]byte, length)
+									_, _ = output.Write(heapBuf)
+									callback(offset, length, nil)
+									return
+								}
+							}
+							for pos := int64(0); pos < length; pos += gcsx.MiB {
+								step := min(int64(gcsx.MiB), length-pos)
+								rawBuf := pool.Get(int(step))
+								slice := (*rawBuf)[:step]
+								for i := range slice {
+									slice[i] = byte('A' + ((offset+pos+int64(i))/gcsx.MiB)%26)
+								}
+								_, _ = output.Write(slice)
+								pool.Put(rawBuf)
+							}
+							callback(offset, length, nil)
+						}()
+					},
+				}
+				t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Maybe()
+
+				ctx := context.Background()
+				var cancel context.CancelFunc = func() {}
+				if tc.cancelCtx {
+					ctx, cancel = context.WithCancel(ctx)
+				}
+				zeroDone := make(chan error, 1)
+				go func() {
+					r, rErr := t.reader.ReadAt(ctx, &gcsx.ReadRequest{
+						Buffer: make([]byte, 1*gcsx.MiB),
+						Offset: 0,
+					})
+					if r.Callback != nil {
+						r.Callback()
+					}
+					zeroDone <- rErr
+				}()
+				<-zeroStarted
+
+				// Complete [1 MiB, 2 MiB) and [2 MiB, 3 MiB) to advance coveredEnd on [0, 1 MiB) and launch prefetch at 3 MiB.
+				for _, off := range []int64{1 * gcsx.MiB, 2 * gcsx.MiB} {
+					r, rErr := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+						Buffer: make([]byte, 1*gcsx.MiB),
+						Offset: off,
+					})
+					assert.NoError(t.T(), rErr)
+					if r.Callback != nil {
+						r.Callback()
+					}
+				}
+
+				t.reader.mu.Lock()
+				epochActive := t.reader.prefetchEpoch.Load()
+				assert.Equal(t.T(), int64(3*gcsx.MiB), t.reader.lastReadEnd)
+				assert.NotEmpty(t.T(), t.reader.chunks)
+				t.reader.mu.Unlock()
+
+				if tc.cancelCtx {
+					cancel()
+					assert.ErrorIs(t.T(), <-zeroDone, context.Canceled)
+					close(releaseZero)
+				} else {
+					close(releaseZero)
+					assert.NoError(t.T(), <-zeroDone)
+				}
+
+				t.reader.mu.Lock()
+				assert.Equal(t.T(), epochActive, t.reader.prefetchEpoch.Load())
+				assert.Equal(t.T(), int64(3*gcsx.MiB), t.reader.lastReadEnd)
+				assert.NotEmpty(t.T(), t.reader.chunks, "superseded same-epoch else branch must not clobber active prefetch chunks")
+				t.reader.mu.Unlock()
+
+				t.reader.Destroy()
+			})
+		}
 	})
 }
