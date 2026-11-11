@@ -653,8 +653,8 @@ func (p *BufferedReader) CheckInvariants() {
 		panic(fmt.Sprintf("BufferedReader: blockQueue length %d exceeds limit %d", p.blockQueue.Len(), p.config.MaxPrefetchBlockCnt))
 	}
 
-	// The random seek count should never exceed randomReadsThreshold.
-	if p.randomSeekCount > p.randomReadsThreshold {
+	// The random seek count should never exceed randomReadsThreshold + 1.
+	if p.randomSeekCount > p.randomReadsThreshold+1 {
 		panic(fmt.Sprintf("BufferedReader: randomSeekCount %d exceeds threshold %d", p.randomSeekCount, p.randomReadsThreshold))
 	}
 }

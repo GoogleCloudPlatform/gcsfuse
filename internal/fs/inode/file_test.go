@@ -1687,7 +1687,7 @@ func (t *FileTest) TestSetMtime_SourceObjectMetaGenerationChanged() {
 }
 
 func (t *FileTest) TestSetMtimeForUnlinkedFileIsNoOp() {
-	t.in.unlinked = true
+	t.in.unlinked.Store(true)
 	beforeUpdateAttr, err := t.getAttributes(true)
 	require.Nil(t.T(), err)
 	mtime := beforeUpdateAttr.Mtime.UTC().Add(123 * time.Second)

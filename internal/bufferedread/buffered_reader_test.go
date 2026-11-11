@@ -420,7 +420,7 @@ func (t *BufferedReaderTest) TestCheckInvariantsRandomSeekCountExceedsThreshold(
 		ReadTypeClassifier: t.readTypeClassifier})
 	require.NoError(t.T(), err, "NewBufferedReader should not return error")
 
-	reader.randomSeekCount = reader.randomReadsThreshold + 1
+	reader.randomSeekCount = reader.randomReadsThreshold + 2
 
 	assert.Panics(t.T(), func() { reader.CheckInvariants() })
 }

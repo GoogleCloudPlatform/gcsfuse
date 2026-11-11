@@ -21,6 +21,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -162,10 +163,10 @@ type FileInode struct {
 	destroyed bool
 
 	// Represents a local file which is not yet synced to GCS.
-	local bool
+	local atomic.Bool
 
 	// Represents if local file has been unlinked.
-	unlinked bool
+	unlinked atomic.Bool
 }
 
 var _ Inode = &FileInode{}
@@ -207,9 +208,8 @@ func NewFileInode(
 		localFileCache: localFileCache,
 		contentCache:   contentCache,
 		src:            minObj,
-		local:          localFile,
-		unlinked:       false,
 	}
+	f.local.Store(localFile)
 
 	if f.bucket.BucketType().IsRapid() {
 		var err error
@@ -452,15 +452,15 @@ func (f *FileInode) Name() Name {
 }
 
 func (f *FileInode) IsLocal() bool {
-	return f.local
+	return f.local.Load()
 }
 
 func (f *FileInode) IsUnlinked() bool {
-	return f.unlinked
+	return f.unlinked.Load()
 }
 
 func (f *FileInode) Unlink() {
-	f.unlinked = true
+	f.unlinked.Store(true)
 	f.streamingWritesDirty = false
 
 	if f.streamingWriteHandler != nil {
@@ -480,11 +480,11 @@ func (f *FileInode) IsUsingStreamingWriteHandler() bool {
 //
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) HasPendingStreamingWrites() bool {
-	if f.streamingWriteHandler == nil || f.unlinked {
+	if f.streamingWriteHandler == nil || f.unlinked.Load() {
 		return false
 	}
 	if f.bucket.BucketType().WriteStrategy() == gcs.WriteStrategyAppendable {
-		return f.local || f.streamingWritesDirty
+		return f.local.Load() || f.streamingWritesDirty
 	}
 	return true
 }
@@ -1062,7 +1062,7 @@ func (f *FileInode) syncUsingContent(ctx context.Context, writeCtx *WriteContext
 	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.SyncFileStaged, f.src.Name, &bytes, &err)
 	defer finishSpan()
 	var latestGcsObj *gcs.Object
-	if !f.local {
+	if !f.local.Load() {
 		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
 		if err != nil {
 			return err
@@ -1142,7 +1142,7 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 		f.updateReaders()
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
-			f.local = false
+			f.local.Store(false)
 		}
 		if f.content != nil {
 			f.content.Destroy()
@@ -1269,7 +1269,7 @@ func (f *FileInode) InitStreamingWriteHandlerIfEligible(ctx context.Context, ope
 
 	var latestGcsObj *gcs.Object
 	var err error
-	if !f.local {
+	if !f.local.Load() {
 		if f.bucket.BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && openMode.IsAppend() {
 			// In case of rapid appends, we will rely on kernel's latest view of the object
 			// instead of reaching out to the server for latest metadata. This is done to avoid
@@ -1316,7 +1316,7 @@ func (f *FileInode) InitStreamingWriteHandlerIfEligible(ctx context.Context, ope
 			return false, fmt.Errorf("failed to create streamingWriteHandler: %w", err)
 		}
 		f.streamingWriteHandler.SetMtime(f.mtimeClock.Now())
-		f.streamingWritesDirty = f.local
+		f.streamingWritesDirty = f.local.Load()
 		return true, nil
 	}
 	return false, nil
@@ -1324,7 +1324,7 @@ func (f *FileInode) InitStreamingWriteHandlerIfEligible(ctx context.Context, ope
 
 func (f *FileInode) areStreamingWritesSupported(openMode util.OpenMode, obj *gcs.Object, writeCtx *WriteContext) bool {
 	// For new files and existing files of size 0, streaming writes are always supported.
-	if f.local || obj.Size == 0 {
+	if f.local.Load() || obj.Size == 0 {
 		return true
 	}
 	if writeCtx.Config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && obj.Finalized.IsZero() {

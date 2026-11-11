@@ -148,9 +148,11 @@ func (fh *FileHandle) Destroy() {
 	fh.inode.Unlock()
 	if fh.reader != nil {
 		fh.reader.Destroy()
+		fh.reader = nil
 	}
 	if fh.readManager != nil {
 		fh.readManager.Destroy()
+		fh.readManager = nil
 	}
 	if fh.kernelReader != nil {
 		fh.kernelReader.Destroy()
