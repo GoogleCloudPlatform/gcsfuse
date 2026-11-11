@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -124,6 +125,22 @@ type storageClient struct {
 	storageControlClient StorageControlClient
 }
 
+// hasConfiguredGRPCProxy reports whether HTTP(S)_PROXY applies to the GCS gRPC
+// endpoint (respecting NO_PROXY and GOOGLE_CLOUD_UNIVERSE_DOMAIN).
+func hasConfiguredGRPCProxy() bool {
+	host := "storage.googleapis.com:443"
+	if ud := os.Getenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN"); ud != "" {
+		host = "storage." + ud + ":443"
+	}
+	proxyURL, err := http.ProxyFromEnvironment(&http.Request{
+		URL: &url.URL{
+			Scheme: "https",
+			Host:   host,
+		},
+	})
+	return err != nil || proxyURL != nil
+}
+
 // Return clientOpts for data-plane gRPC client.
 func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (clientOpts []option.ClientOption, err error) {
 	return createClientOptionForGRPCClientWithTransport(ctx, clientConfig, enableBidiConfig, true)
@@ -193,9 +210,13 @@ func createClientOptionForGRPCClientWithTransport(ctx context.Context, clientCon
 		clientConfig.CustomEndpoint == "" &&
 		clientConfig.S2AAddress == "" &&
 		os.Getenv("STORAGE_EMULATOR_HOST_GRPC") == "" &&
-		os.Getenv("STORAGE_EMULATOR_HOST") == ""
+		os.Getenv("STORAGE_EMULATOR_HOST") == "" &&
+		!hasConfiguredGRPCProxy()
 	if clientConfig.LocalSocketAddress != "" {
-		dialer := &net.Dialer{}
+		dialer := &net.Dialer{
+			KeepAlive: -1,
+			Control:   enableTCPKeepaliveControl,
+		}
 		// The port can be 0, in which case the OS will choose a local port.
 		// The format of SocketAddress is expected to be IP address.
 		// TODO: check if this approach works for CTK or whether interface name needs to be passed.

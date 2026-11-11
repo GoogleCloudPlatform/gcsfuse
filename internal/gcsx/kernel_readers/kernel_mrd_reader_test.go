@@ -1922,3 +1922,209 @@ func (t *KernelMRDReaderTest) TestReadAt_LargeNonSequentialEOFOrFailedRead_Reset
 
 	t.reader.Destroy()
 }
+
+func (t *KernelMRDReaderTest) TestReadAt_ShortReadPrefetchChunk_DoesNotScheduleMorePrefetch() {
+	t.object.Size = 200 * gcsx.MiB
+	t.config = &cfg.Config{Mrd: cfg.MrdConfig{PoolSize: 2}}
+	t.mrdInstance = gcsx.NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.config)
+	t.reader = NewKernelMRDReader(t.mrdInstance, metrics.NewNoopMetrics())
+
+	pool := mem.DefaultBufferPool()
+	allowSecondMRD := make(chan struct{})
+	chunk0Started := make(chan struct{})
+	releaseChunk0 := make(chan struct{})
+
+	var (
+		mu              sync.Mutex
+		shortChunk0Done bool
+		requestedSpans  [][2]int64
+	)
+
+	mrd := &pinnedFakeMRD{
+		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+			go func() {
+				mu.Lock()
+				requestedSpans = append(requestedSpans, [2]int64{offset, length})
+				isShortChunk0 := offset == 1*gcsx.MiB && length == 2*gcsx.MiB && !shortChunk0Done
+				if isShortChunk0 {
+					shortChunk0Done = true
+				}
+				mu.Unlock()
+
+				if isShortChunk0 {
+					close(chunk0Started)
+					<-releaseChunk0
+					// Finish with err == nil and fewer bytes written than relEnd (1 MiB)
+					// so Wait returns nil and Slice returns false.
+					rawBuf := pool.Get(512 * 1024)
+					slice := (*rawBuf)[:512*1024]
+					for i := range slice {
+						slice[i] = 'S'
+					}
+					n, _ := output.Write(slice)
+					pool.Put(rawBuf)
+					callback(offset, int64(n), nil)
+					return
+				}
+
+				rawBuf := pool.Get(int(length))
+				slice := (*rawBuf)[:length]
+				for i := range slice {
+					slice[i] = byte('A' + ((offset+int64(i))/gcsx.MiB)%26)
+				}
+				n, _ := output.Write(slice)
+				pool.Put(rawBuf)
+				callback(offset, int64(n), nil)
+			}()
+		},
+	}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Once()
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Run(func(mock.Arguments) {
+		<-allowSecondMRD
+	}).Return(mrd, nil).Once()
+
+	// 1. Read [0, 1 MiB) while ReadySize == 1 (limit == 2): schedules chunk0 [1 MiB, 3 MiB) and chunk1 [3 MiB, 7 MiB).
+	resp0, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: make([]byte, 1*gcsx.MiB),
+		Offset: 0,
+	})
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 1*gcsx.MiB, resp0.Size)
+	if resp0.Callback != nil {
+		resp0.Callback()
+	}
+	<-chunk0Started
+
+	// 2. Start [1 MiB, 2 MiB) read while ReadySize == 1 (active == 2 == limit), so acquirePrefetchSpans
+	//    does not schedule chunk2 and blocks in chunk0.Wait().
+	type readRes struct {
+		resp gcsx.ReadResponse
+		err  error
+	}
+	read1Done := make(chan readRes, 1)
+	go func() {
+		r, rErr := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+			Buffer: make([]byte, 1*gcsx.MiB),
+			Offset: 1 * gcsx.MiB,
+		})
+		read1Done <- readRes{resp: r, err: rErr}
+	}()
+
+	assert.Eventually(t.T(), func() bool {
+		t.reader.mu.Lock()
+		defer t.reader.mu.Unlock()
+		return len(t.reader.chunks) > 0 && t.reader.chunks[0].Offset == 1*gcsx.MiB && t.reader.chunks[0].Consumed == 1*gcsx.MiB
+	}, time.Second, time.Millisecond)
+
+	// 3. Unblock 2nd MRD so ReadySize becomes 2 (limit == 4). If ReadAt called maybeScheduleMorePrefetch
+	//    before Slice(), it would launch wasted prefetch chunks [7 MiB, 11 MiB) and [11 MiB, 15 MiB).
+	close(allowSecondMRD)
+	assert.Eventually(t.T(), func() bool {
+		return t.mrdInstance.ReadySize() == 2
+	}, time.Second, time.Millisecond)
+
+	mu.Lock()
+	spanCountBeforeRelease := len(requestedSpans)
+	mu.Unlock()
+
+	close(releaseChunk0)
+	res1 := <-read1Done
+	assert.NoError(t.T(), res1.err)
+	assert.Equal(t.T(), 1*gcsx.MiB, res1.resp.Size)
+	assert.NotNil(t.T(), res1.resp.Callback)
+	assert.Equal(t.T(), byte('B'), res1.resp.Data[0][0])
+	res1.resp.Callback()
+
+	mu.Lock()
+	assert.Equal(t.T(), [][2]int64{{1 * gcsx.MiB, 1 * gcsx.MiB}}, requestedSpans[spanCountBeforeRelease:],
+		"Short-read prefetch chunk must fall back to ReadVectored without launching extra prefetch chunks")
+	mu.Unlock()
+
+	t.reader.Destroy()
+}
+
+func (t *KernelMRDReaderTest) TestReadAt_StraddlingReadExceedingPrefetchLimit_DoesNotLaunchWastedChunks() {
+	t.object.Size = 200 * gcsx.MiB
+	t.config = &cfg.Config{Mrd: cfg.MrdConfig{PoolSize: 2}}
+	t.mrdInstance = gcsx.NewMrdInstance(t.object, t.bucket, t.cache, t.inodeID, t.config)
+	t.reader = NewKernelMRDReader(t.mrdInstance, metrics.NewNoopMetrics())
+
+	pool := mem.DefaultBufferPool()
+	allowSecondMRD := make(chan struct{})
+
+	var (
+		mu             sync.Mutex
+		requestedSpans [][2]int64
+	)
+
+	mrd := &pinnedFakeMRD{
+		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+			mu.Lock()
+			requestedSpans = append(requestedSpans, [2]int64{offset, length})
+			mu.Unlock()
+
+			for pos := int64(0); pos < length; pos += gcsx.MiB {
+				step := min(int64(gcsx.MiB), length-pos)
+				rawBuf := pool.Get(int(step))
+				slice := (*rawBuf)[:step]
+				for i := range slice {
+					slice[i] = byte('A' + ((offset+pos+int64(i))/gcsx.MiB)%26)
+				}
+				_, _ = output.Write(slice)
+				pool.Put(rawBuf)
+			}
+			callback(offset, length, nil)
+		},
+	}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Once()
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Run(func(mock.Arguments) {
+		<-allowSecondMRD
+	}).Return(mrd, nil).Once()
+
+	// 1. Read [0, 1 MiB) while ReadySize == 1 (limit == 2): prefetches [1 MiB, 3 MiB) and [3 MiB, 7 MiB).
+	resp0, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: make([]byte, 1*gcsx.MiB),
+		Offset: 0,
+	})
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 1*gcsx.MiB, resp0.Size)
+	if resp0.Callback != nil {
+		resp0.Callback()
+	}
+
+	// 2. Unblock 2nd MRD so ReadySize becomes 2 (limit == 4). Currently kmr.chunks covers [1 MiB, 7 MiB)
+	//    with 2 chunks; 2 more 4 MiB chunks can reach at most 15 MiB.
+	close(allowSecondMRD)
+	assert.Eventually(t.T(), func() bool {
+		return t.mrdInstance.ReadySize() == 2
+	}, time.Second, time.Millisecond)
+
+	mu.Lock()
+	spanCountBeforeStraddle := len(requestedSpans)
+	mu.Unlock()
+
+	// 3. Issue a read starting in kmr.chunks[0] at 1 MiB with reqEnd = 17 MiB (> 15 MiB reachable limit).
+	//    acquirePrefetchSpans must reset and fall back cleanly without launching doomed [7 MiB, 11 MiB) / [11 MiB, 15 MiB) chunks.
+	resp1, err := t.reader.ReadAt(context.Background(), &gcsx.ReadRequest{
+		Buffer: make([]byte, 16*gcsx.MiB),
+		Offset: 1 * gcsx.MiB,
+	})
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 16*gcsx.MiB, resp1.Size)
+	assert.NotNil(t.T(), resp1.Callback)
+	assert.Equal(t.T(), byte('B'), resp1.Data[0][0])
+	resp1.Callback()
+
+	mu.Lock()
+	assert.Equal(t.T(), [][2]int64{{1 * gcsx.MiB, 16 * gcsx.MiB}}, requestedSpans[spanCountBeforeStraddle:],
+		"Straddling read exceeding reachable prefetch limit must fall back directly without launching doomed prefetch chunks")
+	mu.Unlock()
+
+	t.reader.mu.Lock()
+	assert.Empty(t.T(), t.reader.chunks)
+	assert.Equal(t.T(), 1, t.reader.seqReads)
+	assert.Equal(t.T(), int64(17*gcsx.MiB), t.reader.lastReadEnd)
+	t.reader.mu.Unlock()
+
+	t.reader.Destroy()
+}

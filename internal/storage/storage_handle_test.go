@@ -24,6 +24,8 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -1856,6 +1858,124 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClientWithTran
 			assert.Len(testSuite.T(), wrapperOpts, len(dataOpts))
 		})
 	}
+}
+
+type proxyGatingTestCase struct {
+	name               string
+	env                map[string]string
+	expectProxy        bool
+	expectedExtraCount int
+}
+
+var proxyGatingTestCases = []proxyGatingTestCase{
+	{
+		name:               "NoProxy_EnablesDirectZeroCopyRead",
+		env:                map[string]string{},
+		expectProxy:        false,
+		expectedExtraCount: 2,
+	},
+	{
+		name: "HTTPSProxy_DisablesDirectZeroCopyRead",
+		env: map[string]string{
+			"HTTPS_PROXY": "http://proxy.example.com:8080",
+		},
+		expectProxy:        true,
+		expectedExtraCount: 0,
+	},
+	{
+		name: "HTTPSProxy_BypassedByNoProxy_ReenablesDirectZeroCopyRead",
+		env: map[string]string{
+			"HTTPS_PROXY": "http://proxy.example.com:8080",
+			"NO_PROXY":    "storage.googleapis.com",
+		},
+		expectProxy:        false,
+		expectedExtraCount: 2,
+	},
+	{
+		name: "UniverseDomain_HTTPSProxy_NotBypassedByDefaultNoProxy",
+		env: map[string]string{
+			"HTTPS_PROXY":                  "http://proxy.example.com:8080",
+			"NO_PROXY":                     "storage.googleapis.com",
+			"GOOGLE_CLOUD_UNIVERSE_DOMAIN": "apis-tpclp.goog",
+		},
+		expectProxy:        true,
+		expectedExtraCount: 0,
+	},
+	{
+		name: "UniverseDomain_BypassedByUniverseNoProxy_ReenablesDirectZeroCopyRead",
+		env: map[string]string{
+			"HTTPS_PROXY":                  "http://proxy.example.com:8080",
+			"NO_PROXY":                     "storage.apis-tpclp.goog",
+			"GOOGLE_CLOUD_UNIVERSE_DOMAIN": "apis-tpclp.goog",
+		},
+		expectProxy:        false,
+		expectedExtraCount: 2,
+	},
+}
+
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClientWithTransport_ProxyGating() {
+	// http.ProxyFromEnvironment caches proxy environment variables once per
+	// process via sync.Once, so execute each case in an isolated subprocess.
+	baseEnv := make([]string, 0, len(os.Environ()))
+	for _, entry := range os.Environ() {
+		key, _, ok := strings.Cut(entry, "=")
+		if !ok {
+			continue
+		}
+		switch strings.ToUpper(key) {
+		case "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "ALL_PROXY",
+			"GOOGLE_CLOUD_UNIVERSE_DOMAIN", "STORAGE_EMULATOR_HOST",
+			"STORAGE_EMULATOR_HOST_GRPC", "GCSFUSE_PROXY_GATING_CASE":
+			continue
+		}
+		baseEnv = append(baseEnv, entry)
+	}
+
+	for _, tc := range proxyGatingTestCases {
+		testSuite.Run(tc.name, func() {
+			env := append([]string(nil), baseEnv...)
+			env = append(env, "GCSFUSE_PROXY_GATING_CASE="+tc.name)
+			for k, v := range tc.env {
+				env = append(env, k+"="+v)
+			}
+
+			cmd := exec.Command(os.Args[0], "-test.run=^Test_CreateClientOptionForGRPCClientWithTransport_ProxyGatingHelper$")
+			cmd.Env = env
+			out, err := cmd.CombinedOutput()
+			require.NoError(testSuite.T(), err, "subprocess failed:\n%s", string(out))
+		})
+	}
+}
+
+func Test_CreateClientOptionForGRPCClientWithTransport_ProxyGatingHelper(t *testing.T) {
+	caseName := os.Getenv("GCSFUSE_PROXY_GATING_CASE")
+	if caseName == "" {
+		return
+	}
+
+	var matched *proxyGatingTestCase
+	for i := range proxyGatingTestCases {
+		if proxyGatingTestCases[i].name == caseName {
+			matched = &proxyGatingTestCases[i]
+			break
+		}
+	}
+	require.NotNil(t, matched, "unknown proxy gating test case %q", caseName)
+
+	assert.Equal(t, matched.expectProxy, hasConfiguredGRPCProxy())
+
+	sc := storageutil.GetDefaultStorageClientConfig(keyFile)
+	ctx := context.Background()
+
+	controlOpts, err := createClientOptionForGRPCClientWithTransport(ctx, &sc, false, false)
+	require.NoError(t, err)
+	dataOpts, err := createClientOptionForGRPCClientWithTransport(ctx, &sc, false, true)
+	require.NoError(t, err)
+	wrapperOpts, err := createClientOptionForGRPCClient(ctx, &sc, false)
+	require.NoError(t, err)
+
+	assert.Len(t, dataOpts, len(controlOpts)+matched.expectedExtraCount)
+	assert.Len(t, wrapperOpts, len(dataOpts))
 }
 
 func (testSuite *StorageHandleTest) TestBucketHandle_WarmGRPCClientConnectivity_OncePerClient() {

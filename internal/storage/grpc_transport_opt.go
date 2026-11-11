@@ -403,8 +403,21 @@ func (c *largeReadTCPConn) ReadOnReady(bufSize int, pool mem.BufferPool) (*[]byt
 	return buf, n, nil
 }
 
+func enableTCPKeepaliveControl(_, _ string, c syscall.RawConn) error {
+	var sockErr error
+	if err := c.Control(func(fd uintptr) {
+		sockErr = unix.SetsockoptInt(int(fd), syscall.SOL_SOCKET, unix.SO_KEEPALIVE, 1)
+	}); err != nil {
+		return err
+	}
+	return sockErr
+}
+
 func dialLargeReadTCP(ctx context.Context, addr string) (net.Conn, error) {
-	var d net.Dialer
+	d := &net.Dialer{
+		KeepAlive: -1,
+		Control:   enableTCPKeepaliveControl,
+	}
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, err

@@ -109,6 +109,46 @@ func (kmr *KernelMRDReader) schedulePrefetchLocked() {
 	kmr.schedulePrefetchAtFrontierLocked(kmr.lastReadEnd)
 }
 
+func (kmr *KernelMRDReader) prefetchLimit(ready int) int {
+	if ready > 1 {
+		return min(maxPrefetchChunks, ready+2)
+	}
+	return min(maxPrefetchChunks, ready+1)
+}
+
+func (kmr *KernelMRDReader) nextPrefetchChunkLen(nextOffset, objSize int64, ready int) int {
+	rem := objSize - nextOffset
+	targetSize := int64(prefetchChunkSize)
+	if nextOffset <= 1024*1024 && ready == 1 {
+		targetSize = int64(initialPrefetchChunkSize)
+	}
+	return int(min(targetSize, rem))
+}
+
+func (kmr *KernelMRDReader) canReachOffsetLocked(frontier, target int64) bool {
+	if kmr.mrdInstance == nil {
+		return false
+	}
+	uObjSize, gen := kmr.mrdInstance.ObjectSizeAndGeneration()
+	if gen != kmr.prefetchGeneration {
+		return false
+	}
+	objSize := int64(uObjSize)
+	ready := max(1, kmr.mrdInstance.ReadySize())
+	limit := kmr.prefetchLimit(ready)
+	simActive := kmr.activePrefetchChunksLocked(frontier)
+	simNext := kmr.nextPrefetchOffset
+	for simActive < limit && simNext < objSize {
+		chunkLen := kmr.nextPrefetchChunkLen(simNext, objSize, ready)
+		if chunkLen <= 0 {
+			break
+		}
+		simNext += int64(chunkLen)
+		simActive++
+	}
+	return simNext >= target
+}
+
 func (kmr *KernelMRDReader) schedulePrefetchAtFrontierLocked(frontier int64) {
 	if kmr.mrdInstance == nil {
 		return
@@ -121,17 +161,9 @@ func (kmr *KernelMRDReader) schedulePrefetchAtFrontierLocked(frontier int64) {
 	kmr.prefetchGeneration = gen
 	objSize := int64(uObjSize)
 	ready := max(1, kmr.mrdInstance.ReadySize())
-	limit := min(maxPrefetchChunks, ready+1)
-	if ready > 1 {
-		limit = min(maxPrefetchChunks, ready+2)
-	}
+	limit := kmr.prefetchLimit(ready)
 	for kmr.activePrefetchChunksLocked(frontier) < limit && kmr.nextPrefetchOffset < objSize {
-		rem := objSize - kmr.nextPrefetchOffset
-		targetSize := int64(prefetchChunkSize)
-		if kmr.nextPrefetchOffset <= 1024*1024 && ready == 1 {
-			targetSize = int64(initialPrefetchChunkSize)
-		}
-		chunkLen := int(min(targetSize, rem))
+		chunkLen := kmr.nextPrefetchChunkLen(kmr.nextPrefetchOffset, objSize, ready)
 		chunk, err := kmr.mrdInstance.StartPrefetchChunk(kmr.nextPrefetchOffset, chunkLen, kmr.metrics)
 		if err != nil {
 			break
@@ -273,8 +305,30 @@ func (kmr *KernelMRDReader) acquirePrefetchSpans(offset int64, length int) []pre
 		startIdx = newStartIdx
 	}
 
-	if reqEnd > startChunk.Offset+int64(startChunk.Length) && reqEnd > kmr.nextPrefetchOffset && length >= minPrefetchReadSize {
-		kmr.schedulePrefetchAtFrontierLocked(max(kmr.lastReadEnd, offset))
+	chainEndIdx := startIdx
+	coveredEnd := kmr.chunks[startIdx].Offset + int64(kmr.chunks[startIdx].Length)
+	for chainEndIdx+1 < len(kmr.chunks) {
+		next := kmr.chunks[chainEndIdx+1]
+		if next.Offset != coveredEnd {
+			break
+		}
+		chainEndIdx++
+		coveredEnd = next.Offset + int64(next.Length)
+	}
+
+	if coveredEnd < reqEnd {
+		frontier := max(kmr.lastReadEnd, offset)
+		canExtend := length >= minPrefetchReadSize &&
+			chainEndIdx == len(kmr.chunks)-1 &&
+			coveredEnd == kmr.nextPrefetchOffset &&
+			kmr.canReachOffsetLocked(frontier, reqEnd)
+		if !canExtend {
+			kmr.clearPrefetchLocked()
+			kmr.seqReads = 0
+			kmr.lastReadEnd = 0
+			return nil
+		}
+		kmr.schedulePrefetchAtFrontierLocked(frontier)
 		if startIdx >= len(kmr.chunks) || kmr.chunks[startIdx] != startChunk {
 			return nil
 		}
@@ -507,11 +561,11 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 		ignoreInterrupts := kmr.mrdInstance.IgnoreInterrupts()
 		wErr := sp.chunk.Wait(ctx, ignoreInterrupts)
 		if wErr == nil {
-			if len(req.Buffer) >= minPrefetchReadSize {
-				kmr.maybeScheduleMorePrefetch()
-			}
 			if resp, ok := sp.chunk.Slice(sp.relStart, sp.relEnd); ok {
 				bytesRead = resp.Size
+				if len(req.Buffer) >= minPrefetchReadSize {
+					kmr.maybeScheduleMorePrefetch()
+				}
 				return resp, nil
 			}
 		}
@@ -531,9 +585,6 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 			}
 		}
 		if wErr == nil {
-			if len(req.Buffer) >= minPrefetchReadSize {
-				kmr.maybeScheduleMorePrefetch()
-			}
 			var combinedData [][]byte
 			var callbacks []func()
 			totalSize := 0
@@ -556,6 +607,9 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 			}
 			if allOk {
 				bytesRead = totalSize
+				if len(req.Buffer) >= minPrefetchReadSize {
+					kmr.maybeScheduleMorePrefetch()
+				}
 				return gcsx.ReadResponse{
 					Data: combinedData,
 					Size: totalSize,
