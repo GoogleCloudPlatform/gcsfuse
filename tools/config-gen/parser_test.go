@@ -640,7 +640,7 @@ params:
 			expectedErrorSubstring: "unknown condition config-path \"unknown.config.path\"",
 		},
 		{
-			name: "DuplicateBucketTypeWithSameConditions",
+			name: "ConditionTargetHasOptimizations",
 			yamlContent: `
 params:
   - config-path: "test-param"
@@ -655,12 +655,64 @@ params:
           conditions:
             test-param: true
           value: true
+`,
+			expectedErrorSubstring: "cannot reference a parameter that has optimizations",
+		},
+		{
+			name: "DuplicateBucketTypeWithSameConditions",
+			yamlContent: `
+params:
+  - config-path: "cond-param"
+    proto-tag: 1
+    flag-name: "cond-flag"
+    type: "bool"
+    default: false
+    usage: "Condition flag"
+  - config-path: "test-param"
+    proto-tag: 2
+    flag-name: "test-flag"
+    type: "bool"
+    default: false
+    usage: "Test flag"
+    optimizations:
+      bucket-type-optimization:
         - bucket-type: "rcu"
           conditions:
-            test-param: true
+            cond-param: true
+          value: true
+        - bucket-type: "rcu"
+          conditions:
+            cond-param: true
           value: false
 `,
-			expectedErrorSubstring: "duplicate bucket-type \"rcu;test-param=true\"",
+			expectedErrorSubstring: "duplicate bucket-type \"rcu;cond-param=true\"",
+		},
+		{
+			name: "ShadowedConditionalBucketType",
+			yamlContent: `
+params:
+  - config-path: "cond-param"
+    proto-tag: 1
+    flag-name: "cond-flag"
+    type: "bool"
+    default: false
+    usage: "Condition flag"
+  - config-path: "test-param"
+    proto-tag: 2
+    flag-name: "test-flag"
+    type: "bool"
+    default: false
+    usage: "Test flag"
+    optimizations:
+      bucket-type-optimization:
+        - bucket-type: "rcu"
+          value: true
+        - bucket-type: "rcu"
+          conditions:
+            cond-param: true
+          value: false
+`,
+			expectedErrorSubstring: "duplicate bucket-type \"rcu;cond-param=true\"",
 		},
 	}
 

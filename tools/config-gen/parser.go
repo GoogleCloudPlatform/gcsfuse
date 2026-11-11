@@ -219,7 +219,7 @@ func checkFlagName(name string) error {
 	return nil
 }
 
-func validateParam(param Param, knownConfigPaths map[string]bool) error {
+func validateParam(param Param, paramsByConfigPath map[string]Param) error {
 	if err := checkFlagName(param.FlagName); err != nil {
 		return err
 	}
@@ -263,14 +263,18 @@ func validateParam(param Param, knownConfigPaths map[string]bool) error {
 					var b strings.Builder
 					b.WriteString(bt)
 					for _, k := range slices.Sorted(maps.Keys(bto.Conditions)) {
-						if !knownConfigPaths[k] {
+						targetParam, ok := paramsByConfigPath[k]
+						if !ok {
 							return fmt.Errorf("unknown condition config-path %q in optimization for flag %s", k, param.FlagName)
+						}
+						if targetParam.Optimizations != nil {
+							return fmt.Errorf("condition config-path %q in optimization for flag %s cannot reference a parameter that has optimizations", k, param.FlagName)
 						}
 						fmt.Fprintf(&b, ";%s=%v", k, bto.Conditions[k])
 					}
 					ruleKey = b.String()
 				}
-				if seenBucketTypes[ruleKey] {
+				if seenBucketTypes[ruleKey] || seenBucketTypes[bt] {
 					return fmt.Errorf("duplicate bucket-type %q for flag %s", ruleKey, param.FlagName)
 				}
 				seenBucketTypes[ruleKey] = true
@@ -303,12 +307,12 @@ func validateParams(params []Param) error {
 	if _, err := validateForDuplicates(params, func(param Param) string { return param.FlagName }); err != nil {
 		return fmt.Errorf("duplicate flag names found: %w", err)
 	}
-	knownConfigPaths, err := validateForDuplicates(params, func(param Param) string { return param.ConfigPath })
+	paramsByConfigPath, err := validateForDuplicates(params, func(param Param) string { return param.ConfigPath })
 	if err != nil {
 		return fmt.Errorf("duplicate config-paths found: %w", err)
 	}
 	for _, param := range params {
-		err := validateParam(param, knownConfigPaths)
+		err := validateParam(param, paramsByConfigPath)
 		if err != nil {
 			return err
 		}
@@ -316,8 +320,8 @@ func validateParams(params []Param) error {
 	return nil
 }
 
-func validateForDuplicates(params []Param, fn func(param Param) string) (map[string]bool, error) {
-	lookup := make(map[string]bool)
+func validateForDuplicates(params []Param, fn func(param Param) string) (map[string]Param, error) {
+	lookup := make(map[string]Param)
 	for _, p := range params {
 		value := fn(p)
 		if value == "" {
@@ -326,7 +330,7 @@ func validateForDuplicates(params []Param, fn func(param Param) string) (map[str
 		if _, ok := lookup[value]; ok {
 			return nil, fmt.Errorf("%s is present more than once", value)
 		}
-		lookup[value] = true
+		lookup[value] = p
 	}
 	return lookup, nil
 }

@@ -145,7 +145,7 @@ func TestApplyOptimizations(t *testing.T) {
 			{{- range $bto.BucketTypes }}
 			{{- $bt := . }}
 			{
-				name:   "bucket_type_{{$bt}}",
+				name:   "bucket_type_{{$bt}}{{range $k, $v := $bto.Conditions}}_{{$k}}_{{$v}}{{end}}",
 				config: Config{Profile: ""},
 				{{- if $bto.Conditions }}
 				conditions: map[string]any{

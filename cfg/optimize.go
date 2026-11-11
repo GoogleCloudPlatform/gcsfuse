@@ -165,20 +165,19 @@ func getOptimizedValue(
 	}
 
 	// 3. If no profile is set, and no machine-type optimization applies, then check for bucket-type optimization.
-	if input != nil && input.BucketType.IsValid() {
-		for _, bto := range rules.BucketTypeOptimization {
-			for _, bt := range bto.BucketTypes {
-				if BucketType(bt) == input.BucketType && matchesConditions(c, bto.Conditions) {
-					reason := fmt.Sprintf("bucket-type %q", input.BucketType)
-					if len(bto.Conditions) > 0 {
-						reason = fmt.Sprintf("bucket-type %q with matching conditions", input.BucketType)
-					}
-					return OptimizationResult{
-						FinalValue:         bto.Value,
-						OptimizationReason: reason,
-						Optimized:          true,
-					}
-				}
+	if input == nil || !input.BucketType.IsValid() {
+		return OptimizationResult{FinalValue: currentValue, Optimized: false}
+	}
+	for _, bto := range rules.BucketTypeOptimization {
+		if slices.Contains(bto.BucketTypes, string(input.BucketType)) && matchesConditions(c, bto.Conditions) {
+			reason := fmt.Sprintf("bucket-type %q", input.BucketType)
+			if len(bto.Conditions) > 0 {
+				reason = fmt.Sprintf("bucket-type %q with matching conditions", input.BucketType)
+			}
+			return OptimizationResult{
+				FinalValue:         bto.Value,
+				OptimizationReason: reason,
+				Optimized:          true,
 			}
 		}
 	}
@@ -214,7 +213,7 @@ func findFieldByYAMLTag(structVal reflect.Value, tagName string) (reflect.Value,
 		return reflect.Value{}, false
 	}
 	structType := structVal.Type()
-	for i := 0; i < structVal.NumField(); i++ {
+	for i := range structVal.NumField() {
 		tag := strings.Split(structType.Field(i).Tag.Get("yaml"), ",")[0]
 		if tag == tagName {
 			return structVal.Field(i), true
