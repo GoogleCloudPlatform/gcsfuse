@@ -780,6 +780,16 @@ func (c *MrdPrefetchChunk) Wait(ctx context.Context, ignoreInterrupts bool) erro
 	return nil
 }
 
+// IsUsable returns false if the asynchronous download has finished with an error or short read.
+func (c *MrdPrefetchChunk) IsUsable() bool {
+	select {
+	case <-c.done:
+		return (c.err == nil || c.err == io.EOF) && c.written >= c.Length
+	default:
+		return true
+	}
+}
+
 // Slice extracts a zero-copy ReadResponse for [relStart, relEnd) within the completed chunk.
 // On success (ok == true), the caller's Retain() reference is transferred to ReadResponse.Callback.
 func (c *MrdPrefetchChunk) Slice(relStart, relEnd int) (ReadResponse, bool) {
