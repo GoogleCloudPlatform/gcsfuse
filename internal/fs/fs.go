@@ -3113,8 +3113,16 @@ func (fs *fileSystem) ReadFile(
 					}
 				}
 			}
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = nil
+			}
+			if err != nil {
+				if op.Callback != nil {
+					op.Callback()
+					op.Callback = nil
+				}
+				op.Data = nil
+				op.BytesRead = 0
 			}
 			return err
 		}
@@ -3161,6 +3169,7 @@ func (fs *fileSystem) ReadFile(
 		req.Buffer = op.Dst
 	}
 
+	wasLocal := fh.Inode().IsLocal()
 	if fs.newConfig.FileSystem.EnableKernelReader {
 		var resp gcsx.ReadResponse
 		resp, err = fh.ReadWithKernelReader(ctx, &req)
@@ -3176,6 +3185,13 @@ func (fs *fileSystem) ReadFile(
 	} else {
 		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 	}
+	if wasLocal {
+		fh.Inode().Lock()
+		if !fh.Inode().IsLocal() {
+			fs.promoteToGenerationBacked(fh.Inode())
+		}
+		fh.Inode().Unlock()
+	}
 
 	// A FileClobberedError indicates the underlying GCS object has changed,
 	// making the kernel's dentry for this file stale. We use the notifier to
@@ -3190,8 +3206,16 @@ func (fs *fileSystem) ReadFile(
 		}
 	}
 	// As required by fuse, we don't treat EOF as an error.
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		err = nil
+	}
+	if err != nil {
+		if op.Callback != nil {
+			op.Callback()
+			op.Callback = nil
+		}
+		op.Data = nil
+		op.BytesRead = 0
 	}
 
 	return

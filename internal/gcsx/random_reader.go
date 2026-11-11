@@ -432,6 +432,8 @@ func (rr *randomReader) Object() (o *gcs.MinObject) {
 
 func (rr *randomReader) Destroy() {
 	defer func() {
+		rr.mu.Lock()
+		defer rr.mu.Unlock()
 		if rr.isMRDInUse.Load() {
 			err := rr.mrdWrapper.DecrementRefCount()
 			if err != nil {
@@ -786,8 +788,17 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
 	}
 
-	if rr.isMRDInUse.CompareAndSwap(false, true) {
-		rr.mrdWrapper.IncrementRefCount()
+	if !rr.isMRDInUse.Load() {
+		rr.mu.Lock()
+		if rr.mrdWrapper == nil {
+			rr.mu.Unlock()
+			return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
+		}
+		if !rr.isMRDInUse.Load() {
+			rr.mrdWrapper.IncrementRefCount()
+			rr.isMRDInUse.Store(true)
+		}
+		rr.mu.Unlock()
 	}
 
 	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, rr.metricHandle, rr.traceHandle, false)

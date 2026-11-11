@@ -29,6 +29,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/read_manager"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/workloadinsight"
@@ -227,27 +228,11 @@ func (fh *FileHandle) TryFastReadWithReadManager(ctx context.Context, req *gcsx.
 	req.SkipSizeChecks = fh.shouldSkipSizeChecks(req)
 
 	readResponse, err := fh.readManager.ReadAt(ctx, req)
-	switch {
-	case errors.Is(err, io.EOF):
-		if err != io.EOF {
-			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
-		}
-		if readResponse.Size > 0 {
-			return readResponse, true, io.EOF
-		}
-		if readResponse.Callback != nil {
-			readResponse.Callback()
-		}
-		return gcsx.ReadResponse{}, true, io.EOF
-
-	case err != nil:
-		if readResponse.Callback != nil {
-			readResponse.Callback()
-		}
-		return gcsx.ReadResponse{}, true, fmt.Errorf("fh.readManager.ReadAt: %w", err)
+	if err != nil && !errors.Is(err, io.EOF) {
+		err = fmt.Errorf("fh.readManager.ReadAt: %w", err)
 	}
-
-	return readResponse, true, nil
+	readResponse, err = normalizeReadResponse(readResponse, err)
+	return readResponse, true, err
 }
 
 // ReadWithReadManager reads data at the given offset using the read manager if available,
@@ -263,17 +248,22 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 		return gcsx.ReadResponse{}, fmt.Errorf("failed to ensure inode content: %w", err)
 	}
 
+	if err := fh.ensureStreamingWritesFlushedLocked(ctx); err != nil {
+		fh.inode.Unlock()
+		return gcsx.ReadResponse{}, err
+	}
+
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		// Read from inode if source generation is not authoratative
 		defer fh.inode.Unlock()
-		return fh.inode.Read(ctx, req)
+		return normalizeReadResponse(fh.inode.Read(ctx, req))
 	}
 
 	fh.lockHandleAndRelockInode(true)
 
 	// If the inode is dirty, there's nothing we can do. Throw away our readManager if
 	// we have one & create a new readManager
-	if fh.inode.SourceGenerationIsAuthoritative() && fh.isValidReadManagerRLocked() {
+	if !fh.hasPendingStreamingWritesLocked() && fh.inode.SourceGenerationIsAuthoritative() && fh.isValidReadManagerRLocked() {
 		fh.inode.Unlock()
 	} else {
 		// Acquire a RWLock on file handle as we will update readManager
@@ -281,10 +271,16 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 		fh.mu.Lock()
 		fh.inode.Lock()
 
+		if err := fh.ensureStreamingWritesFlushedLocked(ctx); err != nil {
+			fh.mu.Unlock()
+			fh.inode.Unlock()
+			return gcsx.ReadResponse{}, err
+		}
+
 		if !fh.inode.SourceGenerationIsAuthoritative() {
 			defer fh.mu.Unlock()
 			defer fh.inode.Unlock()
-			return fh.inode.Read(ctx, req)
+			return normalizeReadResponse(fh.inode.Read(ctx, req))
 		}
 
 		if !fh.isValidReadManager() {
@@ -333,27 +329,10 @@ func (fh *FileHandle) ReadWithReadManager(ctx context.Context, req *gcsx.ReadReq
 	// Use the readManager to read data.
 	var readResponse gcsx.ReadResponse
 	readResponse, err := fh.readManager.ReadAt(ctx, req)
-	switch {
-	case errors.Is(err, io.EOF):
-		if err != io.EOF {
-			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
-		}
-		if readResponse.Size > 0 {
-			return readResponse, io.EOF
-		}
-		if readResponse.Callback != nil {
-			readResponse.Callback()
-		}
-		return gcsx.ReadResponse{}, io.EOF
-
-	case err != nil:
-		if readResponse.Callback != nil {
-			readResponse.Callback()
-		}
-		return gcsx.ReadResponse{}, fmt.Errorf("fh.readManager.ReadAt: %w", err)
+	if err != nil && !errors.Is(err, io.EOF) {
+		err = fmt.Errorf("fh.readManager.ReadAt: %w", err)
 	}
-
-	return readResponse, nil
+	return normalizeReadResponse(readResponse, err)
 }
 
 // ReadWithKernelReader reads data at the given offset using the kernel reader.
@@ -364,7 +343,7 @@ func (fh *FileHandle) ReadWithKernelReader(ctx context.Context, req *gcsx.ReadRe
 	if !fh.inode.SourceGenerationIsAuthoritative() {
 		// Read from inode if source generation is not authoritative.
 		defer fh.inode.Unlock()
-		return fh.inode.Read(ctx, req)
+		return normalizeReadResponse(fh.inode.Read(ctx, req))
 	}
 	fh.inode.Unlock()
 
@@ -375,7 +354,7 @@ func (fh *FileHandle) ReadWithKernelReader(ctx context.Context, req *gcsx.ReadRe
 		return gcsx.ReadResponse{}, errors.New("kernelReader is not initialized")
 	}
 
-	return fh.kernelReader.ReadAt(ctx, req)
+	return normalizeReadResponse(fh.kernelReader.ReadAt(ctx, req))
 }
 
 // Equivalent to locking fh.Inode() and calling fh.Inode().Read, but may be
@@ -392,6 +371,11 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 		return nil, 0, fmt.Errorf("failed to ensure inode content: %w", err)
 	}
 
+	if err = fh.ensureStreamingWritesFlushedLocked(ctx); err != nil {
+		fh.inode.Unlock()
+		return nil, 0, err
+	}
+
 	// If the inode is dirty, there's nothing we can do. Throw away our reader if
 	// we have one.
 	if !fh.inode.SourceGenerationIsAuthoritative() {
@@ -402,13 +386,19 @@ func (fh *FileHandle) Read(ctx context.Context, dst []byte, offset int64, sequen
 
 	fh.lockHandleAndRelockInode(true)
 
-	if fh.inode.SourceGenerationIsAuthoritative() && fh.isValidReaderRLocked() {
+	if !fh.hasPendingStreamingWritesLocked() && fh.inode.SourceGenerationIsAuthoritative() && fh.isValidReaderRLocked() {
 		fh.inode.Unlock()
 	} else {
 		// Acquire a RWLock on file handle as we will update reader
 		fh.unlockHandleAndInode(true)
 		fh.mu.Lock()
 		fh.inode.Lock()
+
+		if err = fh.ensureStreamingWritesFlushedLocked(ctx); err != nil {
+			fh.mu.Unlock()
+			fh.inode.Unlock()
+			return nil, 0, err
+		}
 
 		if !fh.inode.SourceGenerationIsAuthoritative() {
 			defer fh.mu.Unlock()
@@ -573,4 +563,59 @@ func (fh *FileHandle) shouldSkipSizeChecks(req *gcsx.ReadRequest) bool {
 	}
 
 	return true
+}
+
+func normalizeReadResponse(readResponse gcsx.ReadResponse, err error) (gcsx.ReadResponse, error) {
+	switch {
+	case errors.Is(err, io.EOF):
+		if err != io.EOF {
+			logger.Warnf("Unexpected EOF error encountered while reading, err: %v type: %T ", err, err)
+		}
+		if readResponse.Size > 0 {
+			return readResponse, io.EOF
+		}
+		if readResponse.Callback != nil {
+			readResponse.Callback()
+		}
+		return gcsx.ReadResponse{}, io.EOF
+	case err != nil:
+		if readResponse.Callback != nil {
+			readResponse.Callback()
+		}
+		return gcsx.ReadResponse{}, err
+	default:
+		return readResponse, nil
+	}
+}
+
+// hasPendingStreamingWritesLocked reports whether fh.inode has active streaming writes
+// that require flushing or syncing before reading under the current inode lock.
+// LOCKS_REQUIRED(fh.inode.mu)
+func (fh *FileHandle) hasPendingStreamingWritesLocked() bool {
+	if !fh.inode.IsUsingStreamingWriteHandler() {
+		return false
+	}
+	if fh.inode.Bucket().BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && fh.config != nil && fh.config.Write.FinalizeFileForRapid {
+		return fh.inode.IsLocal() || fh.inode.Source().Size != fh.inode.SourceGeneration().Size
+	}
+	return true
+}
+
+// ensureStreamingWritesFlushedLocked flushes or syncs pending streaming writes
+// initiated while fh.inode.mu was temporarily released during handle lock acquisition.
+// LOCKS_REQUIRED(fh.inode.mu)
+func (fh *FileHandle) ensureStreamingWritesFlushedLocked(ctx context.Context) error {
+	if !fh.hasPendingStreamingWritesLocked() {
+		return nil
+	}
+	if fh.inode.Bucket().BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && fh.config != nil && fh.config.Write.FinalizeFileForRapid {
+		_, err := fh.inode.SyncPendingStreamingWrites(ctx)
+		return err
+	}
+	return fh.inode.Flush(ctx, &inode.WriteContext{
+		Config:             fh.config,
+		GlobalMaxBlocksSem: fh.globalMaxReadBlocksSem,
+		TraceHandle:        fh.traceHandle,
+		MetricHandle:       fh.metricHandle,
+	})
 }

@@ -206,11 +206,14 @@ func (kmr *KernelMRDReader) acquirePrefetchSpans(offset int64, length int) []pre
 	reqEnd := offset + int64(length)
 	if kmr.mrdInstance != nil {
 		objSize, gen := kmr.mrdInstance.ObjectSizeAndGeneration()
-		if gen != kmr.prefetchGeneration || reqEnd > int64(objSize) || kmr.nextPrefetchOffset > int64(objSize) {
+		if gen != kmr.prefetchGeneration || offset >= int64(objSize) || kmr.nextPrefetchOffset > int64(objSize) {
 			kmr.clearPrefetchLocked()
 			kmr.seqReads = 0
 			kmr.lastReadEnd = 0
 			return nil
+		}
+		if reqEnd > int64(objSize) {
+			reqEnd = int64(objSize)
 		}
 	}
 
@@ -301,6 +304,15 @@ func (kmr *KernelMRDReader) acquirePrefetchSpans(offset int64, length int) []pre
 	}
 	kmr.chunks = kmr.chunks[:n]
 
+	contigEnd := kmr.contiguousInFlightEndLocked(kmr.lastReadEnd)
+	for i := range kmr.inFlight {
+		if (contigEnd > kmr.lastReadEnd && kmr.inFlight[i].start >= kmr.lastReadEnd && kmr.inFlight[i].end <= contigEnd) ||
+			(kmr.inFlight[i].coveredEnd >= kmr.lastReadEnd && kmr.inFlight[i].end <= offset) {
+			if reqEnd > kmr.inFlight[i].coveredEnd {
+				kmr.inFlight[i].coveredEnd = reqEnd
+			}
+		}
+	}
 	if reqEnd > kmr.lastReadEnd {
 		kmr.lastReadEnd = reqEnd
 	}
@@ -313,26 +325,47 @@ func (kmr *KernelMRDReader) acquirePrefetchSpans(offset int64, length int) []pre
 
 func (kmr *KernelMRDReader) rollbackPrefetchSpans(spans []prefetchSpan) {
 	kmr.mu.Lock()
-	sameGen := true
-	if kmr.mrdInstance != nil {
+	sameGen := false
+	if kmr.mrdInstance != nil && kmr.nextPrefetchOffset > 0 {
 		_, gen := kmr.mrdInstance.ObjectSizeAndGeneration()
 		sameGen = (gen == kmr.prefetchGeneration)
 	}
 	for _, sp := range spans {
 		sp.chunk.RemoveConsumed(sp.relStart, sp.relEnd)
-		if sameGen && sp.chunk.Consumed < sp.chunk.Length {
+	}
+	if sameGen {
+		for i := len(spans) - 1; i >= 0; i-- {
+			sp := spans[i]
+			if sp.chunk.Consumed >= sp.chunk.Length {
+				continue
+			}
 			inQueue := false
 			insertIdx := len(kmr.chunks)
-			for i, c := range kmr.chunks {
+			for idx, c := range kmr.chunks {
 				if c == sp.chunk {
 					inQueue = true
 					break
 				}
 				if c.Offset > sp.chunk.Offset && insertIdx == len(kmr.chunks) {
-					insertIdx = i
+					insertIdx = idx
 				}
 			}
-			if !inQueue {
+			if inQueue {
+				continue
+			}
+			cStart := sp.chunk.Offset
+			cEnd := cStart + int64(sp.chunk.Length)
+			contiguous := false
+			if len(kmr.chunks) == 0 {
+				contiguous = (cEnd == kmr.nextPrefetchOffset)
+			} else if insertIdx < len(kmr.chunks) {
+				contiguous = cEnd == kmr.chunks[insertIdx].Offset &&
+					(insertIdx == 0 || kmr.chunks[insertIdx-1].Offset+int64(kmr.chunks[insertIdx-1].Length) == cStart)
+			} else {
+				prevEnd := kmr.chunks[insertIdx-1].Offset + int64(kmr.chunks[insertIdx-1].Length)
+				contiguous = prevEnd == cStart && cEnd == kmr.nextPrefetchOffset
+			}
+			if contiguous {
 				sp.chunk.Retain()
 				kmr.chunks = append(kmr.chunks, nil)
 				copy(kmr.chunks[insertIdx+1:], kmr.chunks[insertIdx:])
@@ -404,8 +437,17 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 		return gcsx.ReadResponse{}, fmt.Errorf("KernelMRDReader: mrdInstance is nil")
 	}
 
-	if kmr.mrdInstanceInUse.CompareAndSwap(false, true) {
-		kmr.mrdInstance.IncrementRefCount()
+	if !kmr.mrdInstanceInUse.Load() {
+		kmr.mu.Lock()
+		if kmr.mrdInstance == nil {
+			kmr.mu.Unlock()
+			return gcsx.ReadResponse{}, errors.New("ReadAt called on destroyed KernelMRDReader")
+		}
+		if !kmr.mrdInstanceInUse.Load() {
+			kmr.mrdInstance.IncrementRefCount()
+			kmr.mrdInstanceInUse.Store(true)
+		}
+		kmr.mu.Unlock()
 	}
 
 	var bytesRead int
@@ -603,13 +645,16 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 // the associated MrdInstance. This should be called when the reader is no
 // longer needed.
 func (kmr *KernelMRDReader) Destroy() {
-	kmr.clearPrefetch()
-	// No need to take lock as Destroy will only be called when file handle is being released
-	// and there will be no read calls at that point.
-	if kmr.mrdInstance != nil {
-		if kmr.mrdInstanceInUse.CompareAndSwap(true, false) {
-			kmr.mrdInstance.DecrementRefCount()
-		}
-		kmr.mrdInstance = nil
+	kmr.mu.Lock()
+	kmr.clearPrefetchLocked()
+	kmr.inFlight = nil
+	kmr.seqReads = 0
+	kmr.lastReadEnd = 0
+	mrdInst := kmr.mrdInstance
+	wasInUse := kmr.mrdInstanceInUse.CompareAndSwap(true, false)
+	kmr.mrdInstance = nil
+	kmr.mu.Unlock()
+	if mrdInst != nil && wasInUse {
+		mrdInst.DecrementRefCount()
 	}
 }

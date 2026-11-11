@@ -201,3 +201,75 @@ func (t *KernelRangeReaderTest) TestReadAt_BufferPool_Success() {
 	assert.Equal(t.T(), "fghi", string(resp.Data[2]))
 	t.bucket.AssertExpectations(t.T())
 }
+
+type partialErrorReader struct {
+	data []byte
+	err  error
+	read bool
+}
+
+func (r *partialErrorReader) Read(p []byte) (int, error) {
+	if !r.read {
+		n := copy(p, r.data)
+		r.data = r.data[n:]
+		if len(r.data) == 0 {
+			r.read = true
+		}
+		return n, nil
+	}
+	return 0, r.err
+}
+
+func (t *KernelRangeReaderTest) TestReadAt_BufferPool_PartialReadError_ReleasesBuffers() {
+	testCases := []struct {
+		name        string
+		readerErr   error
+		expectedErr error
+	}{
+		{
+			name:        "NonEOFErrorAfterPartialRead",
+			readerErr:   errors.New("network failure"),
+			expectedErr: errors.New("network failure"),
+		},
+		{
+			name:        "UnexpectedEOFAfterPartialRead",
+			readerErr:   io.EOF,
+			expectedErr: io.ErrUnexpectedEOF,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			t.SetupTest()
+			pool := &buffer.FakeBufferPool{
+				Buffers: [][]byte{
+					make([]byte, 3),
+					make([]byte, 3),
+					make([]byte, 3),
+				},
+			}
+			req := &gcsx.ReadRequest{
+				BufferPool: pool,
+				Offset:     0,
+				Size:       9,
+			}
+			mockReader := &mockStorageReader{
+				ReadCloser: io.NopCloser(&partialErrorReader{
+					data: []byte("abcde"),
+					err:  tc.readerErr,
+				}),
+			}
+			t.bucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(mockReader, nil).Once()
+
+			resp, err := t.reader.ReadAt(context.Background(), req)
+
+			require.Error(t.T(), err)
+			assert.Contains(t.T(), err.Error(), tc.expectedErr.Error())
+			assert.Zero(t.T(), resp.Size)
+			assert.Nil(t.T(), resp.Data)
+			assert.Nil(t.T(), resp.Callback)
+			assert.Len(t.T(), pool.PutBuffers, 2)
+			t.bucket.AssertExpectations(t.T())
+		})
+	}
+}

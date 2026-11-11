@@ -117,14 +117,15 @@ func (krr *KernelRangeReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest)
 		var written int64
 		written, err = io.CopyN(vBuf, reader, bytesToRead)
 		n = int(written)
-		if err == io.EOF && written > 0 {
+		if errors.Is(err, io.EOF) && written != bytesToRead {
 			err = io.ErrUnexpectedEOF
 		}
-		if n > 0 {
+		if n > 0 && (err == nil || errors.Is(err, io.EOF)) {
 			resp.Data = vBuf.Buffers()
 			resp.Callback = func() { vBuf.Release() }
 		} else {
-			vBuf.Release() // Release immediately on 0-byte read or early error
+			vBuf.Release() // Release immediately on 0-byte read or error
+			n = 0
 		}
 	} else {
 		n, err = io.ReadFull(reader, req.Buffer[:bytesToRead])

@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -228,4 +229,37 @@ func (t *multiRangeReaderTest) Test_ReadAt_InvalidOffset() {
 	_, err := t.readAt(make([]byte, t.object.Size), 65, false)
 
 	assert.True(t.T(), errors.Is(err, io.EOF), "expected %v error got %v", io.EOF, err)
+}
+
+func (t *multiRangeReaderTest) Test_ReadAt_ConcurrentFirstReads_IncrementRefCountOnce() {
+	t.object.Size = 1024
+	testContent := testUtil.GenerateRandomBytes(int(t.object.Size))
+	fakeMRDWrapper, err := gcsx.NewMultiRangeDownloaderWrapper(t.mockBucket, t.object, &cfg.Config{}, nil)
+	require.NoError(t.T(), err)
+	t.multiRangeReader.mrdWrapper = fakeMRDWrapper
+	t.multiRangeReader.isMRDInUse.Store(false)
+	t.mockBucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fake.NewFakeMultiRangeDownloaderWithSleep(t.object, testContent, time.Microsecond)).Once()
+
+	const numReaders = 16
+	startBarrier := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(numReaders)
+	for i := range numReaders {
+		go func(idx int) {
+			defer wg.Done()
+			<-startBarrier
+			buf := make([]byte, 32)
+			resp, rErr := t.readAt(buf, int64(idx*32), false)
+			assert.NoError(t.T(), rErr)
+			assert.Equal(t.T(), 32, resp.Size)
+			assert.Equal(t.T(), 1, t.multiRangeReader.mrdWrapper.GetRefCount())
+		}(i)
+	}
+	close(startBarrier)
+	wg.Wait()
+
+	assert.Equal(t.T(), 1, t.multiRangeReader.mrdWrapper.GetRefCount())
+	t.multiRangeReader.destroy()
+	assert.Equal(t.T(), 0, t.multiRangeReader.mrdWrapper.GetRefCount())
+	assert.False(t.T(), t.multiRangeReader.isMRDInUse.Load())
 }

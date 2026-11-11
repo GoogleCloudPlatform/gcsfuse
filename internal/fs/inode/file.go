@@ -687,8 +687,8 @@ func (f *FileInode) Read(
 		vBuf := buffer.NewVectoredReadBuffer(req.BufferPool, req.Size)
 		var written int64
 		written, err = vBuf.ReadFromAt(f.content, req.Offset)
-		n = int(written)
-		if n > 0 {
+		if written > 0 && (err == nil || errors.Is(err, io.EOF)) {
+			n = int(written)
 			data = vBuf.Buffers()
 			callback = func() { vBuf.Release() }
 		} else {
