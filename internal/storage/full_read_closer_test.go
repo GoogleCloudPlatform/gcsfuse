@@ -1092,5 +1092,68 @@ func TestLargeReadTCPConn_Preseeded512KBufferMarksALTSInitDone(t *testing.T) {
 		close(secondReadDone)
 		<-serverDone
 	})
+
+	t.Run("OversizedFrameLenAndNegativeReadOnReadySize_DoNotPanic", func(t *testing.T) {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer func() { _ = listener.Close() }()
+
+		// Craft an 8-byte ALTS header whose frameLen = 0x7ffffffd (which overflows
+		// 4+int(frameLen) on 32-bit int), followed by extra trailing bytes.
+		var frame [16]byte
+		binary.LittleEndian.PutUint32(frame[:4], 0x7ffffffd)
+		binary.LittleEndian.PutUint32(frame[4:8], 6)
+		copy(frame[8:], "trailing")
+
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			srvConn, aErr := listener.Accept()
+			if aErr != nil {
+				return
+			}
+			defer func() { _ = srvConn.Close() }()
+			_, _ = srvConn.Write(frame[:])
+		}()
+
+		clientConn, err := dialLargeReadTCP(context.Background(), listener.Addr().String())
+		require.NoError(t, err)
+		defer func() { _ = clientConn.Close() }()
+		lrc := clientConn.(*largeReadTCPConn)
+
+		// Negative bufSize in ReadOnReady must not panic on slice bounds.
+		buf, nReady, rErr := lrc.ReadOnReady(-1, &simpleTestBufferPool{})
+		assert.Nil(t, buf)
+		assert.Zero(t, nReady)
+		assert.ErrorIs(t, rErr, io.EOF)
+
+		// Reset altsInitDone to exercise the 8-byte ALTS frame header path with the
+		// oversized length on a fresh connection.
+		<-done
+
+		listener2, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer func() { _ = listener2.Close() }()
+		done2 := make(chan struct{})
+		go func() {
+			defer close(done2)
+			srvConn, aErr := listener2.Accept()
+			if aErr != nil {
+				return
+			}
+			defer func() { _ = srvConn.Close() }()
+			_, _ = srvConn.Write(frame[:])
+		}()
+
+		clientConn2, err := dialLargeReadTCP(context.Background(), listener2.Addr().String())
+		require.NoError(t, err)
+		defer func() { _ = clientConn2.Close() }()
+		buf36K := make([]byte, altsInitialProtectedCap)
+		n, err := clientConn2.Read(buf36K)
+		require.NoError(t, err)
+		assert.Equal(t, 8, n)
+		assert.Equal(t, frame[:8], buf36K[:n])
+		<-done2
+	})
 }
 

@@ -609,7 +609,7 @@ func (mi *MrdInstance) ReadVectored(ctx context.Context, p []byte, offset int64,
 		return ReadResponse{Size: res.bytesRead}, res.err
 	}
 	return ReadResponse{
-		Data:     state.slices,
+		Data:     state.slices[:len(state.slices):len(state.slices)],
 		Size:     res.bytesRead,
 		Callback: state.callback,
 	}, res.err

@@ -1126,3 +1126,29 @@ func (t *MrdInstanceTest) TestObjectSizeAndGeneration() {
 	assert.Equal(t.T(), uint64(0), size)
 	assert.Equal(t.T(), int64(0), gen)
 }
+
+func (t *MrdInstanceTest) TestReadVectored_PinnedSlicesHaveCappedCapacity() {
+	pool := mem.DefaultBufferPool()
+	rawBuf := pool.Get(2048)
+	copy((*rawBuf)[:11], "hello world")
+	pinnedSlice := (*rawBuf)[:11]
+
+	mrd := &customAddMRD{
+		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+			n, _ := output.Write(pinnedSlice)
+			pool.Put(rawBuf)
+			callback(offset, int64(n), nil)
+		},
+	}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Once()
+
+	dst := make([]byte, 11)
+	resp, err := t.mrdInstance.ReadVectored(context.Background(), dst, 0, metrics.NewNoopMetrics())
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 11, resp.Size)
+	assert.NotNil(t.T(), resp.Callback)
+	assert.Len(t.T(), resp.Data, 1)
+	assert.Equal(t.T(), len(resp.Data), cap(resp.Data), "returned Data slice capacity must be capped to length")
+	resp.Callback()
+}

@@ -302,7 +302,7 @@ func wrapLargeReadTCPConn(conn net.Conn) net.Conn {
 		s.buf = s.pool.Get(s.bufSize)
 		readSlice := *s.buf
 		if !s.isALTSPool {
-			readSlice = readSlice[:min(len(readSlice), s.origBufSize)]
+			readSlice = readSlice[:min(len(readSlice), max(0, s.origBufSize))]
 		}
 		s.bytesRead, s.readError = syscall.Read(int(fd), readSlice)
 		if s.readError != nil {
@@ -348,10 +348,10 @@ func (c *largeReadTCPConn) Read(b []byte) (int, error) {
 			if n < 8 {
 				return n, nil
 			}
-			frameLen := int(binary.LittleEndian.Uint32(b[:4]))
+			frameLen := binary.LittleEndian.Uint32(b[:4])
 			msgType := binary.LittleEndian.Uint32(b[4:8])
-			totalFrame := 4 + frameLen
-			if (msgType&0xff) == 6 && frameLen >= 20 && totalFrame <= 1024*1024 && len(b) > 8 {
+			if (msgType&0xff) == 6 && frameLen >= 20 && frameLen <= 1024*1024-4 && len(b) > 8 {
+				totalFrame := 4 + int(frameLen)
 				m, rErr := c.TCPConn.Read(b[8:min(totalFrame, len(b))])
 				if rErr != nil && !errors.Is(rErr, io.EOF) {
 					return n + m, rErr
@@ -365,6 +365,9 @@ func (c *largeReadTCPConn) Read(b []byte) (int, error) {
 }
 
 func (c *largeReadTCPConn) ReadOnReady(bufSize int, pool mem.BufferPool) (*[]byte, int, error) {
+	if bufSize < 0 {
+		bufSize = 0
+	}
 	isALTSPool := !c.nonALTS.Load() && bufSize == altsReadBufferInitialSize && pool != defaultDirtyBufferPool
 	origBufSize := bufSize
 	if isALTSPool {
