@@ -36,14 +36,14 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	cfg := &test_suite.TestConfig{
+	testConfig := &test_suite.TestConfig{
 		TestBucket: setup.TestBucket(),
 	}
-	setup.SetUpTestDirForTestBucket(cfg)
+	setup.SetUpTestDirForTestBucket(testConfig)
 
-	rootDir = cfg.GCSFuseMountedDirectory
+	rootDir = testConfig.GCSFuseMountedDirectory
 
-	log.Println("Running gRPC default-on tests with static mounting...")
+	log.Println("Running gRPC default-on tests...")
 	successCode := m.Run()
 	os.Exit(successCode)
 }
