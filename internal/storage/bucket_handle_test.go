@@ -18,6 +18,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -32,6 +35,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -84,6 +88,107 @@ type BucketHandleTest struct {
 	storageHandle StorageHandle
 	fakeStorage   FakeStorage
 	mockClient    *MockStorageControlClient
+}
+
+func TestMoveObjectSourcePreconditions(t *testing.T) {
+	metageneration := int64(1)
+	for _, tc := range []struct {
+		name               string
+		generation         int64
+		metageneration     *int64
+		wantGeneration     string
+		wantMetageneration string
+	}{
+		{name: "latest source"},
+		{name: "generation", generation: 41, wantGeneration: "41"},
+		{name: "metageneration", metageneration: &metageneration, wantMetageneration: "1"},
+		{name: "both", generation: 41, metageneration: &metageneration, wantGeneration: "41", wantMetageneration: "1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			requests := make(chan url.Values, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/storage/v1/b/test-bucket/o/source/moveTo/o/destination", r.URL.Path)
+				assert.Empty(t, r.Header.Get("Authorization"))
+				requests <- r.URL.Query()
+				w.Header().Set("Content-Type", "application/json")
+				_, err := fmt.Fprint(w, `{"bucket":"test-bucket","name":"destination","generation":"41","metageneration":"1"}`)
+				assert.NoError(t, err)
+			}))
+			t.Cleanup(server.Close)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			t.Cleanup(cancel)
+			client, err := storage.NewClient(ctx, option.WithEndpoint(server.URL+"/storage/v1/"), option.WithoutAuthentication())
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, client.Close()) })
+			bucket := &bucketHandle{bucket: client.Bucket("test-bucket")}
+
+			// Act
+			object, err := bucket.MoveObject(ctx, &gcs.MoveObjectRequest{
+				SrcName: "source", DstName: "destination",
+				SrcGeneration: tc.generation, SrcMetaGenerationPrecondition: tc.metageneration,
+			})
+
+			// Assert
+			require.NoError(t, err)
+			require.NotNil(t, object)
+			assert.Equal(t, "destination", object.Name)
+			select {
+			case query := <-requests:
+				assert.Equal(t, tc.wantGeneration, query.Get("ifSourceGenerationMatch"))
+				assert.Equal(t, tc.wantMetageneration, query.Get("ifSourceMetagenerationMatch"))
+				assert.False(t, query.Has("ifGenerationMatch"), "source conditions must not become destination conditions")
+			default:
+				t.Fatal("Move did not send an HTTP request")
+			}
+		})
+	}
+}
+
+func TestMoveObjectRejectsReplacedSource(t *testing.T) {
+	// Arrange
+	metageneration := int64(1)
+	requests := make(chan url.Values, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		requests <- query
+		w.Header().Set("Content-Type", "application/json")
+		// A replacement object can have the same metageneration as the old one.
+		if query.Has("ifSourceGenerationMatch") && query.Get("ifSourceGenerationMatch") != "42" {
+			w.WriteHeader(http.StatusPreconditionFailed)
+			_, err := fmt.Fprint(w, `{"error":{"code":412,"message":"source generation changed"}}`)
+			assert.NoError(t, err)
+			return
+		}
+		_, err := fmt.Fprint(w, `{"bucket":"test-bucket","name":"destination","generation":"42","metageneration":"1"}`)
+		assert.NoError(t, err)
+	}))
+	t.Cleanup(server.Close)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+	client, err := storage.NewClient(ctx, option.WithEndpoint(server.URL+"/storage/v1/"), option.WithoutAuthentication())
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	bucket := &bucketHandle{bucket: client.Bucket("test-bucket")}
+
+	// Act
+	object, err := bucket.MoveObject(ctx, &gcs.MoveObjectRequest{
+		SrcName: "source", DstName: "destination",
+		SrcGeneration: 41, SrcMetaGenerationPrecondition: &metageneration,
+	})
+
+	// Assert
+	var preconditionError *gcs.PreconditionError
+	require.ErrorAs(t, err, &preconditionError)
+	assert.Nil(t, object)
+	select {
+	case query := <-requests:
+		assert.Equal(t, "41", query.Get("ifSourceGenerationMatch"))
+		assert.Equal(t, "1", query.Get("ifSourceMetagenerationMatch"))
+	default:
+		t.Fatal("Move did not send an HTTP request")
+	}
 }
 
 func TestBucketHandleTestSuite(testSuite *testing.T) {
