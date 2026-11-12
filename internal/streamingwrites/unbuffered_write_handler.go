@@ -109,7 +109,7 @@ func (wh *unbufferedWriteHandlerImpl) Write(ctx context.Context, data []byte, of
 	}
 	// A write at the truncated size first fills the gap up to it with zeros.
 	if offset == wh.truncatedSize {
-		if err := wh.writeZeroPadding(ctx); err != nil {
+		if err := wh.writeDataForTruncatedSize(ctx); err != nil {
 			return err
 		}
 	}
@@ -125,7 +125,7 @@ func (wh *unbufferedWriteHandlerImpl) Sync(ctx context.Context) (*gcs.MinObject,
 	if wh.uploadError != nil {
 		return nil, wh.uploadError
 	}
-	return nil, wh.writeZeroPadding(ctx)
+	return nil, wh.writeDataForTruncatedSize(ctx)
 }
 
 // Flush writes any pending zero padding and finalizes the object.
@@ -140,7 +140,7 @@ func (wh *unbufferedWriteHandlerImpl) Flush(ctx context.Context) (obj *gcs.MinOb
 	ctx, finishSpan := wh.traceHandle.TraceUpload(ctx, tracing.StreamingUploadFinalize, wh.objectName, &bytes, &err)
 	defer finishSpan()
 
-	if err = wh.writeZeroPadding(ctx); err != nil {
+	if err = wh.writeDataForTruncatedSize(ctx); err != nil {
 		return nil, err
 	}
 	// An empty file has no writer yet: create one to create the empty object.
@@ -235,9 +235,9 @@ func (wh *unbufferedWriteHandlerImpl) write(ctx context.Context, data []byte) er
 	return nil
 }
 
-// writeZeroPadding pads the object with zeros up to the size requested by a
-// forward truncate.
-func (wh *unbufferedWriteHandlerImpl) writeZeroPadding(ctx context.Context) error {
+// writeDataForTruncatedSize pads the object with zeros up to the size
+// requested by a forward truncate.
+func (wh *unbufferedWriteHandlerImpl) writeDataForTruncatedSize(ctx context.Context) error {
 	if wh.truncatedSize <= wh.totalSize {
 		return nil
 	}
@@ -275,7 +275,8 @@ func (wh *unbufferedWriteHandlerImpl) ensureWriter(ctx context.Context) error {
 	return nil
 }
 
-// handleUploadFailure records err as a sticky upload error and cancels any active // upload.
+// handleUploadFailure records err as a sticky upload error and cancels any
+// active upload.
 func (wh *unbufferedWriteHandlerImpl) handleUploadFailure(err error) {
 	wh.uploadError = err
 	if wh.cancelFunc != nil {
