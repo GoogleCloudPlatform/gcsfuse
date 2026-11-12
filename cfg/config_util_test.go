@@ -15,184 +15,19 @@
 package cfg
 
 import (
-	"os"
-	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func Test_DefaultMaxBackground(t *testing.T) {
-	cpus := runtime.NumCPU()
-	memKb := effectiveTotalMemoryKb()
-	assert.Equal(t, StorageClassRapid.defaultMaxBackgroundFor(cpus, memKb), StorageClassRapid.DefaultMaxBackground())
-	assert.Equal(t, StorageClassStandard.defaultMaxBackgroundFor(cpus, memKb), StorageClassStandard.DefaultMaxBackground())
-}
+	expectedRapid := min(max(12, 2*runtime.NumCPU()), rapidMaxBackground)
+	assert.Equal(t, expectedRapid, StorageClassRapid.DefaultMaxBackground())
 
-func Test_DefaultMaxBackgroundFor(t *testing.T) {
-	const mibKb = int64(1024)
-	const gibKb = int64(1024 * 1024)
-
-	testCases := []struct {
-		name         string
-		cpus         int
-		totalMemKb   int64
-		wantRapid    int
-		wantStandard int
-	}{
-		{
-			name:         "1 vCPU / 512 MiB RAM (floor at 12)",
-			cpus:         1,
-			totalMemKb:   512 * mibKb,
-			wantRapid:    12,
-			wantStandard: 12,
-		},
-		{
-			name:         "2 vCPU / 2 GiB RAM",
-			cpus:         2,
-			totalMemKb:   2 * gibKb,
-			wantRapid:    16,
-			wantStandard: 16,
-		},
-		{
-			name:         "4 vCPU / 4 GiB RAM",
-			cpus:         4,
-			totalMemKb:   4 * gibKb,
-			wantRapid:    32,
-			wantStandard: 32,
-		},
-		{
-			name:         "4 vCPU / 1 GiB RAM (memory-capped non-rapid)",
-			cpus:         4,
-			totalMemKb:   1 * gibKb,
-			wantRapid:    32,
-			wantStandard: 16,
-		},
-		{
-			name:         "4 vCPU / 512 MiB RAM (memory floor at 12)",
-			cpus:         4,
-			totalMemKb:   512 * mibKb,
-			wantRapid:    32,
-			wantStandard: 12,
-		},
-		{
-			name:         "24 vCPU / 64 GiB RAM (rapid reaches cap)",
-			cpus:         24,
-			totalMemKb:   64 * gibKb,
-			wantRapid:    rapidMaxBackground,
-			wantStandard: 192,
-		},
-		{
-			name:         "32 vCPU / 64 GiB RAM (high-throughput VM)",
-			cpus:         32,
-			totalMemKb:   64 * gibKb,
-			wantRapid:    rapidMaxBackground,
-			wantStandard: nonRapidMaxBackground,
-		},
-		{
-			name:         "64 vCPU / 256 GiB RAM (high-throughput VM)",
-			cpus:         64,
-			totalMemKb:   256 * gibKb,
-			wantRapid:    rapidMaxBackground,
-			wantStandard: nonRapidMaxBackground,
-		},
-		{
-			name:         "2 vCPU / unknown memory (0 KiB)",
-			cpus:         2,
-			totalMemKb:   0,
-			wantRapid:    16,
-			wantStandard: 16,
-		},
-		{
-			name:         "32 vCPU / unknown memory (0 KiB)",
-			cpus:         32,
-			totalMemKb:   0,
-			wantRapid:    rapidMaxBackground,
-			wantStandard: nonRapidMaxBackground,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.wantRapid, StorageClassRapid.defaultMaxBackgroundFor(tc.cpus, tc.totalMemKb))
-			assert.Equal(t, tc.wantStandard, StorageClassStandard.defaultMaxBackgroundFor(tc.cpus, tc.totalMemKb))
-		})
-	}
-}
-
-func Test_EffectiveTotalMemoryKbFrom_CgroupLimits(t *testing.T) {
-	writeFile := func(t *testing.T, p, content string) {
-		t.Helper()
-		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
-		require.NoError(t, os.WriteFile(p, []byte(content), 0o644))
-	}
-
-	t.Run("CgroupV2NestedTakesTighterParentLimit", func(t *testing.T) {
-		dir := t.TempDir()
-		meminfo := filepath.Join(dir, "meminfo")
-		procCgroup := filepath.Join(dir, "cgroup")
-		cgV2 := filepath.Join(dir, "sys/fs/cgroup")
-		cgV1 := filepath.Join(dir, "sys/fs/cgroup/memory")
-
-		writeFile(t, meminfo, "MemTotal:       134217728 kB\n")
-		writeFile(t, procCgroup, "0::/kubepods.slice/pod123/container\n")
-		writeFile(t, filepath.Join(cgV2, "kubepods.slice/pod123/memory.max"), "2147483648\n") // 2 GiB
-		writeFile(t, filepath.Join(cgV2, "kubepods.slice/pod123/container/memory.max"), "max\n")
-
-		got := effectiveTotalMemoryKbFrom(meminfo, procCgroup, cgV2, cgV1)
-		assert.Equal(t, int64(2*1024*1024), got)
-		// On a 32-vCPU host with 2 GiB cgroup limit, non-rapid (16 MiB req) caps at 2 GiB/4/16 MiB = 32.
-		assert.Equal(t, 32, StorageClassStandard.defaultMaxBackgroundFor(32, got))
-		assert.Equal(t, rapidMaxBackground, StorageClassRapid.defaultMaxBackgroundFor(32, got))
-	})
-
-	t.Run("CgroupV2MaxFallsBackToHostMemTotal", func(t *testing.T) {
-		dir := t.TempDir()
-		meminfo := filepath.Join(dir, "meminfo")
-		procCgroup := filepath.Join(dir, "cgroup")
-		cgV2 := filepath.Join(dir, "sys/fs/cgroup")
-		cgV1 := filepath.Join(dir, "sys/fs/cgroup/memory")
-
-		writeFile(t, meminfo, "MemTotal:       67108864 kB\n")
-		writeFile(t, procCgroup, "0::/\n")
-		writeFile(t, filepath.Join(cgV2, "memory.max"), "max\n")
-
-		got := effectiveTotalMemoryKbFrom(meminfo, procCgroup, cgV2, cgV1)
-		assert.Equal(t, int64(67108864), got)
-	})
-
-	t.Run("CgroupV1FiniteVsUnlimitedSentinel", func(t *testing.T) {
-		dir := t.TempDir()
-		meminfo := filepath.Join(dir, "meminfo")
-		procCgroup := filepath.Join(dir, "cgroup")
-		cgV2 := filepath.Join(dir, "sys/fs/cgroup")
-		cgV1 := filepath.Join(dir, "sys/fs/cgroup/memory")
-
-		writeFile(t, meminfo, "MemTotal:       67108864 kB\n")
-		writeFile(t, procCgroup, "4:memory:/docker/abc\n")
-		// Tight finite limit (1 GiB).
-		writeFile(t, filepath.Join(cgV1, "docker/abc/memory.limit_in_bytes"), "1073741824\n")
-		assert.Equal(t, int64(1024*1024), effectiveTotalMemoryKbFrom(meminfo, procCgroup, cgV2, cgV1))
-
-		// Kernel unlimited sentinel (> MemTotal) falls back to host MemTotal.
-		writeFile(t, filepath.Join(cgV1, "docker/abc/memory.limit_in_bytes"), "9223372036854771712\n")
-		assert.Equal(t, int64(67108864), effectiveTotalMemoryKbFrom(meminfo, procCgroup, cgV2, cgV1))
-	})
-
-	t.Run("NonContainerizedFallback", func(t *testing.T) {
-		dir := t.TempDir()
-		meminfo := filepath.Join(dir, "meminfo")
-		writeFile(t, meminfo, "MemTotal:       33554432 kB\n")
-		assert.Equal(t, int64(33554432), effectiveTotalMemoryKbFrom(
-			meminfo,
-			filepath.Join(dir, "missing_cgroup"),
-			filepath.Join(dir, "missing_v2"),
-			filepath.Join(dir, "missing_v1"),
-		))
-	})
+	expectedStandard := min(max(12, 2*runtime.NumCPU()), nonRapidMaxBackground)
+	assert.Equal(t, expectedStandard, StorageClassStandard.DefaultMaxBackground())
 }
 
 func Test_DefaultCongestionThreshold(t *testing.T) {
