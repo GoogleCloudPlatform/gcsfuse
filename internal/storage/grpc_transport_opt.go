@@ -370,8 +370,8 @@ func (c *largeReadTCPConn) Read(b []byte) (int, error) {
 }
 
 func (c *largeReadTCPConn) ReadOnReady(bufSize int, pool mem.BufferPool) (*[]byte, int, error) {
-	if bufSize < 0 {
-		bufSize = 0
+	if bufSize <= 0 {
+		return nil, 0, nil
 	}
 	isALTSPool := !c.nonALTS.Load() && bufSize == altsReadBufferInitialSize && pool != defaultDirtyBufferPool
 	origBufSize := bufSize

@@ -1121,11 +1121,19 @@ func TestLargeReadTCPConn_Preseeded512KBufferMarksALTSInitDone(t *testing.T) {
 		defer func() { _ = clientConn.Close() }()
 		lrc := clientConn.(*largeReadTCPConn)
 
-		// Negative bufSize in ReadOnReady must not panic on slice bounds.
-		buf, nReady, rErr := lrc.ReadOnReady(-1, &simpleTestBufferPool{})
-		assert.Nil(t, buf)
-		assert.Zero(t, nReady)
-		assert.ErrorIs(t, rErr, io.EOF)
+		// Non-positive bufSize in ReadOnReady must not panic or return io.EOF on an open socket.
+		for _, sz := range []int{-1, 0} {
+			buf, nReady, rErr := lrc.ReadOnReady(sz, &simpleTestBufferPool{})
+			assert.Nil(t, buf)
+			assert.Zero(t, nReady)
+			assert.NoError(t, rErr)
+		}
+
+		// Queued socket bytes must remain unread and intact after non-positive ReadOnReady calls.
+		var got [16]byte
+		_, rErr := io.ReadFull(lrc, got[:])
+		require.NoError(t, rErr)
+		assert.Equal(t, frame[:], got[:])
 
 		// Reset altsInitDone to exercise the 8-byte ALTS frame header path with the
 		// oversized length on a fresh connection.
