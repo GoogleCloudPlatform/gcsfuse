@@ -81,12 +81,15 @@ To upgrade standard Go modules (non-toolchain libraries):
 ### Commands
 
 #### Case A: Upgrading All/General Dependencies
-If you are asked to upgrade all or general dependencies, run the following command to upgrade **only the direct dependencies** to their latest minor/patch versions:
+If you are asked to upgrade all or general dependencies, run the following command to upgrade **only the direct dependencies** (excluding `google.golang.org/grpc`, which tracks `cloud.google.com/go/storage`) to their latest minor/patch versions:
 ```bash
-go get $(go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all)
+go get $(go list -f '{{if and (not (or .Main .Indirect)) (ne .Path "google.golang.org/grpc")}}{{.Path}}{{end}}' -m all)
 ```
-Then, run `go mod tidy` to let Go resolve and update the indirect dependencies and clean up `go.mod` and `go.sum`:
+Next, align `google.golang.org/grpc` with the version required by `cloud.google.com/go/storage` (unless a `grpc-go` CVE requires a newer version, in which case set `ALLOWED_GRPC_OVERRIDE_VERSION` in `.github/workflows/ci.yml`) and run `go mod tidy` so MVS resolves indirect requirements without downgrading other dependencies:
 ```bash
+STORAGE_MOD=$(GOWORK=off go list -mod=readonly -m -f '{{.Path}}@{{.Version}}' cloud.google.com/go/storage)
+SDK_GRPC=$(GOWORK=off go mod graph | awk -v sm="$STORAGE_MOD" '$1 == sm && $2 ~ /^google\.golang\.org\/grpc@/ {sub(/^google\.golang\.org\/grpc@/, "", $2); print $2}')
+[ -n "$SDK_GRPC" ] && go mod edit -require=google.golang.org/grpc@${SDK_GRPC} || echo "Warning: Could not resolve gRPC version from cloud.google.com/go/storage"
 go mod tidy
 ```
 
@@ -96,7 +99,13 @@ If you are asked to upgrade specific dependencies:
    ```bash
    go get <module_path>@<target_version> [peer_package]@[target_version] ...
    ```
-2. Tidy up the module definition files (`go.mod` and `go.sum`):
+2. If upgrading `cloud.google.com/go/storage`, align the direct `google.golang.org/grpc` requirement in `go.mod` with `cloud.google.com/go/storage` (unless a `grpc-go` CVE requires a newer version, in which case set `ALLOWED_GRPC_OVERRIDE_VERSION` in `.github/workflows/ci.yml`):
+   ```bash
+   STORAGE_MOD=$(GOWORK=off go list -mod=readonly -m -f '{{.Path}}@{{.Version}}' cloud.google.com/go/storage)
+   SDK_GRPC=$(GOWORK=off go mod graph | awk -v sm="$STORAGE_MOD" '$1 == sm && $2 ~ /^google\.golang\.org\/grpc@/ {sub(/^google\.golang\.org\/grpc@/, "", $2); print $2}')
+   [ -n "$SDK_GRPC" ] && go mod edit -require=google.golang.org/grpc@${SDK_GRPC} || echo "Warning: Could not resolve gRPC version from cloud.google.com/go/storage"
+   ```
+3. Tidy up the module definition files (`go.mod` and `go.sum`):
    ```bash
    go mod tidy
    ```
