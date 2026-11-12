@@ -194,6 +194,7 @@ func (config *Config) ToProto() *pb.Config {
 		IsGcsAuthS2ASpiffeIdSet:                               config.GcsAuth.S2aSpiffeId != "",
 		WriteRapidWrite:                                       string(config.Write.RapidWrite),
 		WriteExperimentalEnableParallelUpload:                 config.Write.ExperimentalEnableParallelUpload,
+		MetadataCacheExperimentalEnablePressureEviction:       config.MetadataCache.ExperimentalEnablePressureEviction,
 	}
 }
 

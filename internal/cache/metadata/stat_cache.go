@@ -101,15 +101,18 @@ type StatCache interface {
 // adds or subtracts its size, as accounted by the cache, to the series of its
 // entry_status. Recording runs under the cache's lock, is one atomic add and
 // allocates nothing. A nil metricHandle records nothing.
-func NewSharedStatCache(maxSize uint64, metricHandle metrics.MetricHandle) *lru.Cache {
+func NewSharedStatCache(maxSize uint64, metricHandle metrics.MetricHandle, opts ...lru.Option) *lru.Cache {
 	if metricHandle == nil {
-		return lru.NewCache(maxSize)
+		return lru.NewCache(maxSize, opts...)
 	}
-	return lru.NewCache(maxSize, lru.WithSizeObserver(func(v lru.ValueType, delta int64) {
+	allOpts := make([]lru.Option, 0, len(opts)+1)
+	allOpts = append(allOpts, opts...)
+	allOpts = append(allOpts, lru.WithSizeObserver(func(v lru.ValueType, delta int64) {
 		if e, ok := v.(entry); ok {
 			metricHandle.MetadataCacheSize(delta, e.status())
 		}
 	}))
+	return lru.NewCache(maxSize, allOpts...)
 }
 
 // Create a new bucket-view to the passed shared-cache object.
@@ -256,9 +259,12 @@ func (sc *statCacheBucketView) Insert(m *gcs.MinObject, expiration time.Time) {
 		}
 	}
 
+	mCopy := *m
+	mCopy.Name = ""
+
 	// Insert an entry.
 	e := entry{
-		m:          m,
+		m:          &mCopy,
 		expiration: timeToUnixNano(expiration),
 	}
 
@@ -352,7 +358,12 @@ func (sc *statCacheBucketView) LookUpDetail(
 		if entry.implicitDir {
 			return true, &gcs.MinObject{Name: objectName}, entryStatus, detail
 		}
-		return hit, entry.m, entryStatus, detail
+		if entry.m != nil {
+			m := *entry.m
+			m.Name = objectName
+			return hit, &m, entryStatus, detail
+		}
+		return hit, nil, entryStatus, detail
 	}
 
 	return false, nil, entryStatus, detail
