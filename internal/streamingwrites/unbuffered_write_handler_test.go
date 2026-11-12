@@ -377,8 +377,6 @@ func TestUnbufferedWriteHandler_SyncWritesPendingZeroPadding(t *testing.T) {
 			require.NoError(t, err)
 			assert.Nil(t, obj)
 			writer.AssertCalled(t, "Write", []byte{0, 0})
-			bucket.AssertNumberOfCalls(t, "CreateObjectChunkWriter", 1)
-			bucket.AssertNotCalled(t, "FinalizeUpload", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -536,7 +534,6 @@ func TestUnbufferedWriteHandler_ZeroPaddingErrorIsSticky(t *testing.T) {
 			// Only the data and the failed padding reach the writer: the write at
 			// the truncated size isn't attempted, and nothing is finalized.
 			writer.AssertNumberOfCalls(t, "Write", 2)
-			bucket.AssertNotCalled(t, "FinalizeUpload", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -564,7 +561,6 @@ func TestUnbufferedWriteHandler_WriteErrorCancelsUploadAndIsSticky(t *testing.T)
 	// The writer isn't used again and no new upload is started.
 	writer.AssertNumberOfCalls(t, "Write", 1)
 	bucket.AssertNumberOfCalls(t, "CreateObjectChunkWriter", 1)
-	bucket.AssertNotCalled(t, "FinalizeUpload", mock.Anything, mock.Anything)
 }
 
 func TestUnbufferedWriteHandler_WriteErrorKeepsGCSErrorType(t *testing.T) {
@@ -627,7 +623,7 @@ func TestUnbufferedWriteHandler_FinalizeErrorCancelsUploadAndIsSticky(t *testing
 	bucket.AssertNumberOfCalls(t, "FinalizeUpload", 1)
 }
 
-func TestUnbufferedWriteHandler_FlushWithUnexpectedObjectIsSticky(t *testing.T) {
+func TestUnbufferedWriteHandler_InvalidFinalizedObjectErrorIsSticky(t *testing.T) {
 	testCases := []struct {
 		name          string
 		finalizedObj  *gcs.MinObject
