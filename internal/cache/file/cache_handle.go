@@ -21,12 +21,12 @@ import (
 	"os"
 	"sync/atomic"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 )
 
 type CacheHandle struct {

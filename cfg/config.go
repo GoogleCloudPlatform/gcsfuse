@@ -20,7 +20,7 @@ package cfg
 import (
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg/shared"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )

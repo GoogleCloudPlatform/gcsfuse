@@ -18,8 +18,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/block"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/block"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
 )
 
 // blockQueueEntry holds a data block with a function

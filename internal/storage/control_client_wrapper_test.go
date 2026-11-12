@@ -30,7 +30,7 @@ import (
 
 	control "cloud.google.com/go/storage/control/apiv2"
 	"github.com/googleapis/gax-go/v2"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/storageutil"
 )
 
 // stallingStorageControlClient is a wrapper that introduces a controllable delay
