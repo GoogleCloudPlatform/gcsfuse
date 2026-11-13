@@ -8,8 +8,8 @@ description: Step-by-step workflow to identify, upgrade, and verify external Go 
 This skill provides a comprehensive, step-by-step workflow for Antigravity agents to identify, upgrade, and verify external dependencies and Go toolchain versions in the GCSFuse repository, specifically targeting the remediation of CVEs and security vulnerabilities.
 
 > [!TIP]
-> **Patching CVEs Across Release Branches (`<version>_release`)**:
-> If the task involves patching CVEs across one or more GCSFuse release streams (creating `vX.Y.(N+1)_release` from `vX.Y.N_release`, verifying with target-toolchain `govulncheck -mode=binary`, and opening labeled release PRs), also load and follow the [GCSFuse Release Branch CVE Patching Skill](../cve-patching/SKILL.md).
+> **Patching CVEs Across Persistent Minor Release Branches (`vX.Y_release`)**:
+> If the task involves patching CVEs across one or more GCSFuse release streams (branching `cve-fixes-vX.Y.(N+1)` from persistent `origin/vX.Y_release`—or creating `vX.Y_release` from the latest release tag `vX.Y.N` if `origin/vX.Y_release` does not yet exist—verifying with target-toolchain `govulncheck -mode=binary`, and opening labeled release PRs targeting `vX.Y_release`), also load and follow the [GCSFuse Release Branch CVE Patching Skill](../cve-patching/SKILL.md).
 
 ---
 
@@ -22,7 +22,7 @@ The user initiates this skill by providing one of the following inputs:
 * Identify the exact module path(s) and target version(s).
 
 ### Input Option B: Bug / Vulnerability Reference
-* The user specifies a bug reference, issue ID, or CVE ID (e.g., "Fix security issues mentioned in b/123456" or "Fix CVE-2026-12345").
+* The user specifies a bug reference, issue ID, or CVE ID (e.g., "Fix security issues mentioned in issue #123456" or "Fix CVE-2026-12345").
 * **Workflow for Option B**:
   1. Retrieve the full details of the issue, bug description, or external CVE details.
   2. Analyze the issue content or logs to find the vulnerable dependencies (e.g., `golang.org/x/net` before `v0.17.0`) or Go standard library vulnerabilities.
