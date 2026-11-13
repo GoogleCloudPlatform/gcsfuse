@@ -135,12 +135,11 @@ func createTestFileSystemWithMonitoredBucket(ctx context.Context, t *testing.T, 
 // TestGCSMetrics_RequestCount_StatObject validates the "gcs/request_count" metric for StatObject calls.
 //
 // Expected Behavior:
-//   - LookUpInode invokes StatObject 3 times in this test scenario:
+//   - LookUpInode invokes StatObject 2 times in this test scenario:
 //     1. Lookup Directory: Check if the object is a directory.
 //     2. Lookup File: Check if the object itself exists.
-//     3. Attribute Refresh: Fetch fresh attributes to ensure validity for the new inode.
 //   - GetInodeAttributes invokes StatObject 1 time to refresh attributes.
-//   - Therefore, we verify that "gcs/request_count" with "gcs_method=StatObject" is recorded as 4.
+//   - Therefore, we verify that "gcs/request_count" with "gcs_method=StatObject" is recorded as 3.
 func TestGCSMetrics_RequestCount_StatObject(t *testing.T) {
 	ctx := context.Background()
 	bucket, server, _, reader := createTestFileSystemWithMonitoredBucket(ctx, t, defaultServerConfigParams())
@@ -157,7 +156,7 @@ func TestGCSMetrics_RequestCount_StatObject(t *testing.T) {
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
-		3)
+		2)
 
 	// Trigger another StatObject via GetInodeAttributes to verify stat count increments.
 	err = server.GetInodeAttributes(ctx, &fuseops.GetInodeAttributesOp{Inode: lookupOp.Entry.Child})
@@ -166,7 +165,7 @@ func TestGCSMetrics_RequestCount_StatObject(t *testing.T) {
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
-		4) // Previously 3, now incremented by 1
+		3) // Previously 2, now incremented by 1
 }
 
 // TestGCSMetrics_RequestCount_CreateObject validates the "gcs/request_count" metric for CreateObject calls.
@@ -269,8 +268,8 @@ func TestGCSMetrics_RequestCount_CreateFile_RegionalBucket(t *testing.T) {
 // TestGCSMetrics_RequestLatencies validates the "gcs/request_latencies" histogram metric.
 //
 // Expected Behavior:
-//   - Similar to TestGCSMetrics_RequestCount_StatObject, this operation triggers 3 StatObject calls.
-//   - We verify that the "gcs/request_latencies" histogram with "gcs_method=StatObject" has recorded 3 events.
+//   - Similar to TestGCSMetrics_RequestCount_StatObject, this operation triggers 2 StatObject calls.
+//   - We verify that the "gcs/request_latencies" histogram with "gcs_method=StatObject" has recorded 2 events.
 //   - This test ensures that latency tracking is active for GCS requests.
 func TestGCSMetrics_RequestLatencies(t *testing.T) {
 	ctx := context.Background()
@@ -289,7 +288,7 @@ func TestGCSMetrics_RequestLatencies(t *testing.T) {
 
 	metrics.VerifyHistogramMetric(t, ctx, reader, "gcs/request_latencies",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
-		3)
+		2)
 }
 
 // TestGCSMetrics_DownloadBytesCount_Explicit validates the "gcs/download_bytes_count" metric.
