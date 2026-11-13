@@ -85,7 +85,6 @@ func NewReadManager(object *gcs.MinObject, bucket gcs.Bucket, config *ReadManage
 			config.SharedChunkCacheManager,
 			bucket,
 			object,
-			config.Config.OnlyDir,
 			config.MetricHandle,
 			config.TraceHandle,
 			config.HandleID,

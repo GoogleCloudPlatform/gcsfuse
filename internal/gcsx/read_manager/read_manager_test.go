@@ -182,7 +182,7 @@ func TestSharedChunkCacheSeparatesOnlyDirPrefixes(t *testing.T) {
 				SequentialReadSizeMB:    sequentialReadSizeInMb,
 				SharedChunkCacheManager: manager,
 				MetricHandle:            metrics.NewNoopMetrics(),
-				Config:                  &cfg.Config{OnlyDir: tc.onlyDir},
+				Config:                  &cfg.Config{},
 			})
 			t.Cleanup(reader.Destroy)
 			buffer := make([]byte, len(contents))

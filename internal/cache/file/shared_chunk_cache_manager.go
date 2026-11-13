@@ -35,7 +35,7 @@ import (
 // caching object data. It also supports regex-based inclusion/exclusion of files
 // from caching.
 // Cache path callers must supply the full bucket-relative object name, including
-// any mount prefix. Versioned keys prevent reuse of older mount-relative entries.
+// any mount prefix.
 type SharedChunkCacheManager struct {
 	// cacheDir is the local path which contains the cache data
 	cacheDir string
@@ -153,10 +153,8 @@ func computeObjectHash(bucketName, objectName string, generation int64) string {
 	// Use length prefixes to prevent different (bucket, objectName) tuples from resulting in
 	// the same pre-hash string. This is defensive, even though bucket names currently cannot
 	// contain '/'.
-	// Version keys to avoid reusing entries written with mount-relative object names.
-	// Format: v2:<bucketNameLength>:<bucketName><objectNameLength>:<objectName>:<generation>
-	key := fmt.Sprintf("v2:%d:%s%d:%s:%d", len(bucketName), bucketName, len(objectName), objectName, generation)
-	hash := sha256.Sum256([]byte(key))
+	// Format: <bucketNameLength>:<bucketName><objectNameLength>:<objectName>:<generation>
+	hash := sha256.Sum256(fmt.Appendf(nil, "%d:%s%d:%s:%d", len(bucketName), bucketName, len(objectName), objectName, generation))
 
 	return hex.EncodeToString(hash[:])
 }

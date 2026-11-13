@@ -227,21 +227,21 @@ func TestSharedChunkCacheManager_GetObjectDir(t *testing.T) {
 			bucketName:       "my-bucket",
 			objectName:       "file.txt",
 			generation:       12345,
-			expectedCacheDir: "1f/2a/1f2aaee8b225fd60cfb73d757958883063b290cc15b6d4d494d9735e9be097a4",
+			expectedCacheDir: "41/7d/417d6e4989a22cfa815f9e622a859475121dacee0793e846b03e089b9d837e6a",
 		},
 		{
 			name:             "Object with path",
 			bucketName:       "my-bucket",
 			objectName:       "dir/subdir/file.txt",
 			generation:       67890,
-			expectedCacheDir: "8f/ba/8fba029c5f4d93584aabff1ed4998db4a630db62758d081eb81373f7015ca6c2",
+			expectedCacheDir: "73/8e/738ef21e631dc30612f56ccc87eba8f76bd714ccc22238a2549c7a3177f44bfa",
 		},
 		{
 			name:             "Zero generation",
 			bucketName:       "bucket",
 			objectName:       "obj",
 			generation:       0,
-			expectedCacheDir: "91/09/9109909f2ec15156376be6d04cf38297802102d039b6d3c42227b1e6f598c378",
+			expectedCacheDir: "51/e5/51e59a4c0ab165b7b8c93715fcba438c133f8e8a14d94452dc7b2ce7315ae321",
 		},
 	}
 	for _, tt := range tests {
@@ -280,7 +280,7 @@ func TestSharedChunkCacheManager_GetChunkPath(t *testing.T) {
 			objectName:   "file.txt",
 			generation:   12345,
 			chunkIndex:   0,
-			expectedPath: "1f/2a/1f2aaee8b225fd60cfb73d757958883063b290cc15b6d4d494d9735e9be097a4/0_8388608.bin",
+			expectedPath: "41/7d/417d6e4989a22cfa815f9e622a859475121dacee0793e846b03e089b9d837e6a/0_8388608.bin",
 		},
 		{
 			name:         "Chunk 5",
@@ -288,7 +288,7 @@ func TestSharedChunkCacheManager_GetChunkPath(t *testing.T) {
 			objectName:   "dir/file.txt",
 			generation:   67890,
 			chunkIndex:   5,
-			expectedPath: "08/b9/08b9ae5e492ddc586f3877c296ef89dcce3be4fe4d3c52f86ea632c0ab4675a9/41943040_50331648.bin",
+			expectedPath: "8e/0b/8e0bf1cb92e4496f8107137549a19d9c429fdea785e54258e529751c8cc98093/41943040_50331648.bin",
 		},
 		{
 			name:         "Large chunk index",
@@ -296,7 +296,7 @@ func TestSharedChunkCacheManager_GetChunkPath(t *testing.T) {
 			objectName:   "object",
 			generation:   1,
 			chunkIndex:   999,
-			expectedPath: "f9/2f/f92f1e28cd97aa305562863096e380af2ac2089efa5e73741b3ecc2850552430/8380219392_8388608000.bin",
+			expectedPath: "1a/8b/1a8b371ee4267a3bbed920ce28dc0e8796a7bfe39b17e3b312f4469c6c25a7b1/8380219392_8388608000.bin",
 		},
 	}
 
@@ -336,7 +336,7 @@ func TestSharedChunkCacheManager_GenerateTmpPath(t *testing.T) {
 			objectName:       "file.txt",
 			generation:       12345,
 			chunkIndex:       0,
-			expectedBasePath: "1f/2a/1f2aaee8b225fd60cfb73d757958883063b290cc15b6d4d494d9735e9be097a4/0_8388608.bin",
+			expectedBasePath: "41/7d/417d6e4989a22cfa815f9e622a859475121dacee0793e846b03e089b9d837e6a/0_8388608.bin",
 		},
 		{
 			name:             "Chunk 5",
@@ -344,7 +344,7 @@ func TestSharedChunkCacheManager_GenerateTmpPath(t *testing.T) {
 			objectName:       "dir/file.txt",
 			generation:       67890,
 			chunkIndex:       5,
-			expectedBasePath: "08/b9/08b9ae5e492ddc586f3877c296ef89dcce3be4fe4d3c52f86ea632c0ab4675a9/41943040_50331648.bin",
+			expectedBasePath: "8e/0b/8e0bf1cb92e4496f8107137549a19d9c429fdea785e54258e529751c8cc98093/41943040_50331648.bin",
 		},
 		{
 			name:             "Large chunk index",
@@ -352,7 +352,7 @@ func TestSharedChunkCacheManager_GenerateTmpPath(t *testing.T) {
 			objectName:       "object",
 			generation:       1,
 			chunkIndex:       999,
-			expectedBasePath: "f9/2f/f92f1e28cd97aa305562863096e380af2ac2089efa5e73741b3ecc2850552430/8380219392_8388608000.bin",
+			expectedBasePath: "1a/8b/1a8b371ee4267a3bbed920ce28dc0e8796a7bfe39b17e3b312f4469c6c25a7b1/8380219392_8388608000.bin",
 		},
 	}
 

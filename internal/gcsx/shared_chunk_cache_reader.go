@@ -45,28 +45,19 @@ type SharedChunkCacheReader struct {
 }
 
 // NewSharedChunkCacheReader creates a new chunk-based reader for shared cache.
-// onlyDir must already be normalized during configuration rationalization and
-// match the prefix applied to bucket. Object names are used verbatim, not cleaned
-// as filesystem paths.
 func NewSharedChunkCacheReader(
 	manager *file.SharedChunkCacheManager,
 	bucket gcs.Bucket,
 	object *gcs.MinObject,
-	onlyDir string,
 	metricHandle metrics.MetricHandle,
 	traceHandle tracing.TraceHandle,
 	handleID fuseops.HandleID,
 ) *SharedChunkCacheReader {
-	cacheObjectName := object.Name
-	if onlyDir != "" {
-		cacheObjectName = onlyDir + "/" + object.Name
-	}
-
 	return &SharedChunkCacheReader{
 		manager:         manager,
 		bucket:          bucket,
 		object:          object,
-		cacheObjectName: cacheObjectName,
+		cacheObjectName: bucket.GCSName(object),
 		metricHandle:    metricHandle,
 		traceHandle:     traceHandle,
 		handleID:        handleID,
