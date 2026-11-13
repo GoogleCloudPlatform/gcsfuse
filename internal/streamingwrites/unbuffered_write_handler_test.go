@@ -206,6 +206,11 @@ func TestUnbufferedWriteHandler_FlushFinalizesWrittenContent(t *testing.T) {
 			expectedContent: "ab\x00\x00cd",
 		},
 		{
+			name:            "FlushAfterSyncPadsPendingTruncate",
+			ops:             []handlerOp{writeOp("ab", 0), truncateOp(4), syncOp()},
+			expectedContent: "ab\x00\x00",
+		},
+		{
 			name:            "TruncateToCurrentSizeCancelsPendingTruncate",
 			ops:             []handlerOp{writeOp("foo", 0), truncateOp(10), truncateOp(3)},
 			expectedContent: "foo",
@@ -336,37 +341,23 @@ func TestUnbufferedWriteHandler_Truncate(t *testing.T) {
 	}
 }
 
-func TestUnbufferedWriteHandler_SyncWithoutPendingPaddingDoesNotStartUpload(t *testing.T) {
-	bucket := new(storagemock.TestifyMockBucket)
-	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
-
-	obj, err := wh.Sync(context.Background())
-
-	require.NoError(t, err)
-	assert.Nil(t, obj)
-	bucket.AssertNotCalled(t, "CreateObjectChunkWriter", mock.Anything, mock.Anything)
-}
-
-func TestUnbufferedWriteHandler_SyncWritesPendingZeroPadding(t *testing.T) {
+func TestUnbufferedWriteHandler_SyncDoesNotStartUpload(t *testing.T) {
 	testCases := []struct {
 		name string
 		ops  []handlerOp
 	}{
 		{
-			name: "AfterWrite",
-			ops:  []handlerOp{writeOp("ab", 0), truncateOp(4)},
+			name: "NoWrites",
 		},
 		{
-			name: "BeforeAnyWrite",
+			name: "PendingTruncate",
 			ops:  []handlerOp{truncateOp(2)},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			writer := new(storagemock.Writer)
-			writer.On("Write", mock.Anything).Return(2, nil)
-			bucket, _ := newMockBucketWithWriter(writer)
+			bucket := new(storagemock.TestifyMockBucket)
 			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
 			for _, op := range tc.ops {
 				require.NoError(t, op(ctx, wh))
@@ -376,9 +367,27 @@ func TestUnbufferedWriteHandler_SyncWritesPendingZeroPadding(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Nil(t, obj)
-			writer.AssertCalled(t, "Write", []byte{0, 0})
+			bucket.AssertNotCalled(t, "CreateObjectChunkWriter", mock.Anything, mock.Anything)
 		})
 	}
+}
+
+func TestUnbufferedWriteHandler_SyncDoesNotPadPendingTruncate(t *testing.T) {
+	ctx := context.Background()
+	writer := new(storagemock.Writer)
+	writer.On("Write", []byte("ab")).Return(2, nil)
+	bucket, _ := newMockBucketWithWriter(writer)
+	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
+	require.NoError(t, wh.Write(ctx, []byte("ab"), 0))
+	require.NoError(t, wh.Truncate(4))
+
+	obj, err := wh.Sync(ctx)
+
+	require.NoError(t, err)
+	assert.Nil(t, obj)
+	// Only the data reached the writer, not the padding.
+	writer.AssertNumberOfCalls(t, "Write", 1)
+	assert.Equal(t, int64(4), wh.truncatedSize)
 }
 
 func TestUnbufferedWriteHandler_SyncDoesNotFinalize(t *testing.T) {
@@ -459,9 +468,9 @@ func TestUnbufferedWriteHandler_CreateWriterErrorIsSticky(t *testing.T) {
 			failingOp: writeOp("foo", 0),
 		},
 		{
-			name:      "SyncWithPendingPadding",
+			name:      "WriteAtTruncatedSize",
 			setup:     []handlerOp{truncateOp(2)},
-			failingOp: syncOp(),
+			failingOp: writeOp("ab", 2),
 		},
 		{
 			name:      "FlushOfEmptyFile",
@@ -500,10 +509,6 @@ func TestUnbufferedWriteHandler_ZeroPaddingErrorIsSticky(t *testing.T) {
 		{
 			name:      "WriteAtTruncatedSize",
 			failingOp: writeOp("cd", 4),
-		},
-		{
-			name:      "Sync",
-			failingOp: syncOp(),
 		},
 		{
 			name:      "Flush",

@@ -46,8 +46,7 @@ var errNotImplemented = errors.New("unbuffered write handler: not implemented")
 // TODO(b/581184283): Implement Destroy and Unlink.
 // TODO(b/581184469): Nothing creates this handler yet.
 type unbufferedWriteHandlerImpl struct {
-	// writer uploads the object. It's created on the first write, on a sync
-	// that writes zero padding, or on flush.
+	// writer uploads the object. It's created on the first write or on flush.
 	writer gcs.Writer
 	// cancelFunc cancels the context of the writer.
 	cancelFunc context.CancelFunc
@@ -66,7 +65,7 @@ type unbufferedWriteHandlerImpl struct {
 	totalSize int64
 	// truncatedSize is the size requested by a pending forward truncate, or -1
 	// if there is none. The gap up to it is zero-padded lazily, on the next
-	// write at truncatedSize, Sync or Flush.
+	// write at truncatedSize or on Flush.
 	truncatedSize int64
 	// mtime is the file's mtime. It starts at the handler's creation time and is
 	// updated by the kernel through SetInodeAttributes.
@@ -116,16 +115,12 @@ func (wh *unbufferedWriteHandlerImpl) Write(ctx context.Context, data []byte, of
 	return wh.write(ctx, data)
 }
 
-// Sync writes any pending zero padding to the writer and returns a nil object.
-// It neither waits for the parts in flight nor finalizes the object, so the
-// data isn't durable or visible on GCS until Flush. Without pending padding it
-// doesn't touch the writer, so the sync that follows the handler's creation
-// doesn't start an upload.
+// Sync returns a nil object and the stored upload error, if any. It doesn't
+// touch the writer: it neither waits for the parts in flight nor finalizes the
+// object, so the data isn't durable or visible on GCS until Flush. A pending
+// forward truncate is zero-padded on Flush or on a write at the truncated size.
 func (wh *unbufferedWriteHandlerImpl) Sync(ctx context.Context) (*gcs.MinObject, error) {
-	if wh.uploadError != nil {
-		return nil, wh.uploadError
-	}
-	return nil, wh.writeDataForTruncatedSize(ctx)
+	return nil, wh.uploadError
 }
 
 // Flush writes any pending zero padding and finalizes the object.
