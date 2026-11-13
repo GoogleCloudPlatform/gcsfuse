@@ -28,7 +28,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 
-	tracing "github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	tracing "github.com/googlecloudplatform/gcsfuse/v4/tracing"
 )
 
 func newInMemoryExporter(t *testing.T) *tracetest.InMemoryExporter {

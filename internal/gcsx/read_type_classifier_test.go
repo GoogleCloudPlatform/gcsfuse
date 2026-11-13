@@ -18,7 +18,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 	"github.com/stretchr/testify/assert"
 )
 

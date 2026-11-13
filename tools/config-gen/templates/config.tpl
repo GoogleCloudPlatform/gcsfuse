@@ -22,7 +22,7 @@ import (
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg/shared"
 )
 
 // AllFlagOptimizationRules is the generated map from a flag's config-path to its specific rules.

@@ -24,7 +24,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg/shared"
 	"gopkg.in/yaml.v3"
 )
 

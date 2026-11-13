@@ -29,7 +29,7 @@ import (
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 
 	"github.com/google/uuid"
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
