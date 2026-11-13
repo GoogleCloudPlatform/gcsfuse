@@ -1,0 +1,9 @@
+proxyType: grpc
+targetHost: "localhost:8888"
+headerValidation:
+  - headerName: "x-goog-request-params"
+    expectedPattern: "force_direct_connectivity=ENFORCED"
+    failOnMismatch: true
+  - headerName: "x-goog-request-params"
+    expectedPattern: "direct_connectivity_diagnostic"
+    failOnMismatch: true
