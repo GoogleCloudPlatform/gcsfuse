@@ -159,12 +159,13 @@ type ComposeObjectsRequest struct {
 	//
 	//     https://cloud.google.com/storage/docs/json_api/v1/objects#resource
 	//
-	ContentType         string
-	Metadata            map[string]string
-	ContentLanguage     string
-	ContentEncoding     string
-	CacheControl        string
-	ContentDisposition  string
+	ContentType        string
+	Metadata           map[string]string
+	ContentLanguage    string
+	ContentEncoding    string
+	CacheControl       string
+	ContentDisposition string
+	// CustomTime is empty or an RFC 3339 timestamp.
 	CustomTime          string
 	EventBasedHold      bool
 	StorageClass        string

@@ -563,6 +563,23 @@ func (bh *bucketHandle) ComposeObjects(ctx context.Context, req *gcs.ComposeObje
 
 	// Composing Source Objects to Destination Object using Composer created through Go Storage Client.
 	composer := dstObj.ComposerFrom(srcObjList...)
+	composer.ObjectAttrs = storage.ObjectAttrs{
+		ContentType:        req.ContentType,
+		Metadata:           req.Metadata,
+		ContentLanguage:    req.ContentLanguage,
+		ContentEncoding:    req.ContentEncoding,
+		CacheControl:       req.CacheControl,
+		ContentDisposition: req.ContentDisposition,
+		EventBasedHold:     req.EventBasedHold,
+		StorageClass:       req.StorageClass,
+		ACL:                storageutil.ObjectAccessControlsToACLRules(req.Acl),
+	}
+	if req.CustomTime != "" {
+		composer.CustomTime, err = time.Parse(time.RFC3339, req.CustomTime)
+		if err != nil {
+			return nil, fmt.Errorf("invalid compose custom time %q: %w", req.CustomTime, err)
+		}
+	}
 	composer.DeleteSourceObjects = req.DeleteSourceObjects
 	attrs, err := composer.Run(ctx)
 	if err != nil {

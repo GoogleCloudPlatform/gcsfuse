@@ -42,6 +42,15 @@ func convertObjectAccessControlToACLRule(obj *storagev1.ObjectAccessControl) sto
 	return aclObj
 }
 
+// ObjectAccessControlsToACLRules converts request ACLs to the storage SDK format.
+func ObjectAccessControlsToACLRules(objects []*storagev1.ObjectAccessControl) []storage.ACLRule {
+	var rules []storage.ACLRule
+	for _, object := range objects {
+		rules = append(rules, convertObjectAccessControlToACLRule(object))
+	}
+	return rules
+}
+
 func convertACLRuleToObjectAccessControl(element storage.ACLRule) *storagev1.ObjectAccessControl {
 	obj := &storagev1.ObjectAccessControl{
 		Entity:   string(element.Entity),
@@ -141,12 +150,7 @@ func SetAttrsInWriter(wc *storage.Writer, req *gcs.CreateObjectRequest) *storage
 	wc.EventBasedHold = req.EventBasedHold
 	wc.StorageClass = req.StorageClass
 
-	// Converting []*storagev1.ObjectAccessControl to []ACLRule for writer object.
-	var aclRules []storage.ACLRule
-	for _, element := range req.Acl {
-		aclRules = append(aclRules, convertObjectAccessControlToACLRule(element))
-	}
-	wc.ACL = aclRules
+	wc.ACL = ObjectAccessControlsToACLRules(req.Acl)
 
 	if req.CRC32C != nil {
 		wc.CRC32C = *req.CRC32C
