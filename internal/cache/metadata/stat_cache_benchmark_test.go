@@ -21,10 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 )
 
 func generateKeys(count int) []string {

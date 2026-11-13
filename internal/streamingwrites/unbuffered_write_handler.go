@@ -19,7 +19,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 )
 
 // errNotImplemented is returned by the unbufferedWriteHandlerImpl methods that

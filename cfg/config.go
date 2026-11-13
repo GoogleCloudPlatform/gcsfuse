@@ -20,7 +20,7 @@ package cfg
 import (
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg/shared"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -242,6 +242,18 @@ var AllFlagOptimizationRules = map[string]shared.OptimizationRules{"file-system.
 			Value: int64(1600),
 		},
 	},
+}, "write.max-blocks-per-file": {
+	BucketTypeOptimization: []shared.BucketTypeOptimization{
+		{
+			BucketTypes: shared.BucketTypeList{
+				"rcu",
+			},
+			Conditions: map[string]any{
+				"write.experimental-enable-parallel-upload": true,
+			},
+			Value: int64(4),
+		},
+	},
 },
 }
 
@@ -294,7 +306,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	// Apply optimizations for each flag that has rules defined.
 	if !v.IsSet("file-system.congestion-threshold") {
 		rules := AllFlagOptimizationRules["file-system.congestion-threshold"]
-		result := getOptimizedValue(&rules, c.FileSystem.CongestionThreshold, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.FileSystem.CongestionThreshold, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.CongestionThreshold != val {
@@ -306,7 +318,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	}
 	if !v.IsSet("gcs-connection.enable-grpc-by-default") {
 		rules := AllFlagOptimizationRules["gcs-connection.enable-grpc-by-default"]
-		result := getOptimizedValue(&rules, c.GcsConnection.EnableGrpcByDefault, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.GcsConnection.EnableGrpcByDefault, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.GcsConnection.EnableGrpcByDefault != val {
@@ -318,7 +330,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	}
 	if !v.IsSet("file-system.enable-kernel-reader") {
 		rules := AllFlagOptimizationRules["file-system.enable-kernel-reader"]
-		result := getOptimizedValue(&rules, c.FileSystem.EnableKernelReader, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.FileSystem.EnableKernelReader, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.FileSystem.EnableKernelReader != val {
@@ -330,7 +342,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	}
 	if !v.IsSet("file-cache.cache-file-for-range-read") {
 		rules := AllFlagOptimizationRules["file-cache.cache-file-for-range-read"]
-		result := getOptimizedValue(&rules, c.FileCache.CacheFileForRangeRead, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.FileCache.CacheFileForRangeRead, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.FileCache.CacheFileForRangeRead != val {
@@ -342,7 +354,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	}
 	if !v.IsSet("write.finalize-file-for-rapid") {
 		rules := AllFlagOptimizationRules["write.finalize-file-for-rapid"]
-		result := getOptimizedValue(&rules, c.Write.FinalizeFileForRapid, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.Write.FinalizeFileForRapid, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.Write.FinalizeFileForRapid != val {
@@ -354,7 +366,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	}
 	if !v.IsSet("file-system.fuse-max-request-size-kb") {
 		rules := AllFlagOptimizationRules["file-system.fuse-max-request-size-kb"]
-		result := getOptimizedValue(&rules, c.FileSystem.FuseMaxRequestSizeKb, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.FileSystem.FuseMaxRequestSizeKb, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.FuseMaxRequestSizeKb != val {
@@ -366,7 +378,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	}
 	if !v.IsSet("implicit-dirs") {
 		rules := AllFlagOptimizationRules["implicit-dirs"]
-		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.ImplicitDirs, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(bool); ok {
 				if c.ImplicitDirs != val {
@@ -378,7 +390,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	}
 	if !v.IsSet("file-system.kernel-list-cache-ttl-secs") {
 		rules := AllFlagOptimizationRules["file-system.kernel-list-cache-ttl-secs"]
-		result := getOptimizedValue(&rules, c.FileSystem.KernelListCacheTtlSecs, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.FileSystem.KernelListCacheTtlSecs, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.KernelListCacheTtlSecs != val {
@@ -390,7 +402,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	}
 	if !v.IsSet("file-system.max-background") {
 		rules := AllFlagOptimizationRules["file-system.max-background"]
-		result := getOptimizedValue(&rules, c.FileSystem.MaxBackground, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.FileSystem.MaxBackground, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.MaxBackground != val {
@@ -402,7 +414,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	}
 	if !v.IsSet("file-system.max-read-ahead-kb") {
 		rules := AllFlagOptimizationRules["file-system.max-read-ahead-kb"]
-		result := getOptimizedValue(&rules, c.FileSystem.MaxReadAheadKb, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.FileSystem.MaxReadAheadKb, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.MaxReadAheadKb != val {
@@ -414,7 +426,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	}
 	if !v.IsSet("metadata-cache.negative-ttl-secs") {
 		rules := AllFlagOptimizationRules["metadata-cache.negative-ttl-secs"]
-		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.NegativeTtlSecs, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.NegativeTtlSecs != val {
@@ -426,7 +438,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	}
 	if !v.IsSet("metadata-cache.ttl-secs") {
 		rules := AllFlagOptimizationRules["metadata-cache.ttl-secs"]
-		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.TtlSecs, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.TtlSecs != val {
@@ -438,7 +450,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	}
 	if !v.IsSet("file-system.rename-dir-limit") {
 		rules := AllFlagOptimizationRules["file-system.rename-dir-limit"]
-		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.FileSystem.RenameDirLimit, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.FileSystem.RenameDirLimit != val {
@@ -450,7 +462,7 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	}
 	if !v.IsSet("metadata-cache.stat-cache-max-size-mb") {
 		rules := AllFlagOptimizationRules["metadata-cache.stat-cache-max-size-mb"]
-		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.MetadataCache.StatCacheMaxSizeMb, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.MetadataCache.StatCacheMaxSizeMb != val {
@@ -462,12 +474,24 @@ func (c *Config) ApplyOptimizations(v *viper.Viper, input *OptimizationInput) ma
 	}
 	if !v.IsSet("write.global-max-blocks") {
 		rules := AllFlagOptimizationRules["write.global-max-blocks"]
-		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, input, machineTypeToGroupMap)
+		result := getOptimizedValue(&rules, c.Write.GlobalMaxBlocks, profileName, machineType, input, machineTypeToGroupMap, c)
 		if result.Optimized {
 			if val, ok := result.FinalValue.(int64); ok {
 				if c.Write.GlobalMaxBlocks != val {
 					c.Write.GlobalMaxBlocks = val
 					optimizedFlags["write.global-max-blocks"] = result
+				}
+			}
+		}
+	}
+	if !v.IsSet("write.max-blocks-per-file") {
+		rules := AllFlagOptimizationRules["write.max-blocks-per-file"]
+		result := getOptimizedValue(&rules, c.Write.MaxBlocksPerFile, profileName, machineType, input, machineTypeToGroupMap, c)
+		if result.Optimized {
+			if val, ok := result.FinalValue.(int64); ok {
+				if c.Write.MaxBlocksPerFile != val {
+					c.Write.MaxBlocksPerFile = val
+					optimizedFlags["write.max-blocks-per-file"] = result
 				}
 			}
 		}

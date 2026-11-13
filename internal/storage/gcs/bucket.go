@@ -20,7 +20,7 @@ import (
 	"context"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
 )
 
 // WriteStrategy represents the GCS upload mechanism used for writing objects.

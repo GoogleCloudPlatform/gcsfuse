@@ -20,14 +20,14 @@ import (
 	"os"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/operations"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/log_parser/json_parser/read_logs"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/log_parser/json_parser/read_logs"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/setup"
 )
 
 ////////////////////////////////////////////////////////////////////////

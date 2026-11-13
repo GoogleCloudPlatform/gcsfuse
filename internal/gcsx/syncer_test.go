@@ -22,9 +22,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

@@ -26,8 +26,8 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/data"
 	"github.com/jacobsa/fuse/fsutil"
 )
 

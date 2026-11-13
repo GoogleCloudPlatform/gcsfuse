@@ -18,7 +18,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/operations"
 )
 
 func TestReadLargeFileRandomly(t *testing.T) {
