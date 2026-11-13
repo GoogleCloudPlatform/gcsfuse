@@ -27,11 +27,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	emulator_tests "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/emulator_tests/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	emulator_tests "github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/emulator_tests/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/test_suite"
 )
 
 // startRejectingLocalListener binds an ephemeral local TCP listener for the lifetime of t
