@@ -13,7 +13,7 @@ import (
 
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 	oglemock "github.com/jacobsa/oglemock"
 )
 

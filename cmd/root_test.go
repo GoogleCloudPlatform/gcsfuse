@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -932,7 +932,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				GcsConnection: cfg.GcsConnectionConfig{
 					BillingProject:             "",
-					ClientProtocol:             "http1",
+					ClientProtocol:             "",
 					CustomEndpoint:             "",
 					ExperimentalEnableJsonRead: false,
 					GrpcPathStrategy:           "direct-path-with-fallback",
@@ -953,7 +953,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				GcsConnection: cfg.GcsConnectionConfig{
 					BillingProject:             "",
-					ClientProtocol:             "http1",
+					ClientProtocol:             "",
 					CustomEndpoint:             "",
 					ExperimentalEnableJsonRead: false,
 					GrpcPathStrategy:           "direct-path-with-fallback",

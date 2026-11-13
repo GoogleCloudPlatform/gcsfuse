@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util/diskutil"
 )
 
 const InvalidKeyAttributes = "key attributes not initialised"

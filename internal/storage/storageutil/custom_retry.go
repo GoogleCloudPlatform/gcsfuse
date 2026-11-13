@@ -22,9 +22,9 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/mountstatus"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/mountstatus"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"

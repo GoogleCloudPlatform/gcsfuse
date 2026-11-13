@@ -19,8 +19,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/tracing"
 	"golang.org/x/sync/semaphore"
 )
 

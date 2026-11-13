@@ -19,7 +19,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/lru"
 )
 
 func generateKeys(prefixCount, itemsPerPrefix, depth int) (keys []string, prefixMap map[string][]string, prefixes []string) {
