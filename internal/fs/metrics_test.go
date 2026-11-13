@@ -1060,6 +1060,7 @@ func TestWriteFile_Metrics(t *testing.T) {
 	attrs := attribute.NewSet(attribute.String("fs_op", "WriteFile"))
 	metrics.VerifyCounterMetric(t, ctx, reader, "fs/ops_count", attrs, 1)
 	metrics.VerifyHistogramMetric(t, ctx, reader, "fs/ops_latency", attrs, 1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "fs/write_bytes_count", attribute.NewSet(), int64(len(op.Data)))
 }
 
 func TestReadSymlink_Metrics(t *testing.T) {

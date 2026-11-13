@@ -217,3 +217,73 @@ func TestMonitoring_ReadFileRecordsBytesReturnedToKernel(t *testing.T) {
 		})
 	}
 }
+
+// writeBytesRecorder sums the fs/write_bytes_count increments it receives and
+// ignores every other metric.
+type writeBytesRecorder struct {
+	metrics.MetricHandle
+	bytes int64
+	calls int
+}
+
+func (r *writeBytesRecorder) FsWriteBytesCount(inc int64) {
+	r.bytes += inc
+	r.calls++
+}
+
+// writeFileFS is a file system whose writes return err.
+type writeFileFS struct {
+	fuseutil.NotImplementedFileSystem
+	err error
+}
+
+func (f *writeFileFS) WriteFile(_ context.Context, _ *fuseops.WriteFileOp) error {
+	return f.err
+}
+
+func TestMonitoring_WriteFileRecordsBytesAccepted(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      []byte
+		err       error
+		wantBytes int64
+		wantCalls int
+	}{
+		{
+			// FUSE requires exactly len(Data) bytes to be written on success, so the
+			// whole buffer is accounted for.
+			name:      "successful write counts the whole buffer",
+			data:      []byte("hello world"),
+			wantBytes: 11,
+			wantCalls: 1,
+		},
+		{
+			// FUSE replies to a failed write with just the error; none of the data
+			// is considered written.
+			name:      "failed write is not counted",
+			data:      []byte("hello world"),
+			err:       syscall.EIO,
+			wantBytes: 0,
+			wantCalls: 0,
+		},
+		{
+			name:      "empty write records nothing",
+			data:      nil,
+			wantBytes: 0,
+			wantCalls: 0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := &writeBytesRecorder{MetricHandle: metrics.NewNoopMetrics()}
+			fs := WithMonitoring(&writeFileFS{err: tc.err}, recorder)
+
+			err := fs.WriteFile(context.Background(), &fuseops.WriteFileOp{Data: tc.data})
+
+			assert.ErrorIs(t, err, tc.err)
+			assert.Equal(t, tc.wantBytes, recorder.bytes)
+			assert.Equal(t, tc.wantCalls, recorder.calls)
+		})
+	}
+}
