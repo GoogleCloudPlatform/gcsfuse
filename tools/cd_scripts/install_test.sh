@@ -68,12 +68,13 @@ sudo /usr/local/google-cloud-sdk/install.sh --quiet
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 gcloud version && rm gcloud.tar.gz
 
-#details.txt file contains the release version and commit hash of the current release.
+# details.txt file contains the release version (X.Y.Z) and commit hash (from the persistent
+# minor release branch vX.Y_release, or legacy per-patch branch vX.Y.Z_release) of the current release.
 gcloud storage cp  gs://gcsfuse-release-packages/version-detail/details.txt .
 # Writing VM instance name to details.txt (Format: release-test-<os-name>)
 vm_instance_name=$(curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google")
 # first line of details.txt contains the release version in the format MAJOR.MINOR.PATCH
-to_release_version=$(sed '1q' details.txt | tr -d '\n')
+to_release_version=$(sed '1q' details.txt | tr -d '\r\n')
 echo $vm_instance_name >> details.txt
 touch ~/logs.txt
 
@@ -105,7 +106,11 @@ then
     fi
 
     sudo apt-get update
-    # Install to be released gcsfuse version (It can be a patch to older version so allow downgrades)
+    # Install to-be-released gcsfuse version. Under the vX.Y_release minor release branch
+    # strategy (where older GKE minor versions lock 1:1 to dedicated vX.Y_release branches),
+    # patch releases on older minor streams (e.g., releasing 3.8.5 from v3.8_release after
+    # 3.12.2 is already published in Artifact Registry) require --allow-downgrades when the
+    # base image or repository already has a newer minor series.
     sudo apt-get install -y --allow-downgrades gcsfuse="$to_release_version" >> ~/logs.txt
 else
 #  For rhel and centos
@@ -126,17 +131,20 @@ repo_gpgcheck=0
 gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
       https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 EOF
-# Attempt a install first, falling back to a standard downgrade if to be released is older version than already installed (patch releases).
+# Attempt an install first, falling back to yum downgrade when releasing a patch on an older
+# locked vX.Y_release minor branch (where older GKE minor versions lock 1:1 to dedicated
+# vX.Y_release branches, e.g., releasing 3.8.5 from v3.8_release after 3.12.2 is already
+# published in Artifact Registry and the base image or repository has a newer minor series).
 sudo yum install -y gcsfuse-"$to_release_version" || sudo yum downgrade -y gcsfuse-"$to_release_version" >> ~/logs.txt
 fi
 
 # Verify gcsfuse version (successful installation)
 gcsfuse --version |& tee version.txt
 installed_version=$(echo $(sed -n 1p version.txt) | cut -d' ' -f3)
-if grep -q $installed_version details.txt; then
-    echo "GCSFuse to be released version installed correctly." &>> ~/logs.txt
+if [[ -n "$installed_version" && "$installed_version" == "$to_release_version" ]]; then
+    echo "GCSFuse to be released version installed correctly: installed_version ($installed_version), to_release_version ($to_release_version)." &>> ~/logs.txt
 else
-    echo "Failure detected in to be released gcsfuse version installation." &>> ~/logs.txt
+    echo "Failure detected in to be released gcsfuse version installation: installed_version ($installed_version), to_release_version ($to_release_version)." &>> ~/logs.txt
 fi
 
 # Uninstall gcsfuse and install old version.
@@ -166,16 +174,19 @@ else
     sudo yum -y upgrade gcsfuse |& tee -a ~/logs.txt
 fi
 
-# Verify that gcsfuse has been upgraded to the to_be_released version using version comparison.
-# This is to ensure that the correct version is installed after the upgrade.
+# Verify that gcsfuse has been upgraded to at least to_release_version using version comparison.
+# When releasing the latest minor series, installed_version == to_release_version.
+# When releasing a patch on an older locked vX.Y_release minor branch, `--only-upgrade` / `yum upgrade`
+# upgrades from 1.2.0 to the highest version in Artifact Registry, which is strictly greater than
+# to_release_version.
 gcsfuse --version |& tee version.txt
 installed_version=$(echo $(sed -n 1p version.txt) | cut -d' ' -f3)
 # The following command compares the two versions:
 # 1. `printf` outputs to_release_version and installed_version on a new line.
 # 2. `sort -V` sorts them naturally (version sort).
 # 3. `tail -n 1` gets the last line, which is the highest version.
-# The condition is true if installed_version is greater than or equal to to_release_version.
-if [[ "$(printf '%s\n%s\n' "$to_release_version" "$installed_version" | sort -V | tail -n 1)" == "$installed_version" ]]; then
+# The condition is true if installed_version is non-empty and greater than or equal to to_release_version.
+if [[ -n "$installed_version" && "$(printf '%s\n%s\n' "$to_release_version" "$installed_version" | sort -V | tail -n 1)" == "$installed_version" ]]; then
   echo "GCSFuse successfully upgraded to latest version: installed_version ($installed_version), to_release_version: ($to_release_version)" &>> ~/logs.txt
 else
   echo "Failure detected in upgrading to latest gcsfuse version: installed_version ($installed_version), to_release_version: ($to_release_version)" &>> ~/logs.txt

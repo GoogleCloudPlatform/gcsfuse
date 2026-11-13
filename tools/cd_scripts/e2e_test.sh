@@ -55,7 +55,9 @@ RUN_LIGHT_TEST=$(get_metadata_attribute run-light-test)
 # specially useful for testing.
 BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-release-packages"}
 
-#details.txt file contains the release version and commit hash of the current release.
+# details.txt file contains the target release tag version (X.Y.Z or X.Y.Z-frontier-<id>.<revision>)
+# and COMMIT_HASH on the persistent minor release branch vX.Y_release (or customer-isolated Frontier
+# branch v<BasePatch>-frontier-<id> / legacy per-patch branch vX.Y.Z_release) of the current release.
 # Using dynamic bucket.
 DETAILS_FILE=$(pwd)/details.txt
 curl_with_vm_credentials -o "$DETAILS_FILE" "https://storage.googleapis.com/${BUCKET_NAME_TO_USE}/version-detail/details.txt"
@@ -298,6 +300,9 @@ fi
 echo "User: $USER" &>> ${LOG_FILE}
 echo "Current Working Directory: $(pwd)" &>> ${LOG_FILE}
 
+# Line 1 of details.txt is the target release tag version (X.Y.Z or X.Y.Z-frontier-<id>.<revision>).
+# Line 2 of details.txt is COMMIT_HASH (target commit on vX.Y_release, v<BasePatch>-frontier-<id>, or legacy vX.Y.Z_release).
+# Line 3 of details.txt is the VM instance name.
 VERSION=$(sed -n 1p ~/details.txt)
 COMMIT_HASH=$(sed -n 2p ~/details.txt)
 VM_INSTANCE_NAME=$(sed -n 3p ~/details.txt)
