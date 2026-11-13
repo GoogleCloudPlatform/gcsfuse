@@ -30,6 +30,7 @@ file-cache:
   experimental-disable-size-calculation-fix: true
 gcs-auth:
   anonymous-access: true
+  experimental-token-url-timeout: 5s
   key-file: "~/key.file"
   reuse-token-from-url: false
   token-url: "www.abc.com"

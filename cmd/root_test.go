@@ -819,15 +819,16 @@ func TestArgsParsing_GCSAuthFlags(t *testing.T) {
 	}{
 		{
 			name: "Test gcs auth flags.",
-			args: []string{"gcsfuse", "--anonymous-access", "--key-file=key.file", "--reuse-token-from-url", "--s2a-address=/var/run/s2a/s2a.sock", "--s2a-spiffe-id=spiffe://example.com/sa", "--token-url=www.abc.com", "abc", "pqr"},
+			args: []string{"gcsfuse", "--anonymous-access", "--key-file=key.file", "--reuse-token-from-url", "--s2a-address=/var/run/s2a/s2a.sock", "--s2a-spiffe-id=spiffe://example.com/sa", "--token-url=www.abc.com", "--experimental-token-url-timeout=5s", "abc", "pqr"},
 			expectedConfig: &cfg.Config{
 				GcsAuth: cfg.GcsAuthConfig{
-					AnonymousAccess:   true,
-					KeyFile:           cfg.ResolvedPath(path.Join(wd, "key.file")),
-					ReuseTokenFromUrl: true,
-					S2aAddress:        "/var/run/s2a/s2a.sock",
-					S2aSpiffeId:       "spiffe://example.com/sa",
-					TokenUrl:          "www.abc.com",
+					AnonymousAccess:             true,
+					KeyFile:                     cfg.ResolvedPath(path.Join(wd, "key.file")),
+					ReuseTokenFromUrl:           true,
+					S2aAddress:                  "/var/run/s2a/s2a.sock",
+					S2aSpiffeId:                 "spiffe://example.com/sa",
+					TokenUrl:                    "www.abc.com",
+					ExperimentalTokenUrlTimeout: 5 * time.Second,
 				},
 			},
 		},
@@ -883,6 +884,14 @@ func TestArgsParsing_GCSAuthFlagsThrowsError(t *testing.T) {
 		{
 			name: "Invalid value for token-url flag",
 			args: []string{"gcsfuse", "--token-url=a_b://abc", "abc", "pqr"},
+		},
+		{
+			name: "Negative token-url timeout",
+			args: []string{"gcsfuse", "--experimental-token-url-timeout=-1s", "abc", "pqr"},
+		},
+		{
+			name: "Invalid token-url timeout duration",
+			args: []string{"gcsfuse", "--experimental-token-url-timeout=invalid", "abc", "pqr"},
 		},
 	}
 

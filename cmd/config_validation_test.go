@@ -534,10 +534,11 @@ func TestValidateConfigFile_GCSAuthConfigSuccessful(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				GcsAuth: cfg.GcsAuthConfig{
-					AnonymousAccess:   true,
-					KeyFile:           cfg.ResolvedPath(path.Join(hd, "key.file")),
-					ReuseTokenFromUrl: false,
-					TokenUrl:          "www.abc.com",
+					AnonymousAccess:             true,
+					KeyFile:                     cfg.ResolvedPath(path.Join(hd, "key.file")),
+					ReuseTokenFromUrl:           false,
+					TokenUrl:                    "www.abc.com",
+					ExperimentalTokenUrlTimeout: 5 * time.Second,
 				},
 			},
 		},

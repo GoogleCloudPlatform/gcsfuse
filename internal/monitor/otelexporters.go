@@ -490,7 +490,7 @@ func isOtelEndpointInsecure(endpoint string) bool {
 
 // getGcpOtelHttpClient creates an authenticated HTTP client for a specific GCP scope.
 func getGcpOtelHttpClient(ctx context.Context, authConfig cfg.GcsAuthConfig, scope string) (*http.Client, error) {
-	ts, err := auth.GetTokenSourceWithScope(ctx, string(authConfig.KeyFile), authConfig.TokenUrl, authConfig.ReuseTokenFromUrl, scope)
+	ts, err := auth.GetTokenSourceWithScope(ctx, string(authConfig.KeyFile), authConfig.TokenUrl, authConfig.ReuseTokenFromUrl, authConfig.ExperimentalTokenUrlTimeout, scope)
 	if err != nil {
 		return nil, err
 	}

@@ -379,6 +379,10 @@ func ValidateConfig(v *viper.Viper, config *Config) error {
 		return fmt.Errorf("error parsing token-url config: %w", err)
 	}
 
+	if config.GcsAuth.ExperimentalTokenUrlTimeout < 0 {
+		return fmt.Errorf("error parsing experimental-token-url-timeout config: must be non-negative")
+	}
+
 	if err = isValidSequentialReadSizeMB(config.GcsConnection.SequentialReadSizeMb); err != nil {
 		return fmt.Errorf("error parsing gcs-connection config: %w", err)
 	}
