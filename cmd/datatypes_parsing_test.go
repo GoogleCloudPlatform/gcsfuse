@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -517,7 +517,7 @@ func TestCLIFlagPassing(t *testing.T) {
 			name: "protocol1",
 			args: []string{},
 			testFn: func(t *testing.T, c *cfg.Config) {
-				assert.Equal(t, cfg.Protocol("http1"), c.GcsConnection.ClientProtocol)
+				assert.Equal(t, cfg.Protocol(""), c.GcsConnection.ClientProtocol)
 			},
 		},
 		{

@@ -741,7 +741,7 @@ params:
       The protocol used for communicating with the GCS backend.
       Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2), 'grpc', or 'httpmtls'.
       'httpmtls' delegates connection creation to the SDK (enabling mTLS) and uses HTTP/2 by default, falling back to HTTP/1.1 if the server doesn't support it.
-    default: "http1"
+    default: ""
 
   - config-path: "gcs-connection.custom-endpoint"
     proto-tag: 72
@@ -759,6 +759,11 @@ params:
       If true, enables gRPC protocol by default (e.g. for new GKE deployments).
     default: false
     hide-flag: true
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: true
+          gke-only: true
 
   - config-path: "gcs-connection.enable-http-dns-cache"
     proto-tag: 73
@@ -1605,6 +1610,13 @@ params:
       streaming writes. The value should be >= 1 or -1 (for infinite blocks).
     default: 1
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        # TODO(b/584557180): 4 is a placeholder value; update once experiments complete and the optimal value is determined.
+        - bucket-type: "rcu"
+          conditions:
+            write.experimental-enable-parallel-upload: true
+          value: 4
 
   - config-path: "write.rapid-write"
     proto-tag: 162

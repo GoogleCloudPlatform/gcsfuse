@@ -18,12 +18,13 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"regexp"
 	"slices"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg/shared"
 	"gopkg.in/yaml.v3"
 )
 
@@ -218,7 +219,7 @@ func checkFlagName(name string) error {
 	return nil
 }
 
-func validateParam(param Param) error {
+func validateParam(param Param, paramsByConfigPath map[string]Param) error {
 	if err := checkFlagName(param.FlagName); err != nil {
 		return err
 	}
@@ -257,10 +258,26 @@ func validateParam(param Param) error {
 					return fmt.Errorf("invalid bucket-type %q for flag %s; must be one of: %v",
 						bt, param.FlagName, validBucketTypes)
 				}
-				if seenBucketTypes[bt] {
-					return fmt.Errorf("duplicate bucket-type %q for flag %s", bt, param.FlagName)
+				ruleKey := bt
+				if len(bto.Conditions) > 0 {
+					var b strings.Builder
+					b.WriteString(bt)
+					for _, k := range slices.Sorted(maps.Keys(bto.Conditions)) {
+						targetParam, ok := paramsByConfigPath[k]
+						if !ok {
+							return fmt.Errorf("unknown condition config-path %q in optimization for flag %s", k, param.FlagName)
+						}
+						if targetParam.Optimizations != nil {
+							return fmt.Errorf("condition config-path %q in optimization for flag %s cannot reference a parameter that has optimizations", k, param.FlagName)
+						}
+						fmt.Fprintf(&b, ";%s=%v", k, bto.Conditions[k])
+					}
+					ruleKey = b.String()
 				}
-				seenBucketTypes[bt] = true
+				if seenBucketTypes[ruleKey] || seenBucketTypes[bt] {
+					return fmt.Errorf("duplicate bucket-type %q for flag %s", ruleKey, param.FlagName)
+				}
+				seenBucketTypes[ruleKey] = true
 			}
 		}
 	}
@@ -287,14 +304,15 @@ func validateParams(params []Param) error {
 	if err := isSorted(params); err != nil {
 		return fmt.Errorf("incorrect sorting order detected: %w", err)
 	}
-	if err := validateForDuplicates(params, func(param Param) string { return param.FlagName }); err != nil {
+	if _, err := validateForDuplicates(params, func(param Param) string { return param.FlagName }); err != nil {
 		return fmt.Errorf("duplicate flag names found: %w", err)
 	}
-	if err := validateForDuplicates(params, func(param Param) string { return param.ConfigPath }); err != nil {
+	paramsByConfigPath, err := validateForDuplicates(params, func(param Param) string { return param.ConfigPath })
+	if err != nil {
 		return fmt.Errorf("duplicate config-paths found: %w", err)
 	}
 	for _, param := range params {
-		err := validateParam(param)
+		err := validateParam(param, paramsByConfigPath)
 		if err != nil {
 			return err
 		}
@@ -302,19 +320,19 @@ func validateParams(params []Param) error {
 	return nil
 }
 
-func validateForDuplicates(params []Param, fn func(param Param) string) error {
-	lookup := make(map[string]bool)
+func validateForDuplicates(params []Param, fn func(param Param) string) (map[string]Param, error) {
+	lookup := make(map[string]Param)
 	for _, p := range params {
 		value := fn(p)
 		if value == "" {
 			continue
 		}
 		if _, ok := lookup[value]; ok {
-			return fmt.Errorf("%s is present more than once", value)
+			return nil, fmt.Errorf("%s is present more than once", value)
 		}
-		lookup[value] = true
+		lookup[value] = p
 	}
-	return nil
+	return lookup, nil
 }
 
 // validateMachineTypeGroups validates the machine-type-groups map.

@@ -17,7 +17,7 @@ package inode_test
 import (
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs/inode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

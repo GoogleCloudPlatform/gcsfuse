@@ -29,10 +29,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	. "github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/setup"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/stretchr/testify/assert"
@@ -62,7 +61,7 @@ func (t *listLargeDir) SetupTest() {
 
 func (t *listLargeDir) TearDownTest() {
 	setup.SaveGCSFuseLogFileInCaseOfFailure(t.T())
-	err := DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, t.T().Name()+"/")
+	err := client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, t.T().Name()+"/")
 	assert.NoError(t.T(), err)
 }
 
@@ -237,14 +236,14 @@ func prepareTestDirectory(t *testing.T, withExplicitDirs bool, withImplicitDirs 
 	}
 
 	bucketName, dirPathInBucket := operations.SplitBucketNameAndDirPath(t, testDirPathOnBucket)
-	isEmpty, err := IsDirEmptyOnGCS(testEnv.ctx, testEnv.storageClient, bucketName, dirPathInBucket)
+	isEmpty, err := client.IsDirEmptyOnGCS(testEnv.ctx, testEnv.storageClient, bucketName, dirPathInBucket)
 	if err != nil {
 		t.Fatalf("Failed to check if bucket directory %s is empty: %v", dirPathInBucket, err)
 	}
 
 	if !isEmpty {
 		// Clean up stale objects from prior interrupted runs to recover cleanly.
-		if err := DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, t.Name()+"/"); err != nil {
+		if err := client.DeleteAllObjectsWithPrefix(testEnv.ctx, testEnv.storageClient, t.Name()+"/"); err != nil {
 			t.Fatalf("Failed to clean up non-empty bucket directory %s: %v", dirPathInBucket, err)
 		}
 	}

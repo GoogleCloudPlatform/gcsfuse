@@ -63,8 +63,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/mount"
 	"github.com/spf13/pflag"
 )
 

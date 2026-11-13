@@ -19,9 +19,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/setup"
 )
 
 func (s *operationsTestSuite) TestDeleteEmptyExplicitDir() {
