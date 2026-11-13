@@ -20,6 +20,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -181,15 +182,14 @@ func (t *BaseSuite) getCacheFileModTimes() map[string]os.FileInfo {
 		}
 		if !d.IsDir() && strings.HasSuffix(filePath, ".bin") {
 			info, err := os.Stat(filePath)
-			if err == nil {
-				modTimes[filePath] = info
+			if err != nil {
+				return err
 			}
+			modTimes[filePath] = info
 		}
 		return nil
 	})
-	if err != nil {
-		t.T().Logf("Error walking cache directory: %v", err)
-	}
+	require.NoError(t.T(), err, "Failed to inspect cached chunk files")
 	return modTimes
 }
 
@@ -285,6 +285,55 @@ func (t *SharedChunkCacheTestSuite) TestCacheHit() {
 		readSize, readOffset, cacheHitTime, finalCacheCount)
 	t.T().Logf("Performance: Cache miss=%v, Cache hit=%v, Speedup=%.2fx",
 		primaryCacheMissTime, cacheHitTime, speedup)
+}
+
+func (t *SharedChunkCacheTestSuite) TestCacheHitWithOnlyDir() {
+	if testEnv.cfg.GKEMountedDirectory != "" {
+		t.T().Skip("requires remounting the secondary instance; pre-mounted GKE directories are not modified")
+	}
+
+	// Arrange
+	const (
+		fileSize   = 30 * util.MiB
+		readSize   = 2 * util.MiB
+		readOffset = 10 * util.MiB
+	)
+	testFileName := "test_cache_hit_only_dir_" + setup.GenerateRandomString(5) + ".txt"
+	t.createTestFile(testFileName, fileSize)
+	secondaryConfig := *testEnv.cfg
+	secondaryConfig.GCSFuseMountedDirectory = t.secondaryMount.mntDir
+	secondaryConfig.LogFile = t.secondaryMount.logFilePath
+	secondaryFlags := append(slices.Clone(t.secondaryFlags), "--only-dir="+testDirName)
+	setup.UnmountGCSFuseWithConfig(&secondaryConfig)
+	require.NoError(t.T(), static_mounting.MountGcsfuseWithStaticMountingWithConfigFile(&secondaryConfig, secondaryFlags),
+		"Failed to remount the secondary instance with only-dir")
+
+	primaryPath := path.Join(t.primaryMount.testDirPath, testFileName)
+	primaryChunk, err := operations.ReadChunkFromFile(primaryPath, readSize, readOffset, os.O_RDONLY|syscall.O_DIRECT)
+	require.NoError(t.T(), err, "Failed to read the primary mount")
+	require.Len(t.T(), primaryChunk, readSize)
+	require.Equal(t.T(), 1, t.getCachedChunkCount(), "Primary read should cache exactly one chunk")
+	cacheFileTimes := t.getCacheFileModTimes()
+	require.Len(t.T(), cacheFileTimes, 1)
+
+	// Act
+	// The secondary mount root already represents testDirName.
+	secondaryPath := path.Join(t.secondaryMount.mntDir, testFileName)
+	secondaryChunk, err := operations.ReadChunkFromFile(secondaryPath, readSize, readOffset, os.O_RDONLY|syscall.O_DIRECT)
+
+	// Assert
+	require.NoError(t.T(), err, "Failed to read the only-dir secondary mount")
+	require.Len(t.T(), secondaryChunk, readSize)
+	require.Equal(t.T(), primaryChunk, secondaryChunk, "Both mounts should read the same object range")
+	require.Equal(t.T(), 1, t.getCachedChunkCount(), "Only-dir read should reuse the existing cached chunk")
+	newCacheFileTimes := t.getCacheFileModTimes()
+	require.Len(t.T(), newCacheFileTimes, 1)
+	for filePath, oldInfo := range cacheFileTimes {
+		newInfo, exists := newCacheFileTimes[filePath]
+		require.True(t.T(), exists, "The original cached chunk should still exist: %s", filePath)
+		require.Equal(t.T(), oldInfo.ModTime(), newInfo.ModTime(),
+			"Only-dir read should not download or rewrite the cached chunk: %s", filePath)
+	}
 }
 
 // TestCacheHitSingleMount tests cache behavior within a single mount.
