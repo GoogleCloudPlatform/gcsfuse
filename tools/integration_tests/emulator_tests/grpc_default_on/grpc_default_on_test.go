@@ -247,12 +247,19 @@ func (s *grpcDefaultOnSuite) TestProtocolSelection() {
 			flags:            []string{"--enable-grpc-by-default=false"},
 			expectedProtocol: cfg.HTTP1,
 		},
-		// GKE: false passed by the CSI driver on LRO-unsupported ct6e-* overrides the machine-type optimization
+		// GKE: an explicit --enable-grpc-by-default overrides the machine-type optimization in both directions.
+		// false is passed by the CSI driver on LRO-unsupported ct6e-* machines.
 		{
 			name:             "GKE_TPUv6e_EnableGRPCByDefaultFalse_UsesHTTP",
 			mountAsGKE:       true,
 			flags:            []string{"--machine-type=ct6e-standard-4t", "--enable-grpc-by-default=false"},
 			expectedProtocol: cfg.HTTP1,
+		},
+		{
+			name:             "GKE_LowEndMachine_EnableGRPCByDefaultTrue_UsesGRPC",
+			mountAsGKE:       true,
+			flags:            []string{"--machine-type=n1-standard-1", "--enable-grpc-by-default=true"},
+			expectedProtocol: cfg.GRPC,
 		},
 		// Flag unset: machine-type optimization enables gRPC on high-performance machines, on GKE only
 		{
