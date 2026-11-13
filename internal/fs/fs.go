@@ -2318,7 +2318,7 @@ func (fs *fileSystem) CreateSymlink(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, true)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, false)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
