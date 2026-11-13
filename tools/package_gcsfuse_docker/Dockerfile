@@ -15,8 +15,10 @@
 # This Dockerfile builds gcsfuse DEB and RPM packages for different linux architectures.
 #
 # Build Arguments:
-#   GCSFUSE_VERSION  - Version string for the package (required, e.g., "0.39.2")
-#   BRANCH_NAME      - Git commit, branch or tag to build from (default: "v${GCSFUSE_VERSION}")
+#   GCSFUSE_VERSION  - Version string for the package (required, e.g., "3.12.0" or "3.8.4-frontier-a.0")
+#   BRANCH_NAME      - Target commit hash or ref on the persistent minor release branch ("vX.Y_release"),
+#                      customer-isolated Frontier branch ("v<BasePatch>-frontier-<id>"), or release tag
+#                      ("vX.Y.Z") to build from (default: "v${GCSFUSE_VERSION}")
 #   ARCHITECTURE     - Target architecture: "amd64" or "arm64" (default: "amd64")
 #   GCSFUSE_REPO     - Repository URL (default: https://github.com/googlecloudplatform/gcsfuse/)
 #
@@ -48,10 +50,12 @@ FROM golang:${GO_VERSION}-bookworm AS builder
 
 # Build arguments
 ARG ARCHITECTURE="amd64"
-# GCSFUSE_VERSION: The release version string (e.g. "2.5.4") embedded in package filenames, control files, changelogs, and RPM specs.
+# GCSFUSE_VERSION: The release version string (e.g. "3.12.0" or "3.8.4-frontier-a.0") embedded in package filenames, control files, changelogs, and RPM specs.
 ARG GCSFUSE_VERSION
 ARG GCSFUSE_REPO="https://github.com/googlecloudplatform/gcsfuse/"
-# BRANCH_NAME: The Git commit hash, branch, or tag used to build gcsfuse. Defaults to "v${GCSFUSE_VERSION}".
+# BRANCH_NAME: The target Git commit hash on the persistent minor release branch (vX.Y_release),
+# customer-isolated Frontier branch (v<BasePatch>-frontier-<id>), or release tag (vX.Y.Z)
+# used to build gcsfuse. Defaults to "v${GCSFUSE_VERSION}".
 ARG BRANCH_NAME="v${GCSFUSE_VERSION}"
 ARG GCSFUSE_PATH="/go/gcsfuse"
 ARG GCSFUSE_BIN="/gcsfuse_${GCSFUSE_VERSION}_${ARCHITECTURE}"

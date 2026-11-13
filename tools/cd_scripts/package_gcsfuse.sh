@@ -36,7 +36,7 @@ function fetch_meta_data_value() {
 }
 
 architecture=$(dpkg --print-architecture)
-# Fetch metadata value of the key "RELEASE_VERSION"
+# Fetch metadata value of the key "RELEASE_VERSION" (target release tag version, e.g. X.Y.Z or X.Y.Z-frontier-<id>.<revision>)
 RELEASE_VERSION=$(fetch_meta_data_value "RELEASE_VERSION")
 echo RELEASE_VERSION="$RELEASE_VERSION"
 
@@ -48,7 +48,8 @@ echo RELEASE_VERSION_TAG="$RELEASE_VERSION_TAG"
 UPLOAD_BUCKET=$(fetch_meta_data_value "UPLOAD_BUCKET")
 echo UPLOAD_BUCKET="$UPLOAD_BUCKET"
 
-# Fetch metadata value of the key "COMMIT_HASH"
+# Fetch metadata value of the key "COMMIT_HASH" (target commit on the persistent minor release
+# branch vX.Y_release, customer-isolated Frontier branch v<BasePatch>-frontier-<id>, or release tag vX.Y.Z)
 COMMIT_HASH=$(fetch_meta_data_value "COMMIT_HASH")
 echo COMMIT_HASH="$COMMIT_HASH"
 
@@ -70,7 +71,9 @@ sudo apt-get install qemu-user-static binfmt-support
 git clone https://github.com/GoogleCloudPlatform/gcsfuse.git
 cd gcsfuse/tools/package_gcsfuse_docker/
 echo "Building docker for ${architecture} ..."
-# Use Dockerfile from master and pass GCSFUSE_VERSION (release version) and BRANCH_NAME (target commit) to build the package.
+# Use Dockerfile from master and pass GCSFUSE_VERSION (release version) and BRANCH_NAME
+# (target commit on the persistent minor release branch vX.Y_release, customer-isolated
+# Frontier branch v<BasePatch>-frontier-<id>, or release tag vX.Y.Z) to build the package.
 sudo docker buildx build --load . \
   -t gcsfuse-release-${architecture}:"$RELEASE_VERSION_TAG" \
   --build-arg GCSFUSE_VERSION="$RELEASE_VERSION" \
