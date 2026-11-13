@@ -57,6 +57,35 @@ func newInMemoryExporter(t *testing.T) *tracetest.InMemoryExporter {
 	return ex
 }
 
+// newLoopbackServer starts an HTTP server on the IPv4 ("tcp4") or IPv6
+// ("tcp6") loopback address. The remote address of each request is sent on
+// the returned channel. The test is skipped if that loopback address isn't
+// available.
+func newLoopbackServer(t *testing.T, network string) (*httptest.Server, <-chan string) {
+	t.Helper()
+	address := "127.0.0.1:0"
+	if network == "tcp6" {
+		address = "[::1]:0"
+	}
+	listener, err := net.Listen(network, address)
+	if err != nil {
+		t.Skipf("%s loopback address isn't available: %v", network, err)
+	}
+	remoteAddrs := make(chan string, 1)
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case remoteAddrs <- r.RemoteAddr:
+		default:
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	require.NoError(t, server.Listener.Close())
+	server.Listener = listener
+	server.Start()
+	t.Cleanup(server.Close)
+	return server, remoteAddrs
+}
+
 // Tests
 
 func (t *clientTest) TestCreateHttpClientWithHttp1() {
@@ -186,30 +215,70 @@ func (t *clientTest) TestCreateHttpClientWithHttpTracing() {
 }
 
 func (t *clientTest) TestCreateHttpClientWithSocketAddress() {
-	// Start a local server to inspect incoming connections.
-	var remoteAddr string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		remoteAddr = r.RemoteAddr
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-	// Configure the client to use a specific local IP address.
-	sc := GetDefaultStorageClientConfig(keyFile)
-	sc.LocalSocketAddress = "127.0.0.1"
-	// Use a static token to avoid network calls for token acquisition.
-	var tokenSrc = oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"})
-	httpClient, err := CreateHttpClient(&sc, tokenSrc, cfg.HTTP1)
-	require.NoError(t.T(), err)
-	require.NotNil(t.T(), httpClient)
+	for _, tc := range []struct {
+		name               string
+		serverNetwork      string
+		localSocketAddress string
+		wantClientIP       string
+	}{
+		{name: "IPv4", serverNetwork: "tcp4", localSocketAddress: "127.0.0.1", wantClientIP: "127.0.0.1"},
+		{name: "IPv6", serverNetwork: "tcp6", localSocketAddress: "::1", wantClientIP: "::1"},
+		{name: "BracketedIPv6", serverNetwork: "tcp6", localSocketAddress: "[::1]", wantClientIP: "::1"},
+	} {
+		for _, protocol := range []cfg.Protocol{cfg.HTTP1, cfg.HTTP2} {
+			t.Run(tc.name+"/"+string(protocol), func() {
+				// Start a local server to inspect incoming connections.
+				server, remoteAddrs := newLoopbackServer(t.T(), tc.serverNetwork)
+				// Configure the client to use a specific local IP address.
+				sc := GetDefaultStorageClientConfig(keyFile)
+				sc.LocalSocketAddress = tc.localSocketAddress
+				// Use a static token to avoid network calls for token acquisition.
+				tokenSrc := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"})
+				httpClient, err := CreateHttpClient(&sc, tokenSrc, protocol)
+				require.NoError(t.T(), err)
 
-	// Have the client connect to the test server.
-	_, err = httpClient.Get(server.URL)
-	require.NoError(t.T(), err)
+				resp, err := httpClient.Get(server.URL)
 
-	// Verify on the server side that the client's connection originates from the specified IP address.
-	host, _, err := net.SplitHostPort(remoteAddr)
-	require.NoError(t.T(), err)
-	assert.Equal(t.T(), sc.LocalSocketAddress, host)
+				require.NoError(t.T(), err)
+				require.NoError(t.T(), resp.Body.Close())
+				// Verify on the server side that the connection originates from the configured address.
+				host, _, err := net.SplitHostPort(<-remoteAddrs)
+				require.NoError(t.T(), err)
+				assert.Equal(t.T(), tc.wantClientIP, host)
+			})
+		}
+	}
+}
+
+// A client bound to an address of one family must fail to reach a server of
+// the other family, instead of dialing without the local address. On a
+// multi-NIC machine, such a fallback would send traffic out of the wrong NIC.
+func (t *clientTest) TestCreateHttpClientWithSocketAddressDoesNotFallBackToOtherFamily() {
+	for _, tc := range []struct {
+		name               string
+		serverNetwork      string
+		localSocketAddress string
+	}{
+		{name: "IPv6AddressToIPv4Server", serverNetwork: "tcp4", localSocketAddress: "::1"},
+		{name: "IPv4AddressToIPv6Server", serverNetwork: "tcp6", localSocketAddress: "127.0.0.1"},
+	} {
+		t.Run(tc.name, func() {
+			server, _ := newLoopbackServer(t.T(), tc.serverNetwork)
+			// Make sure that the server is reachable without a local address.
+			resp, err := server.Client().Get(server.URL)
+			require.NoError(t.T(), err)
+			require.NoError(t.T(), resp.Body.Close())
+			sc := GetDefaultStorageClientConfig(keyFile)
+			sc.LocalSocketAddress = tc.localSocketAddress
+			tokenSrc := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-token"})
+			httpClient, err := CreateHttpClient(&sc, tokenSrc, cfg.HTTP1)
+			require.NoError(t.T(), err)
+
+			_, err = httpClient.Get(server.URL)
+
+			assert.Error(t.T(), err)
+		})
+	}
 }
 
 func (t *clientTest) TestCreateHttpClientWithInvalidSocketAddress() {
@@ -223,6 +292,54 @@ func (t *clientTest) TestCreateHttpClientWithInvalidSocketAddress() {
 
 	assert.Error(t.T(), err)
 	assert.Nil(t.T(), httpClient)
+}
+
+func (t *clientTest) TestConfigureDialerWithLocalAddr() {
+	for _, tc := range []struct {
+		name          string
+		socketAddress string
+		wantLocalAddr string
+	}{
+		{name: "IPv4", socketAddress: "127.0.0.1", wantLocalAddr: "127.0.0.1:0"},
+		{name: "IPv4WithSurroundingSpaces", socketAddress: " 127.0.0.1 ", wantLocalAddr: "127.0.0.1:0"},
+		{name: "IPv6", socketAddress: "2001:db8::1", wantLocalAddr: "[2001:db8::1]:0"},
+		{name: "BracketedIPv6", socketAddress: "[2001:db8::1]", wantLocalAddr: "[2001:db8::1]:0"},
+		{name: "IPv6WithZone", socketAddress: "fe80::1%eth0", wantLocalAddr: "[fe80::1%eth0]:0"},
+		{name: "BracketedIPv6WithZone", socketAddress: "[fe80::1%eth0]", wantLocalAddr: "[fe80::1%eth0]:0"},
+	} {
+		t.Run(tc.name, func() {
+			dialer := &net.Dialer{}
+
+			err := ConfigureDialerWithLocalAddr(dialer, tc.socketAddress)
+
+			require.NoError(t.T(), err)
+			assert.Equal(t.T(), tc.wantLocalAddr, dialer.LocalAddr.String())
+		})
+	}
+}
+
+func (t *clientTest) TestConfigureDialerWithInvalidLocalAddr() {
+	for _, tc := range []struct {
+		name          string
+		socketAddress string
+	}{
+		{name: "Empty", socketAddress: ""},
+		{name: "OnlySpaces", socketAddress: "   "},
+		{name: "EmptyBrackets", socketAddress: "[]"},
+		{name: "MissingClosingBracket", socketAddress: "[2001:db8::1"},
+		{name: "MissingOpeningBracket", socketAddress: "2001:db8::1]"},
+		{name: "IPv4WithPort", socketAddress: "127.0.0.1:80"},
+		{name: "BracketedIPv6WithPort", socketAddress: "[2001:db8::1]:80"},
+	} {
+		t.Run(tc.name, func() {
+			dialer := &net.Dialer{}
+
+			err := ConfigureDialerWithLocalAddr(dialer, tc.socketAddress)
+
+			assert.Error(t.T(), err)
+			assert.Nil(t.T(), dialer.LocalAddr)
+		})
+	}
 }
 
 func (t *clientTest) TestCreateHttpClientWithS2A_HTTP1() {

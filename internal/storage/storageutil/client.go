@@ -35,11 +35,22 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// ConfigureDialerWithLocalAddr resolves the provided socket address and returns a net.TCPAddr.
-// The port can be 0, in which case the OS will choose a local port.
-// The format of SocketAddress is expected to be IP address.
+// ConfigureDialerWithLocalAddr sets dialer.LocalAddr to the given IPv4 or IPv6
+// address, so that all connections made with the dialer originate from it.
+// IPv6 addresses may be bracketed ("[2001:db8::1]") or not ("2001:db8::1"),
+// and may carry a zone ("fe80::1%eth0"). The port is set to 0, so the OS
+// picks an ephemeral local port.
 func ConfigureDialerWithLocalAddr(dialer *net.Dialer, socketAddress string) error {
-	localAddr, err := net.ResolveTCPAddr("tcp", socketAddress+":0")
+	host := strings.TrimSpace(socketAddress)
+	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
+		host = host[1 : len(host)-1]
+	}
+	if host == "" {
+		return fmt.Errorf("failed to resolve socket address %q: empty address", socketAddress)
+	}
+	// JoinHostPort brackets IPv6 hosts. Appending ":0" to an unbracketed IPv6
+	// address fails with "too many colons in address".
+	localAddr, err := net.ResolveTCPAddr("tcp", net.JoinHostPort(host, "0"))
 	if err != nil {
 		return fmt.Errorf("failed to resolve socket address %q: %w", socketAddress, err)
 	}
