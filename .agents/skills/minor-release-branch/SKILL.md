@@ -1,32 +1,46 @@
 ---
 name: gcsfuse-minor-release-branch
-description: End-to-end runbook for cutting and pushing a new GCSFuse minor release branch (v<major>.<minor>.0_release) from master after pre-cut govulncheck and unit test gating (raising master fix PRs first if any vulnerabilities or unit test failures exist).
+description: End-to-end runbook for cutting and pushing a new persistent GCSFuse minor release branch (v<major>.<minor>_release) from master after pre-cut govulncheck and unit test gating (raising master fix PRs first if any vulnerabilities or unit test failures exist).
 ---
 
 # GCSFuse Minor Release Branch Creation Skill
 
-This skill provides a standardized, end-to-end workflow for cutting a new minor release branch (`v<major>.<minor>.0_release`, e.g., `v3.13.0_release`) for GCSFuse from `master` (or a specified commit hash). Before cutting the release branch, it enforces strict pre-cut health gates on `master`:
+This skill provides a standardized, end-to-end workflow for cutting a new persistent minor release branch (`v<major>.<minor>_release`, e.g., `v3.13_release`) for GCSFuse from `master` (or a specified commit hash). Before cutting the release branch, it enforces strict pre-cut health gates on `master`:
 1. **Zero-CVE Gate (`govulncheck`)**: If `govulncheck` detects any vulnerabilities on `master`, do **not** cut the release branch; instead, raise a PR against `master` to remediate the vulnerabilities first.
 2. **Unit Test Gate (`go test`)**: If any unit test fails (unless the user explicitly specifies otherwise), do **not** cut the release branch; instead, raise a PR against `master` to fix the failing unit test(s) first.
-3. **Cut & Push Release Branch**: Only when `master` has zero vulnerabilities and zero unit test failures, cut `v<major>.<minor>.0_release` and push it to `origin`.
+3. **Cut & Push Release Branch**: Only when `master` has zero vulnerabilities and zero unit test failures, cut `v<major>.<minor>_release` and push it to `origin`.
+
+## Persistent Minor Release Branch & 1:1 GKE Minor Locking Model
+
+### 1. Single Persistent Minor Release Branch (`v<major>.<minor>_release`)
+- `v<major>.<minor>_release` is cut **once** from `master` (or a specified `<commit_sha>`) for the entire `<major>.<minor>` release series (e.g., `v3.13_release`).
+- The initial release tag created by the CD pipeline from this branch is `v<major>.<minor>.0` (e.g., `v3.13.0`), and all subsequent patch releases (`v<major>.<minor>.1`, `v<major>.<minor>.2`, ...) land directly on `v<major>.<minor>_release`.
+- A `v<major>.<minor>_release` branch reaches End of Life (EOL) 2 years after the release of the last GKE minor version that depends on it.
+
+### 2. 1:1 GKE Minor Version Locking & 30-Day Release Handshake
+- **Latest GKE Minor**: Dynamically tracks top-of-tree GCSFuse minor releases (`v<major>.<minor>.x` -> `v<major>.<minor+1>.x`).
+- **Older GKE Minors**: Each older GKE minor version is locked **1:1** to a dedicated `v<major>.<minor>_release` branch. Two GKE minor versions must **never** share the same GCSFuse minor stream.
+- **30-Day GKE Release Notification Handshake**: When GKE gives 30-day notice for an upcoming GKE minor release:
+  1. Lock the outgoing latest GKE minor to its active `v<major>.<minor>_release` branch (enforcing the 4–5 week soak-gated merge rule for functional bug fixes on that branch going forward).
+  2. If no newer GCSFuse minor has been cut since the previous GKE minor launched, cut a new `v<major>.<minor+1>_release` branch (for initial release `v<major>.<minor+1>.0`) from `master` for the incoming latest GKE minor.
 
 ## Related Skills
 - **[GCSFuse Dependency Upgrading Skill](../dep-upgrade/SKILL.md)**: Upgrading Go module dependencies and Go toolchain versions when `govulncheck` detects vulnerabilities on `master`.
 - **[GCSFuse Build and Style Verification Skill](../build/SKILL.md)**: Local compilation, formatting, and static analysis verification via `make build`.
 - **[GCSFuse Pull Request Creation Skill](../pull-request/SKILL.md)**: Raising a PR targeting `master` to fix vulnerabilities or unit test failures discovered during pre-cut verification.
-- **[GCSFuse Release Branch CVE Patching Skill](../cve-patching/SKILL.md)**: Creating subsequent patch release branches (`v<major>.<minor>.<N+1>_release` from `v<major>.<minor>.<N>_release`) and remediating CVEs on existing release streams.
+- **[GCSFuse Release Branch CVE Patching & Backport Skill](../cve-patching/SKILL.md)**: Applying zero-soak CVE remediations and soak-gated functional bug-fix backports onto persistent `v<major>.<minor>_release` branches (for patch releases `v<major>.<minor>.<N+1>`).
 
 ```mermaid
 flowchart TD
-    A["1. Fetch Tags & Remote Release Branches"] --> B["2. Determine Next Minor Version (vX.Y.0_release) & Target Commit"]
-    B --> C["3. Verify No Existing Tag/Branch Conflict"]
+    A["1. Fetch Tags & Remote Release Branches (origin/v*_release)"] --> B["2. Determine Next Minor Branch (v<major>.<minor>_release) & Target Commit"]
+    B --> C["3. Verify No Existing Tag/Branch Conflict (v<major>.<minor>_release, v<major>.<minor>.0)"]
     C --> D["4. Run govulncheck on Target Commit (Binary + Module Scan)"]
     D --> E{"Vulnerabilities Found?"}
     E -- "Yes" --> F["Stop Release Cut: Raise PR to Fix CVEs on master"]
     E -- "No (0 CVEs)" --> G["5. Run Build & Unit Tests"]
     G --> H{"Unit Test Failures?"}
     H -- "Yes (Unless User Overrides)" --> I["Stop Release Cut: Raise PR to Fix Unit Tests on master"]
-    H -- "No (All Pass)" --> J["6. Cut vX.Y.0_release & Push to origin"]
+    H -- "No (All Pass)" --> J["6. Cut v<major>.<minor>_release & Push to origin"]
 ```
 
 ---
@@ -39,29 +53,32 @@ Always start by synchronizing local refs with `origin`:
 git fetch origin --tags --prune
 ```
 
-### 1.2 Determine the Next Minor Release Version (`v<major>.<minor>.0`)
-1. **If the user explicitly specifies a target minor version** (e.g., `v3.13`, `3.13`, or `v3.13.0`), normalize it to:
-   - **Release version**: `v<major>.<minor>.0` (e.g., `v3.13.0`)
-   - **Release branch**: `v<major>.<minor>.0_release` (e.g., `v3.13.0_release`)
+### 1.2 Determine the Next Minor Release Branch (`v<major>.<minor>_release`)
+1. **If the user explicitly specifies a target minor version** (e.g., `v3.13`, `3.13`, `v3.13.0`, or `v3.13_release`), normalize it to:
+   - **Initial release version / tag**: `v<major>.<minor>.0` (e.g., `v3.13.0`)
+   - **Persistent minor release branch**: `v<major>.<minor>_release` (e.g., `v3.13_release`)
 
-2. **If the user does not specify a version**, discover the highest existing `<major>.<minor>` release stream from tags and remote `*_release` branches:
+2. **If the user does not specify a version**, discover the highest existing `<major>.<minor>` release stream from tags and remote `v*_release` branches:
    ```bash
    git tag -l "v*.*.*" --sort=-v:refname | head -n 20
-   git branch -r --list "origin/v*.*.*_release" --sort=-v:refname | head -n 20
+   git branch -r --list "origin/v*_release" --sort=-v:refname | head -n 20
    ```
-   Increment `<minor>` by `1` and set the patch version to `0`:
-   - Latest minor stream: `v<major>.<M>.*` (e.g., `v3.12.1`)
-   - Next minor release version: `v<major>.<M+1>.0` (e.g., `v3.13.0`)
-   - Next minor release branch: `v<major>.<M+1>.0_release` (e.g., `v3.13.0_release`)
+   Increment `<minor>` by `1` and set the initial patch version to `0`:
+   - Latest minor stream: `v<major>.<M>_release` / `v<major>.<M>.*` (e.g., `v3.12_release` / `v3.12.1`)
+   - Next minor initial release version: `v<major>.<M+1>.0` (e.g., `v3.13.0`)
+   - Next minor release branch: `v<major>.<M+1>_release` (e.g., `v3.13_release`)
 
 3. **Check for Existing Tag or Branch Conflicts**:
-   Verify that neither the release tag nor the remote/local release branch already exists:
+   Verify that neither `refs/heads/v<major>.<minor>_release` nor `refs/tags/v<major>.<minor>.0` already exists on `origin` (or locally):
    ```bash
+   git ls-remote origin \
+     "refs/heads/v<major>.<minor>_release" \
+     "refs/tags/v<major>.<minor>.0"
    git tag -l "v<major>.<minor>.0"
-   git branch -a --list "*v<major>.<minor>.0_release"
+   git branch -a --list "*v<major>.<minor>_release"
    ```
    > [!IMPORTANT]
-   > If `v<major>.<minor>.0` or `origin/v<major>.<minor>.0_release` already exists, **stop immediately** and ask the user whether they meant to cut the next minor version (`v<major>.<minor+1>.0_release`) or a patch release branch (`v<major>.<minor>.<N+1>_release`).
+   > If `origin/v<major>.<minor>_release` or `refs/tags/v<major>.<minor>.0` already exists on `origin`, **stop immediately** and ask the user whether they meant to cut the next minor branch (`v<major>.<minor+1>_release`) or apply a patch/backport onto the existing `v<major>.<minor>_release` branch.
 
 ### 1.3 Identify and Checkout the Target Source Commit
 1. Determine the source commit on `master`:
@@ -114,16 +131,16 @@ govulncheck ./...
 
 ### 2.4 Gate Action: If Vulnerabilities Are Found, Fix `master` First
 > [!IMPORTANT]
-> **Do NOT cut `v<major>.<minor>.0_release` if `govulncheck` reports any fixable `stdlib` or module vulnerabilities (`Fixed in: vX.Y.Z`).**
+> **Do NOT cut `v<major>.<minor>_release` if `govulncheck` reports any fixable `stdlib` or module vulnerabilities (`Fixed in: vX.Y.Z`).**
 > Because a new minor release branch is cut from `master`, `master` itself must be remediated first.
 
 If vulnerabilities are detected:
-1. **Stop the release branch creation workflow.** Do not create or push `v<major>.<minor>.0_release`.
+1. **Stop the release branch creation workflow.** Do not create or push `v<major>.<minor>_release`.
 2. Create a remediation branch from `origin/master` (e.g., `git checkout -b fix-cve-master origin/master`).
 3. Follow the [GCSFuse Dependency Upgrading Skill](../dep-upgrade/SKILL.md) to upgrade the affected Go modules and/or Go toolchain across the repository (remembering to ask the user for confirmation before upgrading the Go compiler version or performing a major module version upgrade).
 4. Re-verify that both `govulncheck -mode=binary` (built with the updated `.go-version` toolchain) and `govulncheck ./...` report `0` vulnerabilities, and verify compilation and unit tests pass.
 5. Push the remediation branch and **raise a Pull Request targeting `master`** following the [GCSFuse Pull Request Creation Skill](../pull-request/SKILL.md) (including the `execute-integration-tests` and `execute-perf-test` labels).
-6. Report the PR link to the user and stop; the minor release branch should be cut after the `master` remediation PR is merged.
+6. Report the PR link to the user and stop; the `v<major>.<minor>_release` branch should be cut after the `master` remediation PR is merged.
 
 ---
 
@@ -151,14 +168,14 @@ CGO_ENABLED=0 go test ./...
 
 ### 3.3 Gate Action: If Unit Tests Fail, Raise a PR to Fix `master` First
 > [!IMPORTANT]
-> **Do NOT cut `v<major>.<minor>.0_release` if unit test failures are detected**, unless the user has explicitly instructed to ignore or bypass specific test failures.
+> **Do NOT cut `v<major>.<minor>_release` if unit test failures are detected**, unless the user has explicitly instructed to ignore or bypass specific test failures.
 
 If one or more unit tests fail (and no user override was given):
-1. **Stop the release branch creation workflow.** Do not create or push `v<major>.<minor>.0_release`.
+1. **Stop the release branch creation workflow.** Do not create or push `v<major>.<minor>_release`.
 2. Create a bug-fix branch from `origin/master` (e.g., `git checkout -b fix-unit-tests-master origin/master`).
 3. Diagnose and fix the failing unit test(s) or underlying regression, and re-run `make build` and the unit tests until they pass cleanly.
 4. Push the fix branch and **raise a Pull Request targeting `master`** following the [GCSFuse Pull Request Creation Skill](../pull-request/SKILL.md).
-5. Report the failing test details and PR link to the user and stop; the minor release branch should be cut once the fix PR is merged into `master`.
+5. Report the failing test details and PR link to the user and stop; the `v<major>.<minor>_release` branch should be cut once the fix PR is merged into `master`.
 
 ---
 
@@ -172,21 +189,21 @@ Proceed to this phase **only when both Phase 2 (`govulncheck` = 0 vulnerabilitie
    git status --porcelain
    ```
 
-2. **Create the Minor Release Branch (`v<major>.<minor>.0_release`)**:
-   Create and check out `v<major>.<minor>.0_release` pointing to `<target_commit>`:
+2. **Create the Minor Release Branch (`v<major>.<minor>_release`)**:
+   Create and check out `v<major>.<minor>_release` pointing to `<target_commit>`:
    ```bash
-   git checkout -b v<major>.<minor>.0_release <target_commit>
+   git checkout -b v<major>.<minor>_release <target_commit>
    ```
    Confirm that `HEAD` matches `<target_commit>` exactly:
    ```bash
    git rev-parse HEAD
    ```
 
-3. **Push `v<major>.<minor>.0_release` to `origin`**:
-   Push the new minor release branch to `origin` and verify the remote ref:
+3. **Push `v<major>.<minor>_release` to `origin`**:
+   Push the new persistent minor release branch to `origin` and verify the remote ref:
    ```bash
-   git push -u origin v<major>.<minor>.0_release
-   git ls-remote --heads origin v<major>.<minor>.0_release
+   git push -u origin v<major>.<minor>_release
+   git ls-remote --heads origin v<major>.<minor>_release
    ```
 
 ---
@@ -194,10 +211,10 @@ Proceed to this phase **only when both Phase 2 (`govulncheck` = 0 vulnerabilitie
 ## Verification Checklist
 
 Before completing the task, verify the following:
-- [ ] Latest tags and `origin/v*.*.*_release` branches were fetched and inspected to determine `v<major>.<minor>.0_release` with no naming collisions.
+- [ ] Latest tags and `origin/v*_release` branches were fetched and inspected to determine `v<major>.<minor>_release`, and verified that neither `refs/heads/v<major>.<minor>_release` nor `refs/tags/v<major>.<minor>.0` already existed on `origin`.
 - [ ] Target commit `<target_commit>` was verified as a valid commit on `origin/master`.
 - [ ] `govulncheck -mode=binary` (built with the branch's `.go-version` Go toolchain) and `govulncheck ./...` were executed:
-  - If vulnerabilities were found: `v<major>.<minor>.0_release` was **not** created, and a PR fixing `master` was raised instead.
+  - If vulnerabilities were found: `v<major>.<minor>_release` was **not** created, and a PR fixing `master` was raised instead.
 - [ ] Build (`make build` or `go build ./...`) and unit tests (`go test`) were executed:
-  - If unit tests failed (without user override): `v<major>.<minor>.0_release` was **not** created, and a PR fixing `master` was raised instead.
-- [ ] Only if `0` vulnerabilities and `0` unit test failures were found: `v<major>.<minor>.0_release` was created from `<target_commit>` and pushed to `origin` (unless the user explicitly requested local-only).
+  - If unit tests failed (without user override): `v<major>.<minor>_release` was **not** created, and a PR fixing `master` was raised instead.
+- [ ] Only if `0` vulnerabilities and `0` unit test failures were found: `v<major>.<minor>_release` was created from `<target_commit>` and pushed to `origin` (unless the user explicitly requested local-only).
