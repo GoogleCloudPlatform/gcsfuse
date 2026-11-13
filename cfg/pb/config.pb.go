@@ -1598,7 +1598,7 @@ const file_cfg_config_proto_rawDesc = "" +
 	"\x1bis_gcs_auth_s2a_address_set\x18\xa0\x01 \x01(\bR\x16isGcsAuthS2aAddressSet\x12?\n" +
 	"\x1dis_gcs_auth_s2a_spiffe_id_set\x18\xa1\x01 \x01(\bR\x17isGcsAuthS2aSpiffeIdSet\x12+\n" +
 	"\x11write_rapid_write\x18\xa2\x01 \x01(\tR\x0fwriteRapidWrite\x12Y\n" +
-	")write_experimental_enable_parallel_upload\x18\xa3\x01 \x01(\bR%writeExperimentalEnableParallelUploadJ\x04\b/\x100J\x06\b\x9a\x01\x10\x9b\x01B2Z0github.com/googlecloudplatform/gcsfuse/v3/cfg/pbb\x06proto3"
+	")write_experimental_enable_parallel_upload\x18\xa3\x01 \x01(\bR%writeExperimentalEnableParallelUploadJ\x04\b/\x100J\x06\b\x9a\x01\x10\x9b\x01B2Z0github.com/googlecloudplatform/gcsfuse/v4/cfg/pbb\x06proto3"
 
 var (
 	file_cfg_config_proto_rawDescOnce sync.Once

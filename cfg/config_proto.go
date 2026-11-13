@@ -21,7 +21,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg/pb"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg/pb"
 	"google.golang.org/protobuf/proto"
 )
 

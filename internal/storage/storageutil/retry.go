@@ -21,7 +21,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
 )
 
 const (

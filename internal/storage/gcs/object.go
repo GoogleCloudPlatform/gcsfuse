@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
 	storagev1 "google.golang.org/api/storage/v1"
 )
 

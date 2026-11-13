@@ -26,8 +26,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"cloud.google.com/go/compute/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/operations"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/operations"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/setup"
 	gcpProfiler "google.golang.org/api/cloudprofiler/v2"
 	"google.golang.org/api/option"
 )

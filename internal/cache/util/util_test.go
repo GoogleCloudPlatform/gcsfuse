@@ -28,8 +28,8 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
-	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/data"
+	testutil "github.com/googlecloudplatform/gcsfuse/v4/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
 )
 
 // Octal is the datatype for params such as file-mode and dir-mode which accept a base-8 value.
@@ -52,6 +52,10 @@ const (
 func (p *Protocol) UnmarshalText(text []byte) error {
 	txtStr := string(text)
 	protocol := strings.ToLower(txtStr)
+	if protocol == "" {
+		*p = ""
+		return nil
+	}
 	v := []string{"http1", "http2", "grpc", "httpmtls"}
 	if !slices.Contains(v, protocol) {
 		return fmt.Errorf("invalid protocol value: %s. It can only accept values in the list: %v", txtStr, v)

@@ -18,7 +18,7 @@ import (
 	"context"
 	"sync/atomic"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 )
 
 // Outcomes of individual stat-cache reads, OR-ed into CacheReads.reads.

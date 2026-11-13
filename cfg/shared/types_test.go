@@ -24,9 +24,11 @@ import (
 
 func TestBucketTypeListUnmarshalYAML(t *testing.T) {
 	testCases := []struct {
-		name     string
-		yaml     string
-		expected BucketTypeList
+		name               string
+		yaml               string
+		expected           BucketTypeList
+		expectedConditions map[string]any
+		expectedValue      any
 	}{
 		{
 			name:     "Scalar string single",
@@ -43,6 +45,20 @@ func TestBucketTypeListUnmarshalYAML(t *testing.T) {
 			yaml:     `bucket-type: " zonal , rcu , flat "`,
 			expected: BucketTypeList{"zonal", "rcu", "flat"},
 		},
+		{
+			name: "With conditions and value",
+			yaml: `
+bucket-type: "rcu"
+conditions:
+  write.rapid-write: "enabled"
+value: 4
+`,
+			expected: BucketTypeList{"rcu"},
+			expectedConditions: map[string]any{
+				"write.rapid-write": "enabled",
+			},
+			expectedValue: 4,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -51,6 +67,8 @@ func TestBucketTypeListUnmarshalYAML(t *testing.T) {
 			err := yaml.Unmarshal([]byte(tc.yaml), &bto)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, bto.BucketTypes)
+			assert.Equal(t, tc.expectedConditions, bto.Conditions)
+			assert.Equal(t, tc.expectedValue, bto.Value)
 		})
 	}
 }
