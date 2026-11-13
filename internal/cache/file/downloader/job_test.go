@@ -57,6 +57,7 @@ func (dt *downloaderTest) initJobTest(objectName string, objectContent []byte, s
 	dt.require.NoError(err)
 	dt.object = getMinObject(objectName, dt.bucket)
 	dt.fileSpec = data.FileSpec{
+		RootDir:  dt.cacheDir,
 		Path:     dt.fileCachePath(dt.bucket.Name(), dt.object.Name),
 		FilePerm: util.DefaultFilePerm,
 		DirPerm:  util.DefaultDirPerm,
@@ -360,7 +361,7 @@ func Test_downloadObjectToFile(t *testing.T) {
 	// Add subscriber
 	subscribedOffset := int64(6 * util.MiB)
 	notificationC := dt.job.subscribe(subscribedOffset)
-	file, err := util.CreateFile(data.FileSpec{Path: dt.job.fileSpec.Path,
+	file, err := util.CreateFile(data.FileSpec{RootDir: dt.job.fileSpec.RootDir, Path: dt.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
 	dt.require.NoError(err)
 	defer func() {
@@ -391,7 +392,7 @@ func Test_downloadObjectToFile_CtxCancelled(t *testing.T) {
 	objectContent := testutil.GenerateRandomBytes(objectSize)
 	dt.initJobTest(objectName, objectContent, DefaultSequentialReadSizeMb, uint64(objectSize*2), func() {})
 	dt.job.cancelCtx, dt.job.cancelFunc = context.WithCancel(context.Background())
-	file, err := util.CreateFile(data.FileSpec{Path: dt.job.fileSpec.Path,
+	file, err := util.CreateFile(data.FileSpec{RootDir: dt.job.fileSpec.RootDir, Path: dt.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
 	dt.require.NoError(err)
 	defer func() {

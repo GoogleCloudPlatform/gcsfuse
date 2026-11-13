@@ -56,19 +56,31 @@ const (
 // CreateFile creates file with given file spec i.e. permissions and returns
 // file handle for that file opened with given flag.
 //
-// Note: If directories in path are not present, they are created with directory permissions provided in fileSpec
-// permission.
+// RootDir must be a trusted cache root. Missing directories beneath it are
+// created with the supplied permissions, without following escaping symlinks.
 func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
+	if fileSpec.RootDir == "" {
+		return nil, errors.New("cache root directory is required")
+	}
+	if err = os.MkdirAll(fileSpec.RootDir, fileSpec.DirPerm); err != nil {
+		return nil, fmt.Errorf("error creating cache root %s: %w", fileSpec.RootDir, err)
+	}
+	root, relativePath, err := OpenCachePath(fileSpec.RootDir, fileSpec.Path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = root.Close() }()
+
 	// Create directory structure if not present
-	fileDir := filepath.Dir(fileSpec.Path)
-	err = os.MkdirAll(fileDir, fileSpec.DirPerm)
+	fileDir := filepath.Dir(relativePath)
+	err = root.MkdirAll(fileDir, fileSpec.DirPerm)
 	if err != nil {
 		err = fmt.Errorf("error in creating directory structure %s: %w", fileDir, err)
 		return
 	}
 
 	// Create file if not present.
-	_, err = os.Stat(fileSpec.Path)
+	_, err = root.Stat(relativePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			flag = flag | os.O_CREATE
@@ -77,12 +89,63 @@ func CreateFile(fileSpec data.FileSpec, flag int) (file *os.File, err error) {
 			return
 		}
 	}
-	file, err = os.OpenFile(fileSpec.Path, flag, fileSpec.FilePerm)
+	file, err = root.OpenFile(relativePath, flag, fileSpec.FilePerm)
 	if err != nil {
 		err = fmt.Errorf("error in creating file %s: %w", fileSpec.Path, err)
 		return
 	}
 	return
+}
+
+// OpenCachePath pins the configured cache root and returns a root-relative name.
+// The configured root itself may be a symlink, but operations on the returned
+// root cannot follow intermediate or final symlinks outside that directory.
+func OpenCachePath(cacheDir, filePath string) (*os.Root, string, error) {
+	relativePath, err := relativeCachePath(cacheDir, filePath)
+	if err != nil {
+		return nil, "", err
+	}
+	root, err := os.OpenRoot(cacheDir)
+	if err != nil {
+		return nil, "", fmt.Errorf("open cache root %s: %w", cacheDir, err)
+	}
+	return root, relativePath, nil
+}
+
+func relativeCachePath(cacheDir, filePath string) (string, error) {
+	if cacheDir == "" {
+		return "", errors.New("cache root directory is required")
+	}
+	relativePath, err := filepath.Rel(filepath.Clean(cacheDir), filepath.Clean(filePath))
+	if err != nil {
+		return "", fmt.Errorf("resolve cache path %s: %w", filePath, err)
+	}
+	if relativePath == "." || relativePath == ".." || filepath.IsAbs(relativePath) ||
+		strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("resolved path %s is outside cache directory %s", filePath, cacheDir)
+	}
+	return relativePath, nil
+}
+
+// OpenFile opens an existing cache file without creating it or following
+// symlinks outside FileSpec.RootDir.
+func OpenFile(fileSpec data.FileSpec, flag int) (*os.File, error) {
+	root, relativePath, err := OpenCachePath(fileSpec.RootDir, fileSpec.Path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = root.Close() }()
+	return root.OpenFile(relativePath, flag, fileSpec.FilePerm)
+}
+
+// StatFile returns metadata without following symlinks outside the cache root.
+func StatFile(cacheDir, filePath string) (os.FileInfo, error) {
+	root, relativePath, err := OpenCachePath(cacheDir, filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = root.Close() }()
+	return root.Stat(relativePath)
 }
 
 // GetObjectPath gives object path which is concatenation of bucket and object
@@ -97,13 +160,8 @@ func GetDownloadPath(cacheDir string, objectPath string) (string, error) {
 	cleanCacheDir := filepath.Clean(cacheDir)
 	resolvedPath := filepath.Join(cleanCacheDir, objectPath)
 
-	prefix := cleanCacheDir
-	if !strings.HasSuffix(prefix, string(filepath.Separator)) {
-		prefix += string(filepath.Separator)
-	}
-
-	if !strings.HasPrefix(resolvedPath, prefix) || resolvedPath == cleanCacheDir {
-		return "", fmt.Errorf("resolved path %s is outside cache directory %s", resolvedPath, cleanCacheDir)
+	if _, err := relativeCachePath(cacheDir, resolvedPath); err != nil {
+		return "", err
 	}
 
 	return resolvedPath, nil
@@ -181,20 +239,38 @@ func CalculateFileCRC32(ctx context.Context, filePath string) (uint32, error) {
 	return calculateCRC32(ctx, file)
 }
 
+// CalculateCacheFileCRC32 reads only files confined to the specified cache root.
+func CalculateCacheFileCRC32(ctx context.Context, fileSpec data.FileSpec) (uint32, error) {
+	file, err := OpenFile(fileSpec, os.O_RDONLY)
+	if err != nil {
+		return 0, fmt.Errorf("open cache file for CRC: %w", err)
+	}
+	checksum, readErr := calculateCRC32(ctx, file)
+	if err = errors.Join(readErr, file.Close()); err != nil {
+		return 0, err
+	}
+	return checksum, nil
+}
+
 // TruncateAndRemoveFile first truncates the file to 0 and then remove (delete)
 // the file at given path.
-func TruncateAndRemoveFile(filePath string) error {
+func TruncateAndRemoveFile(cacheDir, filePath string) error {
+	root, relativePath, err := OpenCachePath(cacheDir, filePath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
 	// Truncate the file to 0 size, so that even if there are open file handles
 	// and linux doesn't delete the file, the file will not take space.
-	err := os.Truncate(filePath, 0)
+	file, err := root.OpenFile(relativePath, os.O_WRONLY, 0)
 	if err != nil {
 		return err
 	}
-	err = os.Remove(filePath)
+	err = errors.Join(file.Truncate(0), file.Close())
 	if err != nil {
 		return err
 	}
-	return nil
+	return root.Remove(relativePath)
 }
 
 // GetMemoryAlignedBuffer creates a buffer([]byte) of size bufferSize aligned to

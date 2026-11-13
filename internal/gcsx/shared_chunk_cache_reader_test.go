@@ -19,6 +19,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -173,6 +174,56 @@ func (t *sharedChunkCacheReaderTest) TestReadAt_CacheHit() {
 	require.NoError(t.T(), err)
 	modTimeAfterCacheHit := fileInfoAfterCacheHit.ModTime()
 	assert.Equal(t.T(), modTimeBeforeCacheHit, modTimeAfterCacheHit, "Cache hit: chunk file should not be re-downloaded")
+}
+
+func (t *sharedChunkCacheReaderTest) TestReadAtRejectsChunkSymlinkEscape() {
+	outsidePath := filepath.Join(t.T().TempDir(), "outside-chunk")
+	contents := bytes.Repeat([]byte{0xff}, testObjectSize)
+	require.NoError(t.T(), os.WriteFile(outsidePath, contents, 0600))
+	chunkPath := t.manager.GetChunkPath(t.bucket.Name(), t.object.Name, t.object.Generation, 0)
+	require.NoError(t.T(), os.MkdirAll(filepath.Dir(chunkPath), 0700))
+	require.NoError(t.T(), os.Symlink(outsidePath, chunkPath))
+	buffer := make([]byte, 100)
+
+	response, err := t.reader.ReadAt(t.ctx, &ReadRequest{Buffer: buffer})
+
+	require.ErrorIs(t.T(), err, FallbackToAnotherReader)
+	assert.Zero(t.T(), response.Size)
+	assert.Equal(t.T(), make([]byte, len(buffer)), buffer)
+	actual, err := os.ReadFile(outsidePath)
+	require.NoError(t.T(), err)
+	assert.True(t.T(), bytes.Equal(contents, actual))
+}
+
+func (t *sharedChunkCacheReaderTest) TestReadAtRejectsObjectDirectorySymlinkEscape() {
+	outsideDir := t.T().TempDir()
+	objectDir := t.manager.GetObjectDir(t.bucket.Name(), t.object.Name, t.object.Generation)
+	require.NoError(t.T(), os.MkdirAll(filepath.Dir(objectDir), 0700))
+	require.NoError(t.T(), os.Symlink(outsideDir, objectDir))
+
+	response, err := t.reader.ReadAt(t.ctx, &ReadRequest{Buffer: make([]byte, 100)})
+
+	require.ErrorIs(t.T(), err, FallbackToAnotherReader)
+	assert.Zero(t.T(), response.Size)
+	entries, err := os.ReadDir(outsideDir)
+	require.NoError(t.T(), err)
+	assert.Empty(t.T(), entries)
+}
+
+func (t *sharedChunkCacheReaderTest) TestReadAtSupportsConfiguredRootSymlink() {
+	realRoot := t.T().TempDir()
+	cacheRoot := filepath.Join(t.T().TempDir(), "cache")
+	require.NoError(t.T(), os.Symlink(realRoot, cacheRoot))
+	manager, err := file.NewSharedChunkCacheManager(cacheRoot, 0600, 0700, &cfg.FileCacheConfig{SharedCacheChunkSizeMb: testChunkSizeMB})
+	require.NoError(t.T(), err)
+	reader := NewSharedChunkCacheReader(manager, t.bucket, t.object, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 0)
+	buffer := make([]byte, 100)
+
+	response, err := reader.ReadAt(t.ctx, &ReadRequest{Buffer: buffer})
+
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), len(buffer), response.Size)
+	assert.Equal(t.T(), t.objectData[:len(buffer)], buffer)
 }
 
 func (t *sharedChunkCacheReaderTest) TestReadAt_AcrossChunkBoundary() {
