@@ -544,8 +544,11 @@ func TestDummyMultiRangeDownloader_Add_MultipleConcurrent(t *testing.T) {
 	numAdds := 5
 	errChan := make(chan error, numAdds)
 
+	var addWg sync.WaitGroup
+	addWg.Add(numAdds)
 	for i := 0; i < numAdds; i++ {
 		go func(i int) {
+			defer addWg.Done()
 			var output bytes.Buffer
 			length := int64(100 + i*10)
 			offset := int64(50 + i*100)
@@ -574,6 +577,7 @@ func TestDummyMultiRangeDownloader_Add_MultipleConcurrent(t *testing.T) {
 			})
 		}(i)
 	}
+	addWg.Wait()
 	mrd.Wait() // Wait for all Add goroutines to finish writing
 
 	for i := 0; i < numAdds; i++ {
