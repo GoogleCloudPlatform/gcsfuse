@@ -21,6 +21,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -32,7 +33,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/kernel_readers"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
@@ -41,6 +41,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/sync/semaphore"
 )
@@ -109,7 +110,7 @@ type FileInode struct {
 
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
-	mu locker.RWLocker
+	mu sync.RWMutex
 
 	// GUARDED_BY(mu)
 	lc lookupCount
@@ -217,7 +218,9 @@ func NewFileInode(
 		f.kernelRangeReaderInstance = kernel_readers.NewKernelRangeReaderInstance(&minObj)
 	}
 
-	f.mu = locker.NewRW("FileInode", f.checkInvariants)
+	if syncutil.InvariantCheckingEnabled() {
+		f.checkInvariants()
+	}
 
 	return
 }
@@ -431,9 +434,15 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 
 func (f *FileInode) Lock() {
 	f.mu.Lock()
+	if syncutil.InvariantCheckingEnabled() {
+		f.checkInvariants()
+	}
 }
 
 func (f *FileInode) Unlock() {
+	if syncutil.InvariantCheckingEnabled() {
+		f.checkInvariants()
+	}
 	f.mu.Unlock()
 }
 
