@@ -41,6 +41,7 @@ import (
 	"os/exec"
 	"path"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -76,36 +77,43 @@ func buildBinaries(dstDir, srcDir, version, arch string, buildArgs []string) (er
 		return
 	}
 
-	// Create a directory to become GOPATH for our build below.
-	gopath, err := os.MkdirTemp("", "build_gcsfuse_gopath")
-	if err != nil {
-		err = fmt.Errorf("TempDir: %w", err)
-		return
-	}
-	defer os.RemoveAll(gopath)
+	useBuildCache, err := strconv.ParseBool(os.Getenv("GCSFUSE_USE_BUILD_CACHE"))
+	clean := err != nil || !useBuildCache
 
-	// Create a directory to become GOCACHE for our build below.
+	var gopath string
 	var gocache string
-	gocache, err = os.MkdirTemp("", "build_gcsfuse_gocache")
-	if err != nil {
-		err = fmt.Errorf("TempDir: %w", err)
-		return
-	}
-	defer os.RemoveAll(gocache)
 
-	// Make it appear as if the source directory is at the appropriate position
-	// in $GOPATH.
-	gcsfuseDir := path.Join(gopath, "src/github.com/googlecloudplatform/gcsfuse")
-	err = os.MkdirAll(path.Dir(gcsfuseDir), 0700)
-	if err != nil {
-		err = fmt.Errorf("MkdirAll: %w", err)
-		return
-	}
+	if clean {
+		// Create a directory to become GOPATH for our build below.
+		gopath, err = os.MkdirTemp("", "build_gcsfuse_gopath")
+		if err != nil {
+			err = fmt.Errorf("TempDir: %w", err)
+			return
+		}
+		defer func() { _ = os.RemoveAll(gopath) }()
 
-	err = os.Symlink(srcDir, gcsfuseDir)
-	if err != nil {
-		err = fmt.Errorf("symlink: %w", err)
-		return
+		// Create a directory to become GOCACHE for our build below.
+		gocache, err = os.MkdirTemp("", "build_gcsfuse_gocache")
+		if err != nil {
+			err = fmt.Errorf("TempDir: %w", err)
+			return
+		}
+		defer func() { _ = os.RemoveAll(gocache) }()
+
+		// Make it appear as if the source directory is at the appropriate position
+		// in $GOPATH.
+		gcsfuseDir := path.Join(gopath, "src/github.com/googlecloudplatform/gcsfuse")
+		err = os.MkdirAll(path.Dir(gcsfuseDir), 0700)
+		if err != nil {
+			err = fmt.Errorf("MkdirAll: %w", err)
+			return
+		}
+
+		err = os.Symlink(srcDir, gcsfuseDir)
+		if err != nil {
+			err = fmt.Errorf("symlink: %w", err)
+			return
+		}
 	}
 
 	// mount(8) expects a different name format on Linux.
