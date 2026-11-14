@@ -137,16 +137,16 @@ func (gr *GCSReader) ReadAt(ctx context.Context, readRequest *gcsx.ReadRequest) 
 		retryResp, err = gr.read(ctx, gcsReaderRequest)
 		if len(readResponse.Data) > 0 || len(retryResp.Data) > 0 || readResponse.Callback != nil || retryResp.Callback != nil {
 			if len(readResponse.Data) == 0 && readResponse.Size > 0 {
-				readResponse.Data = [][]byte{readRequest.Buffer[:readResponse.Size]}
+				readResponse.Data = [][]byte{readRequest.Buffer[:readResponse.Size:readResponse.Size]}
 			}
 			if len(retryResp.Data) == 0 && retryResp.Size > 0 {
-				retryResp.Data = [][]byte{gcsReaderRequest.Buffer[:retryResp.Size]}
+				retryResp.Data = [][]byte{gcsReaderRequest.Buffer[:retryResp.Size:retryResp.Size]}
 			}
 			if totalSlices := len(readResponse.Data) + len(retryResp.Data); totalSlices > 0 {
 				combined := make([][]byte, 0, totalSlices)
 				combined = append(combined, readResponse.Data...)
 				combined = append(combined, retryResp.Data...)
-				readResponse.Data = combined
+				readResponse.Data = combined[:len(combined):len(combined)]
 			}
 			cb1, cb2 := readResponse.Callback, retryResp.Callback
 			readResponse.Callback = func() {

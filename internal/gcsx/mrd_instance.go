@@ -861,11 +861,11 @@ func (c *MrdPrefetchChunk) Slice(relStart, relEnd int) (ReadResponse, bool) {
 		if relEnd < sEnd {
 			subEnd = relEnd - pos
 		}
-		out = append(out, s[subStart:subEnd])
+		out = append(out, s[subStart:subEnd:subEnd])
 		pos = sEnd
 	}
 	return ReadResponse{
-		Data:     out,
+		Data:     out[:len(out):len(out)],
 		Size:     want,
 		Callback: c.releaseF,
 	}, true

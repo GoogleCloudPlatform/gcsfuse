@@ -1177,3 +1177,64 @@ func (t *MrdInstanceTest) TestReadVectored_PinnedSlicesHaveCappedCapacity() {
 	assert.Equal(t.T(), len(resp.Data[0]), cap(resp.Data[0]), "returned payload slice capacity must be capped to length")
 	resp.Callback()
 }
+
+func (t *MrdInstanceTest) TestMrdPrefetchChunk_Slice_HasCappedCapacityAndDoesNotMutateUnreadTail() {
+	pool := mem.DefaultBufferPool()
+	rawBuf1 := pool.Get(2048)
+	rawBuf2 := pool.Get(2048)
+	copy((*rawBuf1)[:10], "0123456789")
+	copy((*rawBuf2)[:10], "abcdefghij")
+
+	mrd := &customAddMRD{
+		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+			buf1 := mem.NewBuffer(rawBuf1, pool)
+			buf2 := mem.NewBuffer(rawBuf2, pool)
+			if zcw, ok := output.(storagev2.ZeroCopyWriter); ok {
+				_, _ = zcw.WriteZeroCopy((*rawBuf1)[:10], buf1)
+				_, _ = zcw.WriteZeroCopy((*rawBuf2)[:10], buf2)
+			} else {
+				_, _ = output.Write((*rawBuf1)[:10])
+				_, _ = output.Write((*rawBuf2)[:10])
+			}
+			buf1.Free()
+			buf2.Free()
+			callback(offset, 20, nil)
+		},
+	}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Once()
+
+	chunk, err := t.mrdInstance.StartPrefetchChunk(0, 20, metrics.NewNoopMetrics())
+	assert.NoError(t.T(), err)
+	assert.NoError(t.T(), chunk.Wait(context.Background(), false))
+
+	// Take a mid-chunk sub-range [3, 15) spanning both slices where relStart > 0 and relEnd < c.written.
+	chunk.Retain()
+	resp1, ok := chunk.Slice(3, 15)
+	assert.True(t.T(), ok)
+	assert.Equal(t.T(), 12, resp1.Size)
+	assert.Len(t.T(), resp1.Data, 2)
+	assert.Equal(t.T(), len(resp1.Data), cap(resp1.Data), "outer resp.Data slice capacity must be capped to length")
+	for i, s := range resp1.Data {
+		assert.Equal(t.T(), len(s), cap(s), "inner slice %d capacity must be capped to length", i)
+		// Appending to resp1.Data[i] must allocate a new backing array and NOT overwrite unread tail in chunk.slices.
+		_ = append(s, 'X', 'Y', 'Z')
+	}
+
+	// Verify the unread tail [15, 20) in the chunk was not mutated by the append on resp1.Data[i].
+	chunk.Retain()
+	resp2, ok := chunk.Slice(15, 20)
+	assert.True(t.T(), ok)
+	assert.Equal(t.T(), 5, resp2.Size)
+	assert.Len(t.T(), resp2.Data, 1)
+	assert.Equal(t.T(), len(resp2.Data), cap(resp2.Data))
+	assert.Equal(t.T(), len(resp2.Data[0]), cap(resp2.Data[0]))
+	assert.Equal(t.T(), "fghij", string(resp2.Data[0]))
+
+	if resp1.Callback != nil {
+		resp1.Callback()
+	}
+	if resp2.Callback != nil {
+		resp2.Callback()
+	}
+	chunk.Release()
+}

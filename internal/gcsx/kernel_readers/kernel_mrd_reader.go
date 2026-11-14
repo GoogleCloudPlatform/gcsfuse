@@ -643,7 +643,7 @@ func (kmr *KernelMRDReader) ReadAt(ctx context.Context, req *gcsx.ReadRequest) (
 					kmr.maybeScheduleMorePrefetch(spans[0].epoch)
 				}
 				return gcsx.ReadResponse{
-					Data: combinedData,
+					Data: combinedData[:len(combinedData):len(combinedData)],
 					Size: totalSize,
 					Callback: func() {
 						for _, cb := range callbacks {
