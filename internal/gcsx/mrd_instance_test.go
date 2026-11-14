@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -1019,8 +1020,14 @@ func (t *MrdInstanceTest) TestReadVectored_PartialShortReadWithPinnedBuffers_Cop
 
 	mrd := &customAddMRD{
 		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
-			n, _ := output.Write(pinnedSlice)
-			pool.Put(rawBuf)
+			buf := mem.NewBuffer(rawBuf, pool)
+			var n int
+			if zcw, ok := output.(storagev2.ZeroCopyWriter); ok {
+				n, _ = zcw.WriteZeroCopy(pinnedSlice, buf)
+			} else {
+				n, _ = output.Write(pinnedSlice)
+			}
+			buf.Free()
 			callback(offset, int64(n), outOfRangeErr)
 		},
 	}
@@ -1092,8 +1099,19 @@ func (t *MrdInstanceTest) TestMrdPrefetchChunk_Write_SkipsWhenAbandoned() {
 	assert.Equal(t.T(), len("abandoned payload"), n)
 	assert.Equal(t.T(), 0, chunk.written)
 	assert.Empty(t.T(), chunk.slices)
-	assert.Empty(t.T(), chunk.tokens)
+	assert.Empty(t.T(), chunk.held)
 	assert.Nil(t.T(), chunk.fallback)
+
+	pool := mem.DefaultBufferPool()
+	rawBuf := pool.Get(2048)
+	mb := mem.NewBuffer(rawBuf, pool)
+	n2, err := chunk.WriteZeroCopy((*rawBuf)[:17], mb)
+	mb.Free()
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 17, n2)
+	assert.Equal(t.T(), 0, chunk.written)
+	assert.Empty(t.T(), chunk.slices)
+	assert.Empty(t.T(), chunk.held)
 
 	// Final release from MRD callback returns chunk to pool.
 	chunk.Release()
@@ -1135,8 +1153,14 @@ func (t *MrdInstanceTest) TestReadVectored_PinnedSlicesHaveCappedCapacity() {
 
 	mrd := &customAddMRD{
 		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
-			n, _ := output.Write(pinnedSlice)
-			pool.Put(rawBuf)
+			buf := mem.NewBuffer(rawBuf, pool)
+			var n int
+			if zcw, ok := output.(storagev2.ZeroCopyWriter); ok {
+				n, _ = zcw.WriteZeroCopy(pinnedSlice, buf)
+			} else {
+				n, _ = output.Write(pinnedSlice)
+			}
+			buf.Free()
 			callback(offset, int64(n), nil)
 		},
 	}
@@ -1150,5 +1174,6 @@ func (t *MrdInstanceTest) TestReadVectored_PinnedSlicesHaveCappedCapacity() {
 	assert.NotNil(t.T(), resp.Callback)
 	assert.Len(t.T(), resp.Data, 1)
 	assert.Equal(t.T(), len(resp.Data), cap(resp.Data), "returned Data slice capacity must be capped to length")
+	assert.Equal(t.T(), len(resp.Data[0]), cap(resp.Data[0]), "returned payload slice capacity must be capped to length")
 	resp.Callback()
 }

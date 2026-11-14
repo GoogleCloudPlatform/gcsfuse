@@ -114,3 +114,5 @@ require (
 )
 
 replace github.com/jacobsa/fuse => github.com/kislaykishore/fuse-pool v0.0.0-20261111125536-4cc6b567a4b7
+
+replace cloud.google.com/go/storage => github.com/kislaykishore/google-cloud-go/storage v1.70.1-0.20261114045124-78c097f430bc

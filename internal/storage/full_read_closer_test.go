@@ -37,6 +37,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	grpc_experimental "google.golang.org/grpc/experimental"
+	"google.golang.org/grpc/mem"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 )
@@ -113,40 +114,40 @@ func TestFullReaderCloser(t *testing.T) {
 	}
 }
 
-func TestDirtyBufferPoolPinAndRelease(t *testing.T) {
+func TestDirtyTieredBufferPool(t *testing.T) {
 	t.Parallel()
 
-	bufPtr := defaultDirtyBufferPool.Get(32 * 1024)
-	sub1 := (*bufPtr)[100:4096]
-	sub2 := (*bufPtr)[4096:16384]
-	subTail := (*bufPtr)[32*1024-512 : 32*1024]
+	// Exact power-of-two capacities from 2 KiB (1<<11) to 4 MiB (1<<22) without footer waste.
+	for exp := 11; exp <= 22; exp++ {
+		capSize := 1 << exp
+		reqSize := capSize - 123
+		if exp == 11 {
+			reqSize = 1024
+		}
+		bufPtr := defaultDirtyBufferPool.Get(reqSize)
+		require.NotNil(t, bufPtr)
+		assert.Equal(t, reqSize, len(*bufPtr))
+		assert.Equal(t, capSize, cap(*bufPtr))
 
-	tok1 := TryPinDirtySlice(sub1)
-	tok2 := TryPinDirtySlice(sub2)
-	tokTail := TryPinDirtySlice(subTail)
-	assert.NotNil(t, tok1)
-	assert.Equal(t, tok1, tok2)
-	assert.Equal(t, tok1, tokTail)
+		// Wrap in mem.Buffer to verify gRPC reference counting with defaultDirtyBufferPool.
+		mb := mem.NewBuffer(bufPtr, defaultDirtyBufferPool)
+		mb.Ref()
+		mb.Free()
+		mb.Free()
+	}
 
-	// Simulate gRPC mem.BufferSlice.Free() returning bufPtr to pool while pinned.
-	defaultDirtyBufferPool.Put(bufPtr)
+	// Non-positive size returns empty slice.
+	emptyPtr := defaultDirtyBufferPool.Get(0)
+	require.NotNil(t, emptyPtr)
+	assert.Empty(t, *emptyPtr)
 
-	// Release all three pins.
-	ReleaseDirtyBuffer(tok1)
-	ReleaseDirtyBuffer(tok2)
-	ReleaseDirtyBuffer(tokTail)
-
-	// Non-zero start offset sub-slice of a 2 KiB (1<<11) pooled buffer.
-	buf2k := defaultDirtyBufferPool.Get(1 << 11)
-	sub2k := (*buf2k)[16:2048]
-	tok2k := TryPinDirtySlice(sub2k)
-	assert.NotNil(t, tok2k)
-	defaultDirtyBufferPool.Put(buf2k)
-	ReleaseDirtyBuffer(tok2k)
-
-	// Non-pooled slice must return nil.
-	plain := make([]byte, 4096, 8192)
-	assert.Nil(t, TryPinDirtySlice(plain))
+	// Oversized (> 4 MiB) allocation is not pooled.
+	hugeSize := (4 * 1024 * 1024) + 1024
+	hugePtr := defaultDirtyBufferPool.Get(hugeSize)
+	require.NotNil(t, hugePtr)
+	assert.Equal(t, hugeSize, len(*hugePtr))
+	assert.Equal(t, hugeSize, cap(*hugePtr))
+	defaultDirtyBufferPool.Put(hugePtr)
 }
 
 func flattenVectored(slices [][]byte, fallback []byte, n int) []byte {
@@ -407,9 +408,7 @@ func TestReadVectored_GRPCReadObjectAndBidi(t *testing.T) {
 			require.NotNil(t, slices)
 			require.NotNil(t, cb)
 			assert.Equal(t, 3*1024, n)
-			tok := TryPinDirtySlice(slices[0])
-			assert.NotNil(t, tok)
-			ReleaseDirtyBuffer(tok)
+			assert.Equal(t, len(slices[0]), cap(slices[0]), "returned zero-copy slice capacity must be capped to length")
 			got = append(got, flattenVectored(slices, buf, n)...)
 			cb()
 
@@ -436,8 +435,22 @@ func TestReadVectored_GRPCReadObjectAndBidi(t *testing.T) {
 			assert.Equal(t, payload, got)
 			require.NoError(t, frc1.Close())
 
-			// 2. Mid-message Close() must free currMsg.databufs back to defaultDirtyBufferPool.
-			r2, err := client.Bucket("test-bucket").Object("test-obj").NewRangeReader(context.Background(), 0, -1)
+			// 2. Mid-message Close() must free unread currMsg.databufs back to the buffer pool.
+			trackPool := &trackingTestBufferPool{inner: defaultDirtyBufferPool}
+			client2, err := storagev2.NewGRPCClient(
+				context.Background(),
+				option.WithEndpoint(addr),
+				option.WithoutAuthentication(),
+				option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+				option.WithGRPCDialOption(grpc.WithContextDialer(dialLargeReadTCP)),
+				option.WithGRPCDialOption(grpc_experimental.WithBufferPool(trackPool)),
+				option.WithGRPCDialOption(grpc.WithReadBufferSize(0)),
+				storagev2.WithDisabledClientMetrics(),
+			)
+			require.NoError(t, err)
+			defer func() { _ = client2.Close() }()
+
+			r2, err := client2.Bucket("test-bucket").Object("test-obj").NewRangeReader(context.Background(), 0, -1)
 			require.NoError(t, err)
 			frc2 := newGCSFullReadCloser(r2)
 
@@ -447,24 +460,16 @@ func TestReadVectored_GRPCReadObjectAndBidi(t *testing.T) {
 			require.NotEmpty(t, slices)
 			assert.Equal(t, 2*1024, n)
 
-			// Locate the dirtyBufFooter of the underlying pooled buffer before releasing.
-			s0 := slices[0]
-			ftrPtr := unsafe.Add(unsafe.Pointer(unsafe.SliceData(s0)), cap(s0)-dirtyBufFooterSize)
-			ftr := (*dirtyBufFooter)(ftrPtr)
-			assert.Equal(t, dirtyBufMagic, ftr.magic)
-			assert.Equal(t, int32(1), ftr.refs.Load())
+			inUseBeforeRelease := trackPool.inUse.Load()
+			assert.GreaterOrEqual(t, inUseBeforeRelease, int64(1))
 
-			// Release the caller's vectoredReadState reference; currMsg still holds its reference.
+			// Release the caller's ReadVectored reference; currMsg still holds its reference.
 			cb()
-			assert.Equal(t, int32(1), ftr.refs.Load(), "currMsg.databufs still holds 1 ref before Close")
+			assert.Equal(t, inUseBeforeRelease, trackPool.inUse.Load(), "currMsg.databufs still holds 1 ref before Close")
 
-			pinTok := TryPinDirtySlice(s0)
-			require.NotNil(t, pinTok)
-
-			// Close mid-message; freeUnreadCurrMsg must release currMsg.databufs.
+			// Close mid-message; SDK reader Close() must release unread currMsg.databufs.
 			require.NoError(t, frc2.Close())
-			assert.Equal(t, int32(1), ftr.refs.Load(), "Close must decrement unread currMsg.databufs refcount")
-			ReleaseDirtyBuffer(pinTok)
+			assert.Less(t, trackPool.inUse.Load(), inUseBeforeRelease, "Close must free unread currMsg.databufs back to pool")
 
 			// 3. Concurrent ReadVectored calls across multiple readers under -race.
 			var wg sync.WaitGroup
@@ -880,7 +885,22 @@ func TestLargeReadTCPConn_TLSAndPartialALTSAndConstPool(t *testing.T) {
 	})
 }
 
-func TestResolveGRPCLayout_CachesNonGRPCReader(t *testing.T) {
+type trackingTestBufferPool struct {
+	inner mem.BufferPool
+	inUse atomic.Int64
+}
+
+func (p *trackingTestBufferPool) Get(size int) *[]byte {
+	p.inUse.Add(1)
+	return p.inner.Get(size)
+}
+
+func (p *trackingTestBufferPool) Put(b *[]byte) {
+	p.inUse.Add(-1)
+	p.inner.Put(b)
+}
+
+func TestReadVectored_HTTPReaderFallback(t *testing.T) {
 	t.Parallel()
 	const payload = "http-reader-non-grpc-cache-test"
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -899,11 +919,6 @@ func TestResolveGRPCLayout_CachesNonGRPCReader(t *testing.T) {
 	require.NoError(t, err)
 	frc := newGCSFullReadCloser(r)
 
-	initSROffsets()
-	require.True(t, srOffsetsValid)
-	rIface := (*ifaceHeader)(unsafe.Add(unsafe.Pointer(r), offSRReader))
-	require.NotNil(t, rIface.tab)
-
 	buf := make([]byte, len(payload))
 	slices, n, cb, err := frc.ReadVectored(buf)
 	require.NoError(t, err)
@@ -911,88 +926,21 @@ func TestResolveGRPCLayout_CachesNonGRPCReader(t *testing.T) {
 	assert.Nil(t, cb)
 	assert.Equal(t, len(payload), n)
 	assert.Equal(t, payload, string(buf))
-	assert.Equal(t, rIface.tab, atomic.LoadPointer(&tabNonGRPC), "non-gRPC reader type must be cached in tabNonGRPC")
-
-	// Subsequent ReadVectored and Close hit the lock-free tabNonGRPC fast path.
 	require.NoError(t, frc.Close())
 }
 
-func TestDirtyBufferPool_PutWithExpandedCapRecyclesWithoutMutatingTail(t *testing.T) {
+func TestDirtyTieredBufferPool_RejectsMismatchedCapOnPut(t *testing.T) {
+	t.Parallel()
 	const bufSize = 32 * 1024
 	buf := defaultDirtyBufferPool.Get(bufSize)
 	require.NotNil(t, buf)
-	require.Equal(t, bufSize+dirtyBufFooterSize, cap(*buf))
+	require.Equal(t, bufSize, cap(*buf))
 
-	// Expand slice to full capacity and overwrite the trailing 16 footer bytes
-	// with known sentinel payload bytes.
-	*buf = (*buf)[:cap(*buf)]
-	expanded := *buf
-	sentinel := []byte{
-		0xA1, 0xB2, 0xC3, 0xD4, 0xE5, 0xF6, 0x17, 0x28,
-		0x39, 0x4A, 0x5B, 0x6C, 0x7D, 0x8E, 0x9F, 0x01,
-	}
-	require.Len(t, sentinel, dirtyBufFooterSize)
-	copy(expanded[bufSize:], sentinel)
+	// A slice whose capacity is not an exact power of two in [2 KiB, 4 MiB] must be ignored by Put.
+	nonPowerOfTwo := make([]byte, bufSize, bufSize+16)
+	defaultDirtyBufferPool.Put(&nonPowerOfTwo)
 
 	defaultDirtyBufferPool.Put(buf)
-
-	// Put must detect the invalidated footer and return immediately without
-	// decrementing ftr.refs or recycling the corrupted buffer, leaving
-	// sentinel payload bytes and slice length untouched.
-	assert.Equal(t, sentinel, expanded[bufSize:])
-	assert.Equal(t, bufSize+dirtyBufFooterSize, len(*buf))
-
-	// ReleaseDirtyBuffer on a corrupted footer must likewise leave sentinel bytes untouched.
-	ReleaseDirtyBuffer(unsafe.Pointer(&expanded[bufSize]))
-	assert.Equal(t, sentinel, expanded[bufSize:])
-
-	// Subsequent Get(32 * 1024) must allocate/return a fresh pinnable buffer,
-	// never the corrupted one.
-	buf2 := defaultDirtyBufferPool.Get(bufSize)
-	require.NotNil(t, buf2)
-	assert.NotSame(t, unsafe.SliceData(expanded), unsafe.SliceData(*buf2))
-	assert.Equal(t, bufSize, len(*buf2))
-	assert.Equal(t, bufSize+dirtyBufFooterSize, cap(*buf2))
-
-	tok := TryPinDirtySlice(*buf2)
-	require.NotNil(t, tok)
-	ReleaseDirtyBuffer(tok)
-	defaultDirtyBufferPool.Put(buf2)
-}
-
-func TestDirtyBufferPool_PutWithExpandedCapIntactFooterEnforcesRefcount(t *testing.T) {
-	const bufSize = 32 * 1024
-	buf := defaultDirtyBufferPool.Get(bufSize)
-	require.NotNil(t, buf)
-	require.Equal(t, bufSize+dirtyBufFooterSize, cap(*buf))
-	origDataPtr := unsafe.SliceData(*buf)
-
-	ftrPtr := unsafe.Add(unsafe.Pointer(origDataPtr), bufSize)
-	ftr := (*dirtyBufFooter)(ftrPtr)
-	require.Equal(t, int32(1), ftr.refs.Load())
-
-	// Pin a sub-slice (refcount: 1 -> 2).
-	tok := TryPinDirtySlice((*buf)[:4096])
-	require.NotNil(t, tok)
-	assert.Equal(t, ftrPtr, tok)
-	assert.Equal(t, int32(2), ftr.refs.Load())
-
-	// Expand slice length into tail capacity without overwriting the 16-byte footer.
-	*buf = (*buf)[:bufSize+8]
-
-	// Put must clamp *buf back to bufSize and decrement refcount from 2 to 1
-	// without prematurely returning buf to p.pool.
-	defaultDirtyBufferPool.Put(buf)
-	assert.Equal(t, int32(1), ftr.refs.Load())
-
-	other := defaultDirtyBufferPool.Get(bufSize)
-	require.NotNil(t, other)
-	assert.NotSame(t, origDataPtr, unsafe.SliceData(*other), "pinned buffer must not be returned to pool before ReleaseDirtyBuffer")
-	defaultDirtyBufferPool.Put(other)
-
-	// ReleaseDirtyBuffer decrements refcount from 1 to 0 and returns it cleanly.
-	ReleaseDirtyBuffer(tok)
-	assert.Equal(t, int32(0), ftr.refs.Load())
 }
 
 func TestLargeReadTCPConn_Preseeded512KBufferMarksALTSInitDone(t *testing.T) {

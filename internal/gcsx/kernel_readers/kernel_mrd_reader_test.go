@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -378,6 +379,15 @@ func (m *pinnedFakeMRD) Wait()             {}
 func (m *pinnedFakeMRD) Error() error      { return nil }
 func (m *pinnedFakeMRD) GetHandle() []byte { return nil }
 
+func writeZeroCopy(output io.Writer, pool mem.BufferPool, rawBuf *[]byte, slice []byte) (int, error) {
+	buf := mem.NewBuffer(rawBuf, pool)
+	defer buf.Free()
+	if zcw, ok := output.(storagev2.ZeroCopyWriter); ok {
+		return zcw.WriteZeroCopy(slice, buf)
+	}
+	return output.Write(slice)
+}
+
 func (t *KernelMRDReaderTest) TestReadAt_PartialShortReadWithPinnedBuffer_OutOfRangeRetryPreservesPrefix() {
 	outOfRangeErr := status.Error(codes.OutOfRange, "out of range")
 	pool := mem.DefaultBufferPool()
@@ -387,8 +397,7 @@ func (t *KernelMRDReaderTest) TestReadAt_PartialShortReadWithPinnedBuffer_OutOfR
 
 	firstMRD := &pinnedFakeMRD{
 		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
-			n, _ := output.Write(pinnedSlice)
-			pool.Put(rawBuf)
+			n, _ := writeZeroCopy(output, pool, rawBuf, pinnedSlice)
 			callback(offset, int64(n), outOfRangeErr)
 		},
 	}
@@ -595,8 +604,7 @@ func (t *KernelMRDReaderTest) TestReadAt_ConcurrentInitialSequentialReads_InOrde
 						for i := range slice {
 							slice[i] = fillByte
 						}
-						n, _ := output.Write(slice)
-						pool.Put(rawBuf)
+						n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 						callback(offset, int64(n), nil)
 					}()
 				},
@@ -711,8 +719,7 @@ func (t *KernelMRDReaderTest) TestReadAt_StraddlingPrefetchChunkBoundary_ServedZ
 			for i := range slice {
 				slice[i] = byte((offset + int64(i)) / (256 * 1024))
 			}
-			n, _ := output.Write(slice)
-			pool.Put(rawBuf)
+			n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 			callback(offset, int64(n), nil)
 		},
 	}
@@ -814,8 +821,7 @@ func (t *KernelMRDReaderTest) TestReadAt_ContextCancellationDuringChunkWait_Roll
 				for i := range slice {
 					slice[i] = 'Z'
 				}
-				n, _ := output.Write(slice)
-				pool.Put(rawBuf)
+				n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 				callback(offset, int64(n), nil)
 			}()
 		},
@@ -901,8 +907,7 @@ func (t *KernelMRDReaderTest) TestReadAt_FooterReadFollowedByRandomReadsAndBackw
 			for i := range slice {
 				slice[i] = byte((offset + int64(i)) / gcsx.MiB)
 			}
-			n, _ := output.Write(slice)
-			pool.Put(rawBuf)
+			n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 			callback(offset, int64(n), nil)
 		},
 	}
@@ -1004,8 +1009,7 @@ func (t *KernelMRDReaderTest) TestReadAt_ContextCancellationAtMaxPrefetchChunks_
 				for i := range slice {
 					slice[i] = 'M'
 				}
-				n, _ := output.Write(slice)
-				pool.Put(rawBuf)
+				n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 				callback(offset, int64(n), nil)
 			}()
 		},
@@ -1190,8 +1194,7 @@ func (t *KernelMRDReaderTest) TestReadAt_PrefetchHitWhileEarlierContiguousReadVe
 				for i := range slice {
 					slice[i] = fillByte
 				}
-				n, _ := output.Write(slice)
-				pool.Put(rawBuf)
+				n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 				callback(offset, int64(n), nil)
 			}()
 		},
@@ -1320,8 +1323,7 @@ func (t *KernelMRDReaderTest) TestReadAt_ContextCancellationDuringWait_AfterDest
 					}
 					rawBuf := pool.Get(int(length))
 					slice := (*rawBuf)[:length]
-					n, _ := output.Write(slice)
-					pool.Put(rawBuf)
+					n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 					callback(offset, int64(n), nil)
 				}()
 			},
@@ -1385,8 +1387,7 @@ func (t *KernelMRDReaderTest) TestReadAt_ContextCancellationDuringWait_AfterDest
 					}
 					rawBuf := pool.Get(int(length))
 					slice := (*rawBuf)[:length]
-					n, _ := output.Write(slice)
-					pool.Put(rawBuf)
+					n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 					callback(offset, int64(n), nil)
 				}()
 			},
@@ -1463,8 +1464,7 @@ func (t *KernelMRDReaderTest) TestReadAt_SequentialReadPastEOF_HitsPrefetchedTai
 			for i := range slice {
 				slice[i] = byte('A' + ((offset + int64(i)) / (512 * 1024)))
 			}
-			n, _ := output.Write(slice)
-			pool.Put(rawBuf)
+			n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 			callback(offset, int64(n), nil)
 		},
 	}
@@ -1578,8 +1578,7 @@ func (t *KernelMRDReaderTest) TestReadAt_RetainedBehindFrontierChunk_DoesNotStar
 			for i := range slice {
 				slice[i] = byte('A' + ((offset + int64(i)) / gcsx.MiB))
 			}
-			n, _ := output.Write(slice)
-			pool.Put(rawBuf)
+			n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 			callback(offset, int64(n), nil)
 		},
 	}
@@ -1671,8 +1670,7 @@ func (t *KernelMRDReaderTest) TestReadAt_ContextCancellationRollback_AfterAdjace
 				for i := range slice {
 					slice[i] = byte('A' + ((offset + int64(i)) / gcsx.MiB))
 				}
-				n, _ := output.Write(slice)
-				pool.Put(rawBuf)
+				n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 				callback(offset, int64(n), nil)
 			}()
 		},
@@ -1799,8 +1797,7 @@ func (t *KernelMRDReaderTest) TestReadAt_PrefetchAddErrorWrappingContextDeadline
 			for i := range slice {
 				slice[i] = byte('A' + ((offset + int64(i)) / gcsx.MiB))
 			}
-			n, _ := output.Write(slice)
-			pool.Put(rawBuf)
+			n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 			callback(offset, int64(n), nil)
 		},
 	}
@@ -1861,8 +1858,7 @@ func (t *KernelMRDReaderTest) TestReadAt_LargeNonSequentialEOFOrFailedRead_Reset
 			for i := range slice {
 				slice[i] = byte('A' + ((offset + int64(i)) / gcsx.MiB))
 			}
-			n, _ := output.Write(slice)
-			pool.Put(rawBuf)
+			n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 			callback(offset, int64(n), nil)
 		},
 	}
@@ -1961,8 +1957,7 @@ func (t *KernelMRDReaderTest) TestReadAt_ShortReadPrefetchChunk_DoesNotScheduleM
 					for i := range slice {
 						slice[i] = 'S'
 					}
-					n, _ := output.Write(slice)
-					pool.Put(rawBuf)
+					n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 					callback(offset, int64(n), nil)
 					return
 				}
@@ -1972,8 +1967,7 @@ func (t *KernelMRDReaderTest) TestReadAt_ShortReadPrefetchChunk_DoesNotScheduleM
 				for i := range slice {
 					slice[i] = byte('A' + ((offset+int64(i))/gcsx.MiB)%26)
 				}
-				n, _ := output.Write(slice)
-				pool.Put(rawBuf)
+				n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 				callback(offset, int64(n), nil)
 			}()
 		},
@@ -2070,8 +2064,7 @@ func (t *KernelMRDReaderTest) TestReadAt_StraddlingReadExceedingPrefetchLimit_Do
 				for i := range slice {
 					slice[i] = byte('A' + ((offset+pos+int64(i))/gcsx.MiB)%26)
 				}
-				_, _ = output.Write(slice)
-				pool.Put(rawBuf)
+				_, _ = writeZeroCopy(output, pool, rawBuf, slice)
 			}
 			callback(offset, length, nil)
 		},
@@ -2164,8 +2157,7 @@ func (t *KernelMRDReaderTest) TestReadAt_StaleEpochMaybeScheduleMorePrefetch_Doe
 					for i := range slice {
 						slice[i] = byte('A' + ((offset+pos+int64(i))/gcsx.MiB)%26)
 					}
-					_, _ = output.Write(slice)
-					pool.Put(rawBuf)
+					_, _ = writeZeroCopy(output, pool, rawBuf, slice)
 				}
 				callback(offset, length, nil)
 			}()
@@ -2327,8 +2319,7 @@ func (t *KernelMRDReaderTest) TestReadAt_StaleEpochClearPrefetch_DoesNotClobberN
 							for i := range slice {
 								slice[i] = byte('A' + ((offset+pos+int64(i))/gcsx.MiB)%26)
 							}
-							_, _ = output.Write(slice)
-							pool.Put(rawBuf)
+							_, _ = writeZeroCopy(output, pool, rawBuf, slice)
 						}
 						callback(offset, length, nil)
 					}()
@@ -2448,8 +2439,7 @@ func (t *KernelMRDReaderTest) TestReadAt_OutOfOrderConcurrentReads_EpochGuardsFa
 						for i := range slice {
 							slice[i] = byte('A' + ((offset+int64(i))/gcsx.MiB)%26)
 						}
-						n, _ := output.Write(slice)
-						pool.Put(rawBuf)
+						n, _ := writeZeroCopy(output, pool, rawBuf, slice)
 						callback(offset, int64(n), nil)
 					}()
 				},
@@ -2536,8 +2526,7 @@ func (t *KernelMRDReaderTest) TestReadAt_OutOfOrderConcurrentReads_EpochGuardsFa
 						for i := range slice {
 							slice[i] = byte('A' + ((offset+pos+int64(i))/gcsx.MiB)%26)
 						}
-						_, _ = output.Write(slice)
-						pool.Put(rawBuf)
+						_, _ = writeZeroCopy(output, pool, rawBuf, slice)
 					}
 					callback(offset, length, nil)
 				}()
@@ -2625,8 +2614,7 @@ func (t *KernelMRDReaderTest) TestReadAt_ElseBranch_StaleOrSupersededDoesNotClob
 								for i := range slice {
 									slice[i] = byte('A' + ((offset+pos+int64(i))/gcsx.MiB)%26)
 								}
-								_, _ = output.Write(slice)
-								pool.Put(rawBuf)
+								_, _ = writeZeroCopy(output, pool, rawBuf, slice)
 							}
 							callback(offset, length, nil)
 						}()
@@ -2731,8 +2719,7 @@ func (t *KernelMRDReaderTest) TestReadAt_ElseBranch_StaleOrSupersededDoesNotClob
 								for i := range slice {
 									slice[i] = byte('A' + ((offset+pos+int64(i))/gcsx.MiB)%26)
 								}
-								_, _ = output.Write(slice)
-								pool.Put(rawBuf)
+								_, _ = writeZeroCopy(output, pool, rawBuf, slice)
 							}
 							callback(offset, length, nil)
 						}()
@@ -2834,8 +2821,7 @@ func (t *KernelMRDReaderTest) TestReadAt_ElseBranch_StaleOrSupersededDoesNotClob
 								for i := range slice {
 									slice[i] = byte('A' + ((offset+pos+int64(i))/gcsx.MiB)%26)
 								}
-								_, _ = output.Write(slice)
-								pool.Put(rawBuf)
+								_, _ = writeZeroCopy(output, pool, rawBuf, slice)
 							}
 							callback(offset, length, nil)
 						}()

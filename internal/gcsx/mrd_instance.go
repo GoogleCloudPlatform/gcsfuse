@@ -23,16 +23,16 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
+	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/jacobsa/fuse/fuseops"
+	"google.golang.org/grpc/mem"
 )
 
 const mrdPoolCloseTimeout = 120 * time.Second
@@ -463,7 +463,7 @@ func (mi *MrdInstance) IgnoreInterrupts() bool {
 
 type mrdVectoredState struct {
 	slices   [][]byte
-	tokens   []unsafe.Pointer
+	held     []mem.Buffer
 	callback func()
 }
 
@@ -471,17 +471,17 @@ var mrdVectoredStatePool = sync.Pool{
 	New: func() any {
 		return &mrdVectoredState{
 			slices: make([][]byte, 0, 48),
-			tokens: make([]unsafe.Pointer, 0, 48),
+			held:   make([]mem.Buffer, 0, 48),
 		}
 	},
 }
 
 func (s *mrdVectoredState) release() {
-	for i, tok := range s.tokens {
-		storage.ReleaseDirtyBuffer(tok)
-		s.tokens[i] = nil
+	for i, b := range s.held {
+		b.Free()
+		s.held[i] = nil
 	}
-	s.tokens = s.tokens[:0]
+	s.held = s.held[:0]
 	for i := range s.slices {
 		s.slices[i] = nil
 	}
@@ -496,6 +496,34 @@ type mrdVectoredWriter struct {
 	written  int
 	pinned   int
 	reqState atomic.Int32 // 0: in-flight, 1: claimed by caller, 2: aborted by caller
+}
+
+var _ storagev2.ZeroCopyWriter = (*mrdVectoredWriter)(nil)
+
+func (w *mrdVectoredWriter) WriteZeroCopy(b []byte, buf mem.Buffer) (int, error) {
+	if buf == nil {
+		return w.Write(b)
+	}
+	if len(b) == 0 {
+		return 0, nil
+	}
+	if w.reqState.Load() != 0 {
+		return len(b), nil
+	}
+	origLen := len(b)
+	rem := len(w.dst) - w.written
+	if rem <= 0 {
+		return origLen, nil
+	}
+	if len(b) > rem {
+		b = b[:rem]
+	}
+	w.written += len(b)
+	buf.Ref()
+	w.state.held = append(w.state.held, buf)
+	w.state.slices = append(w.state.slices, b[:len(b):len(b)])
+	w.pinned++
+	return origLen, nil
 }
 
 func (w *mrdVectoredWriter) Write(b []byte) (int, error) {
@@ -515,19 +543,13 @@ func (w *mrdVectoredWriter) Write(b []byte) (int, error) {
 	}
 	start := w.written
 	w.written += len(b)
-	if tok := storage.TryPinDirtySlice(b); tok != nil {
-		w.state.tokens = append(w.state.tokens, tok)
-		w.state.slices = append(w.state.slices, b)
-		w.pinned++
-		return origLen, nil
-	}
 	w.mu.Lock()
 	if w.reqState.Load() != 0 {
 		w.mu.Unlock()
 		return origLen, nil
 	}
 	copy(w.dst[start:start+len(b)], b)
-	w.state.slices = append(w.state.slices, w.dst[start:start+len(b)])
+	w.state.slices = append(w.state.slices, w.dst[start:start+len(b):start+len(b)])
 	w.mu.Unlock()
 	return origLen, nil
 }
@@ -625,7 +647,7 @@ type MrdPrefetchChunk struct {
 	done          chan struct{}
 	refs          atomic.Int32
 	slices        [][]byte
-	tokens        []unsafe.Pointer
+	held          []mem.Buffer
 	consumedSpans [][2]int
 	fallback      []byte
 	written       int
@@ -633,11 +655,13 @@ type MrdPrefetchChunk struct {
 	releaseF      func()
 }
 
+var _ storagev2.ZeroCopyWriter = (*MrdPrefetchChunk)(nil)
+
 var mrdPrefetchChunkPool = sync.Pool{
 	New: func() any {
 		return &MrdPrefetchChunk{
 			slices:        make([][]byte, 0, 288),
-			tokens:        make([]unsafe.Pointer, 0, 288),
+			held:          make([]mem.Buffer, 0, 288),
 			consumedSpans: make([][2]int, 0, 16),
 		}
 	},
@@ -700,6 +724,31 @@ func (c *MrdPrefetchChunk) RemoveConsumed(relStart, relEnd int) {
 	}
 }
 
+func (c *MrdPrefetchChunk) WriteZeroCopy(b []byte, buf mem.Buffer) (int, error) {
+	if buf == nil {
+		return c.Write(b)
+	}
+	if len(b) == 0 {
+		return 0, nil
+	}
+	if c.refs.Load() <= 1 {
+		return len(b), nil
+	}
+	origLen := len(b)
+	rem := c.Length - c.written
+	if rem <= 0 {
+		return origLen, nil
+	}
+	if len(b) > rem {
+		b = b[:rem]
+	}
+	c.written += len(b)
+	buf.Ref()
+	c.held = append(c.held, buf)
+	c.slices = append(c.slices, b[:len(b):len(b)])
+	return origLen, nil
+}
+
 func (c *MrdPrefetchChunk) Write(b []byte) (int, error) {
 	if len(b) == 0 {
 		return 0, nil
@@ -717,18 +766,13 @@ func (c *MrdPrefetchChunk) Write(b []byte) (int, error) {
 	}
 	start := c.written
 	c.written += len(b)
-	if tok := storage.TryPinDirtySlice(b); tok != nil {
-		c.tokens = append(c.tokens, tok)
-		c.slices = append(c.slices, b)
-		return origLen, nil
-	}
 	if cap(c.fallback) < c.Length {
 		c.fallback = make([]byte, c.Length)
 	} else {
 		c.fallback = c.fallback[:c.Length]
 	}
 	copy(c.fallback[start:start+len(b)], b)
-	c.slices = append(c.slices, c.fallback[start:start+len(b)])
+	c.slices = append(c.slices, c.fallback[start:start+len(b):start+len(b)])
 	return origLen, nil
 }
 
@@ -745,11 +789,11 @@ func (c *MrdPrefetchChunk) Release() {
 	if c.refs.Add(-1) != 0 {
 		return
 	}
-	for i, tok := range c.tokens {
-		storage.ReleaseDirtyBuffer(tok)
-		c.tokens[i] = nil
+	for i, b := range c.held {
+		b.Free()
+		c.held[i] = nil
 	}
-	c.tokens = c.tokens[:0]
+	c.held = c.held[:0]
 	for i := range c.slices {
 		c.slices[i] = nil
 	}

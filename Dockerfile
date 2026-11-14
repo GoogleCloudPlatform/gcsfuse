@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build the optimized gcsfuse .deb package (referencing kislaykishore/fuse-pool)
+# Build the optimized gcsfuse .deb package (referencing kislaykishore/fuse-pool
+# and kislaykishore/google-cloud-go/storage)
 # and run the 1 MiB / 1 GiB gRPC read FIO benchmark against the colocated Zonal
 # Rapid HNS bucket (gs://kislayk-c4-usw4-rapid-hns) to demonstrate maximum
 # throughput (~19.3-20.7 GB/s) with <50 CPU cores and reduced NUMJOBS (24-36):
