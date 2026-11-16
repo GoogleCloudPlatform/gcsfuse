@@ -446,6 +446,16 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "file-system.disable-symlinks"
+    proto-tag: 164
+    flag-name: "disable-symlinks"
+    type: "bool"
+    usage: >-
+      Disables symbolic link support. When enabled, creating new symlinks is blocked
+      and existing symlink objects in the bucket are treated as regular files.
+    default: false
+    hide-flag: false
+
   - config-path: "file-system.enable-kernel-reader"
     proto-tag: 45
     flag-name: "enable-kernel-reader"
