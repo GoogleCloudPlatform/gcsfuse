@@ -23,10 +23,12 @@ import (
 	"testing"
 
 	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v4/tracing"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,21 +55,31 @@ func (t *DisableSymlinksTest) SetupSuite() {
 	}
 	t.serverCfg.MetricHandle = metrics.NewNoopMetrics()
 	t.serverCfg.TraceHandle = tracing.NewNoopTracer()
-	t.fsTest.SetUpTestSuite()
+	t.SetUpTestSuite()
 }
 
 func (t *DisableSymlinksTest) TearDownTest() {
-	t.fsTest.TearDown()
+	t.TearDown()
 }
 
 func (t *DisableSymlinksTest) TearDownSuite() {
-	t.fsTest.TearDownTestSuite()
+	t.TearDownTestSuite()
 }
 
 func (t *DisableSymlinksTest) TestCreateSymlinkReturnsENOTSUP() {
 	symlinkPath := path.Join(mntDir, "new_symlink")
 
 	err := os.Symlink("/etc/passwd", symlinkPath)
+
+	require.Error(t.T(), err)
+	assert.ErrorIs(t.T(), err, syscall.ENOTSUP)
+}
+
+func (t *DisableSymlinksTest) TestReadSymlinkOpReturnsENOTSUP() {
+	fileSystem, err := fs.NewFileSystem(ctx, &t.serverCfg)
+	require.NoError(t.T(), err)
+
+	err = fileSystem.ReadSymlink(ctx, &fuseops.ReadSymlinkOp{Inode: fuseops.RootInodeID})
 
 	require.Error(t.T(), err)
 	assert.ErrorIs(t.T(), err, syscall.ENOTSUP)

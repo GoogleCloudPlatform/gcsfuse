@@ -47,6 +47,8 @@ type StandardSymlinksTestSuite struct{ BaseSymlinkSuite }
 type LegacySymlinksTestSuite struct{ BaseSymlinkSuite }
 
 // DisableSymlinksTestSuite groups all tests when symlink support is disabled (--disable-symlinks=true).
+// Note: BaseSymlinkSuite is held as a named field (`base`) rather than embedded directly so that
+// testify/suite does not inherit and execute BaseSymlinkSuite's positive symlink Test* methods.
 type DisableSymlinksTestSuite struct {
 	suite.Suite
 	base BaseSymlinkSuite
