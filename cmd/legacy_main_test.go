@@ -548,6 +548,19 @@ func (t *MainTest) TestGetMountConfigsHeader() {
 			expectedAppName: "app\uFFFD",
 			expectedMountID: "testFS-\uFFFD",
 		},
+		{
+			name:            "LongAppNameIsCapped",
+			mountConfig:     &cfg.Config{AppName: strings.Repeat("a", 100)},
+			mountInstanceID: "testFS-123",
+			expectedAppName: strings.Repeat("a", cfg.MaxProtoStringLen),
+			expectedMountID: "testFS-123",
+		},
+		{
+			name:            "LongMountIDIsCapped",
+			mountConfig:     &cfg.Config{},
+			mountInstanceID: strings.Repeat("b", 300),
+			expectedMountID: strings.Repeat("b", maxMountIDLen),
+		},
 	}
 
 	for _, tc := range testCases {

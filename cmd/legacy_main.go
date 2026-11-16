@@ -149,6 +149,10 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	return strings.Join(parts, ":")
 }
 
+// maxMountIDLen caps the mount ID sent in the telemetry payload. GCS clears
+// longer mount IDs on its side.
+const maxMountIDLen = 256
+
 // getMountConfigsHeader returns the base64url-encoded ConfigPayload sent on
 // GetStorageLayout, or "" if it can't be built, since telemetry must never fail
 // the mount. GCS base64url-decodes the whole value and drops it on failure, so
@@ -158,10 +162,9 @@ func getMountConfigsHeader(mountConfig *cfg.Config, mountInstanceID string) stri
 		return ""
 	}
 	payload := &pb.ConfigPayload{
-		Config: mountConfig.ToProto(),
-		// proto3 string fields must be valid UTF-8, otherwise Marshal fails.
-		AppName: strings.ToValidUTF8(mountConfig.AppName, "\uFFFD"),
-		MountId: strings.ToValidUTF8(mountInstanceID, "\uFFFD"),
+		Config:  mountConfig.ToProto(),
+		AppName: cfg.TruncateProtoString(mountConfig.AppName, cfg.MaxProtoStringLen),
+		MountId: cfg.TruncateProtoString(mountInstanceID, maxMountIDLen),
 	}
 	data, err := proto.Marshal(payload)
 	if err != nil {

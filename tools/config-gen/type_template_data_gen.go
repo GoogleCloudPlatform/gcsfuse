@@ -117,7 +117,8 @@ func computeProtoMappings(params []Param) ([]protoMappingTemplateData, error) {
 			case "duration":
 				expr = fmt.Sprintf("int64(%s)", goAccess)
 			case "string", "protocol", "directPathStrategy", "logSeverity", "rapidWriteStrategy":
-				expr = fmt.Sprintf("string(%s)", goAccess)
+				// Every raw string sent in the proto is length-capped (see config_proto_mapper.tpl).
+				expr = fmt.Sprintf("TruncateProtoString(string(%s), MaxProtoStringLen)", goAccess)
 			case "[]int":
 				expr = goAccess
 			default:

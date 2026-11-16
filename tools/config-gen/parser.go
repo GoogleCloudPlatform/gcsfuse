@@ -96,6 +96,9 @@ var highRiskTextTypes = map[string]bool{
 	"[]string":     true,
 }
 
+// whitelistedTextConfigPaths lists the free-text params sent as raw strings
+// instead of is_<name>_set booleans. The generated ToProto caps their values at
+// MaxProtoStringLen bytes (see templates/config_proto_mapper.tpl).
 var whitelistedTextConfigPaths = map[string]bool{
 	"profile":      true,
 	"machine-type": true,

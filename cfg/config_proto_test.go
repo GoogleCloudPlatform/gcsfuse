@@ -15,8 +15,10 @@
 package cfg
 
 import (
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/googlecloudplatform/gcsfuse/v4/cfg/pb"
 	"github.com/stretchr/testify/assert"
@@ -88,6 +90,21 @@ func TestToProto_AllDataTypes(t *testing.T) {
 			},
 		},
 		{
+			name:   "WhitelistedStringOverCap",
+			config: &Config{MachineType: strings.Repeat("a", MaxProtoStringLen+1)},
+			expected: &pb.Config{
+				MachineType: strings.Repeat("a", MaxProtoStringLen),
+			},
+		},
+		{
+			// The cut at MaxProtoStringLen bytes splits the 2-byte "é", which is dropped.
+			name:   "WhitelistedStringOverCapSplitsMultiByteChar",
+			config: &Config{MachineType: strings.Repeat("a", MaxProtoStringLen-1) + "é"},
+			expected: &pb.Config{
+				MachineType: strings.Repeat("a", MaxProtoStringLen-1),
+			},
+		},
+		{
 			name:   "WhitelistedEnum",
 			config: &Config{GcsConnection: GcsConnectionConfig{ClientProtocol: "grpc"}},
 			expected: &pb.Config{
@@ -154,6 +171,102 @@ func TestToProto_AllDataTypes(t *testing.T) {
 				// Asserts RFC 4648 URL-safe Base64 without padding (strictly [A-Za-z0-9_-]).
 				assert.Regexp(t, `^[A-Za-z0-9_-]+$`, encoded)
 			})
+		})
+	}
+}
+
+func TestTruncateProtoString(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    string
+		maxLen   int
+		expected string
+	}{
+		{
+			name:     "Empty",
+			input:    "",
+			maxLen:   MaxProtoStringLen,
+			expected: "",
+		},
+		{
+			name:     "ShortValueUnchanged",
+			input:    "n2-standard-4",
+			maxLen:   MaxProtoStringLen,
+			expected: "n2-standard-4",
+		},
+		{
+			name:     "ValueAtCapUnchanged",
+			input:    strings.Repeat("a", MaxProtoStringLen),
+			maxLen:   MaxProtoStringLen,
+			expected: strings.Repeat("a", MaxProtoStringLen),
+		},
+		{
+			name:     "LongValueCapped",
+			input:    strings.Repeat("a", 1000),
+			maxLen:   MaxProtoStringLen,
+			expected: strings.Repeat("a", MaxProtoStringLen),
+		},
+		{
+			name:     "OtherMaxLen",
+			input:    strings.Repeat("a", 1000),
+			maxLen:   256,
+			expected: strings.Repeat("a", 256),
+		},
+		{
+			name:     "SplitMultiByteCharDropped",
+			input:    strings.Repeat("a", MaxProtoStringLen-1) + "é",
+			maxLen:   MaxProtoStringLen,
+			expected: strings.Repeat("a", MaxProtoStringLen-1),
+		},
+		{
+			name:     "InvalidUTF8Replaced",
+			input:    "n2-standard-4\xff",
+			maxLen:   MaxProtoStringLen,
+			expected: "n2-standard-4\uFFFD",
+		},
+		{
+			// The 3-byte replacement character doesn't fit, so it's dropped.
+			name:     "InvalidUTF8ReplacedThenCapped",
+			input:    strings.Repeat("a", MaxProtoStringLen-1) + "\xff",
+			maxLen:   MaxProtoStringLen,
+			expected: strings.Repeat("a", MaxProtoStringLen-1),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := TruncateProtoString(tc.input, tc.maxLen)
+
+			assert.Equal(t, tc.expected, actual)
+			assert.LessOrEqual(t, len(actual), tc.maxLen)
+			assert.True(t, utf8.ValidString(actual))
+		})
+	}
+}
+
+func TestTruncateProtoString_ValidValuesUnchanged(t *testing.T) {
+	// Every valid enum and profile value must fit within the cap.
+	validValues := []string{
+		HTTP1, HTTP2, GRPC, HTTPMtls,
+		string(DirectPathOnly), string(DirectPathWithFallback),
+		string(RapidWriteStrategyEnabled), string(RapidWriteStrategyDisabled),
+		ProfileAIMLTraining, ProfileAIMLServing, ProfileAIMLCheckpointing,
+	}
+	for severity := range severityRanking {
+		validValues = append(validValues, string(severity))
+	}
+	// So must the longest predefined GCE machine type (Nov 2026) and the machine
+	// types that have optimization rules.
+	validValues = append(validValues, "z4d-highmem-384-standardlssd-metal")
+	for machineType := range machineTypeToGroupMap {
+		validValues = append(validValues, machineType)
+	}
+
+	for _, value := range validValues {
+		t.Run(value, func(t *testing.T) {
+			actual := TruncateProtoString(value, MaxProtoStringLen)
+
+			assert.Equal(t, value, actual)
 		})
 	}
 }
