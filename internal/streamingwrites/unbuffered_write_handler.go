@@ -260,6 +260,7 @@ func (wh *unbufferedWriteHandlerImpl) ensureWriter(ctx context.Context) error {
 	writerCtx, cancel := context.WithCancel(wh.traceHandle.PropagateTraceContext(context.Background(), ctx))
 	writer, err := wh.bucket.CreateObjectChunkWriter(writerCtx, req, int(wh.blockSize), nil)
 	if err != nil {
+		// No writer holds the context, so release it here.
 		cancel()
 		err = fmt.Errorf("CreateObjectChunkWriter failed for object %s: %w", wh.objectName, err)
 		wh.handleUploadFailure(err)
