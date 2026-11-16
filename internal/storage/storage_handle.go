@@ -607,6 +607,18 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 	return sh.httpClient, err
 }
 
+// closeControlClient closes the control client and drops both references to it.
+func (sh *storageClient) closeControlClient() {
+	if sh.rawStorageControlClient == nil {
+		return
+	}
+	if err := sh.rawStorageControlClient.Close(); err != nil {
+		logger.Warnf("Failed to close storage control client: %v", err)
+	}
+	sh.rawStorageControlClient = nil
+	sh.storageControlClient = nil
+}
+
 func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error) {
 	var client *storage.Client
 	bucketType, err := sh.lookupBucketType(bucketName)
@@ -631,11 +643,18 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	}
 
 	var controlClient StorageControlClient
-	if sh.rawStorageControlClient != nil {
-		controlClient = NewStorageControlClient(sh.rawStorageControlClient, &sh.clientConfig,
-			WithRetriesOnFolderAPI(),
-			WithBillingProject(billingProject),
-		)
+	if bucketType.Hierarchical {
+		if sh.rawStorageControlClient != nil {
+			controlClient = NewStorageControlClient(sh.rawStorageControlClient, &sh.clientConfig,
+				WithRetriesOnFolderAPI(),
+				WithBillingProject(billingProject),
+			)
+		}
+	} else if !sh.clientConfig.IsDynamicMount {
+		// Flat buckets never use folder APIs, so a static mount has no use for the
+		// control client after GetStorageLayout. Dynamic mounts share it across
+		// buckets and need it to look up the next one, so it stays open there.
+		sh.closeControlClient()
 	}
 
 	// By default, follow the user's flag

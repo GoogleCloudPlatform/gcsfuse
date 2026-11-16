@@ -204,6 +204,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, mountConfigsHe
 		S2ASpiffeID:                newConfig.GcsAuth.S2aSpiffeId,
 		EnableGrpcMetrics:          newConfig.Metrics.ExperimentalEnableGrpcMetrics,
 		IsGKE:                      isGKE,
+		IsDynamicMount:             isDynamicMount,
 		EnableGrpcByDefault:        newConfig.GcsConnection.EnableGrpcByDefault,
 		WriteConfig:                &newConfig.Write,
 	}
