@@ -1430,13 +1430,12 @@ func (fs *fileSystem) syncFile(
 	return nil
 }
 
-// Initializes the streaming write handler if eligible and synchronizes the file inode to GCS if initialization succeeds.
-// Otherwise creates an empty temp writer if temp file nil.
+// Initializes the streaming write handler if eligible, otherwise creates an empty temp writer if temp file nil.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
-func (fs *fileSystem) createStreamingWriteHandlerAndSyncOrTempWriter(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
-	err := fs.initStreamingWriteHandlerAndSyncFileIfEligible(ctx, f, openMode)
+func (fs *fileSystem) createStreamingWriteHandlerOrTempWriter(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
+	_, err := f.InitStreamingWriteHandlerIfEligible(ctx, openMode, fs.getWriteContext())
 	if err != nil {
 		return err
 	}
@@ -1447,7 +1446,8 @@ func (fs *fileSystem) createStreamingWriteHandlerAndSyncOrTempWriter(ctx context
 	return nil
 }
 
-// Initializes the streaming write handler if eligible and synchronizes the file inode to GCS if initialization succeeds.
+// Initializes the streaming write handler if eligible and synchronizes the file inode to GCS if initialization succeeds
+// or if the local file inode on a rapid bucket has not been synced yet.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
@@ -1456,7 +1456,7 @@ func (fs *fileSystem) initStreamingWriteHandlerAndSyncFileIfEligible(ctx context
 	if err != nil {
 		return err
 	}
-	if initialized {
+	if initialized || (f.Bucket().BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && f.IsLocal() && f.IsUsingStreamingWriteHandler()) {
 		// Calling syncFile is safe here as we have file inode lock and the streaming write handler is initialized.
 		// Thus sync method of the streaming write handler will be invoked.
 		// 1. In case of zonal bucket it creates unfinalized new generation object.
@@ -2203,7 +2203,7 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	fs.mu.Unlock()
 	defer fs.mu.Lock()
 	fileInode.Lock()
-	err = fs.createStreamingWriteHandlerAndSyncOrTempWriter(ctx, fileInode, openMode)
+	err = fs.createStreamingWriteHandlerOrTempWriter(ctx, fileInode, openMode)
 	fileInode.Unlock()
 	if err != nil {
 		return
