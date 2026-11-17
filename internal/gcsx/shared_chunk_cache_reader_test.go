@@ -19,6 +19,8 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -40,6 +42,91 @@ const (
 	testObjectSize  = 1024 * 1024 // 1 MB
 	testChunkSizeMB = 1           // 1 MB chunks (not 256KB - config is in MB)
 )
+
+type trackedChunkReader struct {
+	io.Reader
+	readBytes int
+	closed    bool
+}
+
+func (r *trackedChunkReader) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	r.readBytes += n
+	return n, err
+}
+
+func (r *trackedChunkReader) Close() error {
+	r.closed = true
+	return nil
+}
+
+type chunkResponseBucket struct {
+	gcs.Bucket
+	reader  *trackedChunkReader
+	request *gcs.ReadObjectRequest
+}
+
+func (b *chunkResponseBucket) Name() string { return testBucketName }
+
+func (b *chunkResponseBucket) NewReaderWithReadHandle(_ context.Context, request *gcs.ReadObjectRequest) (gcs.StorageReader, error) {
+	b.request = request
+	return &fake.FakeReader{ReadCloser: b.reader}, nil
+}
+
+func TestSharedChunkCacheBoundsDownloadResponse(t *testing.T) {
+	// Arrange
+	cacheDir := t.TempDir()
+	manager, err := file.NewSharedChunkCacheManager(cacheDir, 0600, 0700, &cfg.FileCacheConfig{SharedCacheChunkSizeMb: 1})
+	require.NoError(t, err)
+	stream := &trackedChunkReader{Reader: strings.NewReader(strings.Repeat("x", 4096))}
+	bucket := &chunkResponseBucket{reader: stream}
+	object := &gcs.MinObject{Name: "object", Size: 16, Generation: 1}
+	reader := NewSharedChunkCacheReader(manager, bucket, object, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 0)
+
+	// Act
+	response, err := reader.ReadAt(context.Background(), &ReadRequest{Buffer: make([]byte, 16)})
+
+	// Assert
+	require.ErrorIs(t, err, FallbackToAnotherReader)
+	assert.Zero(t, response.Size)
+	assert.LessOrEqual(t, stream.readBytes, 17, "reject oversized responses without consuming the whole stream")
+	assert.True(t, stream.closed)
+	var cachedFiles []string
+	err = filepath.WalkDir(cacheDir, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if !entry.IsDir() {
+			cachedFiles = append(cachedFiles, path)
+		}
+		return nil
+	})
+	require.NoError(t, err)
+	assert.Empty(t, cachedFiles, "a rejected response must leave no temporary or published chunks")
+}
+
+func TestSharedChunkCachePreservesStoredGzipBytes(t *testing.T) {
+	// Arrange
+	manager, err := file.NewSharedChunkCacheManager(t.TempDir(), 0600, 0700, &cfg.FileCacheConfig{SharedCacheChunkSizeMb: 1})
+	require.NoError(t, err)
+	contents := []byte{0x1f, 0x8b, 0x08, 0x00}
+	stream := &trackedChunkReader{Reader: bytes.NewReader(contents)}
+	bucket := &chunkResponseBucket{reader: stream}
+	object := &gcs.MinObject{Name: "compressed-object", Size: uint64(len(contents)), Generation: 1, ContentEncoding: "gzip"}
+	reader := NewSharedChunkCacheReader(manager, bucket, object, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 0)
+	buffer := make([]byte, len(contents))
+
+	// Act
+	response, err := reader.ReadAt(context.Background(), &ReadRequest{Buffer: buffer})
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, len(contents), response.Size)
+	assert.Equal(t, contents, buffer)
+	require.NotNil(t, bucket.request)
+	assert.True(t, bucket.request.ReadCompressed, "cache offsets and size refer to stored bytes, not transcoded data")
+	assert.True(t, stream.closed)
+}
 
 type sharedChunkCacheReaderTest struct {
 	suite.Suite
