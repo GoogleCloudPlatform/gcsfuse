@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,9 +39,14 @@ type TestingT interface {
 type VerifyOption func(*verifyConfig)
 
 type verifyConfig struct {
-	atLeast bool
-	subset  bool
-	rm      *metricdata.ResourceMetrics
+	atLeast      bool
+	atLeastSum   bool
+	subset       bool
+	nonMonotonic bool
+	checkUnit    bool
+	unit         string
+	scope        string
+	rm           *metricdata.ResourceMetrics
 }
 
 // AtLeast checks that the metric value or count is greater than or equal to the
@@ -49,10 +55,37 @@ func AtLeast() VerifyOption {
 	return func(c *verifyConfig) { c.atLeast = true }
 }
 
+// AtLeastSum checks that a histogram's sum is greater than or equal to the
+// expected sum while preserving exact sample-count verification (unless AtLeast
+// is also set).
+func AtLeastSum() VerifyOption {
+	return func(c *verifyConfig) { c.atLeastSum = true }
+}
+
 // Subset checks that the provided attributes are a typed subset of the recorded
 // data point attributes rather than requiring an exact set match.
 func Subset() VerifyOption {
 	return func(c *verifyConfig) { c.subset = true }
+}
+
+// NonMonotonic expects a non-monotonic Sum[int64] (UpDownCounter) instead of a
+// monotonic Counter in VerifyCounterMetric.
+func NonMonotonic() VerifyOption {
+	return func(c *verifyConfig) { c.nonMonotonic = true }
+}
+
+// WithUnit verifies that matching metrics carry expectedUnit (e.g. "By", "s", "1").
+func WithUnit(expectedUnit string) VerifyOption {
+	return func(c *verifyConfig) {
+		c.checkUnit = true
+		c.unit = expectedUnit
+	}
+}
+
+// WithScope restricts metric lookup to the specified OpenTelemetry
+// instrumentation scope name (e.g. "cloud.google.com/go/storage").
+func WithScope(scope string) VerifyOption {
+	return func(c *verifyConfig) { c.scope = scope }
 }
 
 // CollectResourceMetrics collects a point-in-time ResourceMetrics snapshot from
@@ -70,18 +103,21 @@ func WithResourceMetrics(rm *metricdata.ResourceMetrics) VerifyOption {
 	return func(c *verifyConfig) { c.rm = rm }
 }
 
-// VerifyCounterMetric finds an int64 sum metric across scopes and verifies its
-// value. By default it requires an exact attribute match and exact value match.
+// VerifyCounterMetric finds an int64 sum metric across matching scopes and
+// verifies its monotonicity and value. By default it expects a monotonic
+// counter, exact attribute match, and exact value match.
 func VerifyCounterMetric(t TestingT, ctx context.Context, reader *metric.ManualReader, metricName string, attrs attribute.Set, expectedValue int64, options ...VerifyOption) {
 	t.Helper()
 	cfg := parseVerifyConfig(options...)
 	matches := collectMatchingMetrics(t, ctx, reader, metricName, cfg)
 	require.NotEmpty(t, matches, "metric %s not found", metricName)
 
+	wantMonotonic := !cfg.nonMonotonic
 	var seenAttrs []attribute.Set
 	for _, m := range matches {
 		data, ok := m.Data.(metricdata.Sum[int64])
 		require.True(t, ok, "metric %s is not a Sum[int64], but %T", metricName, m.Data)
+		require.Equal(t, wantMonotonic, data.IsMonotonic, "metric %s IsMonotonic=%v, want %v", metricName, data.IsMonotonic, wantMonotonic)
 
 		for _, dp := range data.DataPoints {
 			seenAttrs = append(seenAttrs, dp.Attributes)
@@ -96,7 +132,7 @@ func VerifyCounterMetric(t TestingT, ctx context.Context, reader *metric.ManualR
 }
 
 // VerifyHistogramMetric finds an int64 or float64 histogram metric across
-// scopes and verifies its sample count.
+// matching scopes and verifies its sample count.
 func VerifyHistogramMetric(t TestingT, ctx context.Context, reader *metric.ManualReader, metricName string, attrs attribute.Set, expectedCount uint64, options ...VerifyOption) {
 	t.Helper()
 	cfg := parseVerifyConfig(options...)
@@ -125,8 +161,8 @@ func VerifyHistogramMetric(t TestingT, ctx context.Context, reader *metric.Manua
 }
 
 // VerifyHistogramFull finds a typed histogram metric (int64 or float64) across
-// scopes and verifies its count, sum, bucket total invariant, and any bucket
-// counts specified in expectedBuckets (pass nil to check count and sum only).
+// matching scopes and verifies its count, sum, bucket total invariant, and any
+// bucket counts specified in expectedBuckets (pass nil to check count and sum only).
 func VerifyHistogramFull[T int64 | float64](t TestingT, ctx context.Context, reader *metric.ManualReader, metricName string, attrs attribute.Set, expectedCount uint64, expectedSum T, expectedBuckets map[int]uint64, options ...VerifyOption) {
 	t.Helper()
 	cfg := parseVerifyConfig(options...)
@@ -158,7 +194,7 @@ func VerifyHistogramFull[T int64 | float64](t TestingT, ctx context.Context, rea
 	}
 
 	verifyValue(t, dp.Count, expectedCount, cfg.atLeast, "count", metricName, attrs)
-	verifyValue(t, dp.Sum, expectedSum, cfg.atLeast, "sum", metricName, attrs)
+	verifyValue(t, dp.Sum, expectedSum, cfg.atLeast || cfg.atLeastSum, "sum", metricName, attrs)
 
 	for bucketIdx, expBucketCount := range expectedBuckets {
 		require.True(t, bucketIdx >= 0 && bucketIdx < len(dp.BucketCounts), "Bucket index %d out of range [0, %d) for %s", bucketIdx, len(dp.BucketCounts), metricName)
@@ -170,6 +206,26 @@ func VerifyHistogramFull[T int64 | float64](t TestingT, ctx context.Context, rea
 		totalBucketCount += count
 	}
 	require.Equal(t, dp.Count, totalBucketCount, "Sum of bucket counts must equal total count for %s", metricName)
+}
+
+// VerifyMetricNotPresent verifies that metricName was not emitted or has zero
+// data points within the matching scope(s).
+func VerifyMetricNotPresent(t TestingT, ctx context.Context, reader *metric.ManualReader, metricName string, options ...VerifyOption) {
+	t.Helper()
+	VerifyDataPointNotPresent(t, ctx, reader, metricName, attribute.NewSet(), append(slices.Clone(options), Subset())...)
+}
+
+// VerifyDataPointNotPresent verifies that no data point matching attrs is
+// present in metricName within the matching scope(s).
+func VerifyDataPointNotPresent(t TestingT, ctx context.Context, reader *metric.ManualReader, metricName string, attrs attribute.Set, options ...VerifyOption) {
+	t.Helper()
+	cfg := parseVerifyConfig(options...)
+	cfg.checkUnit = false
+	for _, m := range collectMatchingMetrics(t, ctx, reader, metricName, cfg) {
+		for _, dpAttrs := range dataPointAttributes(t, metricName, m.Data) {
+			require.False(t, matchesAttributes(dpAttrs, attrs, cfg.subset), "unexpected data point matching %v found in metric %s", attrs, metricName)
+		}
+	}
 }
 
 func parseVerifyConfig(options ...VerifyOption) *verifyConfig {
@@ -189,8 +245,14 @@ func collectMatchingMetrics(t TestingT, ctx context.Context, reader *metric.Manu
 
 	var matches []metricdata.Metrics
 	for _, sm := range rm.ScopeMetrics {
+		if cfg.scope != "" && sm.Scope.Name != cfg.scope {
+			continue
+		}
 		for _, m := range sm.Metrics {
 			if m.Name == metricName {
+				if cfg.checkUnit {
+					assert.Equal(t, cfg.unit, m.Unit, "unit mismatch for metric %s", metricName)
+				}
 				matches = append(matches, m)
 			}
 		}
@@ -206,6 +268,29 @@ func findHistogramCount[T int64 | float64](dps []metricdata.HistogramDataPoint[T
 		}
 	}
 	return 0, false
+}
+
+func dataPointAttributes(t TestingT, metricName string, data metricdata.Aggregation) []attribute.Set {
+	t.Helper()
+	switch d := data.(type) {
+	case metricdata.Sum[int64]:
+		return extractAttrs(d.DataPoints, func(dp metricdata.DataPoint[int64]) attribute.Set { return dp.Attributes })
+	case metricdata.Histogram[int64]:
+		return extractAttrs(d.DataPoints, func(dp metricdata.HistogramDataPoint[int64]) attribute.Set { return dp.Attributes })
+	case metricdata.Histogram[float64]:
+		return extractAttrs(d.DataPoints, func(dp metricdata.HistogramDataPoint[float64]) attribute.Set { return dp.Attributes })
+	default:
+		require.Failf(t, "unexpected metric data type", "metric %s has unsupported data type %T", metricName, data)
+		return nil
+	}
+}
+
+func extractAttrs[DP any](dps []DP, attrFn func(DP) attribute.Set) []attribute.Set {
+	out := make([]attribute.Set, len(dps))
+	for i, dp := range dps {
+		out[i] = attrFn(dp)
+	}
+	return out
 }
 
 func matchesAttributes(dpAttrs, targetAttrs attribute.Set, subset bool) bool {
