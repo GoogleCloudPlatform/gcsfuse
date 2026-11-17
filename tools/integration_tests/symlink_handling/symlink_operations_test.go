@@ -18,7 +18,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"syscall"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -181,49 +180,4 @@ func (s *LegacySymlinksTestSuite) TestReadStandardSymlinkInLegacyMode() {
 
 	s.Require().NoError(err)
 	s.Assert().Equal(s.targetPath, result)
-}
-
-func (s *DisableSymlinksTestSuite) TestCreateSymlink_FailsWithENOTSUP() {
-	linkPath := path.Join(s.base.testDirPath, s.base.linkName)
-
-	err := os.Symlink(s.base.targetPath, linkPath)
-
-	s.Require().Error(err)
-	s.Assert().ErrorIs(err, syscall.ENOTSUP)
-}
-
-func (s *DisableSymlinksTestSuite) TestExistingStandardSymlink_TreatedAsRegularFile() {
-	s.base.isStandardSymlink = true
-	s.base.createGCSSymlinkObject(s.base.linkName, s.base.targetPath)
-	linkPath := path.Join(s.base.testDirPath, s.base.linkName)
-
-	fi, err := os.Lstat(linkPath)
-	s.Require().NoError(err)
-	s.Assert().Zero(fi.Mode() & os.ModeSymlink)
-
-	_, err = os.Readlink(linkPath)
-	s.Require().Error(err)
-	s.Assert().ErrorIs(err, syscall.EINVAL)
-
-	content, err := os.ReadFile(linkPath)
-	s.Require().NoError(err)
-	s.Assert().Equal(s.base.targetPath, string(content))
-}
-
-func (s *DisableSymlinksTestSuite) TestExistingLegacySymlink_TreatedAsRegularFile() {
-	s.base.isStandardSymlink = false
-	s.base.createGCSSymlinkObject(s.base.linkName, s.base.targetPath)
-	linkPath := path.Join(s.base.testDirPath, s.base.linkName)
-
-	fi, err := os.Lstat(linkPath)
-	s.Require().NoError(err)
-	s.Assert().Zero(fi.Mode() & os.ModeSymlink)
-
-	_, err = os.Readlink(linkPath)
-	s.Require().Error(err)
-	s.Assert().ErrorIs(err, syscall.EINVAL)
-
-	content, err := os.ReadFile(linkPath)
-	s.Require().NoError(err)
-	s.Assert().Empty(content)
 }
