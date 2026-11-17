@@ -17,14 +17,14 @@ package fs_test
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
-	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs"
 	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs/wrappers"
@@ -36,6 +36,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -48,158 +49,208 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
-// StorageServer is a dummy interface for gRPC registration.
-type StorageServer any
+type storageProtoDescriptorSet struct {
+	object                  protoreflect.MessageDescriptor
+	getObjectReq            protoreflect.MessageDescriptor
+	listObjectsReq          protoreflect.MessageDescriptor
+	listObjectsResp         protoreflect.MessageDescriptor
+	startResumableWriteReq  protoreflect.MessageDescriptor
+	startResumableWriteResp protoreflect.MessageDescriptor
+	readObjectReq           protoreflect.MessageDescriptor
+	readObjectResp          protoreflect.MessageDescriptor
+	bidiWriteObjectReq      protoreflect.MessageDescriptor
+	bidiWriteObjectResp     protoreflect.MessageDescriptor
+}
 
-// reflectFakeServer implements the gRPC Storage service using reflection and dynamicpb
-// to avoid importing the conflicting storagepb package. A functional server is
-// needed to trigger client-side gRPC metrics and satisfy GCSFuse's stateful
-// expectations (e.g., GetObject must succeed before ReadObject is called).
+var storageProtoDescs = sync.OnceValue(func() *storageProtoDescriptorSet {
+	mustFind := func(name protoreflect.FullName) protoreflect.MessageDescriptor {
+		mt, err := protoregistry.GlobalTypes.FindMessageByName(name)
+		if err != nil {
+			panic(fmt.Sprintf("failed to resolve protobuf descriptor %s: %v", name, err))
+		}
+		return mt.Descriptor()
+	}
+	return &storageProtoDescriptorSet{
+		object:                  mustFind("google.storage.v2.Object"),
+		getObjectReq:            mustFind("google.storage.v2.GetObjectRequest"),
+		listObjectsReq:          mustFind("google.storage.v2.ListObjectsRequest"),
+		listObjectsResp:         mustFind("google.storage.v2.ListObjectsResponse"),
+		startResumableWriteReq:  mustFind("google.storage.v2.StartResumableWriteRequest"),
+		startResumableWriteResp: mustFind("google.storage.v2.StartResumableWriteResponse"),
+		readObjectReq:           mustFind("google.storage.v2.ReadObjectRequest"),
+		readObjectResp:          mustFind("google.storage.v2.ReadObjectResponse"),
+		bidiWriteObjectReq:      mustFind("google.storage.v2.BidiWriteObjectRequest"),
+		bidiWriteObjectResp:     mustFind("google.storage.v2.BidiWriteObjectResponse"),
+	}
+})
+
+// reflectFakeServer implements google.storage.v2.Storage using dynamicpb to
+// avoid importing the conflicting storagepb package.
 type reflectFakeServer struct{}
 
-func (s *reflectFakeServer) GetObject(ctx context.Context, req any) (any, error) {
+func (s *reflectFakeServer) GetObject(_ context.Context, req any) (any, error) {
 	dm := req.(*dynamicpb.Message)
 	objectName := dm.Get(dm.Descriptor().Fields().ByName("object")).String()
 	bucketName := dm.Get(dm.Descriptor().Fields().ByName("bucket")).String()
-	fmt.Printf("Fake GCS: GetObject %s in bucket %s\n", objectName, bucketName)
 
-	if strings.HasSuffix(objectName, "/") {
+	if strings.HasSuffix(objectName, "/") || strings.Contains(objectName, "nonexistent") {
 		return nil, status.Error(codes.NotFound, "not found")
 	}
 
-	// Dynamically create an Object message using the global registry.
-	msgType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.Object")
-	obj := dynamicpb.NewMessage(msgType.Descriptor())
-	obj.Set(obj.Descriptor().Fields().ByName("name"), protoreflect.ValueOf(objectName))
-	obj.Set(obj.Descriptor().Fields().ByName("bucket"), protoreflect.ValueOf(bucketName))
-	obj.Set(obj.Descriptor().Fields().ByName("size"), protoreflect.ValueOf(int64(12)))
-
+	objDesc := storageProtoDescs().object
+	obj := dynamicpb.NewMessage(objDesc)
+	obj.Set(objDesc.Fields().ByName("name"), protoreflect.ValueOf(objectName))
+	obj.Set(objDesc.Fields().ByName("bucket"), protoreflect.ValueOf(bucketName))
+	obj.Set(objDesc.Fields().ByName("size"), protoreflect.ValueOf(int64(12)))
 	return obj, nil
 }
 
-func (s *reflectFakeServer) ListObjects(ctx context.Context, req any) (any, error) {
-	msgType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.ListObjectsResponse")
-	return dynamicpb.NewMessage(msgType.Descriptor()), nil
+func (s *reflectFakeServer) ListObjects(_ context.Context, _ any) (any, error) {
+	return dynamicpb.NewMessage(storageProtoDescs().listObjectsResp), nil
+}
+
+func (s *reflectFakeServer) StartResumableWrite(_ context.Context, _ any) (any, error) {
+	respDesc := storageProtoDescs().startResumableWriteResp
+	resp := dynamicpb.NewMessage(respDesc)
+	resp.Set(respDesc.Fields().ByName("upload_id"), protoreflect.ValueOf("upload-id"))
+	return resp, nil
 }
 
 func (s *reflectFakeServer) ReadObject(req any, stream grpc.ServerStream) error {
 	dm := req.(*dynamicpb.Message)
 	objectName := dm.Get(dm.Descriptor().Fields().ByName("object")).String()
-	fmt.Printf("Fake GCS: ReadObject %s\n", objectName)
+	return sendReadObjectChunk(stream, objectName, []byte("test content"))
+}
 
-	// Send one response.
-	respType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.ReadObjectResponse")
-	resp := dynamicpb.NewMessage(respType.Descriptor())
+// sendReadObjectChunk always populates metadata (field 4) after checksummed_data
+// (field 1) so checksummed_data.content is never the final byte of the wire
+// frame—avoiding cloud.google.com/go/storage's zero-copy readObjectResponseDecoder
+// end-of-buffer slice bounds bug.
+func sendReadObjectChunk(stream grpc.ServerStream, objectName string, chunk []byte) error {
+	respDesc := storageProtoDescs().readObjectResp
+	resp := dynamicpb.NewMessage(respDesc)
 
-	// Set data.
-	dataField := resp.Descriptor().Fields().ByName("checksummed_data")
+	dataField := respDesc.Fields().ByName("checksummed_data")
 	dataMsg := dynamicpb.NewMessage(dataField.Message())
-	dataMsg.Set(dataMsg.Descriptor().Fields().ByName("content"), protoreflect.ValueOf([]byte("test content")))
+	dataMsg.Set(dataField.Message().Fields().ByName("content"), protoreflect.ValueOf(chunk))
 	resp.Set(dataField, protoreflect.ValueOfMessage(dataMsg))
 
-	// Set metadata.
-	metaField := resp.Descriptor().Fields().ByName("metadata")
+	metaField := respDesc.Fields().ByName("metadata")
 	metaMsg := dynamicpb.NewMessage(metaField.Message())
-	metaMsg.Set(metaMsg.Descriptor().Fields().ByName("name"), protoreflect.ValueOf(objectName))
-	metaMsg.Set(metaMsg.Descriptor().Fields().ByName("size"), protoreflect.ValueOf(int64(12)))
+	metaMsg.Set(metaField.Message().Fields().ByName("name"), protoreflect.ValueOf(objectName))
+	metaMsg.Set(metaField.Message().Fields().ByName("size"), protoreflect.ValueOf(int64(12)))
 	resp.Set(metaField, protoreflect.ValueOfMessage(metaMsg))
 
 	return stream.SendMsg(resp)
 }
 
-func (s *reflectFakeServer) StartResumableWrite(ctx context.Context, req any) (any, error) {
-	respType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.StartResumableWriteResponse")
-	resp := dynamicpb.NewMessage(respType.Descriptor())
-	resp.Set(resp.Descriptor().Fields().ByName("upload_id"), protoreflect.ValueOf("upload-id"))
-	return resp, nil
-}
+func (s *reflectFakeServer) BidiWriteObject(stream grpc.ServerStream) error {
+	descs := storageProtoDescs()
+	req := dynamicpb.NewMessage(descs.bidiWriteObjectReq)
+	finishField := descs.bidiWriteObjectReq.Fields().ByName("finish_write")
+	flushField := descs.bidiWriteObjectReq.Fields().ByName("flush")
 
-func (s *reflectFakeServer) WriteObject(stream grpc.ServerStream) error {
-	msgType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.WriteObjectRequest")
-	req := dynamicpb.NewMessage(msgType.Descriptor())
-	if err := stream.RecvMsg(req); err != nil {
-		return err
-	}
+	var (
+		objectName = "new_file.txt"
+		bucketName = "projects/_/buckets/test-bucket"
+		totalSize  int64
+	)
 
-	specField := req.Descriptor().Fields().ByName("write_object_spec")
-	if req.Has(specField) {
-		spec := req.Get(specField).Message()
-		resField := spec.Descriptor().Fields().ByName("resource")
-		if spec.Has(resField) {
-			res := spec.Get(resField).Message()
-			nameField := res.Descriptor().Fields().ByName("name")
-			fmt.Printf("Fake GCS: WriteObject %s\n", res.Get(nameField).String())
+	for {
+		req.Reset()
+		err := stream.RecvMsg(req)
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		totalSize += extractBidiWriteRequestFields(req, &objectName, &bucketName)
+
+		finishWrite := finishField != nil && req.Get(finishField).Bool()
+		flush := flushField != nil && req.Get(flushField).Bool()
+
+		if finishWrite {
+			resp := dynamicpb.NewMessage(descs.bidiWriteObjectResp)
+			obj := dynamicpb.NewMessage(descs.object)
+			obj.Set(descs.object.Fields().ByName("name"), protoreflect.ValueOf(objectName))
+			obj.Set(descs.object.Fields().ByName("bucket"), protoreflect.ValueOf(bucketName))
+			obj.Set(descs.object.Fields().ByName("size"), protoreflect.ValueOf(totalSize))
+			resp.Set(descs.bidiWriteObjectResp.Fields().ByName("resource"), protoreflect.ValueOfMessage(obj))
+			return stream.SendMsg(resp)
+		}
+		if flush {
+			resp := dynamicpb.NewMessage(descs.bidiWriteObjectResp)
+			resp.Set(descs.bidiWriteObjectResp.Fields().ByName("persisted_size"), protoreflect.ValueOf(totalSize))
+			if err := stream.SendMsg(resp); err != nil {
+				return err
+			}
 		}
 	}
+}
 
-	respType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.WriteObjectResponse")
-	resp := dynamicpb.NewMessage(respType.Descriptor())
-	return stream.SendMsg(resp)
+func extractBidiWriteRequestFields(req *dynamicpb.Message, objectName, bucketName *string) int64 {
+	if specField := req.Descriptor().Fields().ByName("write_object_spec"); specField != nil && req.Has(specField) {
+		spec := req.Get(specField).Message()
+		if resField := spec.Descriptor().Fields().ByName("resource"); resField != nil && spec.Has(resField) {
+			res := spec.Get(resField).Message()
+			if nameField := res.Descriptor().Fields().ByName("name"); nameField != nil && res.Has(nameField) {
+				*objectName = res.Get(nameField).String()
+			}
+			if bktField := res.Descriptor().Fields().ByName("bucket"); bktField != nil && res.Has(bktField) {
+				*bucketName = res.Get(bktField).String()
+			}
+		}
+	}
+	if dataField := req.Descriptor().Fields().ByName("checksummed_data"); dataField != nil && req.Has(dataField) {
+		dataMsg := req.Get(dataField).Message()
+		if contentField := dataMsg.Descriptor().Fields().ByName("content"); contentField != nil && dataMsg.Has(contentField) {
+			return int64(len(dataMsg.Get(contentField).Bytes()))
+		}
+	}
+	return 0
+}
+
+func makeDynamicUnaryHandler(reqDesc protoreflect.MessageDescriptor, fullMethod string, invoke func(*reflectFakeServer, context.Context, any) (any, error)) grpc.MethodHandler {
+	return func(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+		in := dynamicpb.NewMessage(reqDesc)
+		if err := dec(in); err != nil {
+			return nil, err
+		}
+		if interceptor == nil {
+			return invoke(srv.(*reflectFakeServer), ctx, in)
+		}
+		return interceptor(ctx, in, &grpc.UnaryServerInfo{Server: srv, FullMethod: fullMethod}, func(ctx context.Context, req any) (any, error) {
+			return invoke(srv.(*reflectFakeServer), ctx, req)
+		})
+	}
 }
 
 func registerFakeStorageServer(s *grpc.Server, srv *reflectFakeServer) {
-	// Dummy interface type pointer.
-	var storageServerPtr *StorageServer
-
+	descs := storageProtoDescs()
 	desc := &grpc.ServiceDesc{
 		ServiceName: "google.storage.v2.Storage",
-		HandlerType: storageServerPtr,
+		HandlerType: (*any)(nil),
 		Methods: []grpc.MethodDesc{
 			{
 				MethodName: "GetObject",
-				Handler: func(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
-					msgType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.GetObjectRequest")
-					in := dynamicpb.NewMessage(msgType.Descriptor())
-					if err := dec(in); err != nil {
-						return nil, err
-					}
-					if interceptor == nil {
-						return srv.(*reflectFakeServer).GetObject(ctx, in)
-					}
-					return interceptor(ctx, in, &grpc.UnaryServerInfo{Server: srv, FullMethod: "/google.storage.v2.Storage/GetObject"}, func(ctx context.Context, req any) (any, error) {
-						return srv.(*reflectFakeServer).GetObject(ctx, req)
-					})
-				},
+				Handler:    makeDynamicUnaryHandler(descs.getObjectReq, "/google.storage.v2.Storage/GetObject", (*reflectFakeServer).GetObject),
 			},
 			{
 				MethodName: "ListObjects",
-				Handler: func(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
-					msgType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.ListObjectsRequest")
-					in := dynamicpb.NewMessage(msgType.Descriptor())
-					if err := dec(in); err != nil {
-						return nil, err
-					}
-					if interceptor == nil {
-						return srv.(*reflectFakeServer).ListObjects(ctx, in)
-					}
-					return interceptor(ctx, in, &grpc.UnaryServerInfo{Server: srv, FullMethod: "/google.storage.v2.Storage/ListObjects"}, func(ctx context.Context, req any) (any, error) {
-						return srv.(*reflectFakeServer).ListObjects(ctx, req)
-					})
-				},
+				Handler:    makeDynamicUnaryHandler(descs.listObjectsReq, "/google.storage.v2.Storage/ListObjects", (*reflectFakeServer).ListObjects),
 			},
 			{
 				MethodName: "StartResumableWrite",
-				Handler: func(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
-					msgType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.StartResumableWriteRequest")
-					in := dynamicpb.NewMessage(msgType.Descriptor())
-					if err := dec(in); err != nil {
-						return nil, err
-					}
-					if interceptor == nil {
-						return srv.(*reflectFakeServer).StartResumableWrite(ctx, in)
-					}
-					return interceptor(ctx, in, &grpc.UnaryServerInfo{Server: srv, FullMethod: "/google.storage.v2.Storage/StartResumableWrite"}, func(ctx context.Context, req any) (any, error) {
-						return srv.(*reflectFakeServer).StartResumableWrite(ctx, req)
-					})
-				},
+				Handler:    makeDynamicUnaryHandler(descs.startResumableWriteReq, "/google.storage.v2.Storage/StartResumableWrite", (*reflectFakeServer).StartResumableWrite),
 			},
 		},
 		Streams: []grpc.StreamDesc{
 			{
 				StreamName: "ReadObject",
 				Handler: func(srv any, stream grpc.ServerStream) error {
-					msgType, _ := protoregistry.GlobalTypes.FindMessageByName("google.storage.v2.ReadObjectRequest")
-					m := dynamicpb.NewMessage(msgType.Descriptor())
+					m := dynamicpb.NewMessage(descs.readObjectReq)
 					if err := stream.RecvMsg(m); err != nil {
 						return err
 					}
@@ -208,16 +259,9 @@ func registerFakeStorageServer(s *grpc.Server, srv *reflectFakeServer) {
 				ServerStreams: true,
 			},
 			{
-				StreamName: "WriteObject",
-				Handler: func(srv any, stream grpc.ServerStream) error {
-					return srv.(*reflectFakeServer).WriteObject(stream)
-				},
-				ClientStreams: true,
-			},
-			{
 				StreamName: "BidiWriteObject",
 				Handler: func(srv any, stream grpc.ServerStream) error {
-					return status.Error(codes.Unimplemented, "unimplemented")
+					return srv.(*reflectFakeServer).BidiWriteObject(stream)
 				},
 				ServerStreams: true,
 				ClientStreams: true,
@@ -228,46 +272,31 @@ func registerFakeStorageServer(s *grpc.Server, srv *reflectFakeServer) {
 	s.RegisterService(desc, srv)
 }
 
-type fakeStorageControlServer struct {
-	controlpb.UnimplementedStorageControlServer
-}
-
-func (s *fakeStorageControlServer) GetStorageLayout(ctx context.Context, req *controlpb.GetStorageLayoutRequest) (*controlpb.StorageLayout, error) {
-	return &controlpb.StorageLayout{
-		Name: req.Name,
-		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{
-			Enabled: false,
-		},
-	}, nil
-}
-
-func createTestFileSystemWithGrpcMetrics(ctx context.Context, t *testing.T, params *serverConfigParams) (storage.StorageHandle, fuseutil.FileSystem, metrics.MetricHandle, *metric.ManualReader) {
+// startFakeGCEMetadataServer starts an in-process HTTP server emulating GCE
+// metadata endpoints for OTel GCP resource detection.
+func startFakeGCEMetadataServer(t *testing.T) {
 	t.Helper()
-
-	// Bypass the protobuf registration conflict panic.
-	_ = os.Setenv("GOLANG_PROTOBUF_REGISTRATION_CONFLICT", "ignore")
-	_ = os.Setenv("GOOGLE_CLOUD_PROJECT", "test-project")
-
-	// Start fake gRPC server
-	lis, err := net.Listen("tcp", "localhost:0")
-	require.NoError(t, err)
-	grpcServer := grpc.NewServer()
-	registerFakeStorageServer(grpcServer, &reflectFakeServer{})
-	controlpb.RegisterStorageControlServer(grpcServer, &fakeStorageControlServer{})
-	go func() {
-		_ = grpcServer.Serve(lis)
-	}()
-	t.Cleanup(func() {
-		grpcServer.Stop()
-	})
-
-	// Start fake metadata server to provide project ID for gRPC metrics
 	metadataLis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	mux := http.NewServeMux()
-	mux.HandleFunc("/computeMetadata/v1/project/project-id", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Metadata-Flavor", "Google")
-		_, _ = w.Write([]byte("test-project"))
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/computeMetadata/v1/project/project-id"):
+			_, _ = w.Write([]byte("test-project"))
+		case strings.HasPrefix(r.URL.Path, "/computeMetadata/v1/instance/zone"):
+			_, _ = w.Write([]byte("projects/123456/zones/us-central1-a"))
+		case strings.HasPrefix(r.URL.Path, "/computeMetadata/v1/instance/id"):
+			_, _ = w.Write([]byte("1234567890"))
+		case strings.HasPrefix(r.URL.Path, "/computeMetadata/v1/instance/name"):
+			_, _ = w.Write([]byte("test-instance"))
+		case strings.HasPrefix(r.URL.Path, "/computeMetadata/v1/instance/machine-type"):
+			_, _ = w.Write([]byte("projects/123456/machineTypes/n2-standard-4"))
+		case strings.HasPrefix(r.URL.Path, "/computeMetadata/v1/universe/universe-domain"):
+			_, _ = w.Write([]byte("googleapis.com"))
+		default:
+			w.WriteHeader(http.StatusOK)
+		}
 	})
 	metadataServer := &http.Server{Handler: mux}
 	go func() {
@@ -276,17 +305,55 @@ func createTestFileSystemWithGrpcMetrics(ctx context.Context, t *testing.T, para
 	t.Cleanup(func() {
 		_ = metadataServer.Close()
 	})
-	_ = os.Setenv("GCE_METADATA_HOST", metadataLis.Addr().String())
-	t.Cleanup(func() { _ = os.Unsetenv("GCE_METADATA_HOST") })
+	t.Setenv("GCE_METADATA_HOST", metadataLis.Addr().String())
+}
 
+// setupOTelManualReader installs a view-free OpenTelemetry MeterProvider backed
+// by a ManualReader for the test duration.
+func setupOTelManualReader(ctx context.Context, t *testing.T) (metrics.MetricHandle, *metric.ManualReader) {
+	t.Helper()
 	origProvider := otel.GetMeterProvider()
-	t.Cleanup(func() { otel.SetMeterProvider(origProvider) })
 	reader := metric.NewManualReader()
 	provider := metric.NewMeterProvider(metric.WithReader(reader))
 	otel.SetMeterProvider(provider)
+	t.Cleanup(func() {
+		_ = provider.Shutdown(context.Background())
+		otel.SetMeterProvider(origProvider)
+	})
 
 	mh, err := metrics.NewOTelMetrics(ctx, 1, 100)
 	require.NoError(t, err, "metrics.NewOTelMetrics")
+	t.Cleanup(func() {
+		mh.Close()
+	})
+	return mh, reader
+}
+
+type grpcMetricsTestFixture struct {
+	server fuseutil.FileSystem
+	reader *metric.ManualReader
+}
+
+func setupGRPCMetricsFixture(ctx context.Context, t *testing.T) *grpcMetricsTestFixture {
+	t.Helper()
+
+	t.Setenv("GOLANG_PROTOBUF_REGISTRATION_CONFLICT", "ignore")
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "test-project")
+	t.Setenv("GOOGLE_CLOUD_DISABLE_DIRECT_PATH", "true")
+	t.Setenv("GCP_STORAGE_GO_ENABLE_OTEL_METRICS", "false")
+
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	grpcServer := grpc.NewServer()
+	registerFakeStorageServer(grpcServer, &reflectFakeServer{})
+	go func() {
+		_ = grpcServer.Serve(lis)
+	}()
+	t.Cleanup(grpcServer.Stop)
+
+	startFakeGCEMetadataServer(t)
+	mh, reader := setupOTelManualReader(ctx, t)
 
 	clientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:    cfg.GRPC,
@@ -294,6 +361,10 @@ func createTestFileSystemWithGrpcMetrics(ctx context.Context, t *testing.T, para
 		EnableGrpcMetrics: true,
 		IsGKE:             true,
 		AnonymousAccess:   true,
+		GrpcConnPoolSize:  1,
+		MaxRetryAttempts:  3,
+		RetryMultiplier:   2,
+		MaxRetrySleep:     5 * time.Millisecond,
 		MetricHandle:      mh,
 		WriteConfig:       &cfg.WriteConfig{},
 	}
@@ -301,33 +372,34 @@ func createTestFileSystemWithGrpcMetrics(ctx context.Context, t *testing.T, para
 	sh, err := storage.NewStorageHandle(ctx, clientConfig, "")
 	require.NoError(t, err)
 
-	// Poke the storage client to trigger internal DirectPath checks with a short timeout.
-	// This prevents the subsequent real operations from hanging for 60s.
-	shortCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
-	_, _ = sh.BucketHandle(shortCtx, "test-bucket", "")
-	cancel()
+	bm := gcsx.NewBucketManager(gcsx.BucketConfig{
+		StatCacheMaxSizeMB:       32,
+		StatCacheTTL:             time.Minute,
+		NegativeStatCacheTTL:     time.Minute,
+		ChunkRetryDeadlineSecs:   120,
+		ChunkTransferTimeoutSecs: 10,
+		TmpObjectPrefix:          ".gcsfuse_tmp/",
+	}, sh, mh)
 
-	bucketName := "test-bucket"
-	bucketConfig := gcsx.BucketConfig{
-		BillingProject:       "",
-		StatCacheMaxSizeMB:   32,
-		StatCacheTTL:         time.Minute,
-		NegativeStatCacheTTL: time.Minute,
-		TmpObjectPrefix:      ".gcsfuse_tmp/",
-	}
-
-	bm := gcsx.NewBucketManager(bucketConfig, sh, mh)
-
-	serverCfg := &fs.ServerConfig{
+	server, err := fs.NewFileSystem(ctx, &fs.ServerConfig{
+		SequentialReadSizeMb: 200,
 		NewConfig: &cfg.Config{
 			Write: cfg.WriteConfig{
-				GlobalMaxBlocks: 1,
+				BlockSizeMb:      1,
+				MaxBlocksPerFile: 10,
+				GlobalMaxBlocks:  4,
 			},
 			Read: cfg.ReadConfig{
-				EnableBufferedRead: params.enableBufferedRead,
-				GlobalMaxBlocks:    1,
 				BlockSizeMb:        1,
 				MaxBlocksPerHandle: 10,
+				GlobalMaxBlocks:    1,
+			},
+			GcsRetries: cfg.GcsRetriesConfig{
+				ChunkRetryDeadlineSecs:   120,
+				ChunkTransferTimeoutSecs: 10,
+			},
+			MetadataCache: cfg.MetadataCacheConfig{
+				TtlSecs: 60,
 			},
 			EnableNewReader: true,
 			Metrics: cfg.MetricsConfig{
@@ -337,104 +409,48 @@ func createTestFileSystemWithGrpcMetrics(ctx context.Context, t *testing.T, para
 		MetricHandle:  mh,
 		TraceHandle:   tracing.NewNoopTracer(),
 		CacheClock:    &timeutil.SimulatedClock{},
-		BucketName:    bucketName,
+		BucketName:    "test-bucket",
 		BucketManager: bm,
-	}
-
-	if params.enableFileCache || params.enableSparseFileCache {
-		cacheDir := t.TempDir()
-		serverCfg.NewConfig.CacheDir = cfg.ResolvedPath(cacheDir)
-		serverCfg.NewConfig.FileCache = cfg.FileCacheConfig{
-			MaxSizeMb:                              100,
-			CacheFileForRangeRead:                  true,
-			ExperimentalEnableChunkCache:           params.enableSparseFileCache,
-			DownloadChunkSizeMb:                    1,
-			EnableParallelDownloads:                params.enableParallelDownloads,
-			ExperimentalParallelDownloadsDefaultOn: params.enableParallelDownloadsBlocking,
-			ParallelDownloadsPerFile:               16,
-		}
-	}
-	if serverCfg.NewConfig.MetadataCache.TtlSecs == 0 {
-		serverCfg.NewConfig.MetadataCache.TtlSecs = 60
-	}
-
-	server, err := fs.NewFileSystem(ctx, serverCfg)
+	})
 	require.NoError(t, err, "NewFileSystem")
-	return sh, server, mh, reader
+	t.Cleanup(server.Destroy)
+
+	return &grpcMetricsTestFixture{
+		server: wrappers.WithMonitoring(server, mh),
+		reader: reader,
+	}
 }
 
 func TestGrpcMetrics_LookUpInode(t *testing.T) {
-	ctx := context.Background()
-	params := defaultServerConfigParams()
+	ctx := t.Context()
+	f := setupGRPCMetricsFixture(ctx, t)
 
-	_, server, mh, reader := createTestFileSystemWithGrpcMetrics(ctx, t, params)
-	server = wrappers.WithMonitoring(server, mh)
-
-	fileName := "test.txt"
-
-	lookupOp := &fuseops.LookUpInodeOp{
+	require.NoError(t, f.server.LookUpInode(ctx, &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
-		Name:   fileName,
-	}
+		Name:   "test.txt",
+	}))
 
-	// HACK: Every gRPC-enabled mount in GCSFuse performs a synchronous
-	// "DirectPath connectivity check" during the first few operations on a bucket.
-	// In non-GCP environments (like local development), this library check
-	// hangs for exactly 60 seconds before failing and falling back to standard gRPC.
-	//
-	// We perform a dummy LookUpInode with a 100ms timeout here to "poke" this check
-	// and allow it to fail early. This prevents the initial test operation from
-	// appearing to hang indefinitely in an IDE, although subsequent real calls
-	// will still wait for the library's internal 60s timeout to expire naturally.
-	//
-	// This approach is used to keep the production codebase (storage_handle.go)
-	// completely pristine while still allowing the tests to eventually pass.
-	shortCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
-	_ = server.LookUpInode(shortCtx, lookupOp)
-	cancel()
-
-	// Now run the real call. It should be fast because DirectPath check (even if hanging)
-	// won't block the actual gRPC calls once the client is initialized.
-	err := server.LookUpInode(ctx, lookupOp)
-	require.NoError(t, err)
-
-	waitForMetricsProcessing()
-	time.Sleep(501 * time.Millisecond)
-
-	// Verify that grpc.client.attempt.started was emitted.
-	metrics.VerifyCounterMetric(t, ctx, reader, "grpc.client.attempt.started",
+	rmOpt := metrics.WithResourceMetrics(metrics.CollectResourceMetrics(t, ctx, f.reader))
+	metrics.VerifyCounterMetric(t, ctx, nil, "grpc.client.attempt.started",
 		attribute.NewSet(attribute.String("grpc.method", "google.storage.v2.Storage/GetObject")),
-		1, metrics.AtLeast(), metrics.Subset())
-	metrics.VerifyHistogramMetric(t, ctx, reader, "grpc.client.call.duration",
+		1, rmOpt, metrics.AtLeast(), metrics.Subset())
+	metrics.VerifyHistogramMetric(t, ctx, nil, "grpc.client.call.duration",
 		attribute.NewSet(attribute.String("grpc.method", "google.storage.v2.Storage/GetObject")),
-		1, metrics.AtLeast(), metrics.Subset())
+		1, rmOpt, metrics.AtLeast(), metrics.Subset())
 }
 
 func TestGrpcMetrics_ReadFile(t *testing.T) {
-	ctx := context.Background()
-	params := defaultServerConfigParams()
-
-	_, server, mh, reader := createTestFileSystemWithGrpcMetrics(ctx, t, params)
-	server = wrappers.WithMonitoring(server, mh)
-
-	fileName := "test.txt"
+	ctx := t.Context()
+	f := setupGRPCMetricsFixture(ctx, t)
 
 	lookupOp := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
-		Name:   fileName,
+		Name:   "test.txt",
 	}
-	// Bypass the DirectPath hang (see explanation in TestGrpcMetrics_LookUpInode).
-	shortCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
-	_ = server.LookUpInode(shortCtx, lookupOp)
-	cancel()
-	err := server.LookUpInode(ctx, lookupOp)
-	require.NoError(t, err)
+	require.NoError(t, f.server.LookUpInode(ctx, lookupOp))
 
-	openOp := &fuseops.OpenFileOp{
-		Inode: lookupOp.Entry.Child,
-	}
-	err = server.OpenFile(ctx, openOp)
-	require.NoError(t, err)
+	openOp := &fuseops.OpenFileOp{Inode: lookupOp.Entry.Child}
+	require.NoError(t, f.server.OpenFile(ctx, openOp))
 
 	readOp := &fuseops.ReadFileOp{
 		Inode:  lookupOp.Entry.Child,
@@ -442,56 +458,43 @@ func TestGrpcMetrics_ReadFile(t *testing.T) {
 		Offset: 0,
 		Dst:    make([]byte, 12),
 	}
-	err = server.ReadFile(ctx, readOp)
-	require.NoError(t, err)
-	waitForMetricsProcessing()
-	time.Sleep(501 * time.Millisecond)
+	require.NoError(t, f.server.ReadFile(ctx, readOp))
+	require.Equal(t, 12, readOp.BytesRead)
+	require.Equal(t, "test content", string(readOp.Dst))
+	require.NoError(t, f.server.ReleaseFileHandle(ctx, &fuseops.ReleaseFileHandleOp{Handle: openOp.Handle}))
 
-	// Verify ReadObject metric.
-	metrics.VerifyCounterMetric(t, ctx, reader, "grpc.client.attempt.started",
-		attribute.NewSet(attribute.String("grpc.method", "google.storage.v2.Storage/ReadObject")),
-		1, metrics.AtLeast(), metrics.Subset())
-	metrics.VerifyHistogramMetric(t, ctx, reader, "grpc.client.call.duration",
-		attribute.NewSet(attribute.String("grpc.method", "google.storage.v2.Storage/ReadObject")),
-		1, metrics.AtLeast(), metrics.Subset())
+	// Reader.Close cancels the ReadObject stream context; grpc-go's stream
+	// context-watcher goroutine records grpc.client.call.duration asynchronously
+	// via OnFinish once <-ctx.Done() is scheduled.
+	readAttrs := attribute.NewSet(attribute.String("grpc.method", "google.storage.v2.Storage/ReadObject"))
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		rmOpt := metrics.WithResourceMetrics(metrics.CollectResourceMetrics(c, ctx, f.reader))
+		metrics.VerifyCounterMetric(c, ctx, nil, "grpc.client.attempt.started", readAttrs, 1, rmOpt, metrics.AtLeast(), metrics.Subset())
+		metrics.VerifyHistogramMetric(c, ctx, nil, "grpc.client.call.duration", readAttrs, 1, rmOpt, metrics.AtLeast(), metrics.Subset())
+	}, time.Second, time.Millisecond)
 }
 
 func TestGrpcMetrics_CreateFile(t *testing.T) {
-	ctx := context.Background()
-	params := defaultServerConfigParams()
-
-	_, server, mh, reader := createTestFileSystemWithGrpcMetrics(ctx, t, params)
-	server = wrappers.WithMonitoring(server, mh)
-
-	fileName := "new_file.txt"
+	ctx := t.Context()
+	f := setupGRPCMetricsFixture(ctx, t)
 
 	createOp := &fuseops.CreateFileOp{
 		Parent: fuseops.RootInodeID,
-		Name:   fileName,
+		Name:   "new_file.txt",
 		Mode:   0644,
 	}
-	// Bypass the DirectPath hang (see explanation in TestGrpcMetrics_LookUpInode).
-	shortCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
-	_ = server.CreateFile(shortCtx, createOp)
-	cancel()
-	err := server.CreateFile(ctx, createOp)
-	require.NoError(t, err)
-
-	syncOp := &fuseops.SyncFileOp{
+	require.NoError(t, f.server.CreateFile(ctx, createOp))
+	require.NoError(t, f.server.SyncFile(ctx, &fuseops.SyncFileOp{
 		Inode:  createOp.Entry.Child,
 		Handle: createOp.Handle,
-	}
-	// SyncFile might fail if BidiWriteObject is unimplemented, but we check metrics.
-	_ = server.SyncFile(ctx, syncOp)
+	}))
+	require.NoError(t, f.server.ReleaseFileHandle(ctx, &fuseops.ReleaseFileHandleOp{Handle: createOp.Handle}))
 
-	waitForMetricsProcessing()
-	time.Sleep(501 * time.Millisecond)
-
-	// Verify BidiWriteObject metric.
-	metrics.VerifyCounterMetric(t, ctx, reader, "grpc.client.attempt.started",
+	rmOpt := metrics.WithResourceMetrics(metrics.CollectResourceMetrics(t, ctx, f.reader))
+	metrics.VerifyCounterMetric(t, ctx, nil, "grpc.client.attempt.started",
 		attribute.NewSet(attribute.String("grpc.method", "google.storage.v2.Storage/BidiWriteObject")),
-		1, metrics.AtLeast(), metrics.Subset())
-	metrics.VerifyHistogramMetric(t, ctx, reader, "grpc.client.call.duration",
+		1, rmOpt, metrics.AtLeast(), metrics.Subset())
+	metrics.VerifyHistogramMetric(t, ctx, nil, "grpc.client.call.duration",
 		attribute.NewSet(attribute.String("grpc.method", "google.storage.v2.Storage/BidiWriteObject")),
-		1, metrics.AtLeast(), metrics.Subset())
+		1, rmOpt, metrics.AtLeast(), metrics.Subset())
 }
