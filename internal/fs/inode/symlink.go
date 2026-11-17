@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"syscall"
 	"time"
 
 	"context"
@@ -37,6 +38,9 @@ import (
 // and retained solely for backward compatibility.
 const SymlinkMetadataKey = "gcsfuse_symlink_target"
 const StandardSymlinkMetadataKey = "goog-reserved-file-is-symlink"
+
+// PathMax includes the terminating NUL that the kernel adds to a target.
+const maxSymlinkTargetSize = syscall.PathMax - 1
 
 // IsSymlink Does the supplied object represent a symlink inode?
 func IsSymlink(m *gcs.MinObject) bool {
@@ -152,6 +156,9 @@ func (s *SymlinkInode) openReader(ctx context.Context) (io.ReadCloser, error) {
 func (s *SymlinkInode) resolveSymlinkTarget(ctx context.Context) (string, error) {
 	// Check for standard symlink representation where the target is stored in the object content.
 	if val, ok := s.metadata[StandardSymlinkMetadataKey]; ok && val == "true" {
+		if s.sourceGeneration.Size > maxSymlinkTargetSize {
+			return "", fmt.Errorf("symlink target exceeds %d bytes: %w", maxSymlinkTargetSize, syscall.ENAMETOOLONG)
+		}
 		rc, err := s.openReader(ctx)
 		if err != nil {
 			return "", fmt.Errorf("openReader: %w", err)
@@ -163,15 +170,21 @@ func (s *SymlinkInode) resolveSymlinkTarget(ctx context.Context) (string, error)
 			}
 		}()
 
-		content, err := io.ReadAll(rc)
+		content, err := io.ReadAll(io.LimitReader(rc, maxSymlinkTargetSize+1))
 		if err != nil {
 			return "", fmt.Errorf("ReadAll: %w", err)
+		}
+		if len(content) > maxSymlinkTargetSize {
+			return "", fmt.Errorf("symlink target exceeds %d bytes: %w", maxSymlinkTargetSize, syscall.ENAMETOOLONG)
 		}
 		return string(content), nil
 	}
 
 	// Check for legacy symlink representation where the target is stored in metadata.
 	if target, ok := s.metadata[SymlinkMetadataKey]; ok {
+		if len(target) > maxSymlinkTargetSize {
+			return "", fmt.Errorf("symlink target exceeds %d bytes: %w", maxSymlinkTargetSize, syscall.ENAMETOOLONG)
+		}
 		return target, nil
 	}
 

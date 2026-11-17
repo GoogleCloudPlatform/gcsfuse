@@ -17,7 +17,10 @@ package inode
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -38,6 +41,88 @@ type SymlinkInternalTest struct {
 	ctx    context.Context
 	bucket gcs.Bucket
 	clock  timeutil.SimulatedClock
+}
+
+type boundedSymlinkReader struct {
+	io.Reader
+	readBytes int
+	closed    bool
+}
+
+func (r *boundedSymlinkReader) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	r.readBytes += n
+	return n, err
+}
+
+func (r *boundedSymlinkReader) Close() error {
+	r.closed = true
+	return nil
+}
+
+type symlinkContentBucket struct {
+	gcs.Bucket
+	reader *boundedSymlinkReader
+}
+
+func (b symlinkContentBucket) NewReaderWithReadHandle(context.Context, *gcs.ReadObjectRequest) (gcs.StorageReader, error) {
+	return &fake.FakeReader{ReadCloser: b.reader}, nil
+}
+
+func TestSymlinkTargetReadIsBounded(t *testing.T) {
+	// Arrange
+	reader := &boundedSymlinkReader{Reader: strings.NewReader(strings.Repeat("x", 16*1024))}
+	bucket := symlinkContentBucket{
+		Bucket: fake.NewFakeBucket(timeutil.RealClock(), "test-bucket", gcs.BucketType{}),
+		reader: reader,
+	}
+	syncer := gcsx.NewSyncerBucket(1, 120, 10, ".gcsfuse_tmp/", bucket, false)
+	object := &gcs.MinObject{
+		Name: "link", Generation: 1, Size: 1,
+		Metadata: map[string]string{StandardSymlinkMetadataKey: "true"},
+	}
+
+	// Act
+	link, err := NewSymlinkInode(context.Background(), 1, NewFileName(NewRootName(""), "link"), &syncer, object)
+
+	// Assert
+	require.ErrorIs(t, err, syscall.ENAMETOOLONG)
+	assert.Nil(t, link)
+	assert.LessOrEqual(t, reader.readBytes, syscall.PathMax)
+	assert.True(t, reader.closed)
+}
+
+func TestSymlinkTargetLengthBoundaries(t *testing.T) {
+	for _, legacy := range []bool{false, true} {
+		for _, length := range []int{syscall.PathMax - 1, syscall.PathMax} {
+			t.Run(fmt.Sprintf("legacy=%t/length=%d", legacy, length), func(t *testing.T) {
+				// Arrange
+				target := strings.Repeat("x", length)
+				backend := fake.NewFakeBucket(timeutil.RealClock(), "test-bucket", gcs.BucketType{})
+				created, err := storageutil.CreateObject(context.Background(), backend, "link", []byte(target))
+				require.NoError(t, err)
+				object := storageutil.ConvertObjToMinObject(created)
+				if legacy {
+					object.Metadata = map[string]string{SymlinkMetadataKey: target}
+				} else {
+					object.Metadata = map[string]string{StandardSymlinkMetadataKey: "true"}
+				}
+				syncer := gcsx.NewSyncerBucket(1, 120, 10, ".gcsfuse_tmp/", backend, false)
+
+				// Act
+				link, err := NewSymlinkInode(context.Background(), 1, NewFileName(NewRootName(""), "link"), &syncer, object)
+
+				// Assert
+				if length >= syscall.PathMax {
+					require.ErrorIs(t, err, syscall.ENAMETOOLONG)
+					assert.Nil(t, link)
+				} else {
+					require.NoError(t, err)
+					assert.Equal(t, target, link.Target())
+				}
+			})
+		}
+	}
 }
 
 func TestSymlinkInternalTest(t *testing.T) {
