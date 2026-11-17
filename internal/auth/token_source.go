@@ -123,9 +123,9 @@ func (ts proxyTokenSource) Token() (token *oauth2.Token, err error) {
 	}
 
 	if c := resp.StatusCode; c < 200 || c >= 300 {
+		// Credential-provider response bodies can contain tokens or other secrets.
 		err = &oauth2.RetrieveError{
 			Response: resp,
-			Body:     body,
 		}
 		return nil, err
 	}
