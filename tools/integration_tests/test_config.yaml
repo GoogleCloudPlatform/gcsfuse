@@ -1881,6 +1881,15 @@ symlink_handling:
             same_zone: true
             different_zone: false
         run_on_gke: true
+      - run: TestDisableSymlinksTestSuite
+        flags:
+          - "--disable-symlinks=true,--client-protocol=http1"
+          - "--disable-symlinks=true,--client-protocol=grpc"
+        compatible:
+          flat: true
+          hns: true
+          zonal: true
+        run_on_gke: true
 
 buffered_read:
   - mounted_directory: "${MOUNTED_DIR}"

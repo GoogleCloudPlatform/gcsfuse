@@ -43,8 +43,25 @@ type BaseSymlinkSuite struct {
 // StandardSymlinksTestSuite groups all test related to symlinks following standard representation.
 type StandardSymlinksTestSuite struct{ BaseSymlinkSuite }
 
-// StandardSymlinksTestSuite groups all test related to symlinks following legacy representation.
+// LegacySymlinksTestSuite groups all test related to symlinks following legacy representation.
 type LegacySymlinksTestSuite struct{ BaseSymlinkSuite }
+
+// DisableSymlinksTestSuite groups all tests when symlink support is disabled (--disable-symlinks=true).
+// Note: BaseSymlinkSuite is held as a named field (`base`) rather than embedded directly so that
+// testify/suite does not inherit and execute BaseSymlinkSuite's positive symlink Test* methods.
+type DisableSymlinksTestSuite struct {
+	suite.Suite
+	base BaseSymlinkSuite
+}
+
+func (s *DisableSymlinksTestSuite) SetupTest() {
+	s.base.SetT(s.T())
+	s.base.SetupTest()
+}
+
+func (s *DisableSymlinksTestSuite) TearDownTest() {
+	s.base.TearDownTest()
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Common Suite Logic
@@ -157,6 +174,12 @@ func TestStandardSymlinks(t *testing.T) {
 func TestLegacySymlinks(t *testing.T) {
 	RunTests(t, "TestLegacySymlinksTestSuite", func(flags []string) suite.TestingSuite {
 		return &LegacySymlinksTestSuite{BaseSymlinkSuite{flags: flags, isStandardSymlink: false}}
+	})
+}
+
+func TestDisableSymlinks(t *testing.T) {
+	RunTests(t, "TestDisableSymlinksTestSuite", func(flags []string) suite.TestingSuite {
+		return &DisableSymlinksTestSuite{base: BaseSymlinkSuite{flags: flags}}
 	})
 }
 

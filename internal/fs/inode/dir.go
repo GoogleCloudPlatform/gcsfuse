@@ -279,6 +279,7 @@ type dirInode struct {
 	activeWriters atomic.Int32
 
 	isStandardSymlinkRepresentationEnabled bool
+	disableSymlinks                        bool
 	isUnsupportedPathSupportEnabled        bool
 	isEnableTypeCacheDeprecation           bool
 
@@ -345,6 +346,7 @@ func NewDirInode(
 		mtime:                                  mtimeClock.Now(),
 		isHNSEnabled:                           cfg.EnableHns,
 		isStandardSymlinkRepresentationEnabled: cfg.EnableStandardSymlinks,
+		disableSymlinks:                        cfg.FileSystem.DisableSymlinks,
 		isUnsupportedPathSupportEnabled:        cfg.EnableUnsupportedPathSupport,
 		isEnableTypeCacheDeprecation:           cfg.EnableTypeCacheDeprecation,
 		unlinked:                               false,
@@ -1094,7 +1096,11 @@ func (d *dirInode) ReadEntries(
 		}
 		switch core.Type() {
 		case metadata.SymlinkType:
-			entry.Type = fuseutil.DT_Link
+			if d.disableSymlinks {
+				entry.Type = fuseutil.DT_File
+			} else {
+				entry.Type = fuseutil.DT_Link
+			}
 		case metadata.RegularFileType:
 			entry.Type = fuseutil.DT_File
 		case metadata.ImplicitDirType, metadata.ExplicitDirType:

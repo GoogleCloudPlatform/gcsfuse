@@ -2431,3 +2431,50 @@ func (t *DirTest) TestMetadataPrefetcher_InitializationGuards() {
 		})
 	}
 }
+
+func (t *DirTest) TestReadEntries_DisableSymlinks() {
+	config := &cfg.Config{
+		List:                         cfg.ListConfig{EnableEmptyManagedFolders: true},
+		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
+		FileSystem:                   cfg.FileSystemConfig{DisableSymlinks: true},
+		EnableHns:                    false,
+		EnableUnsupportedPathSupport: true,
+		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
+		EnableStandardSymlinks:       true,
+	}
+	in := NewDirInode(
+		dirInodeID,
+		NewDirName(NewRootName(""), dirInodeName),
+		context.Background(),
+		false,
+		false,
+		typeCacheTTL,
+		&t.bucket,
+		&t.clock,
+		&t.clock,
+		semaphore.NewWeighted(10),
+		config,
+	)
+	in.Lock()
+	defer in.Unlock()
+
+	objs := []string{
+		dirInodeName + "file",
+		dirInodeName + "symlink",
+	}
+	err := storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	require.NoError(t.T(), err)
+	err = t.setSymlinkTarget(dirInodeName + "symlink")
+	require.NoError(t.T(), err)
+
+	entries, _, tok, err := in.ReadEntries(t.ctx, "")
+
+	require.NoError(t.T(), err)
+	assert.Empty(t.T(), tok)
+	sort.Sort(DirentSlice(entries))
+	require.Equal(t.T(), 2, len(entries))
+	assert.Equal(t.T(), "file", entries[0].Name)
+	assert.Equal(t.T(), fuseutil.DT_File, entries[0].Type)
+	assert.Equal(t.T(), "symlink", entries[1].Name)
+	assert.Equal(t.T(), fuseutil.DT_File, entries[1].Type)
+}

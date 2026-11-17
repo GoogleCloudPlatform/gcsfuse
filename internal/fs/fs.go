@@ -959,7 +959,7 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			fs.newConfig,
 		)
 
-	case inode.IsSymlink(ic.MinObject):
+	case !fs.newConfig.FileSystem.DisableSymlinks && inode.IsSymlink(ic.MinObject):
 		in, err = inode.NewSymlinkInode(
 			parInodeCtx,
 			id,
@@ -1712,7 +1712,11 @@ func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name,
 	// Set the directory entry type based on the core type.
 	switch core.Type() {
 	case metadata.SymlinkType:
-		entryPlus.Dirent.Type = fuseutil.DT_Link
+		if fs.newConfig.FileSystem.DisableSymlinks {
+			entryPlus.Dirent.Type = fuseutil.DT_File
+		} else {
+			entryPlus.Dirent.Type = fuseutil.DT_Link
+		}
 	case metadata.RegularFileType:
 		entryPlus.Dirent.Type = fuseutil.DT_File
 	case metadata.ImplicitDirType, metadata.ExplicitDirType:
@@ -2276,6 +2280,9 @@ func (fs *fileSystem) CreateFile(
 func (fs *fileSystem) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
+	if fs.newConfig.FileSystem.DisableSymlinks {
+		return syscall.ENOTSUP
+	}
 	ctx = fs.getInterruptlessContext(ctx)
 	// Find the parent.
 	fs.mu.Lock()
@@ -3172,6 +3179,9 @@ func (fs *fileSystem) ReadFile(
 func (fs *fileSystem) ReadSymlink(
 	ctx context.Context,
 	op *fuseops.ReadSymlinkOp) (err error) {
+	if fs.newConfig.FileSystem.DisableSymlinks {
+		return syscall.ENOTSUP
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.symlinkInodeOrDie(op.Inode)

@@ -1748,6 +1748,48 @@ func TestArgsParsing_EnableStandardSymlinks(t *testing.T) {
 	}
 }
 
+func TestArgsParsing_DisableSymlinks(t *testing.T) {
+	tests := []struct {
+		name                    string
+		args                    []string
+		expectedDisableSymlinks bool
+	}{
+		{
+			name:                    "default",
+			args:                    []string{"gcsfuse", "abc", "pqr"},
+			expectedDisableSymlinks: false,
+		},
+		{
+			name:                    "enabled",
+			args:                    []string{"gcsfuse", "--disable-symlinks=true", "abc", "pqr"},
+			expectedDisableSymlinks: true,
+		},
+		{
+			name:                    "disabled",
+			args:                    []string{"gcsfuse", "--disable-symlinks=false", "abc", "pqr"},
+			expectedDisableSymlinks: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotDisableSymlinks bool
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotDisableSymlinks = mountInfo.config.FileSystem.DisableSymlinks
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedDisableSymlinks, gotDisableSymlinks)
+			}
+		})
+	}
+}
+
 func TestArgsParsing_EnableGoogleLibAuthFlag(t *testing.T) {
 	tests := []struct {
 		name                        string

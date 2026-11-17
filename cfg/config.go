@@ -644,6 +644,8 @@ type FileSystemConfig struct {
 
 	DisableParallelDirops bool `yaml:"disable-parallel-dirops"`
 
+	DisableSymlinks bool `yaml:"disable-symlinks"`
+
 	EnableKernelReader bool `yaml:"enable-kernel-reader"`
 
 	ExperimentalEnableDentryCache bool `yaml:"experimental-enable-dentry-cache"`
@@ -1028,6 +1030,8 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 	if err := flagSet.MarkHidden("disable-parallel-dirops"); err != nil {
 		return err
 	}
+
+	flagSet.BoolP("disable-symlinks", "", false, "Disables symbolic link support. When enabled, creating new symlinks is blocked and existing symlink objects in the bucket are treated as regular files.")
 
 	flagSet.DurationP("dummy-io-per-mb-latency", "", 0*time.Nanosecond, "Simulates reading from the reader latency in dummy I/O mode. This value is only used when dummy I/O mode is enabled.")
 
@@ -1713,6 +1717,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.disable-parallel-dirops", flagSet.Lookup("disable-parallel-dirops")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.disable-symlinks", flagSet.Lookup("disable-symlinks")); err != nil {
 		return err
 	}
 
