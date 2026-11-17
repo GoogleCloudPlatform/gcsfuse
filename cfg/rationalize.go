@@ -118,8 +118,9 @@ func resolveCloudMetricsUploadIntervalSecs(m *MetricsConfig) {
 
 func resolveParallelDownloadsValue(v *viper.Viper, fc *FileCacheConfig, c *Config) {
 	// Parallel downloads should be default ON when file cache is enabled, in case
-	// it is explicitly set by the user, use that value.
-	if IsFileCacheEnabled(c) && !v.IsSet(FileCacheParallelDownloadsConfigKey) {
+	// it is explicitly set by the user, use that value. max-parallel-downloads=0
+	// means parallel downloads are disabled, so don't turn them on in that case.
+	if IsFileCacheEnabled(c) && !v.IsSet(FileCacheParallelDownloadsConfigKey) && fc.MaxParallelDownloads != 0 {
 		fc.EnableParallelDownloads = true
 	}
 }
