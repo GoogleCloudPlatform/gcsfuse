@@ -24,6 +24,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"math"
 	"math/big"
 	"net"
@@ -698,25 +699,20 @@ func ensureTestTLSFixture(t *testing.T) {
 			// Certificate.Verify (opts.Roots == nil) to call the OS verifier and ignore
 			// appended PEM roots; on Linux, NewCertPool() also skips /etc/ssl/certs I/O.
 			pool := x509.NewCertPool()
-			pool.AppendCertsFromPEM(certPEM)
+			if !pool.AppendCertsFromPEM(certPEM) {
+				return errors.New("failed to append test CA certificate to pool")
+			}
 
 			// Go 1.21+ internal/godebug updates Setting.Value() synchronously on
-			// os.Setenv("GODEBUG", ...), and x509.SetFallbackRoots eagerly reads
-			// x509usefallbackroots.Value() (latching useFallbackRoots if initSystemRoots
-			// has not run yet, or replacing systemRoots in-place under systemRootsMu if
-			// it already has), so GODEBUG can be restored right after SetFallbackRoots.
-			prevGODEBUG, hadGODEBUG := os.LookupEnv("GODEBUG")
-			if prevGODEBUG == "" {
-				_ = os.Setenv("GODEBUG", "x509usefallbackroots=1")
+			// Setenv("GODEBUG", ...), and x509.SetFallbackRoots eagerly latches
+			// x509usefallbackroots.Value(), so t.Setenv can safely restore GODEBUG
+			// when the initializing test completes while keeping fallback roots active.
+			if prevGODEBUG, _ := os.LookupEnv("GODEBUG"); prevGODEBUG == "" {
+				t.Setenv("GODEBUG", "x509usefallbackroots=1")
 			} else {
-				_ = os.Setenv("GODEBUG", prevGODEBUG+",x509usefallbackroots=1")
+				t.Setenv("GODEBUG", prevGODEBUG+",x509usefallbackroots=1")
 			}
 			x509.SetFallbackRoots(pool)
-			if hadGODEBUG {
-				_ = os.Setenv("GODEBUG", prevGODEBUG)
-			} else {
-				_ = os.Unsetenv("GODEBUG")
-			}
 
 			testSAPrivateKeyPEM = string(keyPEM)
 			testTLSServerCert = cert
