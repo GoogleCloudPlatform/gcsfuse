@@ -16,12 +16,14 @@ package fs_test
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -43,7 +45,10 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/dynamicpb"
@@ -56,6 +61,8 @@ type storageProtoDescriptorSet struct {
 	listObjectsResp         protoreflect.MessageDescriptor
 	startResumableWriteReq  protoreflect.MessageDescriptor
 	startResumableWriteResp protoreflect.MessageDescriptor
+	queryWriteStatusReq     protoreflect.MessageDescriptor
+	queryWriteStatusResp    protoreflect.MessageDescriptor
 	readObjectReq           protoreflect.MessageDescriptor
 	readObjectResp          protoreflect.MessageDescriptor
 	bidiWriteObjectReq      protoreflect.MessageDescriptor
@@ -77,6 +84,8 @@ var storageProtoDescs = sync.OnceValue(func() *storageProtoDescriptorSet {
 		listObjectsResp:         mustFind("google.storage.v2.ListObjectsResponse"),
 		startResumableWriteReq:  mustFind("google.storage.v2.StartResumableWriteRequest"),
 		startResumableWriteResp: mustFind("google.storage.v2.StartResumableWriteResponse"),
+		queryWriteStatusReq:     mustFind("google.storage.v2.QueryWriteStatusRequest"),
+		queryWriteStatusResp:    mustFind("google.storage.v2.QueryWriteStatusResponse"),
 		readObjectReq:           mustFind("google.storage.v2.ReadObjectRequest"),
 		readObjectResp:          mustFind("google.storage.v2.ReadObjectResponse"),
 		bidiWriteObjectReq:      mustFind("google.storage.v2.BidiWriteObjectRequest"),
@@ -85,16 +94,44 @@ var storageProtoDescs = sync.OnceValue(func() *storageProtoDescriptorSet {
 })
 
 // reflectFakeServer implements google.storage.v2.Storage using dynamicpb to
-// avoid importing the conflicting storagepb package.
-type reflectFakeServer struct{}
+// avoid importing the conflicting storagepb package while supporting hooks for
+// gRPC transport and Cloud Storage client OpenTelemetry metric tests.
+type reflectFakeServer struct {
+	sendGFEHeader                 atomic.Bool
+	failFirstGetObjectUnavailable atomic.Bool
+	stallFirstRead                atomic.Bool
+	multiChunkRead                atomic.Bool
+	stallFirstBidiWrite           atomic.Bool
 
-func (s *reflectFakeServer) GetObject(_ context.Context, req any) (any, error) {
+	blockBidiWriteOnce sync.Once
+	bidiWriteEntered   chan struct{}
+	bidiWriteRelease   chan struct{}
+}
+
+func (s *reflectFakeServer) maybeSendGFEHeader(ctx context.Context, stream grpc.ServerStream) {
+	if !s.sendGFEHeader.Load() {
+		return
+	}
+	md := metadata.Pairs("x-goog-gfe-service-time", "12.5")
+	if stream != nil {
+		_ = stream.SendHeader(md)
+		return
+	}
+	_ = grpc.SendHeader(ctx, md)
+}
+
+func (s *reflectFakeServer) GetObject(ctx context.Context, req any) (any, error) {
+	s.maybeSendGFEHeader(ctx, nil)
+
 	dm := req.(*dynamicpb.Message)
 	objectName := dm.Get(dm.Descriptor().Fields().ByName("object")).String()
 	bucketName := dm.Get(dm.Descriptor().Fields().ByName("bucket")).String()
 
 	if strings.HasSuffix(objectName, "/") || strings.Contains(objectName, "nonexistent") {
 		return nil, status.Error(codes.NotFound, "not found")
+	}
+	if s.failFirstGetObjectUnavailable.CompareAndSwap(true, false) {
+		return nil, status.Error(codes.Unavailable, "transient backend error")
 	}
 
 	objDesc := storageProtoDescs().object
@@ -105,27 +142,52 @@ func (s *reflectFakeServer) GetObject(_ context.Context, req any) (any, error) {
 	return obj, nil
 }
 
-func (s *reflectFakeServer) ListObjects(_ context.Context, _ any) (any, error) {
+func (s *reflectFakeServer) ListObjects(ctx context.Context, _ any) (any, error) {
+	s.maybeSendGFEHeader(ctx, nil)
 	return dynamicpb.NewMessage(storageProtoDescs().listObjectsResp), nil
 }
 
-func (s *reflectFakeServer) StartResumableWrite(_ context.Context, _ any) (any, error) {
+func (s *reflectFakeServer) StartResumableWrite(ctx context.Context, _ any) (any, error) {
+	s.maybeSendGFEHeader(ctx, nil)
 	respDesc := storageProtoDescs().startResumableWriteResp
 	resp := dynamicpb.NewMessage(respDesc)
 	resp.Set(respDesc.Fields().ByName("upload_id"), protoreflect.ValueOf("upload-id"))
 	return resp, nil
 }
 
+func (s *reflectFakeServer) QueryWriteStatus(ctx context.Context, _ any) (any, error) {
+	s.maybeSendGFEHeader(ctx, nil)
+	respDesc := storageProtoDescs().queryWriteStatusResp
+	resp := dynamicpb.NewMessage(respDesc)
+	resp.Set(respDesc.Fields().ByName("persisted_size"), protoreflect.ValueOf(int64(0)))
+	return resp, nil
+}
+
 func (s *reflectFakeServer) ReadObject(req any, stream grpc.ServerStream) error {
+	if s.stallFirstRead.CompareAndSwap(true, false) {
+		<-stream.Context().Done()
+		return status.FromContextError(stream.Context().Err()).Err()
+	}
+
+	s.maybeSendGFEHeader(stream.Context(), stream)
+
 	dm := req.(*dynamicpb.Message)
 	objectName := dm.Get(dm.Descriptor().Fields().ByName("object")).String()
+
+	if s.multiChunkRead.Load() {
+		if err := sendReadObjectChunk(stream, objectName, []byte("test ")); err != nil {
+			return err
+		}
+		return sendReadObjectChunk(stream, objectName, []byte("content"))
+	}
 	return sendReadObjectChunk(stream, objectName, []byte("test content"))
 }
 
-// sendReadObjectChunk always populates metadata (field 4) after checksummed_data
-// (field 1) so checksummed_data.content is never the final byte of the wire
-// frame—avoiding cloud.google.com/go/storage's zero-copy readObjectResponseDecoder
-// end-of-buffer slice bounds bug.
+// sendReadObjectChunk appends a trailing unknown varint field via SetUnknown
+// (which google.golang.org/protobuf always serializes after all known fields
+// regardless of detrand field-order randomization) so checksummed_data.content
+// is never the final byte of databufs—avoiding cloud.google.com/go/storage's
+// readObjectResponseDecoder end-of-buffer slice bounds panic on multi-chunk reads.
 func sendReadObjectChunk(stream grpc.ServerStream, objectName string, chunk []byte) error {
 	respDesc := storageProtoDescs().readObjectResp
 	resp := dynamicpb.NewMessage(respDesc)
@@ -141,10 +203,23 @@ func sendReadObjectChunk(stream grpc.ServerStream, objectName string, chunk []by
 	metaMsg.Set(metaField.Message().Fields().ByName("size"), protoreflect.ValueOf(int64(12)))
 	resp.Set(metaField, protoreflect.ValueOfMessage(metaMsg))
 
+	resp.SetUnknown(protowire.AppendVarint(protowire.AppendTag(nil, 999, protowire.VarintType), 0))
 	return stream.SendMsg(resp)
 }
 
 func (s *reflectFakeServer) BidiWriteObject(stream grpc.ServerStream) error {
+	if s.bidiWriteEntered != nil && s.bidiWriteRelease != nil {
+		s.blockBidiWriteOnce.Do(func() {
+			close(s.bidiWriteEntered)
+			select {
+			case <-s.bidiWriteRelease:
+			case <-stream.Context().Done():
+			}
+		})
+	}
+
+	s.maybeSendGFEHeader(stream.Context(), stream)
+
 	descs := storageProtoDescs()
 	req := dynamicpb.NewMessage(descs.bidiWriteObjectReq)
 	finishField := descs.bidiWriteObjectReq.Fields().ByName("finish_write")
@@ -170,6 +245,11 @@ func (s *reflectFakeServer) BidiWriteObject(stream grpc.ServerStream) error {
 
 		finishWrite := finishField != nil && req.Get(finishField).Bool()
 		flush := flushField != nil && req.Get(flushField).Bool()
+
+		if (finishWrite || flush) && s.stallFirstBidiWrite.CompareAndSwap(true, false) {
+			<-stream.Context().Done()
+			return status.FromContextError(stream.Context().Err()).Err()
+		}
 
 		if finishWrite {
 			resp := dynamicpb.NewMessage(descs.bidiWriteObjectResp)
@@ -245,6 +325,10 @@ func registerFakeStorageServer(s *grpc.Server, srv *reflectFakeServer) {
 				MethodName: "StartResumableWrite",
 				Handler:    makeDynamicUnaryHandler(descs.startResumableWriteReq, "/google.storage.v2.Storage/StartResumableWrite", (*reflectFakeServer).StartResumableWrite),
 			},
+			{
+				MethodName: "QueryWriteStatus",
+				Handler:    makeDynamicUnaryHandler(descs.queryWriteStatusReq, "/google.storage.v2.Storage/QueryWriteStatus", (*reflectFakeServer).QueryWriteStatus),
+			},
 		},
 		Streams: []grpc.StreamDesc{
 			{
@@ -273,8 +357,9 @@ func registerFakeStorageServer(s *grpc.Server, srv *reflectFakeServer) {
 }
 
 // startFakeGCEMetadataServer starts an in-process HTTP server emulating GCE
-// metadata endpoints for OTel GCP resource detection.
-func startFakeGCEMetadataServer(t *testing.T) {
+// metadata endpoints (for OTel GCP resource detection) and an OAuth2 /token
+// endpoint for service-account JWT token exchanges.
+func startFakeGCEMetadataServer(t *testing.T, failAuthTokenRefresh bool) string {
 	t.Helper()
 	metadataLis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -294,6 +379,13 @@ func startFakeGCEMetadataServer(t *testing.T) {
 			_, _ = w.Write([]byte("projects/123456/machineTypes/n2-standard-4"))
 		case strings.HasPrefix(r.URL.Path, "/computeMetadata/v1/universe/universe-domain"):
 			_, _ = w.Write([]byte("googleapis.com"))
+		case r.URL.Path == "/token" || strings.HasPrefix(r.URL.Path, "/computeMetadata/v1/instance/service-accounts/default/token"):
+			if failAuthTokenRefresh {
+				http.Error(w, `{"error":"invalid_grant"}`, http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"access_token":"fake-test-token","token_type":"Bearer","expires_in":3600}`))
 		default:
 			w.WriteHeader(http.StatusOK)
 		}
@@ -305,11 +397,21 @@ func startFakeGCEMetadataServer(t *testing.T) {
 	t.Cleanup(func() {
 		_ = metadataServer.Close()
 	})
-	t.Setenv("GCE_METADATA_HOST", metadataLis.Addr().String())
+	addr := metadataLis.Addr().String()
+	t.Setenv("GCE_METADATA_HOST", addr)
+	return addr
 }
 
 // setupOTelManualReader installs a view-free OpenTelemetry MeterProvider backed
 // by a ManualReader for the test duration.
+//
+// Tests pair this provider with IsGKE=true so storage.NewStorageHandle injects
+// it via experimental.WithMeterProvider(sdkmp) for in-memory collection instead
+// of the storage client creating an internal Cloud Monitoring PeriodicReader.
+// In production, non-GKE mounts (IsGKE=false) export Cloud Storage client
+// metrics via the storage client's standalone MeterProvider, whereas GKE mounts
+// using monitor.SetupOTelMetricExporters attach dropDisallowedMetricsView to
+// bound CSI sidecar memory usage.
 func setupOTelManualReader(ctx context.Context, t *testing.T) (metrics.MetricHandle, *metric.ManualReader) {
 	t.Helper()
 	origProvider := otel.GetMeterProvider()
@@ -329,55 +431,139 @@ func setupOTelManualReader(ctx context.Context, t *testing.T) (metrics.MetricHan
 	return mh, reader
 }
 
-type grpcMetricsTestFixture struct {
-	server fuseutil.FileSystem
-	reader *metric.ManualReader
+type grpcMetricsTestOptions struct {
+	enableOTelMetrics             bool
+	enableOTelDebugMetrics        bool
+	disableGRPCMetricsFlag        bool
+	useTLSAndAuth                 bool
+	enableStreamingWrites         bool
+	sendGFEHeader                 bool
+	failFirstGetObjectUnavailable bool
+	stallFirstRead                bool
+	enableReadStallRetry          bool
+	multiChunkRead                bool
+	stallFirstBidiWrite           bool
+	blockBidiWriteObject          bool
+	failAuthTokenRefresh          bool
+	chunkTransferTimeoutSecs      int64
+	chunkRetryDeadlineSecs        int64
 }
 
-func setupGRPCMetricsFixture(ctx context.Context, t *testing.T) *grpcMetricsTestFixture {
+type grpcMetricsTestFixture struct {
+	sh           storage.StorageHandle
+	server       fuseutil.FileSystem
+	mh           metrics.MetricHandle
+	reader       *metric.ManualReader
+	fakeSrv      *reflectFakeServer
+	endpointHost string
+}
+
+// setupGRPCMetricsFixture initializes the shared fake gRPC Storage server, fake
+// GCE metadata/OAuth server, OTel ManualReader, StorageHandle, and monitored
+// FileSystem used across both grpc_metrics_test.go and storage_client_metrics_test.go.
+func setupGRPCMetricsFixture(ctx context.Context, t *testing.T, opts grpcMetricsTestOptions) *grpcMetricsTestFixture {
 	t.Helper()
 
 	t.Setenv("GOLANG_PROTOBUF_REGISTRATION_CONFLICT", "ignore")
 	t.Setenv("GOOGLE_CLOUD_PROJECT", "test-project")
 	t.Setenv("GOOGLE_CLOUD_DISABLE_DIRECT_PATH", "true")
-	t.Setenv("GCP_STORAGE_GO_ENABLE_OTEL_METRICS", "false")
+	if opts.enableOTelMetrics {
+		t.Setenv("GCP_STORAGE_GO_ENABLE_OTEL_METRICS", "true")
+	} else {
+		t.Setenv("GCP_STORAGE_GO_ENABLE_OTEL_METRICS", "false")
+	}
+	if opts.enableOTelDebugMetrics {
+		t.Setenv("GCP_STORAGE_GO_ENABLE_OTEL_DEBUG_METRICS", "true")
+	} else {
+		t.Setenv("GCP_STORAGE_GO_ENABLE_OTEL_DEBUG_METRICS", "false")
+	}
+	if opts.enableReadStallRetry {
+		t.Setenv("DYNAMIC_READ_REQ_INCREASE_RATE", "")
+		t.Setenv("DYNAMIC_READ_REQ_INITIAL_TIMEOUT", "")
+	}
+
+	fakeSrv := &reflectFakeServer{}
+	fakeSrv.sendGFEHeader.Store(opts.sendGFEHeader)
+	fakeSrv.failFirstGetObjectUnavailable.Store(opts.failFirstGetObjectUnavailable)
+	fakeSrv.stallFirstRead.Store(opts.stallFirstRead)
+	fakeSrv.multiChunkRead.Store(opts.multiChunkRead)
+	fakeSrv.stallFirstBidiWrite.Store(opts.stallFirstBidiWrite)
+	if opts.blockBidiWriteObject {
+		fakeSrv.bidiWriteEntered = make(chan struct{})
+		fakeSrv.bidiWriteRelease = make(chan struct{})
+	}
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
-	grpcServer := grpc.NewServer()
-	registerFakeStorageServer(grpcServer, &reflectFakeServer{})
+	var serverOpts []grpc.ServerOption
+	if opts.useTLSAndAuth {
+		ensureTestTLSFixture(t)
+		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(&tls.Config{
+			Certificates: []tls.Certificate{testTLSServerCert},
+		})))
+	}
+	grpcServer := grpc.NewServer(serverOpts...)
+	registerFakeStorageServer(grpcServer, fakeSrv)
 	go func() {
 		_ = grpcServer.Serve(lis)
 	}()
 	t.Cleanup(grpcServer.Stop)
 
-	startFakeGCEMetadataServer(t)
+	metadataAddr := startFakeGCEMetadataServer(t, opts.failAuthTokenRefresh)
 	mh, reader := setupOTelManualReader(ctx, t)
 
+	enableGRPCMetrics := !opts.disableGRPCMetricsFlag
+	maxRetryAttempts := 3
+	if opts.failAuthTokenRefresh {
+		maxRetryAttempts = 1
+	}
 	clientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:    cfg.GRPC,
 		CustomEndpoint:    lis.Addr().String(),
-		EnableGrpcMetrics: true,
+		EnableGrpcMetrics: enableGRPCMetrics,
 		IsGKE:             true,
-		AnonymousAccess:   true,
+		AnonymousAccess:   !opts.useTLSAndAuth,
 		GrpcConnPoolSize:  1,
-		MaxRetryAttempts:  3,
+		MaxRetryAttempts:  maxRetryAttempts,
 		RetryMultiplier:   2,
 		MaxRetrySleep:     5 * time.Millisecond,
 		MetricHandle:      mh,
 		WriteConfig:       &cfg.WriteConfig{},
 	}
+	if opts.useTLSAndAuth {
+		clientConfig.KeyFile = writeFakeServiceAccountKeyFile(t, "http://"+metadataAddr+"/token")
+		clientConfig.EnableGoogleLibAuth = true
+	}
+	if opts.enableReadStallRetry {
+		clientConfig.ReadStallRetryConfig = cfg.ReadStallGcsRetriesConfig{
+			Enable:              true,
+			MinReqTimeout:       10 * time.Millisecond,
+			InitialReqTimeout:   10 * time.Millisecond,
+			ReqTargetPercentile: 0.99,
+			ReqIncreaseRate:     15.0,
+		}
+	}
 
 	sh, err := storage.NewStorageHandle(ctx, clientConfig, "")
 	require.NoError(t, err)
 
+	chunkRetryDeadlineSecs := int64(120)
+	if opts.chunkRetryDeadlineSecs > 0 {
+		chunkRetryDeadlineSecs = opts.chunkRetryDeadlineSecs
+	}
+	chunkTransferTimeoutSecs := int64(10)
+	if opts.chunkTransferTimeoutSecs > 0 {
+		chunkTransferTimeoutSecs = opts.chunkTransferTimeoutSecs
+	}
+
+	const bucketName = "test-bucket"
 	bm := gcsx.NewBucketManager(gcsx.BucketConfig{
 		StatCacheMaxSizeMB:       32,
 		StatCacheTTL:             time.Minute,
 		NegativeStatCacheTTL:     time.Minute,
-		ChunkRetryDeadlineSecs:   120,
-		ChunkTransferTimeoutSecs: 10,
+		ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
+		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 		TmpObjectPrefix:          ".gcsfuse_tmp/",
 	}, sh, mh)
 
@@ -385,9 +571,10 @@ func setupGRPCMetricsFixture(ctx context.Context, t *testing.T) *grpcMetricsTest
 		SequentialReadSizeMb: 200,
 		NewConfig: &cfg.Config{
 			Write: cfg.WriteConfig{
-				BlockSizeMb:      1,
-				MaxBlocksPerFile: 10,
-				GlobalMaxBlocks:  4,
+				EnableStreamingWrites: opts.enableStreamingWrites,
+				BlockSizeMb:           1,
+				MaxBlocksPerFile:      10,
+				GlobalMaxBlocks:       4,
 			},
 			Read: cfg.ReadConfig{
 				BlockSizeMb:        1,
@@ -395,35 +582,42 @@ func setupGRPCMetricsFixture(ctx context.Context, t *testing.T) *grpcMetricsTest
 				GlobalMaxBlocks:    1,
 			},
 			GcsRetries: cfg.GcsRetriesConfig{
-				ChunkRetryDeadlineSecs:   120,
-				ChunkTransferTimeoutSecs: 10,
+				ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
+				ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 			},
 			MetadataCache: cfg.MetadataCacheConfig{
 				TtlSecs: 60,
 			},
 			EnableNewReader: true,
 			Metrics: cfg.MetricsConfig{
-				ExperimentalEnableGrpcMetrics: true,
+				ExperimentalEnableGrpcMetrics: enableGRPCMetrics,
 			},
 		},
 		MetricHandle:  mh,
 		TraceHandle:   tracing.NewNoopTracer(),
 		CacheClock:    &timeutil.SimulatedClock{},
-		BucketName:    "test-bucket",
+		BucketName:    bucketName,
 		BucketManager: bm,
 	})
 	require.NoError(t, err, "NewFileSystem")
 	t.Cleanup(server.Destroy)
 
+	host, _, err := net.SplitHostPort(lis.Addr().String())
+	require.NoError(t, err)
+
 	return &grpcMetricsTestFixture{
-		server: wrappers.WithMonitoring(server, mh),
-		reader: reader,
+		sh:           sh,
+		server:       wrappers.WithMonitoring(server, mh),
+		mh:           mh,
+		reader:       reader,
+		fakeSrv:      fakeSrv,
+		endpointHost: host,
 	}
 }
 
 func TestGrpcMetrics_LookUpInode(t *testing.T) {
 	ctx := t.Context()
-	f := setupGRPCMetricsFixture(ctx, t)
+	f := setupGRPCMetricsFixture(ctx, t, grpcMetricsTestOptions{})
 
 	require.NoError(t, f.server.LookUpInode(ctx, &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
@@ -441,7 +635,7 @@ func TestGrpcMetrics_LookUpInode(t *testing.T) {
 
 func TestGrpcMetrics_ReadFile(t *testing.T) {
 	ctx := t.Context()
-	f := setupGRPCMetricsFixture(ctx, t)
+	f := setupGRPCMetricsFixture(ctx, t, grpcMetricsTestOptions{})
 
 	lookupOp := &fuseops.LookUpInodeOp{
 		Parent: fuseops.RootInodeID,
@@ -476,7 +670,7 @@ func TestGrpcMetrics_ReadFile(t *testing.T) {
 
 func TestGrpcMetrics_CreateFile(t *testing.T) {
 	ctx := t.Context()
-	f := setupGRPCMetricsFixture(ctx, t)
+	f := setupGRPCMetricsFixture(ctx, t, grpcMetricsTestOptions{})
 
 	createOp := &fuseops.CreateFileOp{
 		Parent: fuseops.RootInodeID,
