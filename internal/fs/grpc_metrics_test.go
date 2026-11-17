@@ -471,7 +471,7 @@ func TestGrpcMetrics_ReadFile(t *testing.T) {
 		rmOpt := metrics.WithResourceMetrics(metrics.CollectResourceMetrics(c, ctx, f.reader))
 		metrics.VerifyCounterMetric(c, ctx, nil, "grpc.client.attempt.started", readAttrs, 1, rmOpt, metrics.AtLeast(), metrics.Subset())
 		metrics.VerifyHistogramMetric(c, ctx, nil, "grpc.client.call.duration", readAttrs, 1, rmOpt, metrics.AtLeast(), metrics.Subset())
-	}, time.Second, time.Millisecond)
+	}, time.Second, 10*time.Millisecond)
 }
 
 func TestGrpcMetrics_CreateFile(t *testing.T) {
