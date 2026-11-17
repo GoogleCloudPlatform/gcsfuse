@@ -28,19 +28,19 @@ This skill provides a standardized, end-to-end workflow for cutting a new persis
 - **[GCSFuse Dependency Upgrading Skill](../dep-upgrade/SKILL.md)**: Upgrading Go module dependencies and Go toolchain versions when `govulncheck` detects vulnerabilities on `master`.
 - **[GCSFuse Build and Style Verification Skill](../build/SKILL.md)**: Local compilation, formatting, and static analysis verification via `make build`.
 - **[GCSFuse Pull Request Creation Skill](../pull-request/SKILL.md)**: Raising a PR targeting `master` to fix vulnerabilities or unit test failures discovered during pre-cut verification.
-- **[GCSFuse Release Branch CVE Patching & Backport Skill](../cve-patching/SKILL.md)**: Applying zero-soak CVE remediations and soak-gated functional bug-fix backports onto persistent `v<major>.<minor>_release` branches (for patch releases `v<major>.<minor>.<N+1>`).
+- **[GCSFuse Release Branch CVE Patching & Backport Skill](../cve-patching/SKILL.md)**: Applying zero-soak CVE remediations (PRs in parallel across `v<major>.<minor>_release` and `master`; CD patch releases executed one release line at a time) and functional bug-fix backports (no soak gate on the newest GKE minor line; 4–5 week soak gate on older locked `v<major>.<minor>_release` branches) for patch releases `v<major>.<minor>.<N+1>`.
 
 ```mermaid
 flowchart TD
-    A["1. Fetch Tags & Remote Release Branches (origin/v*_release)"] --> B["2. Determine Next Minor Branch (v<major>.<minor>_release) & Target Commit"]
-    B --> C["3. Verify No Existing Tag/Branch Conflict (v<major>.<minor>_release, v<major>.<minor>.0)"]
+    A["1. Fetch Tags & Remote Release Branches (origin/v*_release)"] --> B["2. Determine Next Minor Branch (vX.Y_release) & Target Commit"]
+    B --> C["3. Verify No Existing Tag/Branch Conflict (vX.Y_release, vX.Y.0)"]
     C --> D["4. Run govulncheck on Target Commit (Binary + Module Scan)"]
     D --> E{"Vulnerabilities Found?"}
     E -- "Yes" --> F["Stop Release Cut: Raise PR to Fix CVEs on master"]
     E -- "No (0 CVEs)" --> G["5. Run Build & Unit Tests"]
     G --> H{"Unit Test Failures?"}
     H -- "Yes (Unless User Overrides)" --> I["Stop Release Cut: Raise PR to Fix Unit Tests on master"]
-    H -- "No (All Pass)" --> J["6. Cut v<major>.<minor>_release & Push to origin"]
+    H -- "No (All Pass)" --> J["6. Cut vX.Y_release & Push to origin"]
 ```
 
 ---
@@ -108,7 +108,7 @@ fi
 
 ### 2.2 Binary Scan with Target Go Toolchain (`.go-version`)
 Running `govulncheck` in source mode uses the host environment's default `go` binary, which can cause false-positive `stdlib` reports if the host Go version differs from `.go-version`. Always verify the compiled binary built with the branch's exact target Go toolchain:
-1. Read the target Go version from `[.go-version](../../../.go-version)` and build a temporary `gcsfuse` binary in a temporary directory using that exact toolchain:
+1. Read the target Go version from [`.go-version`](../../../.go-version) and build a temporary `gcsfuse` binary in a temporary directory using that exact toolchain:
    ```bash
    TMP_DIR=$(mktemp -d)
    TARGET_GO=$(tr -d '[:space:]' < .go-version)
