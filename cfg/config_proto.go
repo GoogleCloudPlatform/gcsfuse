@@ -195,6 +195,7 @@ func (config *Config) ToProto() *pb.Config {
 		WriteRapidWrite:                                       string(config.Write.RapidWrite),
 		WriteExperimentalEnableParallelUpload:                 config.Write.ExperimentalEnableParallelUpload,
 		FileSystemDisableSymlinks:                             config.FileSystem.DisableSymlinks,
+		FileSystemFuseNumReaders:                              config.FileSystem.FuseNumReaders,
 	}
 }
 

@@ -263,6 +263,7 @@ type Config struct {
 	WriteRapidWrite                                       string                 `protobuf:"bytes,162,opt,name=write_rapid_write,json=writeRapidWrite,proto3" json:"write_rapid_write,omitempty"`
 	WriteExperimentalEnableParallelUpload                 bool                   `protobuf:"varint,163,opt,name=write_experimental_enable_parallel_upload,json=writeExperimentalEnableParallelUpload,proto3" json:"write_experimental_enable_parallel_upload,omitempty"`
 	FileSystemDisableSymlinks                             bool                   `protobuf:"varint,164,opt,name=file_system_disable_symlinks,json=fileSystemDisableSymlinks,proto3" json:"file_system_disable_symlinks,omitempty"`
+	FileSystemFuseNumReaders                              int64                  `protobuf:"zigzag64,165,opt,name=file_system_fuse_num_readers,json=fileSystemFuseNumReaders,proto3" json:"file_system_fuse_num_readers,omitempty"`
 	unknownFields                                         protoimpl.UnknownFields
 	sizeCache                                             protoimpl.SizeCache
 }
@@ -1431,6 +1432,13 @@ func (x *Config) GetFileSystemDisableSymlinks() bool {
 	return false
 }
 
+func (x *Config) GetFileSystemFuseNumReaders() int64 {
+	if x != nil {
+		return x.FileSystemFuseNumReaders
+	}
+	return 0
+}
+
 var File_cfg_config_proto protoreflect.FileDescriptor
 
 const file_cfg_config_proto_rawDesc = "" +
@@ -1439,7 +1447,7 @@ const file_cfg_config_proto_rawDesc = "" +
 	"\rConfigPayload\x12.\n" +
 	"\x06config\x18\x01 \x01(\v2\x16.gcsfuse.cfg.v1.ConfigR\x06config\x12\x19\n" +
 	"\bapp_name\x18\x02 \x01(\tR\aappName\x12\x19\n" +
-	"\bmount_id\x18\x03 \x01(\tR\amountId\"\x97W\n" +
+	"\bmount_id\x18\x03 \x01(\tR\amountId\"\xd8W\n" +
 	"\x06Config\x12%\n" +
 	"\x0fis_app_name_set\x18\x01 \x01(\bR\fisAppNameSet\x12'\n" +
 	"\x10is_cache_dir_set\x18\x02 \x01(\bR\risCacheDirSet\x12A\n" +
@@ -1607,7 +1615,8 @@ const file_cfg_config_proto_rawDesc = "" +
 	"\x1dis_gcs_auth_s2a_spiffe_id_set\x18\xa1\x01 \x01(\bR\x17isGcsAuthS2aSpiffeIdSet\x12+\n" +
 	"\x11write_rapid_write\x18\xa2\x01 \x01(\tR\x0fwriteRapidWrite\x12Y\n" +
 	")write_experimental_enable_parallel_upload\x18\xa3\x01 \x01(\bR%writeExperimentalEnableParallelUpload\x12@\n" +
-	"\x1cfile_system_disable_symlinks\x18\xa4\x01 \x01(\bR\x19fileSystemDisableSymlinksJ\x04\b/\x100J\x06\b\x9a\x01\x10\x9b\x01B2Z0github.com/googlecloudplatform/gcsfuse/v4/cfg/pbb\x06proto3"
+	"\x1cfile_system_disable_symlinks\x18\xa4\x01 \x01(\bR\x19fileSystemDisableSymlinks\x12?\n" +
+	"\x1cfile_system_fuse_num_readers\x18\xa5\x01 \x01(\x12R\x18fileSystemFuseNumReadersJ\x04\b/\x100J\x06\b\x9a\x01\x10\x9b\x01B2Z0github.com/googlecloudplatform/gcsfuse/v4/cfg/pbb\x06proto3"
 
 var (
 	file_cfg_config_proto_rawDescOnce sync.Once

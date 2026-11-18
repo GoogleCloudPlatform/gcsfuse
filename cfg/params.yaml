@@ -539,6 +539,14 @@ params:
     default: 1024
     hide-flag: true
 
+  - config-path: "file-system.fuse-num-readers"
+    proto-tag: 165
+    flag-name: "fuse-num-readers"
+    type: "int"
+    default: 1
+    hide-flag: true
+    usage: "Number of concurrent goroutines reading FUSE ops from /dev/fuse."
+
   - config-path: "file-system.fuse-options"
     proto-tag: 53
     flag-name: "o"
