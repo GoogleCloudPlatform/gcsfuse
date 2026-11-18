@@ -337,6 +337,22 @@ func (t *PrefixBucketTest) TestCreateObjectChunkWriterAndFinalizeUpload() {
 	assert.Equal(t.T(), string(content), string(actual))
 }
 
+func (t *PrefixBucketTest) TestCreateObjectChunkWriterAndAbortUpload() {
+	suffix := "taco"
+	w, err := t.bucket.CreateObjectChunkWriter(t.ctx, &gcs.CreateObjectRequest{Name: suffix}, 1024, nil)
+	require.NoError(t.T(), err)
+	_, err = w.Write([]byte("foobar"))
+	require.NoError(t.T(), err)
+
+	err = t.bucket.AbortUpload(t.ctx, w)
+
+	assert.NoError(t.T(), err)
+	// The object isn't created.
+	_, err = storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
+	var notFoundErr *gcs.NotFoundError
+	assert.ErrorAs(t.T(), err, &notFoundErr)
+}
+
 func (t *PrefixBucketTest) TestCreateObjectChunkWriterAndFlushPendingWrites() {
 	var err error
 	suffix := "taco"

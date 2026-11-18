@@ -375,6 +375,33 @@ func (t *FinalizeUploadTest) WrappedSucceeds() {
 }
 
 ////////////////////////////////////////////////////////////////////////
+// AbortUpload
+////////////////////////////////////////////////////////////////////////
+
+type AbortUploadTest struct {
+	fastStatBucketTest
+}
+
+func init() { RegisterTestSuite(&AbortUploadTest{}) }
+
+func (t *AbortUploadTest) CallsWrappedAndLeavesCacheAlone() {
+	writer := &storage.ObjectWriter{
+		Writer: &gostorage.Writer{ObjectAttrs: gostorage.ObjectAttrs{Name: "taco"}},
+	}
+	// Wrapped. No cache calls are expected: an aborted upload doesn't change
+	// the object.
+	var wrappedWriter gcs.Writer
+	ExpectCall(t.wrapped, "AbortUpload")(Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &wrappedWriter), Return(errors.New("taco"))))
+
+	// Call
+	err := t.bucket.AbortUpload(context.TODO(), writer)
+
+	ExpectThat(err, Error(HasSubstr("taco")))
+	ExpectEq(writer, wrappedWriter)
+}
+
+////////////////////////////////////////////////////////////////////////
 // FinalizeUpload
 ////////////////////////////////////////////////////////////////////////
 

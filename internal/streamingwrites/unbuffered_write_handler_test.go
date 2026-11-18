@@ -16,6 +16,7 @@ package streamingwrites
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -52,6 +53,13 @@ func flushOp() handlerOp {
 	return func(ctx context.Context, wh WriteHandler) error {
 		_, err := wh.Flush(ctx)
 		return err
+	}
+}
+
+func unlinkOp() handlerOp {
+	return func(ctx context.Context, wh WriteHandler) error {
+		wh.Unlink(ctx)
+		return nil
 	}
 }
 
@@ -444,6 +452,7 @@ func TestUnbufferedWriteHandler_ZeroPaddingErrorIsSticky(t *testing.T) {
 			writer.On("Write", []byte("ab")).Return(2, nil)
 			writer.On("Write", []byte{0, 0}).Return(0, errUploadFailure)
 			bucket, writerCtx := newMockBucketWithWriter(writer)
+			bucket.On("AbortUpload", mock.Anything, writer).Return(nil)
 			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
 			require.NoError(t, wh.Write(ctx, []byte("ab"), 0))
 			require.NoError(t, wh.Truncate(4))
@@ -454,6 +463,7 @@ func TestUnbufferedWriteHandler_ZeroPaddingErrorIsSticky(t *testing.T) {
 			_, flushErr := wh.Flush(ctx)
 
 			assert.ErrorIs(t, err, errUploadFailure)
+			bucket.AssertNumberOfCalls(t, "AbortUpload", 1)
 			assert.ErrorIs(t, writerCtx().Err(), context.Canceled)
 			assert.ErrorIs(t, writeErr, errUploadFailure)
 			assert.ErrorIs(t, syncErr, errUploadFailure)
@@ -465,11 +475,12 @@ func TestUnbufferedWriteHandler_ZeroPaddingErrorIsSticky(t *testing.T) {
 	}
 }
 
-func TestUnbufferedWriteHandler_WriteErrorCancelsUploadAndIsSticky(t *testing.T) {
+func TestUnbufferedWriteHandler_WriteErrorAbortsUploadAndIsSticky(t *testing.T) {
 	ctx := context.Background()
 	writer := new(storagemock.Writer)
 	writer.On("Write", mock.Anything).Return(0, errUploadFailure)
 	bucket, writerCtx := newMockBucketWithWriter(writer)
+	bucket.On("AbortUpload", mock.Anything, writer).Return(nil)
 	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
 	require.ErrorIs(t, wh.Write(ctx, []byte("foo"), 0), errUploadFailure)
 
@@ -478,6 +489,7 @@ func TestUnbufferedWriteHandler_WriteErrorCancelsUploadAndIsSticky(t *testing.T)
 	_, syncErr := wh.Sync(ctx)
 	_, flushErr := wh.Flush(ctx)
 
+	bucket.AssertNumberOfCalls(t, "AbortUpload", 1)
 	assert.ErrorIs(t, writerCtx().Err(), context.Canceled)
 	assert.ErrorIs(t, writeErr, errUploadFailure)
 	// The upload error is returned even for an out-of-order write, so that the
@@ -488,6 +500,24 @@ func TestUnbufferedWriteHandler_WriteErrorCancelsUploadAndIsSticky(t *testing.T)
 	// The writer isn't used again and no new upload is started.
 	writer.AssertNumberOfCalls(t, "Write", 1)
 	bucket.AssertNumberOfCalls(t, "CreateObjectChunkWriter", 1)
+}
+
+func TestUnbufferedWriteHandler_WriteErrorIsReturnedWhenAbortFails(t *testing.T) {
+	ctx := context.Background()
+	errAbort := errors.New("abort failed")
+	writer := new(storagemock.Writer)
+	writer.On("Write", mock.Anything).Return(0, errUploadFailure)
+	bucket, writerCtx := newMockBucketWithWriter(writer)
+	bucket.On("AbortUpload", mock.Anything, writer).Return(errAbort)
+	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
+
+	err := wh.Write(ctx, []byte("foo"), 0)
+
+	assert.ErrorIs(t, err, errUploadFailure)
+	assert.NotErrorIs(t, err, errAbort)
+	bucket.AssertNumberOfCalls(t, "AbortUpload", 1)
+	assert.ErrorIs(t, writerCtx().Err(), context.Canceled)
+	assert.ErrorIs(t, wh.Write(ctx, []byte("foo"), 0), errUploadFailure)
 }
 
 func TestUnbufferedWriteHandler_WriteErrorKeepsGCSErrorType(t *testing.T) {
@@ -518,6 +548,7 @@ func TestUnbufferedWriteHandler_WriteErrorKeepsGCSErrorType(t *testing.T) {
 			writer := new(storagemock.Writer)
 			writer.On("Write", mock.Anything).Return(0, tc.writeErr)
 			bucket, _ := newMockBucketWithWriter(writer)
+			bucket.On("AbortUpload", mock.Anything, writer).Return(nil)
 			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
 
 			err := wh.Write(context.Background(), []byte("foo"), 0)
@@ -527,12 +558,13 @@ func TestUnbufferedWriteHandler_WriteErrorKeepsGCSErrorType(t *testing.T) {
 	}
 }
 
-func TestUnbufferedWriteHandler_FinalizeErrorCancelsUploadAndIsSticky(t *testing.T) {
+func TestUnbufferedWriteHandler_FinalizeErrorAbortsUploadAndIsSticky(t *testing.T) {
 	ctx := context.Background()
 	writer := new(storagemock.Writer)
 	writer.On("Write", mock.Anything).Return(3, nil)
 	bucket, writerCtx := newMockBucketWithWriter(writer)
 	bucket.On("FinalizeUpload", mock.Anything, writer).Return((*gcs.MinObject)(nil), errUploadFailure)
+	bucket.On("AbortUpload", mock.Anything, writer).Return(nil)
 	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
 	require.NoError(t, wh.Write(ctx, []byte("foo"), 0))
 	_, err := wh.Flush(ctx)
@@ -542,6 +574,7 @@ func TestUnbufferedWriteHandler_FinalizeErrorCancelsUploadAndIsSticky(t *testing
 	_, syncErr := wh.Sync(ctx)
 	_, flushErr := wh.Flush(ctx)
 
+	bucket.AssertNumberOfCalls(t, "AbortUpload", 1)
 	assert.ErrorIs(t, writerCtx().Err(), context.Canceled)
 	assert.ErrorIs(t, writeErr, errUploadFailure)
 	assert.ErrorIs(t, syncErr, errUploadFailure)
@@ -588,10 +621,11 @@ func TestUnbufferedWriteHandler_InvalidFinalizedObjectErrorIsSticky(t *testing.T
 			assert.ErrorIs(t, writeErr, err)
 			assert.ErrorIs(t, syncErr, err)
 			assert.ErrorIs(t, flushErr, err)
-			// The closed writer isn't used again: it isn't written to or finalized a
-			// second time.
+			// The closed writer isn't used again: it isn't written to, finalized a
+			// second time or aborted.
 			writer.AssertNumberOfCalls(t, "Write", 1)
 			bucket.AssertNumberOfCalls(t, "FinalizeUpload", 1)
+			bucket.AssertNotCalled(t, "AbortUpload", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -612,10 +646,250 @@ func TestUnbufferedWriteHandler_FlushReleasesWriterContext(t *testing.T) {
 	assert.ErrorIs(t, writerCtx().Err(), context.Canceled)
 }
 
-func TestUnbufferedWriteHandler_DestroyIsNotImplemented(t *testing.T) {
-	wh := newUnbufferedWriteHandlerForTest(new(storagemock.TestifyMockBucket), nil)
+func TestUnbufferedWriteHandler_UnlinkAbortsUpload(t *testing.T) {
+	testCases := []struct {
+		name     string
+		abortErr error
+	}{
+		{
+			name: "AbortSucceeds",
+		},
+		{
+			name:     "AbortFails",
+			abortErr: errUploadFailure,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			writer := new(storagemock.Writer)
+			writer.On("Write", mock.Anything).Return(3, nil)
+			bucket, writerCtx := newMockBucketWithWriter(writer)
+			var writerCtxErrOnAbort error
+			bucket.On("AbortUpload", mock.Anything, writer).
+				Run(func(mock.Arguments) { writerCtxErrOnAbort = writerCtx().Err() }).
+				Return(tc.abortErr)
+			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
+			require.NoError(t, wh.Write(ctx, []byte("foo"), 0))
 
-	err := wh.Destroy()
+			wh.Unlink(ctx)
 
-	assert.ErrorIs(t, err, errNotImplemented)
+			bucket.AssertNumberOfCalls(t, "AbortUpload", 1)
+			// The upload is aborted before its context is canceled.
+			assert.NoError(t, writerCtxErrOnAbort)
+			assert.ErrorIs(t, writerCtx().Err(), context.Canceled)
+		})
+	}
+}
+
+// opCtxKey marks the context of an operation on the handler.
+type opCtxKey struct{}
+
+func TestUnbufferedWriteHandler_AbortRunsOnOperationContext(t *testing.T) {
+	testCases := []struct {
+		name  string
+		abort func(ctx context.Context, wh *unbufferedWriteHandlerImpl)
+	}{
+		{
+			name:  "Unlink",
+			abort: func(ctx context.Context, wh *unbufferedWriteHandlerImpl) { wh.Unlink(ctx) },
+		},
+		{
+			name:  "Destroy",
+			abort: func(ctx context.Context, wh *unbufferedWriteHandlerImpl) { _ = wh.Destroy(ctx) },
+		},
+		{
+			name:  "WriteError",
+			abort: func(ctx context.Context, wh *unbufferedWriteHandlerImpl) { _ = wh.Write(ctx, []byte("bar"), 3) },
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			writer := new(storagemock.Writer)
+			writer.On("Write", []byte("foo")).Return(3, nil)
+			writer.On("Write", []byte("bar")).Return(0, errUploadFailure)
+			bucket, _ := newMockBucketWithWriter(writer)
+			var abortCtx context.Context
+			bucket.On("AbortUpload", mock.Anything, writer).
+				Run(func(args mock.Arguments) { abortCtx = args.Get(0).(context.Context) }).
+				Return(nil)
+			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
+			require.NoError(t, wh.Write(context.Background(), []byte("foo"), 0))
+			opCtx := context.WithValue(context.Background(), opCtxKey{}, tc.name)
+
+			tc.abort(opCtx, wh)
+
+			// The abort belongs to the operation, so that its metrics and trace span
+			// are linked to it.
+			require.NotNil(t, abortCtx)
+			assert.Equal(t, tc.name, abortCtx.Value(opCtxKey{}))
+		})
+	}
+}
+
+func TestUnbufferedWriteHandler_OperationsAfterUnlinkDoNotTouchWriter(t *testing.T) {
+	testCases := []struct {
+		name string
+		// writeBeforeUnlink is whether "foo" is written before the unlink, and
+		// writeN and writeErr are what the writer returns for it.
+		writeBeforeUnlink bool
+		writeN            int
+		writeErr          error
+		expectedWrites    int
+		expectedAborts    int
+	}{
+		{
+			name: "BeforeAnyWrite",
+		},
+		{
+			name:              "AfterWrite",
+			writeBeforeUnlink: true,
+			writeN:            3,
+			expectedWrites:    1,
+			expectedAborts:    1,
+		},
+		{
+			name:              "AfterUploadError",
+			writeBeforeUnlink: true,
+			writeErr:          errUploadFailure,
+			expectedWrites:    1,
+			expectedAborts:    1,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			writer := new(storagemock.Writer)
+			writer.On("Write", []byte("foo")).Return(tc.writeN, tc.writeErr)
+			bucket, _ := newMockBucketWithWriter(writer)
+			bucket.On("AbortUpload", mock.Anything, writer).Return(nil)
+			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
+			if tc.writeBeforeUnlink {
+				require.ErrorIs(t, wh.Write(ctx, []byte("foo"), 0), tc.writeErr)
+			}
+			wh.Unlink(ctx)
+
+			writeErr := wh.Write(ctx, []byte("bar"), wh.WriteFileInfo().TotalSize)
+			outOfOrderWriteErr := wh.Write(ctx, []byte("x"), 100)
+			syncObj, syncErr := wh.Sync(ctx)
+			flushObj, flushErr := wh.Flush(ctx)
+
+			assert.NoError(t, writeErr)
+			assert.NoError(t, outOfOrderWriteErr)
+			assert.Nil(t, syncObj)
+			assert.NoError(t, syncErr)
+			assert.Nil(t, flushObj)
+			assert.NoError(t, flushErr)
+			// No writer is created or used after the unlink, and the upload is
+			// aborted at most once.
+			bucket.AssertNumberOfCalls(t, "CreateObjectChunkWriter", tc.expectedWrites)
+			writer.AssertNumberOfCalls(t, "Write", tc.expectedWrites)
+			bucket.AssertNumberOfCalls(t, "AbortUpload", tc.expectedAborts)
+			bucket.AssertNotCalled(t, "FinalizeUpload", mock.Anything, mock.Anything)
+		})
+	}
+}
+
+func TestUnbufferedWriteHandler_TruncateBelowSizeAfterUnlinkDoesNotFallBack(t *testing.T) {
+	ctx := context.Background()
+	writer := new(storagemock.Writer)
+	writer.On("Write", mock.Anything).Return(3, nil)
+	bucket, _ := newMockBucketWithWriter(writer)
+	bucket.On("AbortUpload", mock.Anything, writer).Return(nil)
+	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
+	require.NoError(t, wh.Write(ctx, []byte("foo"), 0))
+	wh.Unlink(ctx)
+
+	err := wh.Truncate(1)
+
+	assert.NoError(t, err)
+}
+
+func TestUnbufferedWriteHandler_FlushAfterUnlinkDoesNotCreateObject(t *testing.T) {
+	ctx := context.Background()
+	bucket := newFakeBucket()
+	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
+	require.NoError(t, wh.Write(ctx, []byte("foo"), 0))
+	wh.Unlink(ctx)
+
+	obj, err := wh.Flush(ctx)
+
+	require.NoError(t, err)
+	assert.Nil(t, obj)
+	_, _, err = bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: objectName})
+	var notFoundErr *gcs.NotFoundError
+	assert.ErrorAs(t, err, &notFoundErr)
+}
+
+func TestUnbufferedWriteHandler_DestroyAbortsUnfinalizedUpload(t *testing.T) {
+	testCases := []struct {
+		name     string
+		abortErr error
+	}{
+		{
+			name: "AbortSucceeds",
+		},
+		{
+			name:     "AbortFails",
+			abortErr: errUploadFailure,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			writer := new(storagemock.Writer)
+			writer.On("Write", mock.Anything).Return(3, nil)
+			bucket, writerCtx := newMockBucketWithWriter(writer)
+			bucket.On("AbortUpload", mock.Anything, writer).Return(tc.abortErr)
+			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
+			require.NoError(t, wh.Write(ctx, []byte("foo"), 0))
+
+			err := wh.Destroy(ctx)
+
+			assert.ErrorIs(t, err, tc.abortErr)
+			bucket.AssertNumberOfCalls(t, "AbortUpload", 1)
+			assert.ErrorIs(t, writerCtx().Err(), context.Canceled)
+		})
+	}
+}
+
+func TestUnbufferedWriteHandler_DestroyDoesNotAbortAgain(t *testing.T) {
+	testCases := []struct {
+		name string
+		ops  []handlerOp
+		// expectedAborts counts the aborts before Destroy.
+		expectedAborts int
+	}{
+		{
+			name: "NoUpload",
+		},
+		{
+			name: "FinalizedUpload",
+			ops:  []handlerOp{writeOp("foo", 0), flushOp()},
+		},
+		{
+			name:           "AbortedUpload",
+			ops:            []handlerOp{writeOp("foo", 0), unlinkOp()},
+			expectedAborts: 1,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			writer := new(storagemock.Writer)
+			writer.On("Write", mock.Anything).Return(3, nil)
+			bucket, _ := newMockBucketWithWriter(writer)
+			bucket.On("FinalizeUpload", mock.Anything, writer).Return(&gcs.MinObject{Name: objectName, Size: 3}, nil)
+			bucket.On("AbortUpload", mock.Anything, writer).Return(nil)
+			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
+			for _, op := range tc.ops {
+				require.NoError(t, op(ctx, wh))
+			}
+
+			err := wh.Destroy(ctx)
+
+			assert.NoError(t, err)
+			bucket.AssertNumberOfCalls(t, "AbortUpload", tc.expectedAborts)
+		})
+	}
 }

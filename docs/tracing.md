@@ -100,6 +100,7 @@ Common Spans recorded and what each of them signifies
 | **write.streaming.upload.block** | Uploads a single data block to GCS. |
 | **write.streaming.upload.finalize** | Finalizes the streaming upload and commits the object in GCS. |
 | **write.streaming.upload.flush** | Flushes in-flight buffered data to GCS during sync or flush. |
+| **write.streaming.upload.abort** | Discards an unfinalized upload after an upload failure, an unlink, or the release of the last write handle. |
 | **GCS Operations (HTTP)** | |
 | **HTTP GET** | An entire end-to-end trace for a client's GET request. |
 | **HTTP POST** | An entire end-to-end trace for a client's POST request. |

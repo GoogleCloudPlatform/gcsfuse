@@ -2870,7 +2870,7 @@ func (fs *fileSystem) Unlink(
 	if in != nil {
 		// Perform the unlink operation on the inode.
 		in.Lock()
-		in.Unlink()
+		in.Unlink(ctx)
 		in.Unlock()
 	}
 
@@ -3303,7 +3303,7 @@ func (fs *fileSystem) ReleaseFileHandle(
 	// Destroy the handle.
 	fileHandle.Lock()
 	defer fileHandle.Unlock()
-	fileHandle.Destroy()
+	fileHandle.Destroy(ctx)
 
 	return
 }

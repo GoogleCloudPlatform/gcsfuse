@@ -28,6 +28,7 @@ import (
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	storagemock "github.com/googlecloudplatform/gcsfuse/v4/internal/storage/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -820,6 +821,40 @@ func (testSuite *BucketHandleTest) TestFinalizeUploadWithGenerationAsZeroWhenObj
 	assert.Error(testSuite.T(), err)
 	assert.IsType(testSuite.T(), &gcs.PreconditionError{}, err)
 	assert.Nil(testSuite.T(), o)
+}
+
+func (testSuite *BucketHandleTest) TestBucketHandle_AbortUpload() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{})
+	tests := []struct {
+		name      string
+		abortErr  error
+		assertErr func(t *testing.T, err error)
+	}{
+		{
+			name:      "Success",
+			assertErr: func(t *testing.T, err error) { assert.NoError(t, err) },
+		},
+		{
+			name:     "NotFound",
+			abortErr: status.Error(codes.NotFound, "upload session not found"),
+			assertErr: func(t *testing.T, err error) {
+				var notFoundErr *gcs.NotFoundError
+				assert.ErrorAs(t, err, &notFoundErr)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		testSuite.T().Run(tt.name, func(t *testing.T) {
+			writer := new(storagemock.Writer)
+			writer.On("Abort").Return(tt.abortErr)
+
+			err := testSuite.bucketHandle.AbortUpload(context.Background(), writer)
+
+			tt.assertErr(t, err)
+			writer.AssertNumberOfCalls(t, "Abort", 1)
+		})
+	}
 }
 
 func (testSuite *BucketHandleTest) createObjectChunkWriter(t *testing.T, objectName string, generation *int64, chunkSize int) gcs.Writer {

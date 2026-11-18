@@ -210,6 +210,14 @@ func (b *debugBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs.
 	return
 }
 
+func (b *debugBucket) AbortUpload(ctx context.Context, w gcs.Writer) (err error) {
+	id, desc, start := b.startRequest("AbortUpload(%q)", w.ObjectName())
+	defer b.finishRequest(id, desc, start, &err)
+
+	err = b.wrapped.AbortUpload(ctx, w)
+	return
+}
+
 func (b *debugBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
 	id, desc, start := b.startRequest("FlushPendingWrites(%q)", w.ObjectName())
 	defer b.finishRequest(id, desc, start, &err)

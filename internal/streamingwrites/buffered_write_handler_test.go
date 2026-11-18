@@ -619,7 +619,7 @@ func (testSuite *BufferedWriteTest) TestDestroyShouldClearFreeBlockChannel() {
 	err := testSuite.bwh.Write(context.Background(), []byte(contents), 0)
 	require.Nil(testSuite.T(), err)
 
-	err = testSuite.bwh.Destroy()
+	err = testSuite.bwh.Destroy(context.Background())
 
 	require.Nil(testSuite.T(), err)
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
@@ -639,7 +639,7 @@ func (testSuite *BufferedWriteTest) TestDestroyWithPartialBlockInCurrent() {
 	require.NotNil(testSuite.T(), bwhImpl.current)
 	assert.Equal(testSuite.T(), int64(blockSize/2), bwhImpl.current.Size())
 
-	err = testSuite.bwh.Destroy()
+	err = testSuite.bwh.Destroy(context.Background())
 
 	require.Nil(testSuite.T(), err)
 	assert.Nil(testSuite.T(), bwhImpl.current)
@@ -658,7 +658,7 @@ func (testSuite *BufferedWriteTest) TestDestroyWithMultiBlocksAndPartialBlockInC
 	require.NotNil(testSuite.T(), bwhImpl.current)
 	assert.Equal(testSuite.T(), int64(blockSize/2), bwhImpl.current.Size())
 
-	err = testSuite.bwh.Destroy()
+	err = testSuite.bwh.Destroy(context.Background())
 
 	require.Nil(testSuite.T(), err)
 	assert.Nil(testSuite.T(), bwhImpl.current)
@@ -669,7 +669,7 @@ func (testSuite *BufferedWriteTest) TestDestroyWithMultiBlocksAndPartialBlockInC
 }
 
 func (testSuite *BufferedWriteTest) TestUnlinkBeforeWrite() {
-	testSuite.bwh.Unlink()
+	testSuite.bwh.Unlink(context.Background())
 
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 	assert.Nil(testSuite.T(), bwhImpl.uploadHandler.cancelFunc)
@@ -692,7 +692,7 @@ func (testSuite *BufferedWriteTest) TestUnlinkAfterWrite() {
 	bwhImpl := testSuite.bwh.(*bufferedWriteHandlerImpl)
 	bwhImpl.uploadHandler.cancelFunc = func() { cancelCalled = true }
 
-	testSuite.bwh.Unlink()
+	testSuite.bwh.Unlink(context.Background())
 
 	assert.True(testSuite.T(), cancelCalled)
 	assert.Equal(testSuite.T(), 0, len(bwhImpl.uploadHandler.uploadCh))

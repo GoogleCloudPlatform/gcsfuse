@@ -448,7 +448,7 @@ func (t *FileStreamingWritesTest) TestUnlinkLocalFileBeforeWrite() {
 	assert.True(t.T(), t.in.IsLocal())
 
 	// Unlink.
-	t.in.Unlink()
+	t.in.Unlink(t.ctx)
 
 	assert.True(t.T(), t.in.unlinked)
 	// Data shouldn't be updated to GCS.
@@ -465,7 +465,7 @@ func (t *FileStreamingWritesTest) TestUnlinkLocalFileAfterWrite() {
 	assert.False(t.T(), gcsSynced)
 
 	// Unlink.
-	t.in.Unlink()
+	t.in.Unlink(t.ctx)
 
 	assert.True(t.T(), t.in.IsUnlinked())
 	// Data shouldn't be updated to GCS.
@@ -483,7 +483,7 @@ func (t *FileStreamingWritesTest) TestUnlinkEmptySyncedFile() {
 	assert.False(t.T(), gcsSynced)
 
 	// Unlink.
-	t.in.Unlink()
+	t.in.Unlink(t.ctx)
 
 	assert.True(t.T(), t.in.unlinked)
 }
@@ -797,7 +797,7 @@ func (t *FileStreamingWritesTest) TestDeRegisterFileHandle() {
 			t.in.writeHandleCount = tc.currentVal
 			t.createStreamingWriteHandler()
 
-			t.in.DeRegisterFileHandle(tc.readonly)
+			t.in.DeRegisterFileHandle(t.ctx, tc.readonly)
 
 			assert.Equal(t.T(), tc.expectedVal, t.in.writeHandleCount)
 			if tc.isStreamingWriteHandlerNil {
@@ -839,8 +839,8 @@ func (t *FakeWriteHandler) WriteFileInfo() streamingwrites.WriteFileInfo {
 func (t *FakeWriteHandler) Sync(ctx context.Context) (*gcs.MinObject, error) { return nil, nil }
 func (t *FakeWriteHandler) SetMtime(_ time.Time)                             {}
 func (t *FakeWriteHandler) Truncate(_ int64) error                           { return nil }
-func (t *FakeWriteHandler) Destroy() error                                   { return nil }
-func (t *FakeWriteHandler) Unlink()                                          {}
+func (t *FakeWriteHandler) Destroy(_ context.Context) error                  { return nil }
+func (t *FakeWriteHandler) Unlink(_ context.Context)                         {}
 
 func (t *FakeWriteHandler) SetTotalSize() {}
 

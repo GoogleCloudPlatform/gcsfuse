@@ -390,6 +390,11 @@ func (b *fastStatBucket) FinalizeUpload(ctx context.Context, writer gcs.Writer) 
 	return o, err
 }
 
+func (b *fastStatBucket) AbortUpload(ctx context.Context, writer gcs.Writer) error {
+	// An aborted upload doesn't change the object, so the cache stays valid.
+	return b.wrapped.AbortUpload(ctx, writer)
+}
+
 func (b *fastStatBucket) FlushPendingWrites(ctx context.Context, writer gcs.Writer) (*gcs.MinObject, error) {
 	o, err := b.wrapped.FlushPendingWrites(ctx, writer)
 
