@@ -660,6 +660,8 @@ type FileSystemConfig struct {
 
 	FuseMaxWriteSizeKb int64 `yaml:"fuse-max-write-size-kb"`
 
+	FuseNumReaders int64 `yaml:"fuse-num-readers"`
+
 	FuseOptions []string `yaml:"fuse-options"`
 
 	Gid int64 `yaml:"gid"`
@@ -1321,6 +1323,12 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
+	flagSet.IntP("fuse-num-readers", "", 8, "Number of concurrent goroutines reading FUSE ops from /dev/fuse.")
+
+	if err := flagSet.MarkHidden("fuse-num-readers"); err != nil {
+		return err
+	}
+
 	flagSet.IntP("gid", "", -1, "GID owner of all inodes.")
 
 	flagSet.StringP("grpc-path-strategy", "", "direct-path-with-fallback", "Strategy for DirectPath connectivity when client-protocol=grpc. Options: 'direct-path-only' (fail if unavailable), 'direct-path-with-fallback' (always fallback to HTTP/1 when direct path is not available).")
@@ -1961,6 +1969,10 @@ func BindFlags(v *viper.Viper, flagSet *pflag.FlagSet) error {
 	}
 
 	if err := v.BindPFlag("file-system.fuse-max-write-size-kb", flagSet.Lookup("fuse-max-write-size-kb")); err != nil {
+		return err
+	}
+
+	if err := v.BindPFlag("file-system.fuse-num-readers", flagSet.Lookup("fuse-num-readers")); err != nil {
 		return err
 	}
 

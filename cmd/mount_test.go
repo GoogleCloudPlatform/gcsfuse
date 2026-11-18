@@ -227,3 +227,37 @@ func TestGetFuseMountConfig_MaxPagesAndMaxWrite(t *testing.T) {
 		})
 	}
 }
+
+func TestGetFuseMountConfig_NumReaders(t *testing.T) {
+	testCases := []struct {
+		name               string
+		fuseNumReaders     int64
+		expectedNumReaders int
+	}{
+		{
+			name:               "SingleReader",
+			fuseNumReaders:     1,
+			expectedNumReaders: 1,
+		},
+		{
+			name:               "MultipleReaders",
+			fuseNumReaders:     8,
+			expectedNumReaders: 8,
+		},
+	}
+
+	fsName := "mybucket"
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			newConfig := &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					FuseNumReaders: tc.fuseNumReaders,
+				},
+			}
+
+			fuseMountCfg := getFuseMountConfig(fsName, newConfig)
+
+			assert.Equal(t, tc.expectedNumReaders, fuseMountCfg.NumReaders)
+		})
+	}
+}

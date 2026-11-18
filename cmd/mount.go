@@ -201,6 +201,8 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
 		// Enable async reads if enable-kernel-reader flag is set to true.
 		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
+		// Set number of parallel readers doing the ReadOp operation from /dev/fuse.
+		NumReaders: int(newConfig.FileSystem.FuseNumReaders),
 	}
 
 	mountCfg.MaxWrite = uint32(newConfig.FileSystem.FuseMaxWriteSizeKb * 1024)
