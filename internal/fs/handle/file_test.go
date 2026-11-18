@@ -999,7 +999,7 @@ func (t *fileTest) TestFileHandle_Destroy_WithReaderAndReadManager() {
 	fh.reader = mockReader
 	fh.readManager = mockReadManager
 
-	fh.Destroy()
+	fh.Destroy(context.Background())
 
 	// Assert expectations
 	mockReader.AssertExpectations(t.T())
@@ -1017,7 +1017,7 @@ func (t *fileTest) TestFileHandle_Destroy_WithNilReaderAndReadManager() {
 
 	// Should not panic
 	assert.NotPanics(t.T(), func() {
-		fh.Destroy()
+		fh.Destroy(context.Background())
 	})
 }
 
@@ -1466,7 +1466,7 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 	// Final assertion: compare the combined result with the original expected data.
 	assert.Equal(t.T(), expectedData, combinedResult, "Combined result should match expected data.")
 	// Clean up the original file handle.
-	fh.Destroy()
+	fh.Destroy(context.Background())
 }
 
 // Test_ReadWithReadManager_WorkloadInsightVisual validates that when
@@ -1519,7 +1519,7 @@ func (t *fileTest) Test_ReadWithReadManager_WorkloadInsightVisual() {
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), MiB, resp3.Size)
 	assert.Equal(t.T(), content[2*MiB:3*MiB], dst[:resp3.Size])
-	fh.Destroy()
+	fh.Destroy(context.Background())
 
 	// Validate the output file creation for workload insight.
 	assert.FileExists(t.T(), "test.txt")

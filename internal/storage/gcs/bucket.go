@@ -85,6 +85,8 @@ type Writer interface {
 	Flush() (int64, error)
 	ObjectName() string
 	Attrs() *storage.ObjectAttrs
+	// Abort discards an upload that hasn't been finalized.
+	Abort() error
 }
 
 // Bucket represents a GCS bucket, pre-bound with a bucket name and necessary
@@ -157,6 +159,10 @@ type Bucket interface {
 	// FinalizeUpload closes the storage.Writer which completes the write
 	// operation and creates an object on GCS.
 	FinalizeUpload(ctx context.Context, writer Writer) (*MinObject, error)
+
+	// AbortUpload discards an upload that hasn't been finalized, so no object
+	// is created. It's the counterpart of FinalizeUpload.
+	AbortUpload(ctx context.Context, writer Writer) error
 
 	// FlushPendingWrites is used for zonal buckets to flush any pending data in
 	// the writer buffer. The object is not finalized and can be appended further.

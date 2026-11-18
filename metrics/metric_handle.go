@@ -86,6 +86,7 @@ const (
 type GcsMethod string
 
 const (
+	GcsMethodAbortUploadAttr                  GcsMethod = "AbortUpload"
 	GcsMethodComposeObjectsAttr               GcsMethod = "ComposeObjects"
 	GcsMethodCopyObjectAttr                   GcsMethod = "CopyObject"
 	GcsMethodCreateAppendableObjectWriterAttr GcsMethod = "CreateAppendableObjectWriter"

@@ -55,3 +55,8 @@ func (mw *Writer) ObjectName() string {
 	args := mw.Called()
 	return args.String(0)
 }
+
+func (mw *Writer) Abort() error {
+	args := mw.Called()
+	return args.Error(0)
+}
