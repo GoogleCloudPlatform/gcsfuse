@@ -752,6 +752,10 @@ func (b *bucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gcs.MinObje
 	return fakeObjectWriter.Object, nil
 }
 
+func (b *bucket) AbortUpload(ctx context.Context, w gcs.Writer) error {
+	return w.Abort()
+}
+
 // LOCKS_EXCLUDED(b.mu)
 func (b *bucket) CopyObject(
 	ctx context.Context,

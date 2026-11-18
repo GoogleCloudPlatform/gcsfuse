@@ -130,14 +130,14 @@ func NewFileHandle(
 }
 
 // Destroy any resources associated with the handle, which must not be used
-// again.
+// again. ctx is the context of the FUSE operation that releases the handle.
 // LOCKS_REQUIRED(fh.mu)
 // LOCK_FUNCTION(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)
-func (fh *FileHandle) Destroy() {
+func (fh *FileHandle) Destroy(ctx context.Context) {
 	// Deregister the fileHandle with the inode.
 	fh.inode.Lock()
-	fh.inode.DeRegisterFileHandle(fh.openMode.AccessMode() == util.ReadOnly)
+	fh.inode.DeRegisterFileHandle(ctx, fh.openMode.AccessMode() == util.ReadOnly)
 	fh.inode.Unlock()
 	if fh.reader != nil {
 		fh.reader.Destroy()

@@ -247,7 +247,7 @@ func (s *SymlinkInode) Target() (target string) {
 	return
 }
 
-func (s *SymlinkInode) Unlink() {
+func (s *SymlinkInode) Unlink(_ context.Context) {
 }
 
 // Bucket returns the bucket that owns this inode.

@@ -328,6 +328,17 @@ func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gc
 	return
 }
 
+func (bh *bucketHandle) AbortUpload(ctx context.Context, w gcs.Writer) (err error) {
+	defer func() {
+		err = gcs.GetGCSError(err)
+	}()
+
+	if err = w.Abort(); err != nil {
+		err = fmt.Errorf("error in aborting writer: %w", err)
+	}
+	return
+}
+
 func (bh *bucketHandle) FlushPendingWrites(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
 	defer func() {
 		err = gcs.GetGCSError(err)

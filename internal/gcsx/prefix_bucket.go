@@ -134,6 +134,10 @@ func (b *prefixBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gcs
 	return
 }
 
+func (b *prefixBucket) AbortUpload(ctx context.Context, w gcs.Writer) error {
+	return b.wrapped.AbortUpload(ctx, w)
+}
+
 func (b *prefixBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (o *gcs.MinObject, err error) {
 	o, err = b.wrapped.FlushPendingWrites(ctx, w)
 	// Modify the returned object.

@@ -456,11 +456,11 @@ func (f *FileInode) IsUnlinked() bool {
 	return f.unlinked
 }
 
-func (f *FileInode) Unlink() {
+func (f *FileInode) Unlink(ctx context.Context) {
 	f.unlinked = true
 
 	if f.streamingWriteHandler != nil {
-		f.streamingWriteHandler.Unlink()
+		f.streamingWriteHandler.Unlink(ctx)
 	}
 }
 
@@ -543,8 +543,12 @@ func (f *FileInode) RegisterFileHandle(readOnly bool) {
 	}
 }
 
+// DeRegisterFileHandle deregisters a file handle and destroys the streaming
+// write handler once the last write handle is gone. ctx is the context of the
+// FUSE operation that releases the handle.
+//
 // LOCKS_REQUIRED(f.mu)
-func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
+func (f *FileInode) DeRegisterFileHandle(ctx context.Context, readOnly bool) {
 	if readOnly {
 		return
 	}
@@ -557,7 +561,7 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 
 	// All write fileHandles associated with streamingWriteHandler are closed. So safe to set streamingWriteHandler to nil.
 	if f.writeHandleCount == 0 && f.streamingWriteHandler != nil {
-		err := f.streamingWriteHandler.Destroy()
+		err := f.streamingWriteHandler.Destroy(ctx)
 		if err != nil {
 			logger.Warnf("Error while destroying the streamingWriteHandler: %v", err)
 		}

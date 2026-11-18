@@ -5101,6 +5101,15 @@ func TestGcsRequestCount(t *testing.T) {
 		expected map[attribute.Set]int64
 	}{
 		{
+			name: "gcs_method_AbortUpload",
+			f: func(m *otelMetrics) {
+				m.GcsRequestCount(5, "AbortUpload")
+			},
+			expected: map[attribute.Set]int64{
+				attribute.NewSet(attribute.String("gcs_method", "AbortUpload")): 5,
+			},
+		},
+		{
 			name: "gcs_method_ComposeObjects",
 			f: func(m *otelMetrics) {
 				m.GcsRequestCount(5, "ComposeObjects")
@@ -5273,21 +5282,21 @@ func TestGcsRequestCount(t *testing.T) {
 		}, {
 			name: "multiple_attributes_summed",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(5, "ComposeObjects")
-				m.GcsRequestCount(2, "CopyObject")
-				m.GcsRequestCount(3, "ComposeObjects")
+				m.GcsRequestCount(5, "AbortUpload")
+				m.GcsRequestCount(2, "ComposeObjects")
+				m.GcsRequestCount(3, "AbortUpload")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")): 8,
-				attribute.NewSet(attribute.String("gcs_method", "CopyObject")): 2,
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("gcs_method", "AbortUpload")): 8,
+				attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")): 2,
 			},
 		},
 		{
 			name: "negative_increment",
 			f: func(m *otelMetrics) {
-				m.GcsRequestCount(-5, "ComposeObjects")
-				m.GcsRequestCount(2, "ComposeObjects")
+				m.GcsRequestCount(-5, "AbortUpload")
+				m.GcsRequestCount(2, "AbortUpload")
 			},
-			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")): 2},
+			expected: map[attribute.Set]int64{attribute.NewSet(attribute.String("gcs_method", "AbortUpload")): 2},
 		},
 	}
 
@@ -5322,6 +5331,11 @@ func TestGcsRequestLatencies(t *testing.T) {
 		latencies []time.Duration
 		gcsMethod GcsMethod
 	}{
+		{
+			name:      "gcs_method_AbortUpload",
+			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
+			gcsMethod: "AbortUpload",
+		},
 		{
 			name:      "gcs_method_ComposeObjects",
 			latencies: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},

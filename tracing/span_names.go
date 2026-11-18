@@ -117,6 +117,9 @@ const (
 	StreamingUploadFinalize = "write.streaming.upload.finalize"
 	// StreamingUploadFlush flushes in-flight buffered data to GCS during sync or flush.
 	StreamingUploadFlush = "write.streaming.upload.flush"
+	// StreamingUploadAbort discards an unfinalized upload after an upload failure,
+	// an unlink, or the release of the last write handle.
+	StreamingUploadAbort = "write.streaming.upload.abort"
 	// StreamingUploader tracks the background worker goroutine uploading buffered blocks.
 	StreamingUploader = "write.streaming.uploader"
 )

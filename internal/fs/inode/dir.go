@@ -198,7 +198,7 @@ type DirInode interface {
 
 	IsUnlinked() bool
 
-	Unlink()
+	Unlink(ctx context.Context)
 
 	IsTypeCacheDeprecated() bool
 
@@ -860,7 +860,7 @@ func (d *dirInode) IsUnlinked() bool {
 	return d.unlinked
 }
 
-func (d *dirInode) Unlink() {
+func (d *dirInode) Unlink(_ context.Context) {
 	d.unlinked = true
 }
 
@@ -1359,7 +1359,7 @@ func (d *dirInode) DeleteChildDir(
 		}
 
 		if dirInode != nil {
-			dirInode.Unlink()
+			dirInode.Unlink(ctx)
 		}
 
 		return nil

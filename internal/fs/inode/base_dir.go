@@ -291,7 +291,7 @@ func (d *baseDirInode) IsUnlinked() bool {
 	return false
 }
 
-func (d *baseDirInode) Unlink() {
+func (d *baseDirInode) Unlink(_ context.Context) {
 }
 
 func (d *baseDirInode) IsTypeCacheDeprecated() bool {

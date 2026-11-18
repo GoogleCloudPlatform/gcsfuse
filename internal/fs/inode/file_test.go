@@ -1856,7 +1856,7 @@ func (t *FileTest) TestUnlinkLocalFile() {
 	assert.Nil(t.T(), err)
 
 	// Unlink.
-	t.in.Unlink()
+	t.in.Unlink(t.ctx)
 
 	// Verify that fileInode is now unlinked
 	assert.True(t.T(), t.in.IsUnlinked())
