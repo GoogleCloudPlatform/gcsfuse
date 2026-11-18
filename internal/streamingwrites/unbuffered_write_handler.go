@@ -128,9 +128,6 @@ func (wh *unbufferedWriteHandlerImpl) Flush(ctx context.Context) (obj *gcs.MinOb
 	if wh.uploadError != nil {
 		return nil, wh.uploadError
 	}
-	// Finalize under a context that is detached from the FUSE operation but
-	// carries its trace.
-	ctx = wh.traceHandle.PropagateTraceContext(context.Background(), ctx)
 	var bytes int64
 	ctx, finishSpan := wh.traceHandle.TraceUpload(ctx, tracing.StreamingUploadFinalize, wh.objectName, &bytes, &err)
 	defer finishSpan()

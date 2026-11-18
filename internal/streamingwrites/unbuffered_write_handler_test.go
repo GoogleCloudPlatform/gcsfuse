@@ -690,25 +690,6 @@ func TestUnbufferedWriteHandler_FlushReleasesWriterContext(t *testing.T) {
 	assert.ErrorIs(t, writerCtx().Err(), context.Canceled)
 }
 
-func TestUnbufferedWriteHandler_FlushIsDetachedFromOperationContext(t *testing.T) {
-	writer := new(storagemock.Writer)
-	writer.On("Write", mock.Anything).Return(3, nil)
-	bucket, _ := newMockBucketWithWriter(writer)
-	var finalizeCtx context.Context
-	bucket.On("FinalizeUpload", mock.Anything, writer).
-		Run(func(args mock.Arguments) { finalizeCtx = args.Get(0).(context.Context) }).
-		Return(&gcs.MinObject{Name: objectName, Size: 3}, nil)
-	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
-	require.NoError(t, wh.Write(context.Background(), []byte("foo"), 0))
-	opCtx, cancelOp := context.WithCancel(context.Background())
-	cancelOp()
-
-	_, err := wh.Flush(opCtx)
-
-	require.NoError(t, err)
-	assert.NoError(t, finalizeCtx.Err())
-}
-
 func TestUnbufferedWriteHandler_DestroyIsNotImplemented(t *testing.T) {
 	wh := newUnbufferedWriteHandlerForTest(new(storagemock.TestifyMockBucket), nil)
 
