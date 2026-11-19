@@ -1,14 +1,18 @@
 version: 2
 enable-beta-ecosystems: true
 updates:
-- package-ecosystem: docker
+- package-ecosystem: docker # zizmor: ignore[dependabot-cooldown]
   directory: "/"
   schedule:
     interval: weekly
-- package-ecosystem: gomod
+- package-ecosystem: gomod # zizmor: ignore[dependabot-cooldown]
   directory: "/"
   allow:
   - dependency-type: "direct"
+  ignore:
+    # Keep google.golang.org/grpc aligned with cloud.google.com/go/storage (b/392912617)
+    - dependency-name: "google.golang.org/grpc"
+      update-types: ["version-update:semver-minor", "version-update:semver-patch"]
   schedule:
     interval: weekly
   groups:
@@ -16,7 +20,7 @@ updates:
     go-dependencies:
       patterns:
         - "*"
-- package-ecosystem: pip
+- package-ecosystem: pip # zizmor: ignore[dependabot-cooldown]
   directory: "/"
   schedule:
     interval: weekly
