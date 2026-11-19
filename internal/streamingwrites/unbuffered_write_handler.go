@@ -117,8 +117,7 @@ func (wh *unbufferedWriteHandlerImpl) Write(ctx context.Context, data []byte, of
 
 // Sync returns a nil object and the stored upload error, if any. It doesn't
 // touch the writer: it neither waits for the parts in flight nor finalizes the
-// object, so the data isn't durable or visible on GCS until Flush. A pending
-// forward truncate is zero-padded on Flush or on a write at the truncated size.
+// object, so the data isn't durable or visible on GCS until Flush.
 func (wh *unbufferedWriteHandlerImpl) Sync(ctx context.Context) (*gcs.MinObject, error) {
 	return nil, wh.uploadError
 }

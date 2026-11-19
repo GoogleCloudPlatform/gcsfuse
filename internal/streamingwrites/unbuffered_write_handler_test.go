@@ -48,13 +48,6 @@ func truncateOp(size int64) handlerOp {
 	}
 }
 
-func syncOp() handlerOp {
-	return func(ctx context.Context, wh WriteHandler) error {
-		_, err := wh.Sync(ctx)
-		return err
-	}
-}
-
 func flushOp() handlerOp {
 	return func(ctx context.Context, wh WriteHandler) error {
 		_, err := wh.Flush(ctx)
@@ -123,28 +116,31 @@ func TestUnbufferedWriteHandler_WriteFileInfo(t *testing.T) {
 	mtime := time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)
 	testCases := []struct {
 		name              string
-		totalSize         int64
-		truncatedSize     int64
+		ops               []handlerOp
 		expectedTotalSize int64
 	}{
 		{
-			name:              "NoPendingTruncate",
-			totalSize:         10,
-			truncatedSize:     -1,
-			expectedTotalSize: 10,
+			name:              "NoWrites",
+			expectedTotalSize: 0,
+		},
+		{
+			name:              "SequentialWrites",
+			ops:               []handlerOp{writeOp("foo", 0), writeOp("bar", 3)},
+			expectedTotalSize: 6,
 		},
 		{
 			name:              "PendingForwardTruncate",
-			totalSize:         10,
-			truncatedSize:     25,
-			expectedTotalSize: 25,
+			ops:               []handlerOp{writeOp("foo", 0), truncateOp(10)},
+			expectedTotalSize: 10,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			wh := newUnbufferedWriteHandlerForTest(new(storagemock.TestifyMockBucket), nil)
-			wh.totalSize = tc.totalSize
-			wh.truncatedSize = tc.truncatedSize
+			ctx := context.Background()
+			wh := newUnbufferedWriteHandlerForTest(newFakeBucket(), nil)
+			for _, op := range tc.ops {
+				require.NoError(t, op(ctx, wh))
+			}
 			wh.SetMtime(mtime)
 
 			info := wh.WriteFileInfo()
@@ -199,16 +195,6 @@ func TestUnbufferedWriteHandler_FlushFinalizesWrittenContent(t *testing.T) {
 			name:            "WriteAtCurrentSizePastPendingTruncate",
 			ops:             []handlerOp{writeOp("foo", 0), truncateOp(4), writeOp("barbaz", 3)},
 			expectedContent: "foobarbaz",
-		},
-		{
-			name:            "WriteAfterSyncPadsPendingTruncate",
-			ops:             []handlerOp{writeOp("ab", 0), truncateOp(4), syncOp(), writeOp("cd", 4)},
-			expectedContent: "ab\x00\x00cd",
-		},
-		{
-			name:            "FlushAfterSyncPadsPendingTruncate",
-			ops:             []handlerOp{writeOp("ab", 0), truncateOp(4), syncOp()},
-			expectedContent: "ab\x00\x00",
 		},
 		{
 			name:            "TruncateToCurrentSizeCancelsPendingTruncate",
@@ -341,70 +327,6 @@ func TestUnbufferedWriteHandler_Truncate(t *testing.T) {
 	}
 }
 
-func TestUnbufferedWriteHandler_SyncDoesNotStartUpload(t *testing.T) {
-	testCases := []struct {
-		name string
-		ops  []handlerOp
-	}{
-		{
-			name: "NoWrites",
-		},
-		{
-			name: "PendingTruncate",
-			ops:  []handlerOp{truncateOp(2)},
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			bucket := new(storagemock.TestifyMockBucket)
-			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
-			for _, op := range tc.ops {
-				require.NoError(t, op(ctx, wh))
-			}
-
-			obj, err := wh.Sync(ctx)
-
-			require.NoError(t, err)
-			assert.Nil(t, obj)
-			bucket.AssertNotCalled(t, "CreateObjectChunkWriter", mock.Anything, mock.Anything)
-		})
-	}
-}
-
-func TestUnbufferedWriteHandler_SyncDoesNotPadPendingTruncate(t *testing.T) {
-	ctx := context.Background()
-	writer := new(storagemock.Writer)
-	writer.On("Write", []byte("ab")).Return(2, nil)
-	bucket, _ := newMockBucketWithWriter(writer)
-	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
-	require.NoError(t, wh.Write(ctx, []byte("ab"), 0))
-	require.NoError(t, wh.Truncate(4))
-
-	obj, err := wh.Sync(ctx)
-
-	require.NoError(t, err)
-	assert.Nil(t, obj)
-	// Only the data reached the writer, not the padding.
-	writer.AssertNumberOfCalls(t, "Write", 1)
-	assert.Equal(t, int64(4), wh.truncatedSize)
-}
-
-func TestUnbufferedWriteHandler_SyncDoesNotFinalize(t *testing.T) {
-	ctx := context.Background()
-	bucket := newFakeBucket()
-	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
-	require.NoError(t, wh.Write(ctx, []byte("foo"), 0))
-
-	obj, err := wh.Sync(ctx)
-
-	require.NoError(t, err)
-	assert.Nil(t, obj)
-	_, _, err = bucket.StatObject(ctx, &gcs.StatObjectRequest{Name: objectName})
-	var notFoundErr *gcs.NotFoundError
-	assert.ErrorAs(t, err, &notFoundErr)
-}
-
 func TestUnbufferedWriteHandler_CreatesWriterOnceWithPrecondition(t *testing.T) {
 	testCases := []struct {
 		name                 string
@@ -456,7 +378,7 @@ func TestUnbufferedWriteHandler_WriterContextOutlivesOperationContext(t *testing
 	assert.NoError(t, writerCtx().Err())
 }
 
-func TestUnbufferedWriteHandler_CreateWriterErrorIsSticky(t *testing.T) {
+func TestUnbufferedWriteHandler_CreateObjectChunkWriterErrorIsSticky(t *testing.T) {
 	testCases := []struct {
 		name string
 		// setup runs before the operation that creates the writer.
