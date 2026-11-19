@@ -15,7 +15,6 @@
 package cfg
 
 import (
-	"strings"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -91,17 +90,17 @@ func TestToProto_AllDataTypes(t *testing.T) {
 		},
 		{
 			name:   "WhitelistedStringOverCap",
-			config: &Config{MachineType: strings.Repeat("a", MaxProtoStringLen+1)},
+			config: &Config{MachineType: "123456789012345678901234567890123456"},
 			expected: &pb.Config{
-				MachineType: strings.Repeat("a", MaxProtoStringLen),
+				MachineType: "12345678901234567890123456789012345",
 			},
 		},
 		{
-			// The cut at MaxProtoStringLen bytes splits the 2-byte "é", which is dropped.
+			// The cut at 35 bytes splits the 2-byte "é", which is dropped.
 			name:   "WhitelistedStringOverCapSplitsMultiByteChar",
-			config: &Config{MachineType: strings.Repeat("a", MaxProtoStringLen-1) + "é"},
+			config: &Config{MachineType: "1234567890123456789012345678901234é"},
 			expected: &pb.Config{
-				MachineType: strings.Repeat("a", MaxProtoStringLen-1),
+				MachineType: "1234567890123456789012345678901234",
 			},
 		},
 		{
@@ -185,51 +184,45 @@ func TestTruncateProtoString(t *testing.T) {
 		{
 			name:     "Empty",
 			input:    "",
-			maxLen:   MaxProtoStringLen,
+			maxLen:   2,
 			expected: "",
 		},
 		{
 			name:     "ShortValueUnchanged",
-			input:    "n2-standard-4",
-			maxLen:   MaxProtoStringLen,
-			expected: "n2-standard-4",
+			input:    "a",
+			maxLen:   2,
+			expected: "a",
 		},
 		{
 			name:     "ValueAtCapUnchanged",
-			input:    strings.Repeat("a", MaxProtoStringLen),
-			maxLen:   MaxProtoStringLen,
-			expected: strings.Repeat("a", MaxProtoStringLen),
+			input:    "ab",
+			maxLen:   2,
+			expected: "ab",
 		},
 		{
 			name:     "LongValueCapped",
-			input:    strings.Repeat("a", 1000),
-			maxLen:   MaxProtoStringLen,
-			expected: strings.Repeat("a", MaxProtoStringLen),
-		},
-		{
-			name:     "OtherMaxLen",
-			input:    strings.Repeat("a", 1000),
-			maxLen:   256,
-			expected: strings.Repeat("a", 256),
+			input:    "abc",
+			maxLen:   2,
+			expected: "ab",
 		},
 		{
 			name:     "SplitMultiByteCharDropped",
-			input:    strings.Repeat("a", MaxProtoStringLen-1) + "é",
-			maxLen:   MaxProtoStringLen,
-			expected: strings.Repeat("a", MaxProtoStringLen-1),
+			input:    "aé",
+			maxLen:   2,
+			expected: "a",
 		},
 		{
 			name:     "InvalidUTF8Replaced",
-			input:    "n2-standard-4\xff",
-			maxLen:   MaxProtoStringLen,
-			expected: "n2-standard-4\uFFFD",
+			input:    "ab\xff",
+			maxLen:   5,
+			expected: "ab\uFFFD",
 		},
 		{
 			// The 3-byte replacement character doesn't fit, so it's dropped.
 			name:     "InvalidUTF8ReplacedThenCapped",
-			input:    strings.Repeat("a", MaxProtoStringLen-1) + "\xff",
-			maxLen:   MaxProtoStringLen,
-			expected: strings.Repeat("a", MaxProtoStringLen-1),
+			input:    "a\xff",
+			maxLen:   2,
+			expected: "a",
 		},
 	}
 
