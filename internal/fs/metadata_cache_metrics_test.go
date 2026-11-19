@@ -302,7 +302,7 @@ func TestMetadataCache_EndToEndScenarios(t *testing.T) {
 		)
 	})
 
-	// CreateFile's clobbered() check goes to GCS (miss); the later lookup is a hit.
+	// CreateFile skips the clobbered() check and SyncFile populates the cache; the later lookup is a hit.
 	t.Run("Scenario 10: File Creation & Warm Lookup", func(t *testing.T) {
 		// Arrange
 		env := newMetadataCacheTestEnv(ctx, t)
@@ -321,7 +321,6 @@ func TestMetadataCache_EndToEndScenarios(t *testing.T) {
 		// Assert
 		require.NoError(t, err)
 		env.assertReads(ctx, t,
-			wantRead{false, statusNone, detailNotFound, 1},
 			wantRead{true, statusPositive, detailFound, 1},
 		)
 	})
@@ -515,7 +514,7 @@ func TestMetadataCache_EndToEndScenarios(t *testing.T) {
 		env.assertReads(ctx, t, wantRead{false, statusNone, detailNotFound, 1})
 	})
 
-	// CreateFile misses as in Scenario 10; GetInodeAttributes hits the negative entry.
+	// CreateFile skips the clobbered() check; GetInodeAttributes misses the cache.
 	t.Run("Scenario 22: Unlinked local file Attributes", func(t *testing.T) {
 		// Arrange
 		env := newMetadataCacheTestEnv(ctx, t)
@@ -532,7 +531,6 @@ func TestMetadataCache_EndToEndScenarios(t *testing.T) {
 		assert.Equal(t, uint32(0), getOp.Attributes.Nlink)
 		env.assertReads(ctx, t,
 			wantRead{false, statusNone, detailNotFound, 1},
-			wantRead{true, statusNegative, detailFound, 1},
 		)
 	})
 
