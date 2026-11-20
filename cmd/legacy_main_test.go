@@ -510,6 +510,12 @@ func (t *MainTest) TestForwardedEnvVars_NotPassedWhenUnset() {
 }
 
 func (t *MainTest) TestGetMountConfigsHeader() {
+	const (
+		longMountID = "1234567890123456789012345678901234567890123456789012345678901234" +
+			"1234567890123456789012345678901234567890123456789012345678901234" +
+			"1234567890123456789012345678901234567890123456789012345678901234" +
+			"1234567890123456789012345678901234567890123456789012345678901234"
+	)
 	testCases := []struct {
 		name            string
 		mountConfig     *cfg.Config
@@ -547,6 +553,19 @@ func (t *MainTest) TestGetMountConfigsHeader() {
 			mountInstanceID: "testFS-\xfe",
 			expectedAppName: "app\uFFFD",
 			expectedMountID: "testFS-\uFFFD",
+		},
+		{
+			name:            "LongAppNameIsCapped",
+			mountConfig:     &cfg.Config{AppName: "123456789012345678901234567890123456"},
+			mountInstanceID: "testFS-123",
+			expectedAppName: "12345678901234567890123456789012345",
+			expectedMountID: "testFS-123",
+		},
+		{
+			name:            "LongMountIDIsCapped",
+			mountConfig:     &cfg.Config{},
+			mountInstanceID: longMountID + "a",
+			expectedMountID: longMountID,
 		},
 	}
 
