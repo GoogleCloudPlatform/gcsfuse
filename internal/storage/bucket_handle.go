@@ -596,14 +596,16 @@ func (bh *bucketHandle) MoveObject(ctx context.Context, req *gcs.MoveObjectReque
 
 	obj := bh.bucket.Object(req.SrcName)
 
-	// Switching to the requested generation of source object.
+	// Move reads source preconditions, not the generation selected on a handle.
+	sourceConditions := storage.Conditions{}
 	if req.SrcGeneration != 0 {
-		obj = obj.Generation(req.SrcGeneration)
+		sourceConditions.GenerationMatch = req.SrcGeneration
 	}
-
-	// Putting a condition that the metaGeneration of source should match *req.SrcMetaGenerationPrecondition for move operation to occur.
 	if req.SrcMetaGenerationPrecondition != nil {
-		obj = obj.If(storage.Conditions{MetagenerationMatch: *req.SrcMetaGenerationPrecondition})
+		sourceConditions.MetagenerationMatch = *req.SrcMetaGenerationPrecondition
+	}
+	if isStorageConditionsNotEmpty(sourceConditions) {
+		obj = obj.If(sourceConditions)
 	}
 
 	dstMoveObject := storage.MoveObjectDestination{
