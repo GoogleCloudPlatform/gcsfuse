@@ -34,6 +34,11 @@ var _ experimental.BufferPool = (*WriterBufferPool)(nil)
 // atomic globalBlockBudget across writers. Because freeBlocksCh is a buffered
 // channel and globalBlockBudget is an atomic.Int64, concurrent Get, TryGet, and
 // Put calls across Go SDK part-upload goroutines require no explicit mutex.
+//
+// No destroyed flag is needed because each pool is bound 1:1 to a single
+// storage.Writer, and Destroy is called only after Writer.Close or Writer.Abort
+// blocks until all background upload and hedge goroutines exit and finish
+// calling Put, after which Get, TryGet, and Put are never called again.
 type WriterBufferPool struct {
 	blockSize         int
 	globalBlockBudget *atomic.Int64 // mount-wide block budget (globalMemLimitBytes / blockSize)
