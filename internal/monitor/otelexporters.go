@@ -20,6 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/netip"
+	"net/url"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -267,16 +269,20 @@ func setupOtelMetricsEndpoint(ctx context.Context, endpoint string, authConfig c
 	if intervalSecs <= 0 {
 		return nil, nil
 	}
+	endpointInfo, err := classifyOtelEndpoint(endpoint)
+	if err != nil {
+		return nil, err
+	}
 	opts := []otlpmetrichttp.Option{
 		otlpmetrichttp.WithEndpoint(endpoint),
 		otlpmetrichttp.WithCompression(otlpmetrichttp.GzipCompression),
 	}
 
-	if isOtelEndpointInsecure(endpoint) {
+	if endpointInfo.insecure {
 		opts = append(opts, otlpmetrichttp.WithInsecure())
 	}
 
-	if strings.Contains(endpoint, "googleapis.com") {
+	if endpointInfo.googleAPI {
 		client, err := getGcpOtelHttpClient(ctx, authConfig, "https://www.googleapis.com/auth/monitoring.write")
 		if err != nil {
 			logger.Errorf("Error getting GCP authenticated token source for metrics: %v", err)
@@ -403,6 +409,10 @@ func getProjectID(ctx context.Context, authConfig cfg.GcsAuthConfig, configuredP
 
 // SetupOTelLogExporter initializes the OpenTelemetry Log provider.
 func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string, authConfig cfg.GcsAuthConfig, configuredProjectID string) (common.ShutdownFn, error) {
+	endpointInfo, err := classifyOtelEndpoint(endpoint)
+	if err != nil {
+		return nil, err
+	}
 	projectID := getProjectID(ctx, authConfig, configuredProjectID)
 	res, err := getOtelResource(ctx, mountID, projectID)
 	if err != nil {
@@ -415,11 +425,11 @@ func SetupOTelLogExporter(ctx context.Context, endpoint string, mountID string, 
 		otlploghttp.WithCompression(otlploghttp.GzipCompression),
 	}
 
-	if isOtelEndpointInsecure(endpoint) {
+	if endpointInfo.insecure {
 		opts = append(opts, otlploghttp.WithInsecure())
 	}
 
-	if strings.Contains(endpoint, "googleapis.com") {
+	if endpointInfo.googleAPI {
 		client, err := getGcpOtelHttpClient(ctx, authConfig, "https://www.googleapis.com/auth/logging.write")
 		if err != nil {
 			logger.Errorf("Error getting GCP authenticated token source for logs: %v", err)
@@ -483,9 +493,37 @@ func getOtelResource(ctx context.Context, mountID string, projectID string) (*re
 	return res, nil
 }
 
-// isOtelEndpointInsecure returns true if the endpoint is determined to be a local testing endpoint.
-func isOtelEndpointInsecure(endpoint string) bool {
-	return strings.Contains(endpoint, "localhost") || strings.Contains(endpoint, "127.0.0.1") || strings.Contains(endpoint, "0.0.0.0") || strings.Contains(endpoint, "[::1]")
+type otelEndpointInfo struct {
+	googleAPI bool
+	insecure  bool
+}
+
+func classifyOtelEndpoint(endpoint string) (otelEndpointInfo, error) {
+	// WithEndpoint accepts a URL authority, not a URL. Match how both exporters
+	// build their request URL, including escaping IPv6 zone identifiers.
+	endpointURL := url.URL{Scheme: "https", Host: endpoint}
+	parsed, err := url.Parse(endpointURL.String())
+	if err != nil {
+		return otelEndpointInfo{}, fmt.Errorf("invalid OTLP HTTP endpoint %q: %w", endpoint, err)
+	}
+	hostname := parsed.Hostname()
+	if hostname == "" || (strings.Contains(hostname, ":") && !strings.HasPrefix(endpoint, "[")) {
+		return otelEndpointInfo{}, fmt.Errorf("invalid OTLP HTTP endpoint %q: expected a host and optional port (IPv6 addresses must be bracketed)", endpoint)
+	}
+
+	// DNS case folding is ASCII-only; Unicode folding can change IDN labels.
+	host := strings.Map(func(r rune) rune {
+		if r >= 'A' && r <= 'Z' {
+			return r + ('a' - 'A')
+		}
+		return r
+	}, strings.TrimSuffix(hostname, "."))
+	ip, _ := netip.ParseAddr(hostname)
+	return otelEndpointInfo{
+		googleAPI: host == "googleapis.com" || strings.HasSuffix(host, ".googleapis.com"),
+		// Preserve the IPv4 wildcard address for local collector testing.
+		insecure: host == "localhost" || ip.IsLoopback() || ip.Unmap() == netip.IPv4Unspecified(),
+	}, nil
 }
 
 // getGcpOtelHttpClient creates an authenticated HTTP client for a specific GCP scope.
