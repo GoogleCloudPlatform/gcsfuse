@@ -38,8 +38,9 @@ type WriterBufferPool struct {
 	freeBlocksCh     chan []byte
 }
 
-// NewWriterBufferPool creates a WriterBufferPool with maxBlocksPerFile local
-// capacity backed by globalByteBudget.
+// NewWriterBufferPool creates a WriterBufferPool that caches up to
+// maxBlocksPerFile free blocks (the per-writer concurrency bound enforced by
+// the Go SDK) and tracks allocations against globalByteBudget.
 func NewWriterBufferPool(blockSizeBytes int, maxBlocksPerFile int, globalByteBudget *atomic.Int64) (*WriterBufferPool, error) {
 	if blockSizeBytes <= 0 || maxBlocksPerFile <= 0 {
 		return nil, fmt.Errorf("invalid configuration for WriterBufferPool, blockSizeBytes: %d, maxBlocksPerFile: %d", blockSizeBytes, maxBlocksPerFile)
