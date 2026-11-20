@@ -17,6 +17,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -145,8 +146,41 @@ func TestProxyTokenSource_TokenFetch_ServerError(t *testing.T) {
 	token, err := ts.Token()
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "server error")
+	assert.Contains(t, err.Error(), http.StatusText(http.StatusInternalServerError))
 	assert.Nil(t, token)
+}
+
+func TestProxyTokenSourceErrorDoesNotExposeResponseBody(t *testing.T) {
+	for _, responseBody := range []string{
+		`{"access_token":"dummy-access-secret","refresh_token":"dummy-refresh-secret"}`,
+		"provider failure: dummy-access-secret",
+	} {
+		t.Run(responseBody, func(t *testing.T) {
+			// Arrange
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				_, err := w.Write([]byte(responseBody))
+				assert.NoError(t, err)
+			}))
+			t.Cleanup(server.Close)
+			source, err := NewTokenSourceFromURL(context.Background(), server.URL, false)
+			require.NoError(t, err)
+
+			// Act
+			token, err := source.Token()
+
+			// Assert
+			require.Error(t, err)
+			assert.Nil(t, token)
+			assert.NotContains(t, err.Error(), "dummy-access-secret")
+			assert.NotContains(t, err.Error(), "dummy-refresh-secret")
+			var retrieveError *oauth2.RetrieveError
+			require.True(t, errors.As(err, &retrieveError))
+			require.NotNil(t, retrieveError.Response)
+			assert.Equal(t, http.StatusServiceUnavailable, retrieveError.Response.StatusCode)
+			assert.Empty(t, retrieveError.Body)
+		})
+	}
 }
 
 func TestProxyTokenSource_TokenFetch_InvalidJSON(t *testing.T) {

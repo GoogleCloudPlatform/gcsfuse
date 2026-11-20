@@ -57,6 +57,13 @@ GCSFuse uses multiple network clients to communicate with Google Cloud Storage (
 
 ## Retry Strategies
 
+### Custom token-provider errors
+
+When a `--token-url` provider returns a non-success HTTP status, the error keeps
+the status code for diagnostics and retry decisions but does not include the
+response body. Provider bodies can contain credentials. Use the provider's own
+logs to diagnose its response rather than copying that payload into mount logs.
+
 ### Standard Retry Configuration
 
 **Applied To:**
