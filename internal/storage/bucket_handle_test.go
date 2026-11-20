@@ -16,8 +16,12 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -32,6 +36,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/api/option"
+	storagev1 "google.golang.org/api/storage/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -44,7 +50,7 @@ var ContentType string = "ContentType"
 var ContentEncoding string = "ContentEncoding"
 var ContentLanguage string = "ContentLanguage"
 var CacheControl string = "CacheControl"
-var CustomTime string = "CustomTime"
+var CustomTime string = "2026-01-02T03:04:05Z"
 var StorageClass string = "StorageClass"
 var ContentDisposition string = "ContentDisposition"
 
@@ -84,6 +90,128 @@ type BucketHandleTest struct {
 	storageHandle StorageHandle
 	fakeStorage   FakeStorage
 	mockClient    *MockStorageControlClient
+}
+
+func TestComposeObjectsDestinationAttributes(t *testing.T) {
+	for _, withAttributes := range []bool{false, true} {
+		t.Run(fmt.Sprintf("attributes=%t", withAttributes), func(t *testing.T) {
+			// Arrange
+			type capturedRequest struct {
+				query url.Values
+				body  storagev1.ComposeRequest
+			}
+			requests := make(chan capturedRequest, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/storage/v1/b/test-bucket/o/destination/compose", r.URL.Path)
+				assert.Empty(t, r.Header.Get("Authorization"))
+				var body storagev1.ComposeRequest
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					assert.NoError(t, err)
+					http.Error(w, "invalid compose request", http.StatusBadRequest)
+					return
+				}
+				requests <- capturedRequest{query: r.URL.Query(), body: body}
+				w.Header().Set("Content-Type", "application/json")
+				_, err := fmt.Fprint(w, `{"bucket":"test-bucket","name":"destination","generation":"53","metageneration":"1"}`)
+				assert.NoError(t, err)
+			}))
+			t.Cleanup(server.Close)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			t.Cleanup(cancel)
+			client, err := storage.NewClient(ctx, option.WithEndpoint(server.URL+"/storage/v1/"), option.WithoutAuthentication())
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, client.Close()) })
+			bucket := &bucketHandle{bucket: client.Bucket("test-bucket")}
+			generation, metageneration := int64(51), int64(1)
+			request := &gcs.ComposeObjectsRequest{
+				DstName:                   "destination",
+				DstGenerationPrecondition: &generation, DstMetaGenerationPrecondition: &metageneration,
+				Sources: []gcs.ComposeSource{
+					{Name: "source", Generation: 51},
+					{Name: "append-part", Generation: 52},
+				},
+				DeleteSourceObjects: true,
+			}
+			if withAttributes {
+				request.Metadata = map[string]string{
+					gcs.MtimeMetadataKey: "2026-01-02T03:04:05.123456789Z",
+					"custom-key":         "custom-value",
+				}
+				request.ContentType = "application/x-test"
+				request.ContentLanguage = "en"
+				request.ContentEncoding = "gzip"
+				request.CacheControl = "private, no-store"
+				request.ContentDisposition = "attachment"
+				request.CustomTime = "2026-01-02T03:04:05Z"
+				request.EventBasedHold = true
+				request.StorageClass = "STANDARD"
+				request.Acl = []*storagev1.ObjectAccessControl{{Entity: "user-test@example.invalid", Role: "READER"}}
+			}
+
+			// Act
+			object, err := bucket.ComposeObjects(ctx, request)
+
+			// Assert
+			require.NoError(t, err)
+			require.NotNil(t, object)
+			assert.Equal(t, "destination", object.Name)
+			select {
+			case captured := <-requests:
+				require.NotNil(t, captured.body.Destination)
+				destination := captured.body.Destination
+				assert.Equal(t, request.Metadata, destination.Metadata)
+				assert.Equal(t, request.ContentType, destination.ContentType)
+				assert.Equal(t, request.ContentLanguage, destination.ContentLanguage)
+				assert.Equal(t, request.ContentEncoding, destination.ContentEncoding)
+				assert.Equal(t, request.CacheControl, destination.CacheControl)
+				assert.Equal(t, request.ContentDisposition, destination.ContentDisposition)
+				assert.Equal(t, request.CustomTime, destination.CustomTime)
+				assert.Equal(t, request.EventBasedHold, destination.EventBasedHold)
+				assert.Equal(t, request.StorageClass, destination.StorageClass)
+				assert.Equal(t, request.Acl, destination.Acl)
+				assert.True(t, captured.body.DeleteSourceObjects)
+				require.Len(t, captured.body.SourceObjects, 2)
+				for i, source := range request.Sources {
+					assert.Equal(t, source.Name, captured.body.SourceObjects[i].Name)
+					assert.Equal(t, source.Generation, captured.body.SourceObjects[i].Generation)
+				}
+				assert.Equal(t, "51", captured.query.Get("ifGenerationMatch"))
+				assert.Equal(t, "1", captured.query.Get("ifMetagenerationMatch"))
+			default:
+				t.Fatal("Compose did not send an HTTP request")
+			}
+		})
+	}
+}
+
+func TestComposeObjectsInvalidCustomTime(t *testing.T) {
+	// Arrange
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+	requests := make(chan struct{}, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests <- struct{}{}
+		w.Header().Set("Content-Type", "application/json")
+		_, err := fmt.Fprint(w, `{"bucket":"test-bucket","name":"destination","generation":"53"}`)
+		assert.NoError(t, err)
+	}))
+	t.Cleanup(server.Close)
+	client, err := storage.NewClient(ctx, option.WithEndpoint(server.URL+"/storage/v1/"), option.WithoutAuthentication())
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	bucket := &bucketHandle{bucket: client.Bucket("test-bucket")}
+
+	// Act
+	object, err := bucket.ComposeObjects(ctx, &gcs.ComposeObjectsRequest{
+		DstName: "destination", Sources: []gcs.ComposeSource{{Name: "source"}},
+		CustomTime: "not-a-timestamp",
+	})
+
+	// Assert
+	require.ErrorContains(t, err, "custom time")
+	assert.Nil(t, object)
+	assert.Empty(t, requests, "invalid attributes should fail before sending a request")
 }
 
 func TestBucketHandleTestSuite(testSuite *testing.T) {
