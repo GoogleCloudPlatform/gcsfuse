@@ -23,52 +23,42 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
 )
 
-// Compile-time check that *WriterBufferPool implements experimental.BufferPool.
 var _ experimental.BufferPool = (*WriterBufferPool)(nil)
 
-// WriterBufferPool is a per-writer mmap-backed implementation of the Go Storage
-// SDK's experimental.BufferPool interface for gRPC parallel uploads.
+// WriterBufferPool is a per-writer mmap-backed implementation of
+// experimental.BufferPool for gRPC parallel uploads.
 //
-// Each parallel storage.Writer receives its own WriterBufferPool with a bounded
-// free-block channel (sized to maxBlocksPerFile) while sharing a mount-wide
-// atomic globalByteBudget across writers. Because freeBlocksCh is a buffered
-// channel and globalByteBudget is an atomic.Int64, concurrent Get, TryGet, and
-// Put calls across Go SDK part-upload goroutines require no explicit mutex.
-//
-// No destroyed flag is needed because each pool is bound 1:1 to a single
-// storage.Writer, and Destroy is called only after Writer.Close or Writer.Abort
-// blocks until all background upload and hedge goroutines exit and finish
-// calling Put, after which Get, TryGet, and Put are never called again.
+// Each parallel storage.Writer gets its own freeBlocksCh while sharing the
+// mount-wide globalByteBudget. Concurrent Get, TryGet, and Put calls are safe
+// without a mutex, and Destroy must be called only after Writer.Close or
+// Writer.Abort returns (once all background upload goroutines have finished Put).
 type WriterBufferPool struct {
-	blockSize        int
-	globalByteBudget *atomic.Int64 // mount-wide byte budget (initialized from write.global-mem-limit-mb)
-	freeBlocksCh     chan []byte   // buffered channel (capacity maxBlocksPerFile) of reusable mmap blocks
+	blockSizeBytes   int
+	globalByteBudget *atomic.Int64
+	freeBlocksCh     chan []byte
 }
 
-// NewWriterBufferPool creates a per-writer buffer pool with fixed blockSize
-// bytes per block, caching up to maxBlocksPerFile blocks locally and tracking
-// allocations in bytes against globalByteBudget.
-func NewWriterBufferPool(blockSize int, maxBlocksPerFile int, globalByteBudget *atomic.Int64) (*WriterBufferPool, error) {
-	if blockSize <= 0 || maxBlocksPerFile <= 0 {
-		return nil, fmt.Errorf("invalid configuration for WriterBufferPool, blockSize: %d, maxBlocksPerFile: %d", blockSize, maxBlocksPerFile)
+// NewWriterBufferPool creates a WriterBufferPool with maxBlocksPerFile local
+// capacity backed by globalByteBudget.
+func NewWriterBufferPool(blockSizeBytes int, maxBlocksPerFile int, globalByteBudget *atomic.Int64) (*WriterBufferPool, error) {
+	if blockSizeBytes <= 0 || maxBlocksPerFile <= 0 {
+		return nil, fmt.Errorf("invalid configuration for WriterBufferPool, blockSizeBytes: %d, maxBlocksPerFile: %d", blockSizeBytes, maxBlocksPerFile)
 	}
 	if globalByteBudget == nil {
 		return nil, fmt.Errorf("invalid configuration for WriterBufferPool: globalByteBudget must not be nil")
 	}
 	return &WriterBufferPool{
-		blockSize:        blockSize,
+		blockSizeBytes:   blockSizeBytes,
 		globalByteBudget: globalByteBudget,
 		freeBlocksCh:     make(chan []byte, maxBlocksPerFile),
 	}, nil
 }
 
-// Get returns a blockSize buffer when no part upload is currently in flight to
-// guarantee forward progress. It reuses a cached block from freeBlocksCh if
-// available, or decrements globalByteBudget by blockSize (even below 0) and
-// allocates a new block via mmap.
+// Get returns a cached block or allocates a new mmap block, allowing
+// globalByteBudget to go negative to guarantee forward progress.
 func (p *WriterBufferPool) Get(maxSize int) ([]byte, error) {
-	if maxSize != p.blockSize {
-		return nil, fmt.Errorf("WriterBufferPool.Get: requested maxSize %d does not match blockSize %d", maxSize, p.blockSize)
+	if maxSize != p.blockSizeBytes {
+		return nil, fmt.Errorf("WriterBufferPool.Get: requested maxSize %d does not match blockSizeBytes %d", maxSize, p.blockSizeBytes)
 	}
 
 	select {
@@ -77,9 +67,9 @@ func (p *WriterBufferPool) Get(maxSize int) ([]byte, error) {
 	default:
 	}
 
-	blockBytes := int64(p.blockSize)
+	blockBytes := int64(p.blockSizeBytes)
 	p.globalByteBudget.Add(-blockBytes)
-	buf, err := mmapBytes(p.blockSize)
+	buf, err := mmapBytes(p.blockSizeBytes)
 	if err != nil {
 		p.globalByteBudget.Add(blockBytes)
 		return nil, err
@@ -87,15 +77,11 @@ func (p *WriterBufferPool) Get(maxSize int) ([]byte, error) {
 	return buf, nil
 }
 
-// TryGet performs a non-blocking buffer acquisition when a part upload is
-// already in flight. It reuses a cached block from freeBlocksCh if available,
-// or atomically reserves blockSize bytes from globalByteBudget when sufficient
-// budget remains (globalByteBudget >= blockSize) and allocates via mmap. When
-// globalByteBudget < blockSize and no cached block is available, it returns
-// (nil, false, nil).
+// TryGet returns a cached block, or allocates a new mmap block only when at
+// least blockSizeBytes remain in globalByteBudget.
 func (p *WriterBufferPool) TryGet(maxSize int) ([]byte, bool, error) {
-	if maxSize != p.blockSize {
-		return nil, false, fmt.Errorf("WriterBufferPool.TryGet: requested maxSize %d does not match blockSize %d", maxSize, p.blockSize)
+	if maxSize != p.blockSizeBytes {
+		return nil, false, fmt.Errorf("WriterBufferPool.TryGet: requested maxSize %d does not match blockSizeBytes %d", maxSize, p.blockSizeBytes)
 	}
 
 	select {
@@ -104,12 +90,12 @@ func (p *WriterBufferPool) TryGet(maxSize int) ([]byte, bool, error) {
 	default:
 	}
 
-	blockBytes := int64(p.blockSize)
+	blockBytes := int64(p.blockSizeBytes)
 	if !tryReserveBytes(p.globalByteBudget, blockBytes) {
 		return nil, false, nil
 	}
 
-	buf, err := mmapBytes(p.blockSize)
+	buf, err := mmapBytes(p.blockSizeBytes)
 	if err != nil {
 		p.globalByteBudget.Add(blockBytes)
 		return nil, false, err
@@ -117,15 +103,11 @@ func (p *WriterBufferPool) TryGet(maxSize int) ([]byte, bool, error) {
 	return buf, true, nil
 }
 
-// Put returns a buffer previously obtained from Get or TryGet after a part
-// upload finishes, fails, or aborts. Buffers whose capacity does not match
-// blockSize are logged and ignored. Over-budget blocks (globalByteBudget < 0)
-// or blocks exceeding freeBlocksCh capacity are unmapped immediately; otherwise
-// buf is resliced to full blockSize length (without zeroing memory) and cached
-// in freeBlocksCh for reuse within the same file.
+// Put caches buf for reuse within the writer, or unmaps it immediately when
+// globalByteBudget is negative or freeBlocksCh is full.
 func (p *WriterBufferPool) Put(buf []byte) {
-	if cap(buf) != p.blockSize {
-		logger.Warnf("WriterBufferPool.Put: ignoring buffer with unexpected capacity %d (expected %d)", cap(buf), p.blockSize)
+	if cap(buf) != p.blockSizeBytes {
+		logger.Warnf("WriterBufferPool.Put: ignoring buffer with unexpected capacity %d (expected %d)", cap(buf), p.blockSizeBytes)
 		return
 	}
 
@@ -134,7 +116,7 @@ func (p *WriterBufferPool) Put(buf []byte) {
 		return
 	}
 
-	buf = buf[:p.blockSize]
+	buf = buf[:p.blockSizeBytes]
 	select {
 	case p.freeBlocksCh <- buf:
 	default:
@@ -142,10 +124,8 @@ func (p *WriterBufferPool) Put(buf []byte) {
 	}
 }
 
-// Destroy drains freeBlocksCh, unmaps all cached blocks, and returns their
-// total bytes to globalByteBudget. Callers must invoke Destroy only after
-// Writer.Close or Writer.Abort has returned (once all Go SDK part workers have
-// finished calling Put). Destroy is idempotent and never closes freeBlocksCh.
+// Destroy drains and unmaps all cached blocks, returning their bytes to
+// globalByteBudget. Safe to call multiple times after Close or Abort returns.
 func (p *WriterBufferPool) Destroy() {
 	var freedBlocks int64
 	for {
@@ -158,7 +138,7 @@ func (p *WriterBufferPool) Destroy() {
 			freedBlocks++
 		default:
 			if freedBlocks > 0 {
-				p.globalByteBudget.Add(freedBlocks * int64(p.blockSize))
+				p.globalByteBudget.Add(freedBlocks * int64(p.blockSizeBytes))
 			}
 			return
 		}
@@ -170,7 +150,7 @@ func (p *WriterBufferPool) unmapAndRelease(buf []byte) {
 		logger.Errorf("WriterBufferPool: %v", err)
 		return
 	}
-	p.globalByteBudget.Add(int64(p.blockSize))
+	p.globalByteBudget.Add(int64(p.blockSizeBytes))
 }
 
 func tryReserveBytes(budget *atomic.Int64, bytes int64) bool {
