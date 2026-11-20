@@ -643,6 +643,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:     1024,
+					FuseNumReaders:         1,
 					DirMode:                0755,
 					DisableParallelDirops:  false,
 					FileMode:               0644,
@@ -665,6 +666,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:     1024,
+					FuseNumReaders:         1,
 					DirMode:                0755,
 					DisableParallelDirops:  false,
 					FileMode:               0644,
@@ -687,6 +689,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:     1024,
+					FuseNumReaders:         1,
 					DirMode:                0777,
 					DisableParallelDirops:  true,
 					FileMode:               0666,

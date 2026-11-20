@@ -191,4 +191,5 @@ message Config {
   string write_rapid_write = 162;
   bool write_experimental_enable_parallel_upload = 163;
   bool file_system_disable_symlinks = 164;
+  sint64 file_system_fuse_num_readers = 165;
 }
