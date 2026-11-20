@@ -474,6 +474,11 @@ Prior to GCSFuse v3.9.0, symlinks were represented by empty Cloud Storage object
 
 From GCSFuse v3.9.0 onwards, the standard GCS representation for symbolic links is adopted. This means symlinks are now non-zero sized GCS objects. They feature the custom metadata key ```goog-reserved-file-is-symlink``` with a value of ```true```, and the symlink's target path is stored directly within the object's content.In addition, to ensure that older GCSFuse versions can still read these symlinks, the legacy `gcsfuse_symlink_target` metadata key is also populated with the target path. In other respects they work like a file inode, including receiving the same permissions. **Please note that GCSFuse remains backward compatible with symlinks created by versions prior to v3.9.0.**
 
+Symlink targets must fit the platform's pathname limit, excluding the terminating
+NUL (4095 bytes on Linux). Longer standard or legacy targets return
+`ENAMETOOLONG`. Reading a standard target is bounded even when the object's
+reported size is stale or its response is larger than expected.
+
 
 
 **Note**
