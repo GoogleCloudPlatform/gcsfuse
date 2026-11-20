@@ -60,12 +60,10 @@ const (
 	zonalLocationType   = "zone"
 	rapidCacheUltraType = "rapid-cache-ultra"
 
-	// mountConfigsMetadataKey carries the base64url-encoded ConfigPayload on
-	// GetStorageLayout only. It temporarily reuses the Go SDK feature header,
-	// which GCS already logs into client_features.go_sdk_features. Never set it
-	// on data-path calls: the Go SDK overwrites this key there with its bitmask.
-	// TODO(b/575276203): Switch to x-goog-storage-gcsfuse-features; remove by Jan 2027.
-	mountConfigsMetadataKey = "x-goog-storage-go-features"
+	// mountConfigsMetadataKey is the dedicated request header that carries the
+	// base64url-encoded ConfigPayload proto. Set it only on low-volume calls
+	// like GetStorageLayout, never on high-volume data-path calls.
+	mountConfigsMetadataKey = "x-goog-storage-gcsfuse-features"
 
 	// DirectPath detection parameters - used for fast-fail detection during client creation
 	directPathDetectionMaxAttempts = 5
