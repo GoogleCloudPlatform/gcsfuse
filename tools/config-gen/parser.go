@@ -188,6 +188,9 @@ func validateProtoTags(params []Param, retiredTags []int) error {
 	}
 
 	// 3. Contiguity check: ensure all tags from 1 to maxTag are accounted for.
+	// A flag cherry-picked from master to a release branch keeps its master
+	// proto-tag. If that skips newer master tags, add them to retired-params on
+	// the release branch.
 	if len(assignedTagsMap) == maxTag {
 		return nil
 	}
