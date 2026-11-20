@@ -87,12 +87,12 @@ export STAT_CACHE_MAX_SIZE_MB="${stat_cache_max_size_mb}"
 
 debug_flags=""
 if [ $enable_log -eq 1 ]; then
-  debug_flags="--debug_fuse --debug_gcs"
+  debug_flags="--log-severity trace"
 fi
 
 # Mount gcsfuse
 echo "Mounting gcsfuse..."
-gcsfuse --stackdriver-export-interval 30s \
+gcsfuse --cloud-metrics-export-interval-secs 30 \
         $debug_flags \
         --log-file $WORKING_DIR/gcsfuse_logs.txt \
         --log-format text \

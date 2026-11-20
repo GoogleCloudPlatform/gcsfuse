@@ -344,12 +344,12 @@ def _perform_testing(dir, test_type, num_samples):
     # Creating config file for mounting with hns enabled.
     with open("/tmp/config.yml",'w') as mount_config:
       mount_config.write("enable-hns: true")
-    mount_flags="--config-file=/tmp/config.yml --stackdriver-export-interval=30s"
+    mount_flags="--config-file=/tmp/config.yml --cloud-metrics-export-interval-secs=30 --client-protocol=http1"
   else :
     # Creating config file for mounting with hns disabled.
     with open("/tmp/config.yml",'w') as mount_config:
       mount_config.write("enable-hns: false")
-    mount_flags = "--config-file=/tmp/config.yml  --implicit-dirs --rename-dir-limit=1000000 --stackdriver-export-interval=30s"
+    mount_flags = "--config-file=/tmp/config.yml --implicit-dirs --rename-dir-limit=1000000 --cloud-metrics-export-interval-secs=30 --client-protocol=http1"
 
   # Mounting the gcs bucket.
   bucket_name = mount_gcs_bucket(dir["name"], mount_flags, log)
