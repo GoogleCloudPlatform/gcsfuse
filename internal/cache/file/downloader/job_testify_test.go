@@ -64,6 +64,7 @@ func (t *JobTestifyTest) initReadCacheTestifyTest(objectName string, objectConte
 	}
 	t.object = minObject
 	t.fileSpec = data.FileSpec{
+		RootDir:  path.Join(os.Getenv("HOME"), "cache/dir"),
 		Path:     path.Join(path.Join(os.Getenv("HOME"), "cache/dir"), t.object.Name),
 		FilePerm: util.DefaultFilePerm,
 		DirPerm:  util.DefaultDirPerm,
@@ -96,7 +97,7 @@ func (t *JobTestifyTest) Test_downloadObjectToFile_WithReadHandle() {
 	t.initReadCacheTestifyTest(objectName, objectContent, 5, uint64(2*objectSize), func() {})
 	t.job.cancelCtx, t.job.cancelFunc = context.WithCancel(context.Background())
 	defer t.job.cancelFunc()
-	file, err := util.CreateFile(data.FileSpec{Path: t.job.fileSpec.Path,
+	file, err := util.CreateFile(data.FileSpec{RootDir: t.job.fileSpec.RootDir, Path: t.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600), DirPerm: os.FileMode(0700)}, os.O_TRUNC|os.O_RDWR)
 	defer func() {
 		_ = file.Close()

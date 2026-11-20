@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
@@ -35,9 +36,137 @@ import (
 
 const FileName = "foo.txt"
 
+func TestCreateFileRejectsSymlinkEscapes(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		directoryLink bool
+		flags         int
+	}{
+		{name: "final component read", flags: os.O_RDONLY},
+		{name: "final component truncate", flags: os.O_TRUNC | os.O_WRONLY},
+		{name: "intermediate component read", directoryLink: true, flags: os.O_RDONLY},
+		{name: "intermediate component truncate", directoryLink: true, flags: os.O_TRUNC | os.O_WRONLY},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cacheDir := t.TempDir()
+			outsideDir := t.TempDir()
+			outsidePath := filepath.Join(outsideDir, "object")
+			require.NoError(t, os.WriteFile(outsidePath, []byte("outside sentinel"), 0600))
+			cachedPath := filepath.Join(cacheDir, "bucket", "object")
+			if tc.directoryLink {
+				require.NoError(t, os.Symlink(outsideDir, filepath.Join(cacheDir, "bucket")))
+			} else {
+				require.NoError(t, os.MkdirAll(filepath.Dir(cachedPath), 0700))
+				require.NoError(t, os.Symlink(outsidePath, cachedPath))
+			}
+			spec := data.FileSpec{RootDir: cacheDir, Path: cachedPath, FilePerm: DefaultFilePerm, DirPerm: DefaultDirPerm}
+
+			file, err := CreateFile(spec, tc.flags)
+
+			if file != nil {
+				require.NoError(t, file.Close())
+			}
+			assert.Error(t, err, "cache access must not follow symlinks outside its root")
+			contents, readErr := os.ReadFile(outsidePath)
+			require.NoError(t, readErr)
+			assert.Equal(t, "outside sentinel", string(contents))
+		})
+	}
+}
+
+func TestCreateFileRequiresCacheRoot(t *testing.T) {
+	filePath := filepath.Join(t.TempDir(), "missing")
+
+	file, err := CreateFile(data.FileSpec{Path: filePath, FilePerm: DefaultFilePerm, DirPerm: DefaultDirPerm}, os.O_RDWR)
+
+	assert.Nil(t, file)
+	require.ErrorContains(t, err, "cache root directory is required")
+	assert.NoFileExists(t, filePath)
+}
+
+func TestCacheFilesSupportConfiguredRootSymlink(t *testing.T) {
+	realRoot := t.TempDir()
+	cacheRoot := filepath.Join(t.TempDir(), "cache")
+	require.NoError(t, os.Symlink(realRoot, cacheRoot))
+	spec := data.FileSpec{
+		RootDir:  cacheRoot,
+		Path:     filepath.Join(cacheRoot, "bucket", "object"),
+		FilePerm: DefaultFilePerm,
+		DirPerm:  DefaultDirPerm,
+	}
+	file, err := CreateFile(spec, os.O_RDWR)
+	require.NoError(t, err)
+	_, writeErr := file.WriteString("cached data")
+	require.NoError(t, errors.Join(writeErr, file.Close()))
+	alias := filepath.Join(cacheRoot, "bucket", "alias")
+	require.NoError(t, os.Symlink("object", alias))
+	spec.Path = alias
+
+	file, err = OpenFile(spec, os.O_RDONLY)
+
+	require.NoError(t, err)
+	contents, readErr := io.ReadAll(file)
+	require.NoError(t, errors.Join(readErr, file.Close()))
+	assert.Equal(t, "cached data", string(contents))
+	contents, err = os.ReadFile(filepath.Join(realRoot, "bucket", "object"))
+	require.NoError(t, err)
+	assert.Equal(t, "cached data", string(contents))
+}
+
+func TestCacheOperationsRejectSymlinkEscapes(t *testing.T) {
+	operations := []struct {
+		name string
+		run  func(data.FileSpec) error
+	}{
+		{name: "open", run: func(spec data.FileSpec) error {
+			file, err := OpenFile(spec, os.O_RDONLY)
+			if file != nil {
+				err = errors.Join(err, file.Close())
+			}
+			return err
+		}},
+		{name: "stat", run: func(spec data.FileSpec) error {
+			_, err := StatFile(spec.RootDir, spec.Path)
+			return err
+		}},
+		{name: "checksum", run: func(spec data.FileSpec) error {
+			_, err := CalculateCacheFileCRC32(context.Background(), spec)
+			return err
+		}},
+		{name: "eviction", run: func(spec data.FileSpec) error {
+			return TruncateAndRemoveFile(spec.RootDir, spec.Path)
+		}},
+	}
+	for _, directoryLink := range []bool{false, true} {
+		for _, operation := range operations {
+			t.Run(fmt.Sprintf("%s/directory-link=%t", operation.name, directoryLink), func(t *testing.T) {
+				cacheRoot := t.TempDir()
+				outsideRoot := t.TempDir()
+				outsidePath := filepath.Join(outsideRoot, "object")
+				require.NoError(t, os.WriteFile(outsidePath, []byte("outside sentinel"), 0600))
+				cachedPath := filepath.Join(cacheRoot, "bucket", "object")
+				if directoryLink {
+					require.NoError(t, os.Symlink(outsideRoot, filepath.Join(cacheRoot, "bucket")))
+				} else {
+					require.NoError(t, os.MkdirAll(filepath.Dir(cachedPath), 0700))
+					require.NoError(t, os.Symlink(outsidePath, cachedPath))
+				}
+				spec := data.FileSpec{RootDir: cacheRoot, Path: cachedPath, FilePerm: DefaultFilePerm, DirPerm: DefaultDirPerm}
+
+				assert.Error(t, operation.run(spec))
+
+				contents, err := os.ReadFile(outsidePath)
+				require.NoError(t, err)
+				assert.Equal(t, "outside sentinel", string(contents))
+			})
+		}
+	}
+}
+
 func setupUtilTest(t *testing.T) (data.FileSpec, int, int, int) {
 	tempDir := t.TempDir()
 	fileSpec := data.FileSpec{
+		RootDir:  tempDir,
 		Path:     path.Join(tempDir, "subdir", FileName), // "subdir" does not exist yet
 		FilePerm: DefaultFilePerm,
 		DirPerm:  DefaultDirPerm,
@@ -195,6 +324,7 @@ func Test_CreateFile_FilePresentWithLessAccess(t *testing.T) {
 
 func Test_CreateFile_RelativePath(t *testing.T) {
 	fileSpec := data.FileSpec{
+		RootDir:  ".",
 		Path:     "./some/path/foo.txt",
 		FilePerm: DefaultFilePerm,
 		DirPerm:  DefaultDirPerm,
@@ -330,7 +460,7 @@ func Test_TruncateAndRemoveFile_FileExists(t *testing.T) {
 	err = file.Close()
 	require.NoError(t, err)
 
-	err = TruncateAndRemoveFile(fileName)
+	err = TruncateAndRemoveFile(tempDir, fileName)
 
 	assert.NoError(t, err)
 	_, err = os.Stat(fileName)
@@ -341,7 +471,7 @@ func Test_TruncateAndRemoveFile_FileDoesNotExist(t *testing.T) {
 	tempDir := t.TempDir()
 	fileName := path.Join(tempDir, "temp.txt")
 
-	err := TruncateAndRemoveFile(fileName)
+	err := TruncateAndRemoveFile(tempDir, fileName)
 
 	assert.True(t, os.IsNotExist(err))
 }
@@ -366,7 +496,7 @@ func Test_TruncateAndRemoveFile_OpenedFileDeleted(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(len(fileString)), fileInfo.Size())
 
-	err = TruncateAndRemoveFile(fileName)
+	err = TruncateAndRemoveFile(tempDir, fileName)
 
 	assert.NoError(t, err)
 	fileInfo, err = file.Stat()
