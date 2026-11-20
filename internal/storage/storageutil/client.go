@@ -89,7 +89,7 @@ type StorageClientConfig struct {
 	ReadStallRetryConfig cfg.ReadStallGcsRetriesConfig
 
 	// MountConfigsHeader is the base64url-encoded ConfigPayload proto sent as
-	// x-goog-storage-go-features metadata on GetStorageLayout calls.
+	// x-goog-storage-gcsfuse-features metadata on GetStorageLayout calls.
 	MountConfigsHeader string
 
 	MetricHandle metrics.MetricHandle

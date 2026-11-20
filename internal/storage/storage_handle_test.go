@@ -449,7 +449,7 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_MountConfigsMetadata() 
 			mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).
 				Run(func(args mock.Arguments) {
 					md, _ := metadata.FromOutgoingContext(args.Get(0).(context.Context))
-					got = md.Get("x-goog-storage-go-features")
+					got = md.Get("x-goog-storage-gcsfuse-features")
 				}).
 				Return(&controlpb.StorageLayout{}, nil)
 
