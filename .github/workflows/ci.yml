@@ -64,6 +64,21 @@ jobs:
         cd cfg && go run github.com/bufbuild/buf/cmd/buf@v1.50.0 breaking . --against /tmp/base \
           --config '{"version":"v2","breaking":{"use":["FIELD_SAME_NAME","FIELD_SAME_TYPE","FIELD_NO_DELETE_UNLESS_NUMBER_RESERVED","RESERVED_MESSAGE_NO_DELETE"]}}' \
           || { echo "::error::A proto tag must keep its meaning. Add the old tag to retired-params and use a new tag."; exit 1; }
+    # Release branches that send the payload (v4+) must use master's tags:
+    # every tag on the branch must have master's name and type, or be reserved
+    # on master.
+    - name: Check config.proto tags against master
+      if: github.event_name == 'pull_request'
+      env:
+        BASE_REF: ${{ github.base_ref }}
+      run: |
+        [[ "$BASE_REF" =~ ^v([0-9]+)\.[0-9.]*_release$ ]] && (( ${BASH_REMATCH[1]} >= 4 )) || exit 0
+        git fetch --no-tags --depth=1 origin master
+        mkdir -p /tmp/master /tmp/head && git show FETCH_HEAD:cfg/config.proto > /tmp/master/config.proto
+        cp cfg/config.proto /tmp/head/config.proto
+        go run github.com/bufbuild/buf/cmd/buf@v1.50.0 breaking /tmp/master --against /tmp/head \
+          --config '{"version":"v2","breaking":{"use":["FIELD_NO_DELETE_UNLESS_NUMBER_RESERVED","FIELD_SAME_NAME","FIELD_SAME_TYPE"]}}' \
+          || { echo "::error::Release branches must use master's proto tags. Cherry-pick a flag with its master tag and add the master tags it skips to retired-params."; exit 1; }
     - name: Formatting and Imports check
       run: |
         goimports -w .

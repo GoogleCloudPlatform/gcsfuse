@@ -50,6 +50,9 @@ make build
 * **Verification Failure**: If the build target fails, analyze the output:
   * **Compilation/Syntax Errors**: Correct the source files and re-run `make build`.
   * **Lint Issues**: Resolve style warnings flagged by the linter.
+  * **Proto-tag Errors from config-gen** (`go generate` panics while reading `cfg/params.yaml`):
+    * `duplicate proto-tag N found for parameter ...` after rebasing onto `master`: a flag merged on `master` took your tag. Give your flag the next free tag (highest tag on `master` + 1); a tag that isn't on `master` yet can still change. Resolve conflicts in `cfg/params.yaml` by hand; for generated `cfg/` files, take either side and re-run `make build` to regenerate them.
+    * `missing proto-tag N in sequence 1..M` on a release branch: a cherry-picked flag kept its `master` tag `M` and skips newer `master` tags. Add the skipped tags to `retired-params` on the release branch, as described in the backport steps of the [CVE Patching & Backport Skill](../cve-patching/SKILL.md).
 
 ### Step 3: Stage & Commit Automatic Formatting
 Because `make build` runs auto-formatters and import organizers in-place, the workspace might receive automatic layout corrections.
