@@ -26,9 +26,9 @@ import (
 
 const testPoolBlockSize = 4096
 
-func newTestBudget(initial int64) *atomic.Int64 {
+func newTestBudget(initialBytes int64) *atomic.Int64 {
 	b := &atomic.Int64{}
-	b.Store(initial)
+	b.Store(initialBytes)
 	return b
 }
 
@@ -41,7 +41,8 @@ func mustNewWriterBufferPool(t *testing.T, blockSize, maxBlocksPerFile int, budg
 }
 
 func TestNewWriterBufferPool_Success(t *testing.T) {
-	budget := newTestBudget(8)
+	const initialBudget = int64(8 * testPoolBlockSize)
+	budget := newTestBudget(initialBudget)
 
 	pool, err := NewWriterBufferPool(testPoolBlockSize, 4, budget)
 
@@ -50,11 +51,11 @@ func TestNewWriterBufferPool_Success(t *testing.T) {
 	assert.Equal(t, testPoolBlockSize, pool.blockSize)
 	assert.Equal(t, 4, cap(pool.freeBlocksCh))
 	assert.Equal(t, 0, len(pool.freeBlocksCh))
-	assert.Equal(t, int64(8), budget.Load())
+	assert.Equal(t, initialBudget, budget.Load())
 }
 
 func TestNewWriterBufferPool_InvalidConfig(t *testing.T) {
-	validBudget := newTestBudget(4)
+	validBudget := newTestBudget(4 * testPoolBlockSize)
 	testCases := []struct {
 		name             string
 		blockSize        int
@@ -86,7 +87,7 @@ func TestNewWriterBufferPool_InvalidConfig(t *testing.T) {
 			budget:           validBudget,
 		},
 		{
-			name:             "nil_global_block_budget",
+			name:             "nil_global_byte_budget",
 			blockSize:        testPoolBlockSize,
 			maxBlocksPerFile: 4,
 			budget:           nil,
@@ -112,7 +113,7 @@ func TestWriterBufferPool_Get_AllocatesAndOvercommitsBudget(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, buf, testPoolBlockSize)
 	assert.Equal(t, testPoolBlockSize, cap(buf))
-	assert.Equal(t, int64(-1), budget.Load())
+	assert.Equal(t, int64(-testPoolBlockSize), budget.Load())
 
 	// Verify the mmap-backed slice is readable and writable, then return it.
 	copy(buf, []byte("hello parallel upload"))
@@ -123,12 +124,12 @@ func TestWriterBufferPool_Get_AllocatesAndOvercommitsBudget(t *testing.T) {
 }
 
 func TestWriterBufferPool_Get_ReusesCachedBlockWithoutChangingBudget(t *testing.T) {
-	budget := newTestBudget(2)
+	budget := newTestBudget(2 * testPoolBlockSize)
 	pool := mustNewWriterBufferPool(t, testPoolBlockSize, 2, budget)
 
 	first, err := pool.Get(testPoolBlockSize)
 	require.NoError(t, err)
-	assert.Equal(t, int64(1), budget.Load())
+	assert.Equal(t, int64(testPoolBlockSize), budget.Load())
 	firstPtr := &first[0]
 	pool.Put(first)
 	require.Equal(t, 1, len(pool.freeBlocksCh))
@@ -138,31 +139,32 @@ func TestWriterBufferPool_Get_ReusesCachedBlockWithoutChangingBudget(t *testing.
 	require.NoError(t, err)
 	require.Len(t, reused, testPoolBlockSize)
 	assert.Same(t, firstPtr, &reused[0])
-	assert.Equal(t, int64(1), budget.Load())
+	assert.Equal(t, int64(testPoolBlockSize), budget.Load())
 	assert.Equal(t, 0, len(pool.freeBlocksCh))
 	pool.Put(reused)
 }
 
 func TestWriterBufferPool_Get_SizeMismatchDoesNotConsumeCachedBlockOrBudget(t *testing.T) {
-	budget := newTestBudget(2)
+	budget := newTestBudget(2 * testPoolBlockSize)
 	pool := mustNewWriterBufferPool(t, testPoolBlockSize, 2, budget)
 	cached, err := pool.Get(testPoolBlockSize)
 	require.NoError(t, err)
 	pool.Put(cached)
 	require.Equal(t, 1, len(pool.freeBlocksCh))
-	require.Equal(t, int64(1), budget.Load())
+	require.Equal(t, int64(testPoolBlockSize), budget.Load())
 
 	buf, err := pool.Get(testPoolBlockSize / 2)
 
 	require.Error(t, err)
 	assert.Nil(t, buf)
 	assert.Equal(t, 1, len(pool.freeBlocksCh))
-	assert.Equal(t, int64(1), budget.Load())
+	assert.Equal(t, int64(testPoolBlockSize), budget.Load())
 }
 
 func TestWriterBufferPool_Get_MmapFailureRestoresBudget(t *testing.T) {
 	const hugeBlockSize = 1 << 50 // 1 PiB exceeds user virtual address space and fails mmap deterministically.
-	budget := newTestBudget(3)
+	const initialBudget = int64(3 * testPoolBlockSize)
+	budget := newTestBudget(initialBudget)
 	pool := mustNewWriterBufferPool(t, hugeBlockSize, 2, budget)
 
 	buf, err := pool.Get(hugeBlockSize)
@@ -170,18 +172,18 @@ func TestWriterBufferPool_Get_MmapFailureRestoresBudget(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, buf)
 	assert.ErrorContains(t, err, "mmap error")
-	assert.Equal(t, int64(3), budget.Load())
+	assert.Equal(t, initialBudget, budget.Load())
 }
 
-func TestWriterBufferPool_TryGet_AllocatesWhenBudgetPositive(t *testing.T) {
-	budget := newTestBudget(2)
+func TestWriterBufferPool_TryGet_AllocatesWhenBudgetSufficient(t *testing.T) {
+	budget := newTestBudget(2 * testPoolBlockSize)
 	pool := mustNewWriterBufferPool(t, testPoolBlockSize, 2, budget)
 
 	buf1, ok1, err1 := pool.TryGet(testPoolBlockSize)
 	require.NoError(t, err1)
 	require.True(t, ok1)
 	require.Len(t, buf1, testPoolBlockSize)
-	assert.Equal(t, int64(1), budget.Load())
+	assert.Equal(t, int64(testPoolBlockSize), budget.Load())
 
 	buf2, ok2, err2 := pool.TryGet(testPoolBlockSize)
 	require.NoError(t, err2)
@@ -189,7 +191,7 @@ func TestWriterBufferPool_TryGet_AllocatesWhenBudgetPositive(t *testing.T) {
 	require.Len(t, buf2, testPoolBlockSize)
 	assert.Equal(t, int64(0), budget.Load())
 
-	// Third TryGet sees budget == 0 and returns ok = false with nil error.
+	// Third TryGet sees budget == 0 (< blockSize) and returns ok = false with nil error.
 	buf3, ok3, err3 := pool.TryGet(testPoolBlockSize)
 	require.NoError(t, err3)
 	assert.False(t, ok3)
@@ -200,13 +202,14 @@ func TestWriterBufferPool_TryGet_AllocatesWhenBudgetPositive(t *testing.T) {
 	pool.Put(buf2)
 }
 
-func TestWriterBufferPool_TryGet_ReturnsFalseWhenBudgetZeroOrNegative(t *testing.T) {
+func TestWriterBufferPool_TryGet_ReturnsFalseWhenBudgetInsufficient(t *testing.T) {
 	testCases := []struct {
 		name          string
 		initialBudget int64
 	}{
+		{name: "partial_budget_less_than_block_size", initialBudget: testPoolBlockSize - 1},
 		{name: "zero_budget", initialBudget: 0},
-		{name: "negative_budget", initialBudget: -3},
+		{name: "negative_budget", initialBudget: -3 * testPoolBlockSize},
 	}
 
 	for _, tc := range testCases {
@@ -225,7 +228,7 @@ func TestWriterBufferPool_TryGet_ReturnsFalseWhenBudgetZeroOrNegative(t *testing
 }
 
 func TestWriterBufferPool_TryGet_ReusesCachedBlockEvenWhenBudgetExhausted(t *testing.T) {
-	budget := newTestBudget(1)
+	budget := newTestBudget(testPoolBlockSize)
 	pool := mustNewWriterBufferPool(t, testPoolBlockSize, 2, budget)
 
 	buf, err := pool.Get(testPoolBlockSize)
@@ -235,7 +238,7 @@ func TestWriterBufferPool_TryGet_ReusesCachedBlockEvenWhenBudgetExhausted(t *tes
 	pool.Put(buf)
 	require.Equal(t, 1, len(pool.freeBlocksCh))
 
-	// Even with globalBlockBudget == 0, TryGet reuses this writer's cached block.
+	// Even with globalByteBudget == 0, TryGet reuses this writer's cached block.
 	reused, ok, err := pool.TryGet(testPoolBlockSize)
 
 	require.NoError(t, err)
@@ -247,7 +250,7 @@ func TestWriterBufferPool_TryGet_ReusesCachedBlockEvenWhenBudgetExhausted(t *tes
 }
 
 func TestWriterBufferPool_TryGet_SizeMismatchReturnsError(t *testing.T) {
-	budget := newTestBudget(2)
+	budget := newTestBudget(2 * testPoolBlockSize)
 	pool := mustNewWriterBufferPool(t, testPoolBlockSize, 2, budget)
 
 	buf, ok, err := pool.TryGet(testPoolBlockSize * 2)
@@ -255,12 +258,13 @@ func TestWriterBufferPool_TryGet_SizeMismatchReturnsError(t *testing.T) {
 	require.Error(t, err)
 	assert.False(t, ok)
 	assert.Nil(t, buf)
-	assert.Equal(t, int64(2), budget.Load())
+	assert.Equal(t, int64(2*testPoolBlockSize), budget.Load())
 }
 
 func TestWriterBufferPool_TryGet_MmapFailureRestoresBudget(t *testing.T) {
 	const hugeBlockSize = 1 << 50
-	budget := newTestBudget(2)
+	const initialBudget = int64(2 * hugeBlockSize)
+	budget := newTestBudget(initialBudget)
 	pool := mustNewWriterBufferPool(t, hugeBlockSize, 2, budget)
 
 	buf, ok, err := pool.TryGet(hugeBlockSize)
@@ -269,11 +273,11 @@ func TestWriterBufferPool_TryGet_MmapFailureRestoresBudget(t *testing.T) {
 	assert.False(t, ok)
 	assert.Nil(t, buf)
 	assert.ErrorContains(t, err, "mmap error")
-	assert.Equal(t, int64(2), budget.Load())
+	assert.Equal(t, initialBudget, budget.Load())
 }
 
 func TestWriterBufferPool_Put_RestoresSliceLengthWithoutZeroingData(t *testing.T) {
-	budget := newTestBudget(2)
+	budget := newTestBudget(2 * testPoolBlockSize)
 	pool := mustNewWriterBufferPool(t, testPoolBlockSize, 2, budget)
 
 	buf, err := pool.Get(testPoolBlockSize)
@@ -293,12 +297,12 @@ func TestWriterBufferPool_Put_RestoresSliceLengthWithoutZeroingData(t *testing.T
 }
 
 func TestWriterBufferPool_Put_IgnoresUnexpectedCapacity(t *testing.T) {
-	budget := newTestBudget(2)
+	budget := newTestBudget(2 * testPoolBlockSize)
 	pool := mustNewWriterBufferPool(t, testPoolBlockSize, 2, budget)
 
 	validBuf, err := pool.Get(testPoolBlockSize)
 	require.NoError(t, err)
-	require.Equal(t, int64(1), budget.Load())
+	require.Equal(t, int64(testPoolBlockSize), budget.Load())
 
 	pool.Put(nil)
 	pool.Put(make([]byte, 128))
@@ -306,7 +310,7 @@ func TestWriterBufferPool_Put_IgnoresUnexpectedCapacity(t *testing.T) {
 	pool.Put(validBuf[1:]) // Front-resliced buffer has cap == blockSize-1 and must not be munmapped.
 
 	assert.Equal(t, 0, len(pool.freeBlocksCh))
-	assert.Equal(t, int64(1), budget.Load())
+	assert.Equal(t, int64(testPoolBlockSize), budget.Load())
 
 	// The original validBuf is still mapped and safe to return properly.
 	pool.Put(validBuf)
@@ -314,66 +318,69 @@ func TestWriterBufferPool_Put_IgnoresUnexpectedCapacity(t *testing.T) {
 }
 
 func TestWriterBufferPool_Put_UnmapsImmediatelyWhenOverBudget(t *testing.T) {
-	budget := newTestBudget(1)
+	// Non-multiple initial budget (1.5x blockSize) verifies byte-accurate over-budget recovery.
+	const initialBudget = int64(testPoolBlockSize + testPoolBlockSize/2)
+	budget := newTestBudget(initialBudget)
 	pool1 := mustNewWriterBufferPool(t, testPoolBlockSize, 2, budget)
 	pool2 := mustNewWriterBufferPool(t, testPoolBlockSize, 2, budget)
 
 	buf1, err := pool1.Get(testPoolBlockSize)
 	require.NoError(t, err)
-	assert.Equal(t, int64(0), budget.Load())
+	assert.Equal(t, int64(testPoolBlockSize/2), budget.Load())
 
-	// Second writer's guaranteed first block pushes globalBlockBudget below 0.
+	// Second writer's guaranteed first block pushes globalByteBudget below 0.
 	buf2, err := pool2.Get(testPoolBlockSize)
 	require.NoError(t, err)
-	assert.Equal(t, int64(-1), budget.Load())
+	assert.Equal(t, int64(-testPoolBlockSize/2), budget.Load())
 
 	// Putting buf1 while budget < 0 unmaps immediately instead of caching.
 	pool1.Put(buf1)
 	assert.Equal(t, 0, len(pool1.freeBlocksCh))
-	assert.Equal(t, int64(0), budget.Load())
+	assert.Equal(t, int64(testPoolBlockSize/2), budget.Load())
 
-	// Now budget == 0, so pool2.Put caches buf2 locally until pool2.Destroy().
+	// Now budget >= 0, so pool2.Put caches buf2 locally until pool2.Destroy().
 	pool2.Put(buf2)
 	assert.Equal(t, 1, len(pool2.freeBlocksCh))
-	assert.Equal(t, int64(0), budget.Load())
+	assert.Equal(t, int64(testPoolBlockSize/2), budget.Load())
 
 	pool2.Destroy()
 	assert.Equal(t, 0, len(pool2.freeBlocksCh))
-	assert.Equal(t, int64(1), budget.Load())
+	assert.Equal(t, initialBudget, budget.Load())
 }
 
 func TestWriterBufferPool_Put_UnmapsWhenFreeChannelFull(t *testing.T) {
-	budget := newTestBudget(5)
+	budget := newTestBudget(5 * testPoolBlockSize)
 	pool := mustNewWriterBufferPool(t, testPoolBlockSize, 1, budget)
 
 	buf1, err := pool.Get(testPoolBlockSize)
 	require.NoError(t, err)
 	buf2, err := pool.Get(testPoolBlockSize)
 	require.NoError(t, err)
-	assert.Equal(t, int64(3), budget.Load())
+	assert.Equal(t, int64(3*testPoolBlockSize), budget.Load())
 
 	pool.Put(buf1)
 	assert.Equal(t, 1, len(pool.freeBlocksCh))
-	assert.Equal(t, int64(3), budget.Load())
+	assert.Equal(t, int64(3*testPoolBlockSize), budget.Load())
 
-	// Channel capacity is 1, so buf2 is unmapped immediately and budget increments.
+	// Channel capacity is 1, so buf2 is unmapped immediately and budget increments by blockSize.
 	pool.Put(buf2)
 	assert.Equal(t, 1, len(pool.freeBlocksCh))
-	assert.Equal(t, int64(4), budget.Load())
+	assert.Equal(t, int64(4*testPoolBlockSize), budget.Load())
 
 	pool.Destroy()
 	assert.Equal(t, 0, len(pool.freeBlocksCh))
-	assert.Equal(t, int64(5), budget.Load())
+	assert.Equal(t, int64(5*testPoolBlockSize), budget.Load())
 }
 
 func TestWriterBufferPool_Destroy_DrainsAndIsIdempotent(t *testing.T) {
-	budget := newTestBudget(4)
+	const initialBudget = int64(4 * testPoolBlockSize)
+	budget := newTestBudget(initialBudget)
 	pool, err := NewWriterBufferPool(testPoolBlockSize, 3, budget)
 	require.NoError(t, err)
 
 	// Calling Destroy on an empty pool is a no-op.
 	pool.Destroy()
-	assert.Equal(t, int64(4), budget.Load())
+	assert.Equal(t, initialBudget, budget.Load())
 
 	b1, err := pool.Get(testPoolBlockSize)
 	require.NoError(t, err)
@@ -383,27 +390,27 @@ func TestWriterBufferPool_Destroy_DrainsAndIsIdempotent(t *testing.T) {
 	b3, ok, err := pool.TryGet(testPoolBlockSize)
 	require.NoError(t, err)
 	require.True(t, ok)
-	assert.Equal(t, int64(1), budget.Load())
+	assert.Equal(t, int64(testPoolBlockSize), budget.Load())
 
 	pool.Put(b1)
 	pool.Put(b2)
 	pool.Put(b3)
 	assert.Equal(t, 3, len(pool.freeBlocksCh))
-	assert.Equal(t, int64(1), budget.Load())
+	assert.Equal(t, int64(testPoolBlockSize), budget.Load())
 
 	pool.Destroy()
 	assert.Equal(t, 0, len(pool.freeBlocksCh))
-	assert.Equal(t, int64(4), budget.Load())
+	assert.Equal(t, initialBudget, budget.Load())
 
 	// Second Destroy call is safe and idempotent.
 	pool.Destroy()
 	assert.Equal(t, 0, len(pool.freeBlocksCh))
-	assert.Equal(t, int64(4), budget.Load())
+	assert.Equal(t, initialBudget, budget.Load())
 }
 
 func TestWriterBufferPool_ConcurrentWritersConserveGlobalBudget(t *testing.T) {
 	const (
-		initialBudget    = int64(6)
+		initialBudget    = int64(10 * testPoolBlockSize)
 		numWriters       = 8
 		maxBlocksPerFile = 4
 		partsPerWriter   = 24
@@ -415,7 +422,11 @@ func TestWriterBufferPool_ConcurrentWritersConserveGlobalBudget(t *testing.T) {
 		writersWG.Add(1)
 		go func(wID int) {
 			defer writersWG.Done()
-			pool, err := NewWriterBufferPool(testPoolBlockSize, maxBlocksPerFile, budget)
+			writerBlockSize := testPoolBlockSize
+			if wID%2 == 1 {
+				writerBlockSize = 2 * testPoolBlockSize
+			}
+			pool, err := NewWriterBufferPool(writerBlockSize, maxBlocksPerFile, budget)
 			require.NoError(t, err)
 
 			var partsWG sync.WaitGroup
@@ -426,16 +437,16 @@ func TestWriterBufferPool_ConcurrentWritersConserveGlobalBudget(t *testing.T) {
 				slots <- struct{}{}
 				var buf []byte
 				if inflight.Load() == 0 {
-					buf, err = pool.Get(testPoolBlockSize)
+					buf, err = pool.Get(writerBlockSize)
 					require.NoError(t, err)
 				} else {
 					var ok bool
-					buf, ok, err = pool.TryGet(testPoolBlockSize)
+					buf, ok, err = pool.TryGet(writerBlockSize)
 					require.NoError(t, err)
 					if !ok {
 						// Budget full; fall back to guaranteed Get when inflight drains to 0,
 						// or wait for an in-flight worker slot and allocate via Get.
-						buf, err = pool.Get(testPoolBlockSize)
+						buf, err = pool.Get(writerBlockSize)
 						require.NoError(t, err)
 					}
 				}
@@ -452,7 +463,7 @@ func TestWriterBufferPool_ConcurrentWritersConserveGlobalBudget(t *testing.T) {
 					fill := bytes.Repeat([]byte{pat}, len(b))
 					copy(b, fill)
 					assert.True(t, bytes.Equal(fill, b), "concurrent buffer aliasing detected")
-					pool.Put(b[:testPoolBlockSize/2])
+					pool.Put(b[:writerBlockSize/2])
 				}(buf, pattern)
 			}
 
