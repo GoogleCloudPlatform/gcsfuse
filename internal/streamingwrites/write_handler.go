@@ -92,6 +92,6 @@ type CreateWriteHandlerRequest struct {
 
 // NewWriteHandler creates the appropriate WriteHandler implementation (buffered or unbuffered).
 func NewWriteHandler(req *CreateWriteHandlerRequest) (WriteHandler, error) {
-	// TODO(b/548851494): Route to newUnbufferedWriteHandler(req) when parallel upload mode is enabled.
+	// TODO(b/581184469): Route to newUnbufferedWriteHandler(req) when the write strategy is parallel.
 	return newBufferedWriteHandler(req)
 }
