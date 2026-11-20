@@ -15,22 +15,27 @@
 package lru
 
 import (
-	"container/list"
 	"errors"
 	"fmt"
-	"reflect"
+	"math"
 	"strings"
 
+	golru "github.com/google/go-lru"
 	"github.com/googlecloudplatform/gcsfuse/v4/internal/locker"
 )
 
 // Predefined errors returned by the Cache.
 var (
-	ErrInvalidEntrySize       = errors.New("size of the entry is more than the cache's maxSize")
+	ErrInvalidEntrySize       = golru.ErrInvalidEntrySize
 	ErrInvalidEntry           = errors.New("nil values are not supported")
 	ErrInvalidUpdateEntrySize = errors.New("size of entry to be updated is not same as existing size")
-	ErrEntryNotExist          = errors.New("entry with given key does not exist")
+	ErrEntryNotExist          = golru.ErrEntryNotExist
 )
+
+// minGolruMaxSize ensures the underlying golru.Cache capacity is at least 1 GiB
+// in scaled units so that zero-size entries never trigger golru's zero-weight
+// entry count cap (which only activates when zeroSizeCount >= golru.maxSize).
+const minGolruMaxSize = uint64(1) << 30
 
 // Cache is a LRU cache for any lru.ValueType indexed by string keys.
 // That means entry's value should be a lru.ValueType.
@@ -39,8 +44,11 @@ type Cache struct {
 	// Constant data
 	/////////////////////////
 
-	// INVARIANT: maxSize > 0
+	// Maximum capacity of the cache in bytes.
 	maxSize uint64
+
+	// Scale factor applied to entry weights in the underlying golru.Cache.
+	scale uint64
 
 	// Notified of every value entering or leaving the cache, if not nil.
 	sizeObserver SizeObserver
@@ -52,17 +60,16 @@ type Cache struct {
 	// Sum of entry.Value.Size() of all the entries in the cache.
 	currentSize uint64
 
-	// List of cache entries, with least recently used at the tail.
+	// Underlying go-lru cache instance.
 	//
 	// INVARIANT: currentSize <= maxSize
 	// INVARIANT: Each element is of type entry
-	entries list.List
+	cache golru.Cache[entry]
 
-	// Index of elements by name.
-	//
-	// INVARIANT: For each k, v: v.Value.(entry).Key == k
-	// INVARIANT: Contains all and only the elements of entries
-	index map[string]*list.Element
+	// Tracks entries whose UpdateSize growth temporarily exceeded maxSize and
+	// whose weight update in golru is deferred until the next Insert/Erase.
+	hasDeferredOverflow bool
+	deferredGolruSize   map[string]uint64
 
 	// All public methods of this Cache uses this RW mutex based locker while
 	// accessing/updating Cache's data.
@@ -94,21 +101,49 @@ func WithSizeObserver(o SizeObserver) Option {
 }
 
 type entry struct {
-	Key   string
-	Value ValueType
+	value ValueType
 	size  uint64
 }
 
+func (c *Cache) weigh(key string, ent entry) uint64 {
+	if c.hasDeferredOverflow {
+		if golruSize, ok := c.deferredGolruSize[key]; ok {
+			return golruSize * c.scale
+		}
+	}
+	return ent.size * c.scale
+}
+
+func (c *Cache) initGolruCache(enableInvariantsCheck bool) {
+	c.scale = 1
+	golruMaxSize := c.maxSize
+	if c.maxSize == 0 {
+		golruMaxSize = minGolruMaxSize
+	} else if c.maxSize < minGolruMaxSize {
+		c.scale = minGolruMaxSize
+		golruMaxSize = c.maxSize * c.scale
+	}
+
+	golruOpts := []golru.Option{
+		golru.WithWeigher(c.weigh),
+		golru.WithCompactionThreshold(math.MaxFloat64),
+		golru.WithEvictionThreshold(math.MaxFloat64),
+		golru.WithInvariantChecking(enableInvariantsCheck),
+	}
+
+	c.cache = golru.NewArenaRadixCache[entry](golruMaxSize, golruOpts...)
+}
+
 // NewCache returns the reference of cache object by initialising the cache with
-// the supplied maxSize, which must be greater than zero.
+// the supplied maxSize.
 func NewCache(maxSize uint64, opts ...Option) *Cache {
 	c := &Cache{
 		maxSize: maxSize,
-		index:   make(map[string]*list.Element),
 	}
 	for _, opt := range opts {
 		opt(c)
 	}
+	c.initGolruCache(false)
 
 	// Set up invariant checking.
 	c.mu = locker.NewRW("LRUCache", c.checkInvariants)
@@ -120,11 +155,11 @@ func NewCache(maxSize uint64, opts ...Option) *Cache {
 func NewCacheWithOptions(maxSize uint64, lockOpts locker.Options, opts ...Option) *Cache {
 	c := &Cache{
 		maxSize: maxSize,
-		index:   make(map[string]*list.Element),
 	}
 	for _, opt := range opts {
 		opt(c)
 	}
+	c.initGolruCache(lockOpts.EnableInvariantsCheck)
 
 	c.mu = locker.NewRWWithOptions("LRUCache", c.checkInvariants, lockOpts)
 	return c
@@ -140,60 +175,57 @@ func (c *Cache) notifySizeChange(value ValueType, delta int64) {
 	}
 }
 
+// reconcileDeferred synchronizes the underlying golru.Cache weights for any
+// entries whose UpdateSize growth was deferred while currentSize exceeded maxSize.
+//
+// LOCKS_REQUIRED(c.mu)
+func (c *Cache) reconcileDeferred() {
+	for k := range c.deferredGolruSize {
+		delete(c.deferredGolruSize, k)
+		if ent, ok := c.cache.Peek(k); ok {
+			_ = c.cache.Replace(k, ent)
+		}
+	}
+	c.hasDeferredOverflow = false
+}
+
 // checkInvariants panic if any internal invariants have been violated.
 func (c *Cache) checkInvariants() {
-	// INVARIANT: maxSize > 0
-	if !(c.maxSize > 0) {
-		panic(fmt.Sprintf("Invalid maxSize: %v", c.maxSize))
+	st := c.cache.Stats()
+	golruCurrentSize := st.CurrentSize / c.scale
+	currentSize := c.currentSize
+	if c.sizeObserver == nil && !c.hasDeferredOverflow {
+		currentSize = golruCurrentSize
+	} else if !c.hasDeferredOverflow && currentSize != golruCurrentSize {
+		panic(fmt.Sprintf("Size mismatch: currentSize %v vs golru CurrentSize %v", currentSize, golruCurrentSize))
 	}
 
-	// INVARIANT: currentSize <= maxSize
-	if !(c.currentSize <= c.maxSize) {
-		panic(fmt.Sprintf("CurrentSize %v over maxSize %v", c.currentSize, c.maxSize))
+	// INVARIANT: currentSize <= maxSize (unless deferred overflow from UpdateSize is pending)
+	if !c.hasDeferredOverflow && currentSize > c.maxSize {
+		panic(fmt.Sprintf("CurrentSize %v over maxSize %v", currentSize, c.maxSize))
 	}
 
 	// INVARIANT: Each element is of type entry and sum of entry sizes matches currentSize
 	var sumSize uint64
-	for e := c.entries.Front(); e != nil; e = e.Next() {
-		ent, ok := e.Value.(entry)
-		if !ok {
-			panic(fmt.Sprintf("Unexpected element type: %v", reflect.TypeOf(e.Value)))
+	var count int
+	for ent := range c.cache.Values() {
+		if ent.value == nil {
+			panic("Unexpected nil entry value")
 		}
 		sumSize += ent.size
+		count++
 	}
 
-	if sumSize != c.currentSize {
-		panic(fmt.Sprintf("Size mismatch: sum of entry sizes %v vs currentSize %v", sumSize, c.currentSize))
+	if sumSize != currentSize {
+		panic(fmt.Sprintf("Size mismatch: sum of entry sizes %v vs currentSize %v", sumSize, currentSize))
 	}
 
-	// INVARIANT: For each k, v: v.Value.(entry).Key == k
-	// INVARIANT: Contains all and only the elements of entries
-	if c.entries.Len() != len(c.index) {
+	if count != st.Len {
 		panic(fmt.Sprintf(
 			"Length mismatch: %v vs. %v",
-			c.entries.Len(),
-			len(c.index)))
+			count,
+			st.Len))
 	}
-
-	for e := c.entries.Front(); e != nil; e = e.Next() {
-		if c.index[e.Value.(entry).Key] != e {
-			panic(fmt.Sprintf("Mismatch for key %v", e.Value.(entry).Key))
-		}
-	}
-}
-
-func (c *Cache) evictOne() ValueType {
-	e := c.entries.Back()
-	key := e.Value.(entry).Key
-
-	evictedEntry := e.Value.(entry)
-	c.currentSize -= evictedEntry.size
-
-	c.entries.Remove(e)
-	delete(c.index, key)
-	c.notifySizeChange(evictedEntry.Value, -int64(evictedEntry.size))
-
-	return evictedEntry.Value
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -218,27 +250,64 @@ func (c *Cache) Insert(
 		return nil, ErrInvalidEntrySize
 	}
 
-	e, ok := c.index[key]
-	if ok {
-		// Update an entry if already exist.
-		replaced := e.Value.(entry)
-		c.currentSize -= replaced.size
-		c.currentSize += valueSize
-		e.Value = entry{key, value, valueSize}
-		c.entries.MoveToFront(e)
-		c.notifySizeChange(replaced.Value, -int64(replaced.size))
-	} else {
-		// Add the entry if already doesn't exist.
-		e := c.entries.PushFront(entry{key, value, valueSize})
-		c.index[key] = e
-		c.currentSize += valueSize
+	if c.sizeObserver == nil && !c.hasDeferredOverflow {
+		evictedEntries, _ := c.cache.Put(key, entry{value: value, size: valueSize})
+		if len(evictedEntries) == 0 {
+			return nil, nil
+		}
+		evictedValues := make([]ValueType, len(evictedEntries))
+		for i, ev := range evictedEntries {
+			evictedValues[i] = ev.value
+		}
+		return evictedValues, nil
 	}
+
+	oldEnt, hasOld := c.cache.Peek(key)
+	if hasOld {
+		// Update an entry if already exist.
+		c.currentSize -= oldEnt.size
+		c.notifySizeChange(oldEnt.value, -int64(oldEnt.size))
+		if c.hasDeferredOverflow {
+			delete(c.deferredGolruSize, key)
+		}
+	}
+
+	c.currentSize += valueSize
 	c.notifySizeChange(value, int64(valueSize))
 
 	var evictedValues []ValueType
-	// Evict until we're at or below maxSize.
-	for c.currentSize > c.maxSize {
-		evictedValues = append(evictedValues, c.evictOne())
+	if c.hasDeferredOverflow {
+		if hasOld {
+			_, _ = c.cache.Delete(key)
+		}
+		if c.currentSize > c.maxSize {
+			var keys []string
+			for k := range c.cache.Keys() {
+				keys = append(keys, k)
+			}
+			for i := len(keys) - 1; i >= 0 && c.currentSize > c.maxSize; i-- {
+				if ev, ok := c.cache.Delete(keys[i]); ok {
+					delete(c.deferredGolruSize, keys[i])
+					c.currentSize -= ev.size
+					c.notifySizeChange(ev.value, -int64(ev.size))
+					evictedValues = append(evictedValues, ev.value)
+				}
+			}
+		}
+		c.reconcileDeferred()
+	}
+
+	evictedEntries, _ := c.cache.Put(key, entry{value: value, size: valueSize})
+
+	if len(evictedEntries) > 0 {
+		if evictedValues == nil {
+			evictedValues = make([]ValueType, 0, len(evictedEntries))
+		}
+		for _, ev := range evictedEntries {
+			c.currentSize -= ev.size
+			c.notifySizeChange(ev.value, -int64(ev.size))
+			evictedValues = append(evictedValues, ev.value)
+		}
 	}
 
 	return evictedValues, nil
@@ -248,29 +317,23 @@ func (c *Cache) Insert(
 // It returns the value of the erased key, or nil if not present.
 // LOCKS_REQUIRED(c.mu)
 func (c *Cache) eraseInternal(key string) (value ValueType) {
-	e, ok := c.index[key]
+	deletedEntry, ok := c.cache.Delete(key)
 	if !ok {
-		return
+		return nil
 	}
 
-	deletedEntry := e.Value.(entry)
-	c.currentSize -= deletedEntry.size
-
-	delete(c.index, key)
-	c.entries.Remove(e)
-	c.notifySizeChange(deletedEntry.Value, -int64(deletedEntry.size))
-
-	return deletedEntry.Value
-}
-
-// eraseKeys removes a list of keys from the cache.
-func (c *Cache) eraseKeys(keys []string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	for _, key := range keys {
-		c.eraseInternal(key)
+	if c.sizeObserver != nil || c.hasDeferredOverflow {
+		c.currentSize -= deletedEntry.size
 	}
+	if c.hasDeferredOverflow {
+		delete(c.deferredGolruSize, key)
+		if c.currentSize <= c.maxSize {
+			c.reconcileDeferred()
+		}
+	}
+	c.notifySizeChange(deletedEntry.value, -int64(deletedEntry.size))
+
+	return deletedEntry.value
 }
 
 // Erase any entry for the supplied key, also returns the value of erased key.
@@ -287,16 +350,12 @@ func (c *Cache) LookUp(key string) (value ValueType) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Consult the index.
-	e, ok := c.index[key]
+	ent, ok := c.cache.Get(key)
 	if !ok {
-		return
+		return nil
 	}
-	// This is now the most recently used entry.
-	c.entries.MoveToFront(e)
 
-	// Return the value.
-	return e.Value.(entry).Value
+	return ent.value
 }
 
 // LookUpWithoutChangingOrder looks up previously-inserted value for a given key
@@ -309,14 +368,12 @@ func (c *Cache) LookUpWithoutChangingOrder(key string) (value ValueType) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	// Consult the index.
-	e, ok := c.index[key]
+	ent, ok := c.cache.Peek(key)
 	if !ok {
-		return
+		return nil
 	}
 
-	// Return the value.
-	return e.Value.(entry).Value
+	return ent.value
 }
 
 // UpdateWithoutChangingOrder updates entry with the given key in cache with
@@ -333,21 +390,19 @@ func (c *Cache) UpdateWithoutChangingOrder(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	e, ok := c.index[key]
+	ent, ok := c.cache.Peek(key)
 	if !ok {
 		return ErrEntryNotExist
 	}
 
-	ent := e.Value.(entry)
 	if value.Size() != ent.size {
 		return ErrInvalidUpdateEntrySize
 	}
 
-	e.Value = entry{key, value, ent.size}
-	c.index[key] = e
 	// The size stays the same, but the value it is accounted to changes.
-	c.notifySizeChange(ent.Value, -int64(ent.size))
+	c.notifySizeChange(ent.value, -int64(ent.size))
 	c.notifySizeChange(value, int64(ent.size))
+	_ = c.cache.Replace(key, entry{value: value, size: ent.size})
 
 	return nil
 }
@@ -360,35 +415,68 @@ func (c *Cache) UpdateSize(key string, sizeDelta uint64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	e, ok := c.index[key]
+	ent, ok := c.cache.Peek(key)
 	if !ok {
 		return ErrEntryNotExist
 	}
 
-	ent := e.Value.(entry)
+	oldSize := ent.size
+	if c.sizeObserver == nil && !c.hasDeferredOverflow {
+		c.currentSize = c.cache.Stats().CurrentSize / c.scale
+	}
+	prevTotalSize := c.currentSize
 	ent.size += sizeDelta
-	e.Value = ent
 
 	// Update currentSize accounting
 	// Note: This may temporarily violate currentSize <= maxSize invariant
 	// Eviction will happen on the next Insert() call
 	c.currentSize += sizeDelta
-	c.notifySizeChange(ent.Value, int64(sizeDelta))
+	c.notifySizeChange(ent.value, int64(sizeDelta))
+
+	if !c.hasDeferredOverflow && sizeDelta <= c.maxSize-prevTotalSize {
+		_ = c.cache.Replace(key, ent)
+	} else {
+		if !c.hasDeferredOverflow {
+			c.hasDeferredOverflow = true
+			if c.deferredGolruSize == nil {
+				c.deferredGolruSize = make(map[string]uint64)
+			}
+		}
+		if _, exists := c.deferredGolruSize[key]; !exists {
+			c.deferredGolruSize[key] = oldSize
+		}
+		_ = c.cache.Replace(key, ent)
+	}
 
 	return nil
 }
 
 func (c *Cache) EraseEntriesWithGivenPrefix(prefix string) {
-	c.mu.RLock()
-	var keysToDelete []string
-	for key := range c.index {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.sizeObserver == nil && !c.hasDeferredOverflow {
+		c.cache.DeletePrefix(prefix)
+		return
+	}
+
+	matched := false
+	for key, ent := range c.cache.All() {
 		if strings.HasPrefix(key, prefix) {
-			keysToDelete = append(keysToDelete, key)
+			matched = true
+			if c.hasDeferredOverflow {
+				delete(c.deferredGolruSize, key)
+			}
+			c.currentSize -= ent.size
+			c.notifySizeChange(ent.value, -int64(ent.size))
 		}
 	}
-	c.mu.RUnlock()
+	if !matched {
+		return
+	}
 
-	if len(keysToDelete) > 0 {
-		c.eraseKeys(keysToDelete)
+	c.cache.DeletePrefix(prefix)
+	if c.hasDeferredOverflow && c.currentSize <= c.maxSize {
+		c.reconcileDeferred()
 	}
 }
