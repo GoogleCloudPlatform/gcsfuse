@@ -674,7 +674,32 @@ func TestRationalize_ParallelDownloadsConfig(t *testing.T) {
 			config: &Config{
 				CacheDir: ResolvedPath("/some-path"),
 				FileCache: FileCacheConfig{
-					MaxSizeMb: 500,
+					MaxSizeMb:            500,
+					MaxParallelDownloads: 16,
+				},
+			},
+			expectedParallelDownloads: true,
+		},
+		{
+			name:         "valid_config_file_cache_enabled_max_parallel_downloads_zero",
+			userSetFlags: map[string]any{"file-cache.max-parallel-downloads": 0},
+			config: &Config{
+				CacheDir: ResolvedPath("/some-path"),
+				FileCache: FileCacheConfig{
+					MaxSizeMb:            500,
+					MaxParallelDownloads: 0,
+				},
+			},
+			expectedParallelDownloads: false,
+		},
+		{
+			name:         "valid_config_file_cache_enabled_max_parallel_downloads_unlimited",
+			userSetFlags: map[string]any{"file-cache.max-parallel-downloads": -1},
+			config: &Config{
+				CacheDir: ResolvedPath("/some-path"),
+				FileCache: FileCacheConfig{
+					MaxSizeMb:            500,
+					MaxParallelDownloads: -1,
 				},
 			},
 			expectedParallelDownloads: true,
