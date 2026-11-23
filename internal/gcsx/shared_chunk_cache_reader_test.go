@@ -180,11 +180,11 @@ func (t *sharedChunkCacheReaderTest) TestReadAt_CacheHit() {
 
 func (t *sharedChunkCacheReaderTest) TestReadAt_ReusesExistingRootCacheEntries() {
 	// Arrange
-	legacyKey := fmt.Sprintf("%d:%s%d:%s:%d", len(t.bucket.Name()), t.bucket.Name(), len(t.object.Name), t.object.Name, t.object.Generation)
-	legacyHash := fmt.Sprintf("%x", sha256.Sum256([]byte(legacyKey)))
-	legacyPath := filepath.Join(t.cacheDir, legacyHash[:2], legacyHash[2:4], legacyHash, fmt.Sprintf("0_%d.bin", t.manager.GetChunkSize()))
-	require.NoError(t.T(), os.MkdirAll(filepath.Dir(legacyPath), t.manager.GetDirPerm()))
-	require.NoError(t.T(), os.WriteFile(legacyPath, t.objectData, t.manager.GetFilePerm()))
+	existingKey := fmt.Sprintf("%d:%s%d:%s:%d", len(t.bucket.Name()), t.bucket.Name(), len(t.object.Name), t.object.Name, t.object.Generation)
+	existingHash := fmt.Sprintf("%x", sha256.Sum256([]byte(existingKey)))
+	existingPath := filepath.Join(t.cacheDir, existingHash[:2], existingHash[2:4], existingHash, fmt.Sprintf("0_%d.bin", t.manager.GetChunkSize()))
+	require.NoError(t.T(), os.MkdirAll(filepath.Dir(existingPath), t.manager.GetDirPerm()))
+	require.NoError(t.T(), os.WriteFile(existingPath, t.objectData, t.manager.GetFilePerm()))
 	require.NoError(t.T(), t.bucket.DeleteObject(t.ctx, &gcs.DeleteObjectRequest{
 		Name: t.object.Name, Generation: t.object.Generation,
 	}))
@@ -197,8 +197,8 @@ func (t *sharedChunkCacheReaderTest) TestReadAt_ReusesExistingRootCacheEntries()
 	require.NoError(t.T(), err)
 	assert.Equal(t.T(), len(buffer), response.Size)
 	assert.Equal(t.T(), t.objectData[:len(buffer)], buffer)
-	assert.Equal(t.T(), legacyPath, t.manager.GetChunkPath(t.bucket.Name(), t.object.Name, t.object.Generation, 0))
-	assert.FileExists(t.T(), legacyPath)
+	assert.Equal(t.T(), existingPath, t.manager.GetChunkPath(t.bucket.Name(), t.object.Name, t.object.Generation, 0))
+	assert.FileExists(t.T(), existingPath)
 }
 
 func (t *sharedChunkCacheReaderTest) TestReadAt_PrefixBucketIgnoresRelativeCacheEntries() {
@@ -230,6 +230,71 @@ func (t *sharedChunkCacheReaderTest) TestReadAt_PrefixBucketIgnoresRelativeCache
 	assert.NotEqual(t.T(), relativePath, fullPath)
 	assert.FileExists(t.T(), fullPath)
 	assert.FileExists(t.T(), relativePath)
+}
+
+func (t *sharedChunkCacheReaderTest) TestReadAt_PrefixBucketRegexFiltering() {
+	bucket, err := NewPrefixBucket("tenant/", t.bucket)
+	require.NoError(t.T(), err)
+	created, err := bucket.CreateObject(t.ctx, &gcs.CreateObjectRequest{
+		Name: testObjectName, Contents: bytes.NewReader(t.objectData),
+	})
+	require.NoError(t.T(), err)
+	object := &gcs.MinObject{Name: created.Name, Size: created.Size, Generation: created.Generation}
+
+	tests := []struct {
+		name         string
+		includeRegex string
+		excludeRegex string
+		wantExcluded bool
+	}{
+		{
+			name:         "include matches full object path",
+			includeRegex: "^test-bucket/tenant/",
+		},
+		{
+			name:         "exclude matches full object path",
+			excludeRegex: "^test-bucket/tenant/",
+			wantExcluded: true,
+		},
+		{
+			name:         "include must not match mount-relative path",
+			includeRegex: "^test-bucket/test-object\\.txt$",
+			wantExcluded: true,
+		},
+		{
+			name:         "exclude must not match mount-relative path",
+			excludeRegex: "^test-bucket/test-object\\.txt$",
+		},
+		{
+			name:         "exclude takes precedence over include",
+			includeRegex: "^test-bucket/tenant/",
+			excludeRegex: "^test-bucket/tenant/",
+			wantExcluded: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func() {
+			manager, err := file.NewSharedChunkCacheManager(t.T().TempDir(), 0644, 0755, &cfg.FileCacheConfig{
+				SharedCacheChunkSizeMb: testChunkSizeMB,
+				IncludeRegex:           tc.includeRegex,
+				ExcludeRegex:           tc.excludeRegex,
+			})
+			require.NoError(t.T(), err)
+			reader := NewSharedChunkCacheReader(manager, bucket, object, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), 0)
+			buffer := make([]byte, 100)
+			response, err := reader.ReadAt(t.ctx, &ReadRequest{Buffer: buffer})
+			chunkPath := manager.GetChunkPath(bucket.Name(), bucket.GCSName(object), object.Generation, 0)
+			if tc.wantExcluded {
+				assert.ErrorIs(t.T(), err, FallbackToAnotherReader)
+				assert.NoFileExists(t.T(), chunkPath)
+				return
+			}
+			require.NoError(t.T(), err)
+			assert.Equal(t.T(), len(buffer), response.Size)
+			assert.Equal(t.T(), t.objectData[:len(buffer)], buffer)
+			assert.FileExists(t.T(), chunkPath)
+		})
+	}
 }
 
 func (t *sharedChunkCacheReaderTest) TestReadAt_AcrossChunkBoundary() {

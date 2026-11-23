@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 
@@ -98,9 +99,10 @@ func NewSharedChunkCacheManager(
 	return handler, nil
 }
 
-// ShouldExcludeFromCache checks if the file should be excluded from caching.
+// ShouldExcludeFromCache applies regex rules to the full GCS object path,
+// including any mount prefix.
 func (sccm *SharedChunkCacheManager) ShouldExcludeFromCache(bucket gcs.Bucket, object *gcs.MinObject) bool {
-	objectPath := filepath.Join(bucket.Name(), object.Name)
+	objectPath := path.Join(bucket.Name(), bucket.GCSName(object))
 
 	// If include regex is set, only include matching files
 	if sccm.includeRegex != nil {
