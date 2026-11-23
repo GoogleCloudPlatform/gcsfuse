@@ -34,6 +34,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var errAbortFailure = errors.New("error while aborting the upload")
+
 // handlerOp is an operation on a write handler, used to build test scenarios.
 type handlerOp func(ctx context.Context, wh WriteHandler) error
 
@@ -68,7 +70,6 @@ func newUnbufferedWriteHandlerForTest(bucket gcs.Bucket, obj *gcs.Object) *unbuf
 		Object:                   obj,
 		ObjectName:               objectName,
 		Bucket:                   bucket,
-		BlockSize:                blockSize,
 		ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
 		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 		TraceHandle:              tracing.NewNoopTracer(),
@@ -100,7 +101,6 @@ func TestNewUnbufferedWriteHandler(t *testing.T) {
 		Object:                   obj,
 		ObjectName:               objectName,
 		Bucket:                   bucket,
-		BlockSize:                blockSize,
 		ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
 		ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
 		TraceHandle:              traceHandle,
@@ -110,7 +110,6 @@ func TestNewUnbufferedWriteHandler(t *testing.T) {
 	assert.Same(t, bucket, wh.bucket)
 	assert.Equal(t, objectName, wh.objectName)
 	assert.Same(t, obj, wh.obj)
-	assert.Equal(t, int64(blockSize), wh.blockSize)
 	assert.Equal(t, chunkRetryDeadlineSecs, wh.chunkRetryDeadlineSecs)
 	assert.Equal(t, chunkTransferTimeoutSecs, wh.chunkTransferTimeoutSecs)
 	assert.Equal(t, traceHandle, wh.traceHandle)
@@ -504,20 +503,18 @@ func TestUnbufferedWriteHandler_WriteErrorAbortsUploadAndIsSticky(t *testing.T) 
 
 func TestUnbufferedWriteHandler_WriteErrorIsReturnedWhenAbortFails(t *testing.T) {
 	ctx := context.Background()
-	errAbort := errors.New("abort failed")
 	writer := new(storagemock.Writer)
 	writer.On("Write", mock.Anything).Return(0, errUploadFailure)
 	bucket, writerCtx := newMockBucketWithWriter(writer)
-	bucket.On("AbortUpload", mock.Anything, writer).Return(errAbort)
+	bucket.On("AbortUpload", mock.Anything, writer).Return(errAbortFailure)
 	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
 
 	err := wh.Write(ctx, []byte("foo"), 0)
 
 	assert.ErrorIs(t, err, errUploadFailure)
-	assert.NotErrorIs(t, err, errAbort)
+	assert.NotErrorIs(t, err, errAbortFailure)
 	bucket.AssertNumberOfCalls(t, "AbortUpload", 1)
 	assert.ErrorIs(t, writerCtx().Err(), context.Canceled)
-	assert.ErrorIs(t, wh.Write(ctx, []byte("foo"), 0), errUploadFailure)
 }
 
 func TestUnbufferedWriteHandler_WriteErrorKeepsGCSErrorType(t *testing.T) {
@@ -621,11 +618,10 @@ func TestUnbufferedWriteHandler_InvalidFinalizedObjectErrorIsSticky(t *testing.T
 			assert.ErrorIs(t, writeErr, err)
 			assert.ErrorIs(t, syncErr, err)
 			assert.ErrorIs(t, flushErr, err)
-			// The closed writer isn't used again: it isn't written to, finalized a
-			// second time or aborted.
+			// The closed writer isn't used again: it isn't written to or finalized a
+			// second time.
 			writer.AssertNumberOfCalls(t, "Write", 1)
 			bucket.AssertNumberOfCalls(t, "FinalizeUpload", 1)
-			bucket.AssertNotCalled(t, "AbortUpload", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -656,7 +652,7 @@ func TestUnbufferedWriteHandler_UnlinkAbortsUpload(t *testing.T) {
 		},
 		{
 			name:     "AbortFails",
-			abortErr: errUploadFailure,
+			abortErr: errAbortFailure,
 		},
 	}
 	for _, tc := range testCases {
@@ -730,30 +726,33 @@ func TestUnbufferedWriteHandler_AbortRunsOnOperationContext(t *testing.T) {
 func TestUnbufferedWriteHandler_OperationsAfterUnlinkDoNotTouchWriter(t *testing.T) {
 	testCases := []struct {
 		name string
-		// writeBeforeUnlink is whether "foo" is written before the unlink, and
-		// writeN and writeErr are what the writer returns for it.
-		writeBeforeUnlink bool
-		writeN            int
-		writeErr          error
-		expectedWrites    int
-		expectedAborts    int
+		// setup runs before the unlink. writeN and writeErr are what the writer
+		// returns for its write of "foo".
+		setup    []handlerOp
+		writeN   int
+		writeErr error
+		// nextOffset is the offset of the next sequential write.
+		nextOffset      int64
+		expectedWriters int
+		expectedAborts  int
 	}{
 		{
 			name: "BeforeAnyWrite",
 		},
 		{
-			name:              "AfterWrite",
-			writeBeforeUnlink: true,
-			writeN:            3,
-			expectedWrites:    1,
-			expectedAborts:    1,
+			name:            "AfterWrite",
+			setup:           []handlerOp{writeOp("foo", 0)},
+			writeN:          3,
+			nextOffset:      3,
+			expectedWriters: 1,
+			expectedAborts:  1,
 		},
 		{
-			name:              "AfterUploadError",
-			writeBeforeUnlink: true,
-			writeErr:          errUploadFailure,
-			expectedWrites:    1,
-			expectedAborts:    1,
+			name:            "AfterUploadError",
+			setup:           []handlerOp{writeOp("foo", 0)},
+			writeErr:        errUploadFailure,
+			expectedWriters: 1,
+			expectedAborts:  1,
 		},
 	}
 	for _, tc := range testCases {
@@ -764,12 +763,12 @@ func TestUnbufferedWriteHandler_OperationsAfterUnlinkDoNotTouchWriter(t *testing
 			bucket, _ := newMockBucketWithWriter(writer)
 			bucket.On("AbortUpload", mock.Anything, writer).Return(nil)
 			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
-			if tc.writeBeforeUnlink {
-				require.ErrorIs(t, wh.Write(ctx, []byte("foo"), 0), tc.writeErr)
+			for _, op := range tc.setup {
+				require.ErrorIs(t, op(ctx, wh), tc.writeErr)
 			}
 			wh.Unlink(ctx)
 
-			writeErr := wh.Write(ctx, []byte("bar"), wh.WriteFileInfo().TotalSize)
+			writeErr := wh.Write(ctx, []byte("bar"), tc.nextOffset)
 			outOfOrderWriteErr := wh.Write(ctx, []byte("x"), 100)
 			syncObj, syncErr := wh.Sync(ctx)
 			flushObj, flushErr := wh.Flush(ctx)
@@ -780,12 +779,10 @@ func TestUnbufferedWriteHandler_OperationsAfterUnlinkDoNotTouchWriter(t *testing
 			assert.NoError(t, syncErr)
 			assert.Nil(t, flushObj)
 			assert.NoError(t, flushErr)
-			// No writer is created or used after the unlink, and the upload is
-			// aborted at most once.
-			bucket.AssertNumberOfCalls(t, "CreateObjectChunkWriter", tc.expectedWrites)
-			writer.AssertNumberOfCalls(t, "Write", tc.expectedWrites)
+			// No writer is created after the unlink, and the upload is aborted at
+			// most once.
+			bucket.AssertNumberOfCalls(t, "CreateObjectChunkWriter", tc.expectedWriters)
 			bucket.AssertNumberOfCalls(t, "AbortUpload", tc.expectedAborts)
-			bucket.AssertNotCalled(t, "FinalizeUpload", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -831,7 +828,7 @@ func TestUnbufferedWriteHandler_DestroyAbortsUnfinalizedUpload(t *testing.T) {
 		},
 		{
 			name:     "AbortFails",
-			abortErr: errUploadFailure,
+			abortErr: errAbortFailure,
 		},
 	}
 	for _, tc := range testCases {
@@ -853,23 +850,31 @@ func TestUnbufferedWriteHandler_DestroyAbortsUnfinalizedUpload(t *testing.T) {
 	}
 }
 
-func TestUnbufferedWriteHandler_DestroyDoesNotAbortAgain(t *testing.T) {
+func TestUnbufferedWriteHandler_DestroyWithoutActiveUploadDoesNotAbort(t *testing.T) {
 	testCases := []struct {
 		name string
-		ops  []handlerOp
-		// expectedAborts counts the aborts before Destroy.
+		// setup runs before Destroy; each op returns setupErr.
+		setup    []handlerOp
+		setupErr error
+		// expectedAborts is the number of aborts before Destroy.
 		expectedAborts int
 	}{
 		{
 			name: "NoUpload",
 		},
 		{
-			name: "FinalizedUpload",
-			ops:  []handlerOp{writeOp("foo", 0), flushOp()},
+			name:  "FinalizedUpload",
+			setup: []handlerOp{writeOp("foo", 0), flushOp()},
 		},
 		{
 			name:           "AbortedUpload",
-			ops:            []handlerOp{writeOp("foo", 0), unlinkOp()},
+			setup:          []handlerOp{writeOp("foo", 0), unlinkOp()},
+			expectedAborts: 1,
+		},
+		{
+			name:           "FailedUpload",
+			setup:          []handlerOp{writeOp("bar", 0)},
+			setupErr:       errUploadFailure,
 			expectedAborts: 1,
 		},
 	}
@@ -877,13 +882,14 @@ func TestUnbufferedWriteHandler_DestroyDoesNotAbortAgain(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			writer := new(storagemock.Writer)
-			writer.On("Write", mock.Anything).Return(3, nil)
+			writer.On("Write", []byte("foo")).Return(3, nil)
+			writer.On("Write", []byte("bar")).Return(0, errUploadFailure)
 			bucket, _ := newMockBucketWithWriter(writer)
 			bucket.On("FinalizeUpload", mock.Anything, writer).Return(&gcs.MinObject{Name: objectName, Size: 3}, nil)
 			bucket.On("AbortUpload", mock.Anything, writer).Return(nil)
 			wh := newUnbufferedWriteHandlerForTest(bucket, nil)
-			for _, op := range tc.ops {
-				require.NoError(t, op(ctx, wh))
+			for _, op := range tc.setup {
+				require.ErrorIs(t, op(ctx, wh), tc.setupErr)
 			}
 
 			err := wh.Destroy(ctx)

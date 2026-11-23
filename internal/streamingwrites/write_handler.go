@@ -50,13 +50,10 @@ type WriteHandler interface {
 	// so far and the mtime.
 	WriteFileInfo() WriteFileInfo
 
-	// Destroy cleans up resources held by the write handler when write handles
-	// are closed. ctx is the context of the FUSE operation that releases the
-	// last write handle.
+	// Destroy cleans up resources held by the write handler when write handles are closed.
 	Destroy(ctx context.Context) error
 
 	// Unlink cancels/aborts the ongoing upload and frees up any local buffers.
-	// ctx is the context of the FUSE unlink operation.
 	Unlink(ctx context.Context)
 }
 

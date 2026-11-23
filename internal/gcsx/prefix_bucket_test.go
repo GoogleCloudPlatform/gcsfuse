@@ -344,10 +344,12 @@ func (t *PrefixBucketTest) TestCreateObjectChunkWriterAndAbortUpload() {
 	_, err = w.Write([]byte("foobar"))
 	require.NoError(t.T(), err)
 
-	err = t.bucket.AbortUpload(t.ctx, w)
+	abortErr := t.bucket.AbortUpload(t.ctx, w)
+	_, finalizeErr := t.bucket.FinalizeUpload(t.ctx, w)
 
-	assert.NoError(t.T(), err)
-	// The object isn't created.
+	assert.NoError(t.T(), abortErr)
+	// The aborted upload can't be finalized, so the object isn't created.
+	assert.Error(t.T(), finalizeErr)
 	_, err = storageutil.ReadObject(t.ctx, t.wrapped, t.prefix+suffix)
 	var notFoundErr *gcs.NotFoundError
 	assert.ErrorAs(t.T(), err, &notFoundErr)

@@ -130,7 +130,7 @@ func NewFileHandle(
 }
 
 // Destroy any resources associated with the handle, which must not be used
-// again. ctx is the context of the FUSE operation that releases the handle.
+// again.
 // LOCKS_REQUIRED(fh.mu)
 // LOCK_FUNCTION(fh.inode.mu)
 // UNLOCK_FUNCTION(fh.inode.mu)

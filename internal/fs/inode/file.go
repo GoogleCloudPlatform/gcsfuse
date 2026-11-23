@@ -543,10 +543,6 @@ func (f *FileInode) RegisterFileHandle(readOnly bool) {
 	}
 }
 
-// DeRegisterFileHandle deregisters a file handle and destroys the streaming
-// write handler once the last write handle is gone. ctx is the context of the
-// FUSE operation that releases the handle.
-//
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) DeRegisterFileHandle(ctx context.Context, readOnly bool) {
 	if readOnly {

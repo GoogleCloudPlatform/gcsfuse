@@ -51,7 +51,6 @@ type unbufferedWriteHandlerImpl struct {
 	bucket                   gcs.Bucket
 	objectName               string
 	obj                      *gcs.Object
-	blockSize                int64
 	chunkRetryDeadlineSecs   int64
 	chunkTransferTimeoutSecs int64
 	traceHandle              tracing.TraceHandle
@@ -88,7 +87,6 @@ func newUnbufferedWriteHandler(req *CreateWriteHandlerRequest) *unbufferedWriteH
 		bucket:                   req.Bucket,
 		objectName:               req.ObjectName,
 		obj:                      req.Object,
-		blockSize:                req.BlockSize,
 		chunkRetryDeadlineSecs:   req.ChunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
 		traceHandle:              req.TraceHandle,
@@ -184,8 +182,8 @@ func (wh *unbufferedWriteHandlerImpl) SetMtime(mtime time.Time) {
 // below the current size returns ErrOutOfOrderWrite, so that the caller falls
 // back to staged writes.
 func (wh *unbufferedWriteHandlerImpl) Truncate(size int64) error {
-	// Without this, a truncate below the current size after an unlink would
-	// make the caller fall back to staged writes for the deleted file.
+	// After Unlink, truncates are discarded, so a truncate below the current size
+	// doesn't make the caller fall back to staged writes for the deleted file.
 	if wh.unlinked {
 		return nil
 	}
@@ -278,7 +276,9 @@ func (wh *unbufferedWriteHandlerImpl) ensureWriter(ctx context.Context) error {
 	// must live until the upload is finalized or aborted. So the writer gets its
 	// own context, which carries only the operation's trace.
 	writerCtx, cancel := context.WithCancel(wh.traceHandle.PropagateTraceContext(context.Background(), ctx))
-	writer, err := wh.bucket.CreateObjectChunkWriter(writerCtx, req, int(wh.blockSize), nil)
+	// Parallel uploads don't use the chunk size.
+	// TODO(b/581184469): Remove the chunkSize argument of CreateObjectChunkWriter.
+	writer, err := wh.bucket.CreateObjectChunkWriter(writerCtx, req, 0, nil)
 	if err != nil {
 		// No writer holds the context, so release it here.
 		cancel()
@@ -291,8 +291,8 @@ func (wh *unbufferedWriteHandlerImpl) ensureWriter(ctx context.Context) error {
 	return nil
 }
 
-// handleUploadFailure makes err the sticky error of the upload and aborts the
-// upload.
+// handleUploadFailure records err as a sticky upload error and aborts any
+// active upload.
 func (wh *unbufferedWriteHandlerImpl) handleUploadFailure(ctx context.Context, err error) {
 	wh.uploadError = err
 	if abortErr := wh.abort(ctx); abortErr != nil {
@@ -317,7 +317,7 @@ func (wh *unbufferedWriteHandlerImpl) abort(ctx context.Context) (err error) {
 	wh.cancelFunc()
 	if err != nil {
 		// TODO(b/548851494): cloud.google.com/go/storage v1.70.0 doesn't implement
-		// Writer.Abort yet, so canceling the context is the only cleanup.
+		// Writer.Abort yet.
 		err = fmt.Errorf("AbortUpload failed for object %s: %w", wh.objectName, err)
 	}
 	return err
