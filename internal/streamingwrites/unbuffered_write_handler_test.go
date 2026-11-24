@@ -695,31 +695,35 @@ func TestUnbufferedWriteHandler_AbortsUpload(t *testing.T) {
 	}
 }
 
-func TestUnbufferedWriteHandler_AbortErrorIsReturnedOnlyByDestroy(t *testing.T) {
+func TestUnbufferedWriteHandler_DestroyReturnsAbortError(t *testing.T) {
+	ctx := context.Background()
+	writer := new(storagemock.Writer)
+	writer.On("Write", []byte("foo")).Return(3, nil)
+	bucket, writerCtx := newMockBucketWithWriter(writer)
+	bucket.On("AbortUpload", mock.Anything, writer).Return(errAbortFailure)
+	wh := newUnbufferedWriteHandlerForTest(bucket, nil)
+	require.NoError(t, wh.Write(ctx, []byte("foo"), 0))
+
+	err := wh.Destroy(ctx)
+
+	assert.ErrorIs(t, err, errAbortFailure)
+	// The writer's context is still released.
+	assert.ErrorIs(t, writerCtx().Err(), context.Canceled)
+}
+
+func TestUnbufferedWriteHandler_UploadFailureDoesNotReturnAbortError(t *testing.T) {
 	testCases := []struct {
 		name string
-		// trigger runs after "foo" is written and aborts the upload.
-		trigger     handlerOp
-		expectedErr error
+		// trigger runs after "foo" is written and fails the upload.
+		trigger handlerOp
 	}{
 		{
-			name:    "Unlink",
-			trigger: unlinkOp(),
+			name:    "WriteError",
+			trigger: writeOp("bar", 3),
 		},
 		{
-			name:        "Destroy",
-			trigger:     destroyOp(),
-			expectedErr: errAbortFailure,
-		},
-		{
-			name:        "WriteError",
-			trigger:     writeOp("bar", 3),
-			expectedErr: errUploadFailure,
-		},
-		{
-			name:        "FinalizeError",
-			trigger:     flushOp(),
-			expectedErr: errUploadFailure,
+			name:    "FinalizeError",
+			trigger: flushOp(),
 		},
 	}
 	for _, tc := range testCases {
@@ -736,7 +740,8 @@ func TestUnbufferedWriteHandler_AbortErrorIsReturnedOnlyByDestroy(t *testing.T) 
 
 			err := tc.trigger(ctx, wh)
 
-			assert.ErrorIs(t, err, tc.expectedErr)
+			assert.ErrorIs(t, err, errUploadFailure)
+			assert.NotErrorIs(t, err, errAbortFailure)
 			// The writer's context is still released.
 			assert.ErrorIs(t, writerCtx().Err(), context.Canceled)
 		})

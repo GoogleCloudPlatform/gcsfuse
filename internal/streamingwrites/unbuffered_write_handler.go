@@ -67,8 +67,8 @@ type unbufferedWriteHandlerImpl struct {
 	mtime time.Time
 
 	// uploadError is the first error from the writer, including a failed writer
-	// creation. Once set, Write, Sync and Flush return it without touching the
-	// writer, so no new upload is started.
+	// creation. Once set, and until Unlink, Write, Sync and Flush return it
+	// without touching the writer, so no new upload is started.
 	uploadError error
 	// unlinked is set by Unlink. Once set, writes and truncates are discarded
 	// and Sync and Flush do nothing, without touching the writer, so that the
@@ -155,7 +155,7 @@ func (wh *unbufferedWriteHandlerImpl) Flush(ctx context.Context) (obj *gcs.MinOb
 		wh.handleUploadFailure(ctx, err)
 		return nil, err
 	}
-	// The upload is complete, so release the context of the writer.
+	// The upload is complete, so mark the writer closed and release its context.
 	wh.writerClosed = true
 	wh.cancelFunc()
 	// The writer is closed now, so the errors below are sticky too: a later Flush
