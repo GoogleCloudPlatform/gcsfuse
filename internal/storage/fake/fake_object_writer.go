@@ -33,6 +33,8 @@ import (
 var errWriterAborted = errors.New("writer aborted")
 
 // FakeObjectWriter is a mock implementation of storage.Writer used by FakeBucket.
+// TODO(b/584925513): Fail Write and Close once the context the writer was
+// created with is canceled, like the real writer.
 type FakeObjectWriter struct {
 	io.WriteCloser
 	buf bytes.Buffer

@@ -240,6 +240,8 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 
 	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
+		// TODO(b/581184469): Abort the writer once CreateObject uses parallel
+		// uploads, so that their buffers and upload session aren't leaked.
 		err = fmt.Errorf("failed io.Copy for %q: %w", req.Name, err)
 		return
 	}

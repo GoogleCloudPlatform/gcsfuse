@@ -316,7 +316,7 @@ func (wh *unbufferedWriteHandlerImpl) abort(ctx context.Context) (err error) {
 	err = wh.bucket.AbortUpload(ctx, wh.writer)
 	wh.cancelFunc()
 	if err != nil {
-		// TODO(b/548851494): cloud.google.com/go/storage v1.70.0 doesn't implement
+		// TODO(b/540721232): cloud.google.com/go/storage v1.70.0 doesn't implement
 		// Writer.Abort yet.
 		err = fmt.Errorf("AbortUpload failed for object %s: %w", wh.objectName, err)
 	}

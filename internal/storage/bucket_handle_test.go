@@ -825,6 +825,7 @@ func (testSuite *BucketHandleTest) TestFinalizeUploadWithGenerationAsZeroWhenObj
 
 func (testSuite *BucketHandleTest) TestBucketHandle_AbortUpload() {
 	createBucketHandle(testSuite, &controlpb.StorageLayout{})
+	errUnsupported := errors.New("storage: method is not currently supported")
 	tests := []struct {
 		name      string
 		abortErr  error
@@ -841,6 +842,11 @@ func (testSuite *BucketHandleTest) TestBucketHandle_AbortUpload() {
 				var notFoundErr *gcs.NotFoundError
 				assert.ErrorAs(t, err, &notFoundErr)
 			},
+		},
+		{
+			name:      "UnsupportedBySDK",
+			abortErr:  errUnsupported,
+			assertErr: func(t *testing.T, err error) { assert.ErrorIs(t, err, errUnsupported) },
 		},
 	}
 
