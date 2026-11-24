@@ -22,7 +22,9 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/googleapis/gax-go/v2/apierror"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -149,9 +151,23 @@ func TestGetGCSError(t *testing.T) {
 	}
 }
 
+// errorWithErrorInfo returns a gRPC status error with an ErrorInfo detail.
+func errorWithErrorInfo(t *testing.T, code codes.Code, reason, domain string) error {
+	t.Helper()
+	st, err := status.New(code, "object too large").WithDetails(&errdetails.ErrorInfo{Reason: reason, Domain: domain})
+	require.NoError(t, err)
+	return st.Err()
+}
+
 func TestGetParallelUploadError(t *testing.T) {
-	invalidArgumentErr := status.Error(codes.InvalidArgument, "object too large")
-	wrappedInvalidArgumentErr := fmt.Errorf("write failed: %w", invalidArgumentErr)
+	segmentNumberOutOfRangeErr := errorWithErrorInfo(t, codes.InvalidArgument, "GRPC_SEGMENT_NUMBER_OUT_OF_RANGE", "storage.googleapis.com")
+	segmentNumberOutOfRangeAPIErr, ok := apierror.FromError(segmentNumberOutOfRangeErr)
+	require.True(t, ok)
+	objectSizeExceedsMaximumErr := errorWithErrorInfo(t, codes.OutOfRange, "GRPC_OBJECT_SIZE_EXCEEDS_GCS_MAXIMUM", "storage.googleapis.com")
+	wrappedObjectSizeExceedsMaximumErr := fmt.Errorf("write failed: %w", objectSizeExceedsMaximumErr)
+	otherReasonErr := errorWithErrorInfo(t, codes.InvalidArgument, "OTHER_REASON", "storage.googleapis.com")
+	otherDomainErr := errorWithErrorInfo(t, codes.OutOfRange, "GRPC_OBJECT_SIZE_EXCEEDS_GCS_MAXIMUM", "example.com")
+	invalidArgumentErr := status.Error(codes.InvalidArgument, "invalid argument")
 	notFoundErr := &NotFoundError{Err: status.Error(codes.NotFound, "object deleted")}
 	otherErr := errors.New("some error")
 	testCases := []struct {
@@ -165,19 +181,44 @@ func TestGetParallelUploadError(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			name:        "invalid_argument_is_object_too_large",
-			inputErr:    invalidArgumentErr,
-			expectedErr: &ObjectTooLargeError{Err: invalidArgumentErr},
+			name:        "segment_number_out_of_range_is_object_too_large",
+			inputErr:    segmentNumberOutOfRangeErr,
+			expectedErr: &ObjectTooLargeError{Err: segmentNumberOutOfRangeErr},
 		},
 		{
-			name:        "wrapped_invalid_argument_is_object_too_large",
-			inputErr:    wrappedInvalidArgumentErr,
-			expectedErr: &ObjectTooLargeError{Err: wrappedInvalidArgumentErr},
+			name:        "object_size_exceeds_maximum_is_object_too_large",
+			inputErr:    objectSizeExceedsMaximumErr,
+			expectedErr: &ObjectTooLargeError{Err: objectSizeExceedsMaximumErr},
+		},
+		{
+			name:        "wrapped_object_size_exceeds_maximum_is_object_too_large",
+			inputErr:    wrappedObjectSizeExceedsMaximumErr,
+			expectedErr: &ObjectTooLargeError{Err: wrappedObjectSizeExceedsMaximumErr},
+		},
+		{
+			name:        "apierror_is_object_too_large",
+			inputErr:    segmentNumberOutOfRangeAPIErr,
+			expectedErr: &ObjectTooLargeError{Err: segmentNumberOutOfRangeAPIErr},
 		},
 		{
 			name:        "object_too_large_is_not_wrapped_again",
-			inputErr:    &ObjectTooLargeError{Err: invalidArgumentErr},
-			expectedErr: &ObjectTooLargeError{Err: invalidArgumentErr},
+			inputErr:    &ObjectTooLargeError{Err: objectSizeExceedsMaximumErr},
+			expectedErr: &ObjectTooLargeError{Err: objectSizeExceedsMaximumErr},
+		},
+		{
+			name:        "invalid_argument_without_error_info_is_unchanged",
+			inputErr:    invalidArgumentErr,
+			expectedErr: invalidArgumentErr,
+		},
+		{
+			name:        "other_reason_is_unchanged",
+			inputErr:    otherReasonErr,
+			expectedErr: otherReasonErr,
+		},
+		{
+			name:        "other_domain_is_unchanged",
+			inputErr:    otherDomainErr,
+			expectedErr: otherDomainErr,
 		},
 		{
 			name:        "not_found_is_unchanged",

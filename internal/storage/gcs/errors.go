@@ -20,6 +20,7 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/storage"
+	"github.com/googleapis/gax-go/v2/apierror"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -62,19 +63,27 @@ func (e *ObjectTooLargeError) Unwrap() error {
 	return e.Err
 }
 
-// GetParallelUploadError converts an InvalidArgument error into an
-// *ObjectTooLargeError. Other errors are returned unchanged.
-// Use it only for parallel uploads.
+// ErrorInfo domain and reasons that GCS returns when an upload exceeds the
+// maximum object size.
+const (
+	gcsErrorDomain                    = "storage.googleapis.com"
+	reasonSegmentNumberOutOfRange     = "GRPC_SEGMENT_NUMBER_OUT_OF_RANGE"
+	reasonObjectSizeExceedsGCSMaximum = "GRPC_OBJECT_SIZE_EXCEEDS_GCS_MAXIMUM"
+)
+
+// GetParallelUploadError converts an error into an *ObjectTooLargeError when
+// GCS reports that the upload exceeds the maximum object size. Other errors are
+// returned unchanged.
 func GetParallelUploadError(err error) error {
 	var objectTooLargeErr *ObjectTooLargeError
 	if err == nil || errors.As(err, &objectTooLargeErr) {
 		return err
 	}
-	// TODO(b/578761925): InvalidArgument can be returned for other reasons as well.
-	// Narrow this check once the error returned for an object that is too large
-	// is known, e.g. by also checking that the message contains "too large".
-	if rpcErr, ok := status.FromError(err); ok && rpcErr.Code() == codes.InvalidArgument {
-		return &ObjectTooLargeError{Err: err}
+	if apiErr, ok := apierror.FromError(err); ok && apiErr.Domain() == gcsErrorDomain {
+		switch apiErr.Reason() {
+		case reasonSegmentNumberOutOfRange, reasonObjectSizeExceedsGCSMaximum:
+			return &ObjectTooLargeError{Err: err}
+		}
 	}
 	return err
 }
