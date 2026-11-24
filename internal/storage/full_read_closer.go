@@ -21,27 +21,41 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
-// gcsFullReadCloser wraps a gcs.StorageReader and ensures that the Read call reads the entire response up to the buffer size even if the wrapped read returns data in smaller chunks.
+// gcsFullReadCloser wraps storage.Reader (initially conforms to io.ReadCloser)
+// and forces Read to call io.ReadFull instead.
 type gcsFullReadCloser struct {
 	wrapped gcs.StorageReader
 }
 
-func newGCSFullReadCloser(reader gcs.StorageReader) gcs.StorageReader {
-	return gcsFullReadCloser{wrapped: reader}
+func newGCSFullReadCloser(StorageReader gcs.StorageReader) gcsFullReadCloser {
+	return gcsFullReadCloser{
+		wrapped: StorageReader,
+	}
 }
 
-// Read reads exactly len(buf) bytes from the wrapped StorageReader into buf.
+// Re-define the behavior of Read function to return:
 // 1. the number of bytes copied and an EOF if response size < buffer size
 // 2. n == len(buf) if and only if err == nil.
 func (frc gcsFullReadCloser) Read(buf []byte) (n int, err error) {
 	n, err = io.ReadFull(frc.wrapped, buf)
 	if err == io.ErrUnexpectedEOF {
-		// if an EOF is encountered before reading the full length of the buffer,
-		// ReadFull returns an ErrUnexpectedEOF error. This needs to be convered
-		// to EOF in order to have a consistent behavior (error) with and without gcsFullReadCloser.
 		err = io.EOF
 	}
 	return n, err
+}
+
+// ReadVectored reads up to len(buf) bytes from a gRPC-backed *storagev2.Reader
+// by referencing the underlying gRPC mem.BufferSlice directly without copying
+// payload bytes into buf.
+func (frc gcsFullReadCloser) ReadVectored(buf []byte) (data [][]byte, n int, callback func(), err error) {
+	if len(buf) == 0 {
+		return nil, 0, nil, nil
+	}
+	if sr, ok := frc.wrapped.(*storagev2.Reader); ok {
+		return sr.ReadVectored(buf)
+	}
+	n, err = frc.Read(buf)
+	return nil, n, nil, err
 }
 
 func (frc gcsFullReadCloser) ReadHandle() (rh storagev2.ReadHandle) {

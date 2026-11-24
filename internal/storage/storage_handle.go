@@ -20,9 +20,11 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -43,8 +45,11 @@ import (
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	grpc_experimental "google.golang.org/grpc/experimental"
+	grpcstats "google.golang.org/grpc/experimental/stats"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
+	otelgrpcstats "google.golang.org/grpc/stats/opentelemetry"
 
 	// Side effect to run grpc client with direct-path on gcp machine.
 	_ "google.golang.org/grpc/balancer/rls"
@@ -87,6 +92,11 @@ var (
 	// streams) could trigger GOAWAY(ENHANCE_YOUR_CALM, "too_many_pings").
 	grpcKeepaliveTime    = 30 * time.Second
 	grpcKeepaliveTimeout = 20 * time.Second
+
+	// Timeout for each independent gRPC connectivity warming RPC (Attrs and
+	// BidiReadObject MultiRangeDownloader). Defined as a var so unit tests can
+	// use a shorter interval.
+	grpcWarmTimeout = 5 * time.Second
 )
 
 type StorageHandle interface {
@@ -99,9 +109,14 @@ type StorageHandle interface {
 }
 
 type storageClient struct {
+	mu                       sync.Mutex
 	httpClient               *storage.Client
 	grpcClient               *storage.Client
 	grpcClientWithBidiConfig *storage.Client
+	grpcClientCreated        bool
+	grpcBidiClientCreated    bool
+	warmGRPCOnce             sync.Once
+	warmBidiGRPCOnce         sync.Once
 	clientConfig             storageutil.StorageClientConfig
 	// rawStorageControlClient is the underlying base client without any retries configured.
 	// WARNING: Do not mutate this client or its CallOptions in-place after initialization.
@@ -112,8 +127,29 @@ type storageClient struct {
 	storageControlClient StorageControlClient
 }
 
-// Return clientOpts for both gRPC client and control client.
+// hasConfiguredGRPCProxy reports whether HTTP(S)_PROXY applies to the GCS gRPC
+// endpoint (respecting NO_PROXY and GOOGLE_CLOUD_UNIVERSE_DOMAIN).
+func hasConfiguredGRPCProxy() bool {
+	host := "storage.googleapis.com:443"
+	if ud := os.Getenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN"); ud != "" {
+		host = "storage." + ud + ":443"
+	}
+	proxyURL, err := http.ProxyFromEnvironment(&http.Request{
+		URL: &url.URL{
+			Scheme: "https",
+			Host:   host,
+		},
+	})
+	return err != nil || proxyURL != nil
+}
+
+// Return clientOpts for data-plane gRPC client.
 func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool) (clientOpts []option.ClientOption, err error) {
+	return createClientOptionForGRPCClientWithTransport(ctx, clientConfig, enableBidiConfig, true)
+}
+
+// Return clientOpts for gRPC data-plane or control-plane client.
+func createClientOptionForGRPCClientWithTransport(ctx context.Context, clientConfig *storageutil.StorageClientConfig, enableBidiConfig bool, allowDirectZeroCopyRead bool) (clientOpts []option.ClientOption, err error) {
 	// Add custom endpoint if provided.
 	if clientConfig.CustomEndpoint != "" {
 		clientOpts = append(clientOpts, option.WithEndpoint(storageutil.StripScheme(clientConfig.CustomEndpoint)))
@@ -172,8 +208,17 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		clientOpts = append(clientOpts, storage.WithGRPCBidiReads())
 	}
 
+	enableDirectZeroCopyRead := allowDirectZeroCopyRead &&
+		clientConfig.CustomEndpoint == "" &&
+		clientConfig.S2AAddress == "" &&
+		os.Getenv("STORAGE_EMULATOR_HOST_GRPC") == "" &&
+		os.Getenv("STORAGE_EMULATOR_HOST") == "" &&
+		!hasConfiguredGRPCProxy()
 	if clientConfig.LocalSocketAddress != "" {
-		dialer := &net.Dialer{}
+		dialer := &net.Dialer{
+			KeepAlive: -1,
+			Control:   enableTCPKeepaliveControl,
+		}
 		// The port can be 0, in which case the OS will choose a local port.
 		// The format of SocketAddress is expected to be IP address.
 		// TODO: check if this approach works for CTK or whether interface name needs to be passed.
@@ -181,8 +226,32 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 			return nil, fmt.Errorf("failed to configure dialer with local-socket-address %q: %w", clientConfig.LocalSocketAddress, err)
 		}
 		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
-			return dialer.DialContext(ctx, "tcp", addr)
+			conn, err := dialer.DialContext(ctx, "tcp", addr)
+			if err != nil {
+				return nil, err
+			}
+			if enableDirectZeroCopyRead {
+				return wrapLargeReadTCPConn(conn), nil
+			}
+			return conn, nil
 		})))
+	} else if enableDirectZeroCopyRead {
+		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithContextDialer(dialLargeReadTCP)))
+	}
+	initialStreamWin := int32(4 * 1024 * 1024)
+	initialConnWin := int32(32 * 1024 * 1024)
+	if enableBidiConfig {
+		initialStreamWin = 16 * 1024 * 1024
+		initialConnWin = 64 * 1024 * 1024
+	}
+	clientOpts = append(clientOpts,
+		option.WithGRPCDialOption(grpc_experimental.WithBufferPool(defaultDirtyBufferPool)),
+		option.WithGRPCDialOption(grpc.WithSharedWriteBuffer(true)),
+		option.WithGRPCDialOption(grpc.WithInitialWindowSize(initialStreamWin)),
+		option.WithGRPCDialOption(grpc.WithInitialConnWindowSize(initialConnWin)),
+	)
+	if enableDirectZeroCopyRead {
+		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithReadBufferSize(0)))
 	}
 
 	if clientConfig.TracingEnabled {
@@ -196,16 +265,32 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		Timeout: grpcKeepaliveTimeout,
 	})))
 
-	if clientConfig.EnableGrpcMetrics && clientConfig.IsGKE {
-		// Pass the OpenTelemetry MeterProvider to the Go storage client,
-		// using the new WithMeterProvider client option.
-		mp := otel.GetMeterProvider()
-		if sdkmp, ok := mp.(*sdkmetric.MeterProvider); ok {
-			// pass in if sdkmp is of type *sdkmetric.MeterProvider (not a No-op)
-			clientOpts = append(clientOpts, experimental.WithMeterProvider(sdkmp))
+	// Always disable cloud.google.com/go/storage's built-in metrics context so
+	// sc.Close() (including DirectPath fallback probing) never shuts down
+	// GCSFuse's global MeterProvider and never spins up a fallback exporter
+	// with 200-bucket per-frame histograms.
+	clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
+	if clientConfig.EnableGrpcMetrics {
+		// Wire gRPC OpenTelemetry instrumentation directly to GCSFuse's active
+		// global MeterProvider (matching allowedGRPCMetrics in monitor) so zero-copy
+		// reads retain low CPU without per-frame histogram overhead.
+		if sdkmp, ok := otel.GetMeterProvider().(*sdkmetric.MeterProvider); ok {
+			clientOpts = append(clientOpts,
+				option.WithGRPCDialOption(otelgrpcstats.DialOption(otelgrpcstats.Options{
+					MetricsOptions: otelgrpcstats.MetricsOptions{
+						MeterProvider: sdkmp,
+						Metrics: grpcstats.NewMetrics(
+							"grpc.client.attempt.started",
+							"grpc.client.call.duration",
+							"grpc.lb.rls.default_target_picks",
+							"grpc.lb.rls.failed_picks",
+						),
+						OptionalLabels: []string{"grpc.lb.locality"},
+					},
+				})),
+				option.WithGRPCDialOption(grpc.WithDefaultCallOptions(grpc.StaticMethodCallOption{})),
+			)
 		}
-	} else if !clientConfig.EnableGrpcMetrics {
-		clientOpts = append(clientOpts, storage.WithDisabledClientMetrics())
 	}
 
 	clientOpts = addReadStallTimeoutOptions(clientConfig, clientOpts)
@@ -296,6 +381,43 @@ func createGRPCClientHandle(ctx context.Context, clientConfig *storageutil.Stora
 	}
 	setRetryConfig(ctx, sc, clientConfig)
 	return sc, nil
+}
+
+func (sh *storageClient) warmGRPCClientConnectivity(ctx context.Context, bh *storage.BucketHandle, isRapid bool) {
+	if sh.clientConfig.CustomEndpoint != "" ||
+		sh.clientConfig.AnonymousAccess ||
+		os.Getenv("STORAGE_EMULATOR_HOST_GRPC") != "" ||
+		os.Getenv("STORAGE_EMULATOR_HOST") != "" {
+		return
+	}
+	testObject := nonExistentObjectName
+	if sh.clientConfig.OnlyDir != "" {
+		testObject = sh.clientConfig.OnlyDir + testObject
+	}
+	bh = bh.Retryer(storage.WithMaxAttempts(1))
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		attrsCtx, cancel := context.WithTimeout(ctx, grpcWarmTimeout)
+		defer cancel()
+		_, _ = bh.Object(testObject).Attrs(attrsCtx)
+	}()
+
+	if isRapid {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			mrdCtx, cancel := context.WithTimeout(ctx, grpcWarmTimeout)
+			defer cancel()
+			if mrd, err := bh.Object(testObject).NewMultiRangeDownloader(mrdCtx); err == nil && mrd != nil {
+				_ = mrd.Close()
+			}
+		}()
+	}
+
+	wg.Wait()
 }
 
 func verifyDirectPathConnectivity(ctx context.Context, clientConfig *storageutil.StorageClientConfig, bucketName string, sc *storage.Client, billingProject string) error {
@@ -510,7 +632,7 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	if clientConfig.EnableHNS && !strings.Contains(clientConfig.CustomEndpoint, "/storage/v1") {
 		// For control client, we don't pass billingProject to avoid setting it globally via option.WithQuotaProject.
 		// The wrapper storageControlClientWithBillingProject will manually add it to the context for supported calls.
-		clientOpts, err = createClientOptionForGRPCClient(ctx, &clientConfig, false)
+		clientOpts, err = createClientOptionForGRPCClientWithTransport(ctx, &clientConfig, false, false)
 		if err != nil {
 			return nil, fmt.Errorf("error in getting clientOpts for gRPC client: %w", err)
 		}
@@ -536,12 +658,31 @@ func NewStorageHandle(ctx context.Context, clientConfig storageutil.StorageClien
 	return
 }
 
+func (sh *storageClient) getClientWithMeta(ctx context.Context, isBucketRapid bool, bucketName string, billingProject string) (client *storage.Client, isStandardGRPC bool, isRealStdGRPC bool, isRealBidiGRPC bool, err error) {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+
+	client, err = sh.getClientLocked(ctx, isBucketRapid, bucketName, billingProject)
+	isStandardGRPC = client != nil && client == sh.grpcClient
+	isRealStdGRPC = isStandardGRPC && sh.grpcClientCreated
+	isRealBidiGRPC = client != nil && client == sh.grpcClientWithBidiConfig && sh.grpcBidiClientCreated
+	return client, isStandardGRPC, isRealStdGRPC, isRealBidiGRPC, err
+}
+
 func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, bucketName string, billingProject string) (*storage.Client, error) {
+	client, _, _, _, err := sh.getClientWithMeta(ctx, isBucketRapid, bucketName, billingProject)
+	return client, err
+}
+
+func (sh *storageClient) getClientLocked(ctx context.Context, isBucketRapid bool, bucketName string, billingProject string) (*storage.Client, error) {
 	var err error
 	// Rapid (zonal) buckets always require a bi-directional streaming gRPC client.
 	if isBucketRapid {
 		if sh.grpcClientWithBidiConfig == nil {
 			sh.grpcClientWithBidiConfig, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, true, bucketName, billingProject)
+			if err == nil && sh.grpcClientWithBidiConfig != nil {
+				sh.grpcBidiClientCreated = true
+			}
 		}
 		return sh.grpcClientWithBidiConfig, err
 	}
@@ -564,6 +705,9 @@ func (sh *storageClient) getClient(ctx context.Context, isBucketRapid bool, buck
 	if clientProtocol == cfg.GRPC {
 		if sh.grpcClient == nil {
 			sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, false, false, bucketName, billingProject)
+			if err == nil && sh.grpcClient != nil {
+				sh.grpcClientCreated = true
+			}
 		}
 		return sh.grpcClient, err
 	}
@@ -588,6 +732,9 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 	sh.grpcClient, err = createGRPCClientHandle(ctx, &sh.clientConfig, true, false, bucketName, billingProject)
 	// No error means we are able to successfully create a grpc client with direct path. Return it.
 	if err == nil {
+		if sh.grpcClient != nil {
+			sh.grpcClientCreated = true
+		}
 		return sh.grpcClient, nil
 	}
 
@@ -608,13 +755,12 @@ func (sh *storageClient) createNonBidiGRPCClientWithHttpFallback(ctx context.Con
 }
 
 func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, billingProject string) (bh *bucketHandle, err error) {
-	var client *storage.Client
 	bucketType, err := sh.lookupBucketType(bucketName)
 	if err != nil {
 		return nil, fmt.Errorf("storageLayout call failed: %s", err)
 	}
 
-	client, err = sh.getClient(ctx, bucketType.IsRapid(), bucketName, billingProject)
+	client, isStandardGRPC, isRealStdGRPC, isRealBidiGRPC, err := sh.getClientWithMeta(ctx, bucketType.IsRapid(), bucketName, billingProject)
 	if err != nil {
 		return nil, err
 	}
@@ -623,10 +769,25 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	if billingProject != "" {
 		storageBucketHandle = storageBucketHandle.UserProject(billingProject)
 	}
+	ranNonHNSCheck := false
 	if sh.storageControlClient == nil && sh.clientConfig.EnableMountRetries {
 		err = sh.verifyNonHNSBucketAccess(ctx, storageBucketHandle, bucketName)
 		if err != nil {
 			return nil, fmt.Errorf("bucket access check failed for %q: %s", bucketName, err)
+		}
+		ranNonHNSCheck = true
+	}
+	if isRealBidiGRPC {
+		sh.warmBidiGRPCOnce.Do(func() {
+			sh.warmGRPCClientConnectivity(context.WithoutCancel(ctx), storageBucketHandle, true)
+		})
+	} else if !bucketType.IsRapid() && isRealStdGRPC && sh.clientConfig.ClientProtocol == cfg.GRPC {
+		if ranNonHNSCheck {
+			sh.warmGRPCOnce.Do(func() {})
+		} else {
+			sh.warmGRPCOnce.Do(func() {
+				sh.warmGRPCClientConnectivity(context.WithoutCancel(ctx), storageBucketHandle, false)
+			})
 		}
 	}
 
@@ -642,7 +803,7 @@ func (sh *storageClient) BucketHandle(ctx context.Context, bucketName string, bi
 	disableGrpcReadChecksums := !sh.clientConfig.EnableGrpcReadChecksums
 	// If the user configures an HTTP connection on a Standard (regional) bucket, grpc checksums
 	// do not apply, so we unconditionally disable them regardless of the flag's value.
-	if !bucketType.IsRapid() && client != sh.grpcClient {
+	if !bucketType.IsRapid() && !isStandardGRPC {
 		disableGrpcReadChecksums = true
 	}
 

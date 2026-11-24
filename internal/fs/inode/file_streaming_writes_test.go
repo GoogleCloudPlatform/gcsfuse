@@ -450,7 +450,7 @@ func (t *FileStreamingWritesTest) TestUnlinkLocalFileBeforeWrite() {
 	// Unlink.
 	t.in.Unlink()
 
-	assert.True(t.T(), t.in.unlinked)
+	assert.True(t.T(), t.in.IsUnlinked())
 	// Data shouldn't be updated to GCS.
 	operations.ValidateObjectNotFoundErr(t.ctx, t.T(), t.bucket, t.in.Name().GcsObjectName())
 }
@@ -485,7 +485,7 @@ func (t *FileStreamingWritesTest) TestUnlinkEmptySyncedFile() {
 	// Unlink.
 	t.in.Unlink()
 
-	assert.True(t.T(), t.in.unlinked)
+	assert.True(t.T(), t.in.IsUnlinked())
 }
 
 func (t *FileStreamingWritesTest) TestWriteToFileAndFlush() {

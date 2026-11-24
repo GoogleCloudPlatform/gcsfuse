@@ -207,6 +207,11 @@ type readInfo struct {
 }
 
 func (rr *randomReader) CheckInvariants() {
+	if !rr.mu.TryLock() {
+		return
+	}
+	defer rr.mu.Unlock()
+
 	// INVARIANT: (reader == nil) == (cancel == nil)
 	if (rr.reader == nil) != (rr.cancel == nil) {
 		panic(fmt.Sprintf("Mismatch: %v vs. %v", rr.reader == nil, rr.cancel == nil))
@@ -429,6 +434,8 @@ func (rr *randomReader) Object() (o *gcs.MinObject) {
 
 func (rr *randomReader) Destroy() {
 	defer func() {
+		rr.mu.Lock()
+		defer rr.mu.Unlock()
 		if rr.isMRDInUse.Load() {
 			err := rr.mrdWrapper.DecrementRefCount()
 			if err != nil {
@@ -538,6 +545,7 @@ func (rr *randomReader) startRead(ctx context.Context, start int64, end int64, r
 	var notFoundError *gcs.NotFoundError
 	if errors.As(err, &notFoundError) {
 		defer cancel()
+		rr.reader = nil
 		err = &gcsfuse_errors.FileClobberedError{
 			Err:        fmt.Errorf("NewReader: %w", err),
 			ObjectName: rr.object.Name,
@@ -547,6 +555,7 @@ func (rr *randomReader) startRead(ctx context.Context, start int64, end int64, r
 
 	if err != nil {
 		defer cancel()
+		rr.reader = nil
 		err = fmt.Errorf("NewReaderWithReadHandle: %w", err)
 		return
 	}
@@ -781,8 +790,17 @@ func (rr *randomReader) readFromMultiRangeReader(ctx context.Context, p []byte, 
 		return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
 	}
 
-	if rr.isMRDInUse.CompareAndSwap(false, true) {
-		rr.mrdWrapper.IncrementRefCount()
+	if !rr.isMRDInUse.Load() {
+		rr.mu.Lock()
+		if rr.mrdWrapper == nil {
+			rr.mu.Unlock()
+			return 0, fmt.Errorf("readFromMultiRangeReader: Invalid MultiRangeDownloaderWrapper")
+		}
+		if !rr.isMRDInUse.Load() {
+			rr.mrdWrapper.IncrementRefCount()
+			rr.isMRDInUse.Store(true)
+		}
+		rr.mu.Unlock()
 	}
 
 	bytesRead, err = rr.mrdWrapper.Read(ctx, p, offset, end, rr.metricHandle, rr.traceHandle, false)

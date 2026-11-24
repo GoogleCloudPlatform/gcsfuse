@@ -187,6 +187,14 @@ type StorageReader interface {
 	io.ReadCloser
 }
 
+// VectoredStorageReader is an optional extension of StorageReader that returns
+// slices referencing underlying transport buffers directly without copying into
+// buf, along with a callback to release the buffer references after writev(/dev/fuse).
+type VectoredStorageReader interface {
+	StorageReader
+	ReadVectored(buf []byte) (data [][]byte, n int, callback func(), err error)
+}
+
 // ByteRange is a [start, limit) range of bytes within an object.
 //
 // Its semantics are as follows:

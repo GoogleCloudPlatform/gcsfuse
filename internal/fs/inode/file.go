@@ -21,6 +21,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
@@ -31,6 +32,7 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx/kernel_readers"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
@@ -39,7 +41,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
 	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
 	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/sync/semaphore"
 )
@@ -108,7 +109,7 @@ type FileInode struct {
 
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
-	mu syncutil.InvariantMutex
+	mu locker.RWLocker
 
 	// GUARDED_BY(mu)
 	lc lookupCount
@@ -136,6 +137,9 @@ type FileInode struct {
 
 	streamingWriteHandler streamingwrites.WriteHandler
 
+	// GUARDED_BY(mu)
+	streamingWritesDirty bool
+
 	// mrdInstance manages the MultiRangeDownloader instances for this inode.
 	mrdInstance               *gcsx.MrdInstance
 	kernelRangeReaderInstance *kernel_readers.KernelRangeReaderInstance
@@ -159,10 +163,10 @@ type FileInode struct {
 	destroyed bool
 
 	// Represents a local file which is not yet synced to GCS.
-	local bool
+	local atomic.Bool
 
 	// Represents if local file has been unlinked.
-	unlinked bool
+	unlinked atomic.Bool
 }
 
 var _ Inode = &FileInode{}
@@ -204,9 +208,8 @@ func NewFileInode(
 		localFileCache: localFileCache,
 		contentCache:   contentCache,
 		src:            minObj,
-		local:          localFile,
-		unlinked:       false,
 	}
+	f.local.Store(localFile)
 
 	if f.bucket.BucketType().IsRapid() {
 		var err error
@@ -220,7 +223,7 @@ func NewFileInode(
 	}
 
 	f.lc.Init(id)
-	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
+	f.mu = locker.NewRW("FileInode", f.checkInvariants)
 
 	return
 }
@@ -440,6 +443,18 @@ func (f *FileInode) Unlock() {
 	f.mu.Unlock()
 }
 
+func (f *FileInode) RLock() {
+	f.mu.RLock()
+}
+
+func (f *FileInode) RUnlock() {
+	f.mu.RUnlock()
+}
+
+func (f *FileInode) LocalFileCache() bool {
+	return f.localFileCache
+}
+
 func (f *FileInode) ID() fuseops.InodeID {
 	return f.id
 }
@@ -449,15 +464,16 @@ func (f *FileInode) Name() Name {
 }
 
 func (f *FileInode) IsLocal() bool {
-	return f.local
+	return f.local.Load()
 }
 
 func (f *FileInode) IsUnlinked() bool {
-	return f.unlinked
+	return f.unlinked.Load()
 }
 
 func (f *FileInode) Unlink() {
-	f.unlinked = true
+	f.unlinked.Store(true)
+	f.streamingWritesDirty = false
 
 	if f.streamingWriteHandler != nil {
 		f.streamingWriteHandler.Unlink()
@@ -469,6 +485,20 @@ func (f *FileInode) Unlink() {
 // LOCKS_REQUIRED(f.mu)
 func (f *FileInode) IsUsingStreamingWriteHandler() bool {
 	return f.streamingWriteHandler != nil
+}
+
+// HasPendingStreamingWrites reports whether the file inode has active streaming writes
+// on a non-unlinked file that require flushing or syncing before reading.
+//
+// LOCKS_REQUIRED(f.mu)
+func (f *FileInode) HasPendingStreamingWrites() bool {
+	if f.streamingWriteHandler == nil || f.unlinked.Load() {
+		return false
+	}
+	if f.bucket.BucketType().WriteStrategy() == gcs.WriteStrategyAppendable {
+		return f.local.Load() || f.streamingWritesDirty
+	}
+	return true
 }
 
 // Source returns a record for the GCS object from which this inode is branched. The
@@ -562,6 +592,7 @@ func (f *FileInode) DeRegisterFileHandle(readOnly bool) {
 			logger.Warnf("Error while destroying the streamingWriteHandler: %v", err)
 		}
 		f.streamingWriteHandler = nil
+		f.streamingWritesDirty = false
 	}
 }
 
@@ -687,8 +718,8 @@ func (f *FileInode) Read(
 		vBuf := buffer.NewVectoredReadBuffer(req.BufferPool, req.Size)
 		var written int64
 		written, err = vBuf.ReadFromAt(f.content, req.Offset)
-		n = int(written)
-		if n > 0 {
+		if written > 0 && (err == nil || errors.Is(err, io.EOF)) {
+			n = int(written)
 			data = vBuf.Buffers()
 			callback = func() { vBuf.Release() }
 		} else {
@@ -799,6 +830,7 @@ func (f *FileInode) writeUsingStreamingWriteHandler(ctx context.Context, data []
 	if err != nil {
 		return false, fmt.Errorf("write to streaming write handler failed: %w", err)
 	}
+	f.streamingWritesDirty = true
 	return false, nil
 }
 
@@ -814,6 +846,7 @@ func (f *FileInode) flushUsingStreamingWriteHandler(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("f.streamingWriteHandler.Flush(): %w", err)
 	}
+	f.streamingWritesDirty = false
 	// If we finalized the object, we need to update our state.
 	f.updateInodeStateAfterFlush(obj)
 	return nil
@@ -836,6 +869,7 @@ func (f *FileInode) SyncPendingStreamingWrites(ctx context.Context) (gcsSynced b
 		err = fmt.Errorf("f.streamingWriteHandler.Sync(ctx): %w", err)
 		return
 	}
+	f.streamingWritesDirty = false
 	// We return gcsSynced as true when we get minObject from Sync() for Zonal Buckets.
 	// For Non-Zonal Buckets minObj is always nil.
 	gcsSynced = minObj != nil
@@ -1040,7 +1074,7 @@ func (f *FileInode) syncUsingContent(ctx context.Context, writeCtx *WriteContext
 	ctx, finishSpan := writeCtx.TraceHandle.TraceUpload(ctx, tracing.SyncFileStaged, f.src.Name, &bytes, &err)
 	defer finishSpan()
 	var latestGcsObj *gcs.Object
-	if !f.local {
+	if !f.local.Load() {
 		latestGcsObj, err = f.fetchLatestGcsObject(ctx)
 		if err != nil {
 			return err
@@ -1102,6 +1136,7 @@ func (f *FileInode) Flush(ctx context.Context, writeCtx *WriteContext) (err erro
 }
 
 func (f *FileInode) updateInodeStateAfterFlush(minObj *gcs.MinObject) {
+	f.streamingWritesDirty = false
 	if minObj != nil && !f.localFileCache {
 		// Set streamingWriteHandler to nil as object has been finalized.
 		if f.streamingWriteHandler != nil {
@@ -1119,7 +1154,7 @@ func (f *FileInode) updateInodeStateAfterSync(minObj *gcs.MinObject) {
 		f.updateReaders()
 		// Convert localFile to nonLocalFile after it is synced to GCS.
 		if f.IsLocal() {
-			f.local = false
+			f.local.Store(false)
 		}
 		if f.content != nil {
 			f.content.Destroy()
@@ -1170,6 +1205,7 @@ func (f *FileInode) truncateUsingStreamingWriteHandler(ctx context.Context, size
 	if err != nil {
 		return false, fmt.Errorf("got unexpected error from streamingWriteHandler.Truncate(): %w", err)
 	}
+	f.streamingWritesDirty = true
 	return false, nil
 }
 
@@ -1245,7 +1281,7 @@ func (f *FileInode) InitStreamingWriteHandlerIfEligible(ctx context.Context, ope
 
 	var latestGcsObj *gcs.Object
 	var err error
-	if !f.local {
+	if !f.local.Load() {
 		if f.bucket.BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && openMode.IsAppend() {
 			// In case of rapid appends, we will rely on kernel's latest view of the object
 			// instead of reaching out to the server for latest metadata. This is done to avoid
@@ -1292,6 +1328,7 @@ func (f *FileInode) InitStreamingWriteHandlerIfEligible(ctx context.Context, ope
 			return false, fmt.Errorf("failed to create streamingWriteHandler: %w", err)
 		}
 		f.streamingWriteHandler.SetMtime(f.mtimeClock.Now())
+		f.streamingWritesDirty = f.local.Load()
 		return true, nil
 	}
 	return false, nil
@@ -1299,7 +1336,7 @@ func (f *FileInode) InitStreamingWriteHandlerIfEligible(ctx context.Context, ope
 
 func (f *FileInode) areStreamingWritesSupported(openMode util.OpenMode, obj *gcs.Object, writeCtx *WriteContext) bool {
 	// For new files and existing files of size 0, streaming writes are always supported.
-	if f.local || obj.Size == 0 {
+	if f.local.Load() || obj.Size == 0 {
 		return true
 	}
 	if writeCtx.Config.Write.EnableRapidAppends && openMode.IsAppend() && f.bucket.BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && obj.Finalized.IsZero() {

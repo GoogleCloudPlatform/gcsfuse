@@ -30,6 +30,7 @@ import (
 
 	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
@@ -1416,8 +1417,8 @@ func (t *fileTest) Test_ReadWithReadManager_ConcurrentReadsWithBufferedReader() 
 		Read: cfg.ReadConfig{
 			EnableBufferedRead:   true,
 			MaxBlocksPerHandle:   10,
-			StartBlocksPerHandle: 2,
-			BlockSizeMb:          1,
+			StartBlocksPerHandle: 0,
+			BlockSizeMb:          3,
 			RandomSeekThreshold:  3,
 		},
 	}
@@ -1532,5 +1533,1022 @@ func getWriteContext() *inode.WriteContext {
 		GlobalMaxBlocksSem: semaphore.NewWeighted(math.MaxInt64),
 		TraceHandle:        tracing.NewNoopTracer(),
 		MetricHandle:       metrics.NewNoopMetrics(),
+	}
+}
+
+func (t *fileTest) Test_IsValidReadManagerRLocked() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	const objectName = "test_obj_rm_rlocked"
+	const objectContent = "some data"
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, objectName, []byte(objectContent), false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+	fh.mu.RLock()
+	defer fh.mu.RUnlock()
+	fh.inode.Lock()
+	defer fh.inode.Unlock()
+
+	// Nil readManager should return false.
+	fh.readManager = nil
+	assert.False(t.T(), fh.isValidReadManagerRLocked())
+
+	// Matching generation and size should return true.
+	minObj := in.Source()
+	fh.readManager = read_manager.NewReadManager(minObj, &t.bucket, &read_manager.ReadManagerConfig{Config: config})
+	assert.True(t.T(), fh.isValidReadManagerRLocked())
+
+	// Matching generation but mismatched size should return false without mutating Object().Size.
+	minObjSizeMismatch := in.Source()
+	minObjSizeMismatch.Size = 999
+	fh.readManager = read_manager.NewReadManager(minObjSizeMismatch, &t.bucket, &read_manager.ReadManagerConfig{Config: config})
+	assert.False(t.T(), fh.isValidReadManagerRLocked())
+	assert.Equal(t.T(), uint64(999), fh.readManager.Object().Size)
+}
+
+func (t *fileTest) Test_IsValidReaderRLocked() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	const objectName = "test_obj_reader_rlocked"
+	const objectContent = "some data"
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, objectName, []byte(objectContent), false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+	fh.mu.RLock()
+	defer fh.mu.RUnlock()
+	fh.inode.Lock()
+	defer fh.inode.Unlock()
+
+	// Nil reader should return false.
+	fh.reader = nil
+	assert.False(t.T(), fh.isValidReaderRLocked())
+
+	// Matching generation and size should return true.
+	minObj := in.Source()
+	fh.reader = gcsx.NewRandomReader(minObj, &t.bucket, 200, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), in.MRDWrapper, config, 0)
+	assert.True(t.T(), fh.isValidReaderRLocked())
+
+	// Matching generation but mismatched size should return false without mutating Object().Size.
+	minObjSizeMismatch := in.Source()
+	minObjSizeMismatch.Size = 999
+	fh.reader = gcsx.NewRandomReader(minObjSizeMismatch, &t.bucket, 200, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), in.MRDWrapper, config, 0)
+	assert.False(t.T(), fh.isValidReaderRLocked())
+	assert.Equal(t.T(), uint64(999), fh.reader.Object().Size)
+}
+
+func (t *fileTest) Test_ReadWithReadManager_CallbackAndPartialEOFHandling() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	objectData := []byte("data")
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_cb", objectData, false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+	dst := make([]byte, 100)
+
+	t.Run("PartialReadWithEOF_PreservesResponseAndCallback", func() {
+		cbCalled := false
+		expectedResp := gcsx.ReadResponse{
+			Size:     4,
+			Callback: func() { cbCalled = true },
+		}
+		object := *in.Source()
+		mockRM := new(read_manager.MockReadManager)
+		mockRM.On("Object").Return(&object)
+		mockRM.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(expectedResp, io.EOF).Once()
+		fh.readManager = mockRM
+
+		fh.inode.Lock()
+		resp, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{Buffer: dst, Offset: 0}, 200)
+
+		assert.ErrorIs(t.T(), err, io.EOF)
+		assert.Equal(t.T(), 4, resp.Size)
+		assert.NotNil(t.T(), resp.Callback)
+		assert.False(t.T(), cbCalled)
+		resp.Callback()
+		assert.True(t.T(), cbCalled)
+		mockRM.AssertExpectations(t.T())
+	})
+
+	t.Run("ZeroByteEOF_InvokesCallback", func() {
+		cbCalled := false
+		expectedResp := gcsx.ReadResponse{
+			Size:     0,
+			Callback: func() { cbCalled = true },
+		}
+		object := *in.Source()
+		mockRM := new(read_manager.MockReadManager)
+		mockRM.On("Object").Return(&object)
+		mockRM.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(expectedResp, io.EOF).Once()
+		fh.readManager = mockRM
+
+		fh.inode.Lock()
+		resp, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{Buffer: dst, Offset: 0}, 200)
+
+		assert.ErrorIs(t.T(), err, io.EOF)
+		assert.Zero(t.T(), resp.Size)
+		assert.Nil(t.T(), resp.Callback)
+		assert.True(t.T(), cbCalled)
+		mockRM.AssertExpectations(t.T())
+	})
+
+	t.Run("ErrorWithCallback_InvokesCallback", func() {
+		cbCalled := false
+		expectedResp := gcsx.ReadResponse{
+			Size:     4,
+			Callback: func() { cbCalled = true },
+		}
+		object := *in.Source()
+		mockRM := new(read_manager.MockReadManager)
+		mockRM.On("Object").Return(&object)
+		mockRM.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(expectedResp, errors.New("boom")).Once()
+		fh.readManager = mockRM
+
+		fh.inode.Lock()
+		resp, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{Buffer: dst, Offset: 0}, 200)
+
+		assert.ErrorContains(t.T(), err, "boom")
+		assert.Zero(t.T(), resp.Size)
+		assert.Nil(t.T(), resp.Callback)
+		assert.True(t.T(), cbCalled)
+		mockRM.AssertExpectations(t.T())
+	})
+}
+
+func (t *fileTest) Test_TryFastReadWithReadManager_CallbackAndPartialEOFHandling() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	objectData := []byte("data")
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_fast_cb", objectData, false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+	dst := make([]byte, 100)
+
+	t.Run("SizeMismatch_ReturnsNotHandled", func() {
+		object := *in.Source()
+		object.Size = 999
+		mockRM := new(read_manager.MockReadManager)
+		mockRM.On("Object").Return(&object)
+		fh.readManager = mockRM
+
+		resp, handled, err := fh.TryFastReadWithReadManager(t.ctx, &gcsx.ReadRequest{Buffer: dst, Offset: 0})
+
+		assert.NoError(t.T(), err)
+		assert.False(t.T(), handled)
+		assert.Zero(t.T(), resp.Size)
+		assert.Equal(t.T(), uint64(999), object.Size)
+	})
+
+	t.Run("PartialReadWithEOF_PreservesResponseAndCallback", func() {
+		cbCalled := false
+		expectedResp := gcsx.ReadResponse{
+			Size:     4,
+			Callback: func() { cbCalled = true },
+		}
+		object := *in.Source()
+		mockRM := new(read_manager.MockReadManager)
+		mockRM.On("Object").Return(&object)
+		mockRM.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(expectedResp, io.EOF).Once()
+		fh.readManager = mockRM
+
+		resp, handled, err := fh.TryFastReadWithReadManager(t.ctx, &gcsx.ReadRequest{Buffer: dst, Offset: 0})
+
+		assert.True(t.T(), handled)
+		assert.ErrorIs(t.T(), err, io.EOF)
+		assert.Equal(t.T(), 4, resp.Size)
+		assert.NotNil(t.T(), resp.Callback)
+		assert.False(t.T(), cbCalled)
+		resp.Callback()
+		assert.True(t.T(), cbCalled)
+		mockRM.AssertExpectations(t.T())
+	})
+
+	t.Run("ErrorWithCallback_InvokesCallback", func() {
+		cbCalled := false
+		expectedResp := gcsx.ReadResponse{
+			Size:     4,
+			Callback: func() { cbCalled = true },
+		}
+		object := *in.Source()
+		mockRM := new(read_manager.MockReadManager)
+		mockRM.On("Object").Return(&object)
+		mockRM.On("ReadAt", t.ctx, mock.AnythingOfType("*gcsx.ReadRequest")).Return(expectedResp, errors.New("fast boom")).Once()
+		fh.readManager = mockRM
+
+		resp, handled, err := fh.TryFastReadWithReadManager(t.ctx, &gcsx.ReadRequest{Buffer: dst, Offset: 0})
+
+		assert.True(t.T(), handled)
+		assert.ErrorContains(t.T(), err, "fast boom")
+		assert.Zero(t.T(), resp.Size)
+		assert.Nil(t.T(), resp.Callback)
+		assert.True(t.T(), cbCalled)
+		mockRM.AssertExpectations(t.T())
+	})
+}
+
+func (t *fileTest) Test_Read_ConcurrentWithCheckInvariants() {
+	const (
+		fileSize    = 512 * 1024 // 512 KiB
+		numReaders  = 10
+		maxReadSize = 16 * 1024 // 16 KiB
+	)
+	objectContent := make([]byte, fileSize)
+	_, err := crypto_rand.Read(objectContent)
+	require.NoError(t.T(), err)
+
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, &cfg.Config{}, parent, "concurrent_invariants_obj", objectContent, false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, &cfg.Config{}, nil, nil, 0)
+
+	stopInvariants := make(chan struct{})
+	var invWg sync.WaitGroup
+	invWg.Add(1)
+	go func() {
+		defer invWg.Done()
+		for {
+			select {
+			case <-stopInvariants:
+				return
+			default:
+				fh.mu.RLock()
+				fh.checkInvariants()
+				fh.mu.RUnlock()
+			}
+		}
+	}()
+
+	var wg sync.WaitGroup
+	wg.Add(numReaders)
+	for range numReaders {
+		go func() {
+			defer wg.Done()
+			readSize := rand.Intn(maxReadSize-1) + 1
+			offset := rand.Intn(fileSize - readSize)
+			dst := make([]byte, readSize)
+
+			fh.inode.Lock()
+			_, n, readErr := fh.Read(t.ctx, dst, int64(offset), 200)
+			assert.NoError(t.T(), readErr)
+			assert.Equal(t.T(), readSize, n)
+			assert.Equal(t.T(), objectContent[offset:offset+readSize], dst[:n])
+		}()
+	}
+
+	wg.Wait()
+	close(stopInvariants)
+	invWg.Wait()
+}
+
+type partialFailReader struct {
+	data []byte
+	err  error
+	done bool
+}
+
+func (r *partialFailReader) Read(p []byte) (int, error) {
+	if !r.done {
+		n := copy(p, r.data)
+		r.data = r.data[n:]
+		if len(r.data) == 0 {
+			r.done = true
+		}
+		return n, nil
+	}
+	return 0, r.err
+}
+
+type mockKernelReader struct {
+	resp gcsx.ReadResponse
+	err  error
+}
+
+func (m *mockKernelReader) ReadAt(_ context.Context, _ *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
+	return m.resp, m.err
+}
+
+func (m *mockKernelReader) CheckInvariants() {}
+
+func (m *mockKernelReader) ReaderName() string { return "mockKernelReader" }
+
+func (m *mockKernelReader) Destroy() {}
+
+func (t *fileTest) Test_ReadWithKernelReader_BufferPool_PartialReadError_ReleasesBuffers() {
+	expectedData := []byte("hello from kernel reader")
+	objectName := "test_obj_kr_partial_err"
+	mockBucket := new(storage.TestifyMockBucket)
+	mockBucket.On("BucketType").Return(gcs.BucketType{Zonal: false})
+	mockBucket.On("CreateObject", mock.Anything, mock.Anything).Return(&gcs.Object{}, nil).Once()
+	mockSyncerBucket := gcsx.NewSyncerBucket(
+		/*appendThreshold=*/ 1,
+		/*chunkRetryDeadlineSecs=*/ 120,
+		/*chunkTransferTimeoutSecs=*/ 10,
+		".gcsfuse_tmp/", mockBucket,
+		false,
+	)
+	config := &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}
+	parent := createDirInode(&mockSyncerBucket, &t.clock)
+	in := createFileInode(t.T(), &mockSyncerBucket, &t.clock, config, parent, objectName, expectedData, false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+	require.NotNil(t.T(), fh.kernelReader)
+
+	mockReader := &mockStorageReader{
+		ReadCloser: io.NopCloser(&partialFailReader{
+			data: []byte("hello"),
+			err:  errors.New("partial stream failure"),
+		}),
+	}
+	mockBucket.On("NewReaderWithReadHandle", mock.Anything, mock.Anything).Return(mockReader, nil).Once()
+
+	pool := &buffer.FakeBufferPool{
+		Buffers: [][]byte{
+			make([]byte, 3),
+			make([]byte, 3),
+			make([]byte, 3),
+		},
+	}
+	req := &gcsx.ReadRequest{
+		BufferPool: pool,
+		Offset:     0,
+		Size:       9,
+	}
+	fh.inode.Lock()
+
+	resp, err := fh.ReadWithKernelReader(t.ctx, req)
+
+	require.Error(t.T(), err)
+	assert.ErrorContains(t.T(), err, "partial stream failure")
+	assert.Zero(t.T(), resp.Size)
+	assert.Nil(t.T(), resp.Data)
+	assert.Nil(t.T(), resp.Callback)
+	assert.Len(t.T(), pool.PutBuffers, 2)
+	mockBucket.AssertExpectations(t.T())
+}
+
+func (t *fileTest) Test_ReadWithKernelReader_CallbackCleanupOnErrorAndEOF() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_kr_cb", []byte("data"), false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+
+	t.Run("NonEOFError_InvokesCallbackAndClearsResponse", func() {
+		cbCalled := false
+		fh.kernelReader = &mockKernelReader{
+			resp: gcsx.ReadResponse{
+				Size:     4,
+				Data:     [][]byte{[]byte("data")},
+				Callback: func() { cbCalled = true },
+			},
+			err: errors.New("kernel read failed"),
+		}
+		fh.inode.Lock()
+
+		resp, err := fh.ReadWithKernelReader(t.ctx, &gcsx.ReadRequest{Offset: 0, Size: 4})
+
+		require.Error(t.T(), err)
+		assert.ErrorContains(t.T(), err, "kernel read failed")
+		assert.True(t.T(), cbCalled)
+		assert.Zero(t.T(), resp.Size)
+		assert.Nil(t.T(), resp.Data)
+		assert.Nil(t.T(), resp.Callback)
+	})
+
+	t.Run("ZeroByteEOF_InvokesCallback", func() {
+		cbCalled := false
+		fh.kernelReader = &mockKernelReader{
+			resp: gcsx.ReadResponse{
+				Size:     0,
+				Callback: func() { cbCalled = true },
+			},
+			err: io.EOF,
+		}
+		fh.inode.Lock()
+
+		resp, err := fh.ReadWithKernelReader(t.ctx, &gcsx.ReadRequest{Offset: 4, Size: 4})
+
+		assert.ErrorIs(t.T(), err, io.EOF)
+		assert.True(t.T(), cbCalled)
+		assert.Zero(t.T(), resp.Size)
+		assert.Nil(t.T(), resp.Callback)
+	})
+}
+
+func (t *fileTest) Test_ReadWithReadManager_ConcurrentStreamingWriteDuringLockAcquisition() {
+	config := &cfg.Config{
+		Write: cfg.WriteConfig{
+			EnableStreamingWrites: true,
+			BlockSizeMb:           1,
+			MaxBlocksPerFile:      2,
+		},
+	}
+	parent := createDirInode(&t.bucket, &t.clock)
+	// Start with an empty object so streaming writes are eligible.
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_concurrent_sw_rm", []byte{}, false)
+	sem := semaphore.NewWeighted(100)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, sem, 0)
+
+	// Pre-populate a valid readManager for generation 1 so that without the
+	// !fh.hasPendingStreamingWritesLocked() check, the RLock fast branch would be taken.
+	fh.readManager = read_manager.NewReadManager(in.Source(), &t.bucket, &read_manager.ReadManagerConfig{Config: config})
+
+	// Hold fh.mu.Lock() so ReadWithReadManager drops fh.inode.Unlock() inside
+	// lockHandleAndRelockInode(true) and blocks waiting for fh.mu.RLock().
+	fh.mu.Lock()
+
+	streamedData := []byte("streamed during handle lock acquisition")
+	readDone := make(chan struct{})
+	var resp gcsx.ReadResponse
+	var readErr error
+	dst := make([]byte, len(streamedData))
+
+	fh.inode.Lock()
+	go func() {
+		defer close(readDone)
+		resp, readErr = fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+			Buffer: dst,
+			Offset: 0,
+			Size:   int64(len(dst)),
+		}, 200)
+	}()
+
+	// Acquire in.Lock() — this succeeds once ReadWithReadManager drops fh.inode.Unlock()
+	// inside lockHandleAndRelockInode(true).
+	in.Lock()
+	writeCtx := &inode.WriteContext{
+		Config:             config,
+		GlobalMaxBlocksSem: sem,
+		TraceHandle:        tracing.NewNoopTracer(),
+		MetricHandle:       metrics.NewNoopMetrics(),
+	}
+	in.RegisterFileHandle(false)
+	initialized, err := in.InitStreamingWriteHandlerIfEligible(t.ctx, writeMode, writeCtx)
+	require.NoError(t.T(), err)
+	require.True(t.T(), initialized)
+	_, err = in.Write(t.ctx, streamedData, 0, writeMode, writeCtx)
+	require.NoError(t.T(), err)
+	require.True(t.T(), in.IsUsingStreamingWriteHandler())
+	in.Unlock()
+
+	// Release fh.mu.Lock() so ReadWithReadManager can proceed, detect pending streaming
+	// writes, flush them via ensureStreamingWritesFlushedLocked, and read the flushed data.
+	fh.mu.Unlock()
+
+	select {
+	case <-readDone:
+	case <-time.After(5 * time.Second):
+		t.T().Fatal("ReadWithReadManager timed out")
+	}
+
+	require.NoError(t.T(), readErr)
+	assert.Equal(t.T(), len(streamedData), resp.Size)
+	assert.Equal(t.T(), streamedData, dst[:resp.Size])
+}
+
+func (t *fileTest) Test_Read_ConcurrentStreamingWriteDuringLockAcquisition() {
+	config := &cfg.Config{
+		Write: cfg.WriteConfig{
+			EnableStreamingWrites: true,
+			BlockSizeMb:           1,
+			MaxBlocksPerFile:      2,
+		},
+	}
+	parent := createDirInode(&t.bucket, &t.clock)
+	// Start with an empty object so streaming writes are eligible.
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_concurrent_sw_read", []byte{}, false)
+	sem := semaphore.NewWeighted(100)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, sem, 0)
+
+	// Pre-populate a valid reader for generation 1 so that without the
+	// !fh.hasPendingStreamingWritesLocked() check, the RLock fast branch would be taken.
+	fh.reader = gcsx.NewRandomReader(in.Source(), &t.bucket, 200, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), in.MRDWrapper, config, 0)
+
+	// Hold fh.mu.Lock() so Read drops fh.inode.Unlock() inside
+	// lockHandleAndRelockInode(true) and blocks waiting for fh.mu.RLock().
+	fh.mu.Lock()
+
+	streamedData := []byte("streamed during Read handle lock acquisition")
+	readDone := make(chan struct{})
+	var output []byte
+	var n int
+	var readErr error
+	dst := make([]byte, len(streamedData))
+
+	fh.inode.Lock()
+	go func() {
+		defer close(readDone)
+		output, n, readErr = fh.Read(t.ctx, dst, 0, 200)
+	}()
+
+	// Acquire in.Lock() — this succeeds once Read drops fh.inode.Unlock()
+	// inside lockHandleAndRelockInode(true).
+	in.Lock()
+	writeCtx := &inode.WriteContext{
+		Config:             config,
+		GlobalMaxBlocksSem: sem,
+		TraceHandle:        tracing.NewNoopTracer(),
+		MetricHandle:       metrics.NewNoopMetrics(),
+	}
+	in.RegisterFileHandle(false)
+	initialized, err := in.InitStreamingWriteHandlerIfEligible(t.ctx, writeMode, writeCtx)
+	require.NoError(t.T(), err)
+	require.True(t.T(), initialized)
+	_, err = in.Write(t.ctx, streamedData, 0, writeMode, writeCtx)
+	require.NoError(t.T(), err)
+	require.True(t.T(), in.IsUsingStreamingWriteHandler())
+	in.Unlock()
+
+	// Release fh.mu.Lock() so Read can proceed, detect pending streaming writes,
+	// flush them via ensureStreamingWritesFlushedLocked, and read the flushed data.
+	fh.mu.Unlock()
+
+	select {
+	case <-readDone:
+	case <-time.After(5 * time.Second):
+		t.T().Fatal("Read timed out")
+	}
+
+	require.NoError(t.T(), readErr)
+	assert.Equal(t.T(), len(streamedData), n)
+	assert.Equal(t.T(), streamedData, output[:n])
+}
+
+func (t *fileTest) Test_Read_UnlinkedInodeWithActiveStreamingWrites_DoesNotFlushOrPanicAndUsesCallbackWhenNotUnlinked() {
+	config := &cfg.Config{
+		Write: cfg.WriteConfig{
+			EnableStreamingWrites: true,
+			BlockSizeMb:           1,
+			MaxBlocksPerFile:      2,
+		},
+	}
+	sem := semaphore.NewWeighted(100)
+	writeCtx := &inode.WriteContext{
+		Config:             config,
+		GlobalMaxBlocksSem: sem,
+		TraceHandle:        tracing.NewNoopTracer(),
+		MetricHandle:       metrics.NewNoopMetrics(),
+	}
+
+	t.Run("UnlinkedInode_DoesNotFlushOrInvokeCallbackOrPanicOnRepeatedReads", func() {
+		t.SetupTest()
+		parent := createDirInode(&t.bucket, &t.clock)
+		in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_unlinked_sw", []byte{}, false)
+		fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, sem, 0)
+
+		callbackCalls := 0
+		fh.SetFlushOrSyncCallback(func(ctx context.Context) error {
+			callbackCalls++
+			return in.Flush(ctx, writeCtx)
+		})
+
+		in.Lock()
+		in.RegisterFileHandle(false)
+		initialized, err := in.InitStreamingWriteHandlerIfEligible(t.ctx, writeMode, writeCtx)
+		require.NoError(t.T(), err)
+		require.True(t.T(), initialized)
+		_, err = in.Write(t.ctx, []byte("unlinked write data"), 0, writeMode, writeCtx)
+		require.NoError(t.T(), err)
+		require.True(t.T(), in.HasPendingStreamingWrites())
+
+		in.Unlink()
+		assert.True(t.T(), in.IsUnlinked())
+		assert.False(t.T(), in.HasPendingStreamingWrites())
+		in.Unlock()
+
+		// Repeated ReadWithReadManager and Read calls must not invoke the flush callback or panic.
+		for range 3 {
+			assert.NotPanics(t.T(), func() {
+				fh.inode.Lock()
+				_, _ = fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+					Buffer: make([]byte, 32),
+					Offset: 0,
+					Size:   32,
+				}, 200)
+			})
+			assert.NotPanics(t.T(), func() {
+				fh.inode.Lock()
+				_, _, _ = fh.Read(t.ctx, make([]byte, 32), 0, 200)
+			})
+		}
+		assert.Zero(t.T(), callbackCalls)
+	})
+
+	t.Run("NonUnlinkedInode_InvokesConfiguredFlushOrSyncCallback", func() {
+		t.SetupTest()
+		parent := createDirInode(&t.bucket, &t.clock)
+		in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_cb_sw", []byte{}, false)
+		fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, sem, 0)
+
+		callbackCalls := 0
+		fh.SetFlushOrSyncCallback(func(ctx context.Context) error {
+			callbackCalls++
+			return in.Flush(ctx, writeCtx)
+		})
+
+		expected := []byte("flushed via callback")
+		in.Lock()
+		in.RegisterFileHandle(false)
+		initialized, err := in.InitStreamingWriteHandlerIfEligible(t.ctx, writeMode, writeCtx)
+		require.NoError(t.T(), err)
+		require.True(t.T(), initialized)
+		_, err = in.Write(t.ctx, expected, 0, writeMode, writeCtx)
+		require.NoError(t.T(), err)
+		require.True(t.T(), in.HasPendingStreamingWrites())
+		in.Unlock()
+
+		dst := make([]byte, len(expected))
+		fh.inode.Lock()
+		resp, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+			Buffer: dst,
+			Offset: 0,
+			Size:   int64(len(dst)),
+		}, 200)
+		require.NoError(t.T(), err)
+		assert.Equal(t.T(), 1, callbackCalls)
+		assert.Equal(t.T(), len(expected), resp.Size)
+		assert.Equal(t.T(), expected, dst[:resp.Size])
+	})
+}
+
+func (t *fileTest) Test_ReadWithReadManager_RapidForwardTruncateAndSync_DoesNotResyncAndTakesRLockFastPath() {
+	zonalBucket := gcsx.NewSyncerBucket(
+		/*appendThreshold=*/ 1,
+		/*chunkRetryDeadlineSecs=*/ 120,
+		/*chunkTransferTimeoutSecs=*/ 10,
+		".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "zonal_bucket", gcs.BucketType{Zonal: true}),
+		false,
+	)
+	config := &cfg.Config{
+		Write: cfg.WriteConfig{
+			EnableStreamingWrites: true,
+			FinalizeFileForRapid:  true,
+			BlockSizeMb:           1,
+			MaxBlocksPerFile:      2,
+		},
+	}
+	sem := semaphore.NewWeighted(100)
+	writeCtx := &inode.WriteContext{
+		Config:             config,
+		GlobalMaxBlocksSem: sem,
+		TraceHandle:        tracing.NewNoopTracer(),
+		MetricHandle:       metrics.NewNoopMetrics(),
+	}
+	parent := createDirInode(&zonalBucket, &t.clock)
+	in := createFileInode(t.T(), &zonalBucket, &t.clock, config, parent, "test_obj_rapid_truncate", []byte{}, false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, sem, 0)
+
+	syncCallbackCalls := 0
+	fh.SetFlushOrSyncCallback(func(ctx context.Context) error {
+		syncCallbackCalls++
+		_, err := in.SyncPendingStreamingWrites(ctx)
+		return err
+	})
+
+	writtenData := []byte("hello")
+	const truncatedSize = 64
+
+	in.Lock()
+	in.RegisterFileHandle(false)
+	initialized, err := in.InitStreamingWriteHandlerIfEligible(t.ctx, writeMode, writeCtx)
+	require.NoError(t.T(), err)
+	require.True(t.T(), initialized)
+
+	_, err = in.Write(t.ctx, writtenData, 0, writeMode, writeCtx)
+	require.NoError(t.T(), err)
+	assert.True(t.T(), in.HasPendingStreamingWrites())
+
+	_, err = in.Truncate(t.ctx, truncatedSize, writeCtx)
+	require.NoError(t.T(), err)
+	assert.True(t.T(), in.HasPendingStreamingWrites())
+
+	// Sync pending streaming writes explicitly after forward Truncate.
+	_, err = in.SyncPendingStreamingWrites(t.ctx)
+	require.NoError(t.T(), err)
+	assert.False(t.T(), in.HasPendingStreamingWrites())
+	// Backing object size is still len(writtenData), while SourceGeneration().Size is truncatedSize.
+	assert.Equal(t.T(), uint64(len(writtenData)), in.Source().Size)
+	assert.Equal(t.T(), uint64(truncatedSize), in.SourceGeneration().Size)
+	in.Unlock()
+
+	// First ReadWithReadManager creates readManager with minObj.Size = SourceGeneration().Size
+	// and must not re-trigger SyncPendingStreamingWrites.
+	dst1 := make([]byte, len(writtenData))
+	fh.inode.Lock()
+	resp1, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+		Buffer: dst1,
+		Offset: 0,
+		Size:   int64(len(dst1)),
+	}, 200)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), len(writtenData), resp1.Size)
+	assert.Equal(t.T(), writtenData, dst1[:resp1.Size])
+	assert.Zero(t.T(), syncCallbackCalls)
+
+	fh.mu.RLock()
+	fh.inode.Lock()
+	rmAfterFirstRead := fh.readManager
+	require.NotNil(t.T(), rmAfterFirstRead)
+	assert.Equal(t.T(), uint64(truncatedSize), fh.readManager.Object().Size)
+	assert.True(t.T(), fh.isValidReadManagerRLocked())
+	assert.False(t.T(), fh.hasPendingStreamingWritesLocked())
+	fh.inode.Unlock()
+	fh.mu.RUnlock()
+
+	// Subsequent ReadWithReadManager calls must not re-trigger SyncPendingStreamingWrites
+	// and must reuse the existing readManager via the RLock fast path.
+	dst2 := make([]byte, len(writtenData))
+	fh.inode.Lock()
+	resp2, err := fh.ReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+		Buffer: dst2,
+		Offset: 0,
+		Size:   int64(len(dst2)),
+	}, 200)
+	require.NoError(t.T(), err)
+	assert.Equal(t.T(), len(writtenData), resp2.Size)
+	assert.Equal(t.T(), writtenData, dst2[:resp2.Size])
+	assert.Zero(t.T(), syncCallbackCalls)
+	assert.Same(t.T(), rmAfterFirstRead, fh.readManager)
+}
+
+type blockingReadManager struct {
+	object   *gcs.MinObject
+	started  chan struct{}
+	released chan struct{}
+}
+
+func (m *blockingReadManager) CheckInvariants() {}
+
+func (m *blockingReadManager) ReaderName() string { return "blockingReadManager" }
+
+func (m *blockingReadManager) Destroy() {}
+
+func (m *blockingReadManager) Object() *gcs.MinObject { return m.object }
+
+func (m *blockingReadManager) ReadAt(_ context.Context, _ *gcsx.ReadRequest) (gcsx.ReadResponse, error) {
+	m.started <- struct{}{}
+	<-m.released
+	return gcsx.ReadResponse{Size: 4}, nil
+}
+
+func (t *fileTest) Test_TryFastReadWithReadManager_ConcurrentReadsRunInParallelAndBlockExclusiveInodeLock() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{}
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_fast_rlock", []byte("data"), false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+
+	obj := *in.Source()
+	rm := &blockingReadManager{
+		object:   &obj,
+		started:  make(chan struct{}, 2),
+		released: make(chan struct{}),
+	}
+	fh.readManager = rm
+
+	const numReaders = 2
+	resps := make([]gcsx.ReadResponse, numReaders)
+	handled := make([]bool, numReaders)
+	errs := make([]error, numReaders)
+	var wg sync.WaitGroup
+	wg.Add(numReaders)
+	for i := range numReaders {
+		go func(idx int) {
+			defer wg.Done()
+			resps[idx], handled[idx], errs[idx] = fh.TryFastReadWithReadManager(t.ctx, &gcsx.ReadRequest{
+				Buffer: make([]byte, 4),
+				Offset: 0,
+				Size:   4,
+			})
+		}(i)
+	}
+
+	// Both concurrent TryFastReadWithReadManager calls must enter ReadAt in parallel under RLock.
+	for range numReaders {
+		select {
+		case <-rm.started:
+		case <-time.After(5 * time.Second):
+			close(rm.released)
+			t.T().Fatal("timed out waiting for concurrent TryFastReadWithReadManager calls to enter ReadAt")
+		}
+	}
+
+	// Exclusive inode.Lock() must block while ReadAt is in flight.
+	lockAcquired := make(chan struct{})
+	go func() {
+		fh.inode.Lock()
+		close(lockAcquired)
+		fh.inode.Unlock()
+	}()
+
+	select {
+	case <-lockAcquired:
+		close(rm.released)
+		t.T().Fatal("expected exclusive fh.inode.Lock() to block while ReadAt is in flight")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(rm.released)
+
+	readsDone := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(readsDone)
+	}()
+
+	select {
+	case <-readsDone:
+	case <-time.After(5 * time.Second):
+		t.T().Fatal("timed out waiting for TryFastReadWithReadManager calls to complete")
+	}
+
+	select {
+	case <-lockAcquired:
+	case <-time.After(5 * time.Second):
+		t.T().Fatal("timed out waiting for exclusive fh.inode.Lock() after ReadAt completed")
+	}
+
+	for i := range numReaders {
+		assert.NoError(t.T(), errs[i])
+		assert.True(t.T(), handled[i])
+		assert.Equal(t.T(), 4, resps[i].Size)
+	}
+}
+
+func (t *fileTest) Test_ReadWithKernelReader_ConcurrentStreamingWriteDuringLockAcquisition() {
+	config := &cfg.Config{
+		FileSystem: cfg.FileSystemConfig{EnableKernelReader: true},
+		Write: cfg.WriteConfig{
+			EnableStreamingWrites: true,
+			BlockSizeMb:           1,
+			MaxBlocksPerFile:      2,
+		},
+	}
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_concurrent_sw_kr", []byte{}, false)
+	sem := semaphore.NewWeighted(100)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, sem, 0)
+	require.NotNil(t.T(), fh.kernelReader)
+
+	fh.mu.Lock()
+
+	streamedData := []byte("streamed during kernel reader lock acquisition")
+	readDone := make(chan struct{})
+	var resp gcsx.ReadResponse
+	var readErr error
+	dst := make([]byte, len(streamedData))
+
+	fh.inode.Lock()
+	go func() {
+		defer close(readDone)
+		resp, readErr = fh.ReadWithKernelReader(t.ctx, &gcsx.ReadRequest{
+			Buffer: dst,
+			Offset: 0,
+			Size:   int64(len(dst)),
+		})
+	}()
+
+	in.Lock()
+	writeCtx := &inode.WriteContext{
+		Config:             config,
+		GlobalMaxBlocksSem: sem,
+		TraceHandle:        tracing.NewNoopTracer(),
+		MetricHandle:       metrics.NewNoopMetrics(),
+	}
+	in.RegisterFileHandle(false)
+	initialized, err := in.InitStreamingWriteHandlerIfEligible(t.ctx, writeMode, writeCtx)
+	require.NoError(t.T(), err)
+	require.True(t.T(), initialized)
+	_, err = in.Write(t.ctx, streamedData, 0, writeMode, writeCtx)
+	require.NoError(t.T(), err)
+	require.True(t.T(), in.IsUsingStreamingWriteHandler())
+	in.Unlock()
+
+	fh.mu.Unlock()
+
+	select {
+	case <-readDone:
+	case <-time.After(5 * time.Second):
+		t.T().Fatal("ReadWithKernelReader timed out")
+	}
+
+	require.NoError(t.T(), readErr)
+	assert.Equal(t.T(), len(streamedData), resp.Size)
+	assert.Equal(t.T(), streamedData, dst[:resp.Size])
+}
+
+func (t *fileTest) Test_ReadWithKernelReader_ConcurrentLocalWriteDuringLockAcquisition() {
+	config := &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}
+	parent := createDirInode(&t.bucket, &t.clock)
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_concurrent_local_kr", []byte("orig"), false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+	require.NotNil(t.T(), fh.kernelReader)
+
+	fh.mu.Lock()
+
+	localData := []byte("dirty local bytes")
+	readDone := make(chan struct{})
+	var resp gcsx.ReadResponse
+	var readErr error
+	dst := make([]byte, len(localData))
+
+	fh.inode.Lock()
+	go func() {
+		defer close(readDone)
+		resp, readErr = fh.ReadWithKernelReader(t.ctx, &gcsx.ReadRequest{
+			Buffer: dst,
+			Offset: 0,
+			Size:   int64(len(dst)),
+		})
+	}()
+
+	// Acquire in.Lock() while ReadWithKernelReader waits on fh.mu.RLock(), and dirty the inode.
+	in.Lock()
+	_, err := in.Write(t.ctx, localData, 0, writeMode, getWriteContext())
+	require.NoError(t.T(), err)
+	require.False(t.T(), in.SourceGenerationIsAuthoritative())
+	in.Unlock()
+
+	fh.mu.Unlock()
+
+	select {
+	case <-readDone:
+	case <-time.After(5 * time.Second):
+		t.T().Fatal("ReadWithKernelReader timed out")
+	}
+
+	require.NoError(t.T(), readErr)
+	assert.Equal(t.T(), len(localData), resp.Size)
+	assert.Equal(t.T(), localData, dst[:resp.Size])
+}
+
+func (t *fileTest) Test_TryFastReadWithKernelReader_ConcurrentReadsRunInParallelAndBlockExclusiveInodeLock() {
+	parent := createDirInode(&t.bucket, &t.clock)
+	config := &cfg.Config{FileSystem: cfg.FileSystemConfig{EnableKernelReader: true}}
+	in := createFileInode(t.T(), &t.bucket, &t.clock, config, parent, "test_obj_fast_kr_rlock", []byte("data"), false)
+	fh := NewFileHandle(in, nil, nil, false, metrics.NewNoopMetrics(), tracing.NewNoopTracer(), readMode, config, nil, nil, 0)
+
+	kr := &blockingReadManager{
+		object:   in.Source(),
+		started:  make(chan struct{}, 2),
+		released: make(chan struct{}),
+	}
+	fh.kernelReader = kr
+
+	const numReaders = 2
+	resps := make([]gcsx.ReadResponse, numReaders)
+	handled := make([]bool, numReaders)
+	errs := make([]error, numReaders)
+	var wg sync.WaitGroup
+	wg.Add(numReaders)
+	for i := range numReaders {
+		go func(idx int) {
+			defer wg.Done()
+			resps[idx], handled[idx], errs[idx] = fh.TryFastReadWithKernelReader(t.ctx, &gcsx.ReadRequest{
+				Buffer: make([]byte, 4),
+				Offset: 0,
+				Size:   4,
+			})
+		}(i)
+	}
+
+	for range numReaders {
+		select {
+		case <-kr.started:
+		case <-time.After(5 * time.Second):
+			close(kr.released)
+			t.T().Fatal("timed out waiting for concurrent TryFastReadWithKernelReader calls to enter ReadAt")
+		}
+	}
+
+	lockAcquired := make(chan struct{})
+	go func() {
+		fh.inode.Lock()
+		close(lockAcquired)
+		fh.inode.Unlock()
+	}()
+
+	select {
+	case <-lockAcquired:
+		close(kr.released)
+		t.T().Fatal("expected exclusive fh.inode.Lock() to block while kernelReader.ReadAt is in flight")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(kr.released)
+
+	readsDone := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(readsDone)
+	}()
+
+	select {
+	case <-readsDone:
+	case <-time.After(5 * time.Second):
+		t.T().Fatal("timed out waiting for TryFastReadWithKernelReader calls to complete")
+	}
+
+	select {
+	case <-lockAcquired:
+	case <-time.After(5 * time.Second):
+		t.T().Fatal("timed out waiting for exclusive fh.inode.Lock() after kernelReader.ReadAt completed")
+	}
+
+	for i := range numReaders {
+		assert.NoError(t.T(), errs[i])
+		assert.True(t.T(), handled[i])
+		assert.Equal(t.T(), 4, resps[i].Size)
 	}
 }

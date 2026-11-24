@@ -588,7 +588,7 @@ func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
 					LimitOpsPerSec:             -1,
 					MaxConnsPerHost:            0,
 					MaxIdleConnsPerHost:        100,
-					SequentialReadSizeMb:       200,
+					SequentialReadSizeMb:       1024,
 					EnableHttpDnsCache:         true,
 				},
 			},

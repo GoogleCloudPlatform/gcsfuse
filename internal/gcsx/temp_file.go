@@ -19,6 +19,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/jacobsa/fuse/fsutil"
@@ -178,6 +179,9 @@ type tempFile struct {
 	//
 	// INVARIANT: mtime == nil => Stat().DirtyThreshold == Stat().Size
 	mtime *time.Time
+
+	// Serializes CheckInvariants calls when FileInode.RLock is held concurrently.
+	checkMu sync.Mutex
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -185,6 +189,11 @@ type tempFile struct {
 ////////////////////////////////////////////////////////////////////////
 
 func (tf *tempFile) CheckInvariants() {
+	if !tf.checkMu.TryLock() {
+		return
+	}
+	defer tf.checkMu.Unlock()
+
 	if tf.state == fileDestroyed {
 		panic("Use of destroyed tempFile object.")
 	}

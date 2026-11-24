@@ -17,6 +17,7 @@ package monitor
 import (
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	storagev2 "cloud.google.com/go/storage"
@@ -242,6 +243,19 @@ func (mrc *monitoringReadCloser) Read(p []byte) (n int, err error) {
 	n, err = mrc.wrapped.Read(p)
 	mrc.metricHandle.GcsReadBytesCount(int64(n))
 	return
+}
+
+func (mrc *monitoringReadCloser) ReadVectored(p []byte) (data [][]byte, n int, callback func(), err error) {
+	if vr, ok := mrc.wrapped.(gcs.VectoredStorageReader); ok {
+		data, n, callback, err = vr.ReadVectored(p)
+		mrc.metricHandle.GcsReadBytesCount(int64(n))
+		return
+	}
+	n, err = io.ReadFull(mrc, p)
+	if err == io.ErrUnexpectedEOF {
+		err = io.EOF
+	}
+	return nil, n, nil, err
 }
 
 func (mrc *monitoringReadCloser) Close() (err error) {

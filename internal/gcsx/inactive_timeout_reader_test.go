@@ -18,9 +18,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"strings"
 	"sync"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
@@ -374,4 +376,43 @@ func (s *InactiveTimeoutReaderTestSuite) TestRaceCondition() {
 	}()
 
 	wg.Wait()
+}
+
+func (s *InactiveTimeoutReaderTestSuite) Test_ReadVectored_NonVectoredReaderFallbackUsesReadFull() {
+	s.initialData = []byte("hello world!")
+	s.object.Size = uint64(len(s.initialData))
+	s.timeout = 100 * time.Millisecond
+
+	// Wrap with OneByteReader so each underlying Read() returns only 1 byte at a time,
+	// and FakeReader does not implement gcs.VectoredStorageReader.
+	s.initialFakeReader = &fake.FakeReader{
+		ReadCloser: io.NopCloser(iotest.OneByteReader(bytes.NewReader(s.initialData))),
+		Handle:     s.readHandle,
+	}
+	readObjectRequest := &gcs.ReadObjectRequest{
+		Name:       s.object.Name,
+		Generation: s.object.Generation,
+		Range: &gcs.ByteRange{
+			Start: uint64(0),
+			Limit: s.object.Size,
+		},
+		ReadCompressed: s.object.HasContentEncodingGzip(),
+		ReadHandle:     s.readHandle,
+	}
+	s.mockBucket.On("NewReaderWithReadHandle", mock.Anything, readObjectRequest).Return(s.initialFakeReader, nil).Times(1)
+
+	var err error
+	s.reader, err = NewInactiveTimeoutReaderWithClock(s.ctx, s.mockBucket, s.object, s.readHandle, gcs.ByteRange{Start: uint64(0), Limit: s.object.Size}, s.timeout, s.simulatedClock)
+	s.Require().NoError(err)
+
+	itr := s.reader.(*InactiveTimeoutReader)
+	buf := make([]byte, 12)
+	data, n, cb, err := itr.ReadVectored(buf)
+
+	s.NoError(err)
+	s.Nil(data)
+	s.Nil(cb)
+	s.Equal(12, n)
+	s.Equal("hello world!", string(buf))
+	s.Equal(uint64(12), itr.seen)
 }

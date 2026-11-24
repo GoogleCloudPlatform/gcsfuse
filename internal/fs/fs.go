@@ -306,7 +306,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 	root.Unlock()
 
 	// Set up invariant checking.
-	fs.mu = locker.New("FS", fs.checkInvariants)
+	fs.mu = locker.NewRW("FS", fs.checkInvariants)
 	return fs, nil
 }
 
@@ -510,7 +510,7 @@ type fileSystem struct {
 
 	// A lock protecting the state of the file system struct itself (distinct
 	// from per-inode locks). Make sure to see the notes on lock ordering above.
-	mu locker.Locker
+	mu locker.RWLocker
 
 	// The next inode ID to hand out. We assume that this will never overflow,
 	// since even if we were handing out inode IDs at 4 GHz, it would still take
@@ -1875,6 +1875,9 @@ func (fs *fileSystem) StatFS(
 // the original context.
 func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Context {
 	if fs.newConfig.FileSystem.IgnoreInterrupts {
+		if ctx.Done() == nil {
+			return ctx
+		}
 		// When ignore interrupts config is set, we are creating a new context not
 		// cancellable by parent context. It keeps collecting the op's metadata
 		// cache reads so that the op still records its metadata_cache/read_count.
@@ -1933,9 +1936,9 @@ func (fs *fileSystem) GetInodeAttributes(
 	op *fuseops.GetInodeAttributesOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
 	// Find the inode.
-	fs.mu.Lock()
+	fs.mu.RLock()
 	in := fs.inodeOrDie(op.Inode)
-	fs.mu.Unlock()
+	fs.mu.RUnlock()
 
 	in.Lock()
 	defer in.Unlock()
@@ -2243,7 +2246,7 @@ func (fs *fileSystem) CreateFile(
 
 	// CreateFile() invoked to create new files, can be safely considered as filehandle
 	// opened in append mode.
-	fs.handles[op.Handle] = handle.NewFileHandle(
+	fh := handle.NewFileHandle(
 		child.(*inode.FileInode),
 		fs.fileCacheHandler,
 		fs.sharedChunkCacheManager,
@@ -2256,6 +2259,13 @@ func (fs *fileSystem) CreateFile(
 		fs.globalMaxReadBlocksSem,
 		op.Handle,
 	)
+	fh.SetFlushOrSyncCallback(func(ctx context.Context) error {
+		if fh.Inode().Bucket().BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && fs.newConfig.Write.FinalizeFileForRapid {
+			return fs.syncFile(ctx, fh.Inode())
+		}
+		return fs.flushFile(ctx, fh.Inode())
+	})
+	fs.handles[op.Handle] = fh
 
 	fs.mu.Unlock()
 
@@ -3057,7 +3067,7 @@ func (fs *fileSystem) OpenFile(
 
 	// Figure out the mode in which the file is being opened.
 	openMode := util.FileOpenMode(op.OpenFlags)
-	fs.handles[op.Handle] = handle.NewFileHandle(
+	fh := handle.NewFileHandle(
 		in,
 		fs.fileCacheHandler,
 		fs.sharedChunkCacheManager,
@@ -3070,6 +3080,13 @@ func (fs *fileSystem) OpenFile(
 		fs.globalMaxReadBlocksSem,
 		op.Handle,
 	)
+	fh.SetFlushOrSyncCallback(func(ctx context.Context) error {
+		if fh.Inode().Bucket().BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && fs.newConfig.Write.FinalizeFileForRapid {
+			return fs.syncFile(ctx, fh.Inode())
+		}
+		return fs.flushFile(ctx, fh.Inode())
+	})
+	fs.handles[op.Handle] = fh
 
 	// When we observe object generations that we didn't create, we assign them
 	// new inode IDs. So for a given inode, all modifications go through the
@@ -3086,10 +3103,42 @@ func (fs *fileSystem) ReadFile(
 	op *fuseops.ReadFileOp) (err error) {
 	ctx = fs.getInterruptlessContext(ctx)
 
-	// Find the handle and lock it.
-	fs.mu.Lock()
+	// Find the handle.
+	fs.mu.RLock()
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
-	fs.mu.Unlock()
+	fs.mu.RUnlock()
+
+	if fs.newConfig.FileSystem.EnableKernelReader {
+		if op.Size == 0 || op.Dst != nil || !fh.Inode().Bucket().BucketType().IsRapid() {
+			req := gcsx.ReadRequest{
+				Offset: op.Offset,
+				Size:   op.Size,
+			}
+			if op.Size > 0 && op.Dst == nil {
+				req.BufferPool = fs.readBufferPool
+			} else {
+				req.Buffer = op.Dst
+			}
+			if resp, handled, fastErr := fh.TryFastReadWithKernelReader(ctx, &req); handled {
+				op.BytesRead = resp.Size
+				op.Data = resp.Data
+				op.Callback = resp.Callback
+				return fs.finalizeReadFileOp(op, fastErr)
+			}
+		}
+	} else if fs.newConfig.EnableNewReader && (op.Size == 0 || op.Dst != nil) {
+		req := gcsx.ReadRequest{
+			Buffer: op.Dst,
+			Offset: op.Offset,
+			Size:   op.Size,
+		}
+		if resp, handled, fastErr := fh.TryFastReadWithReadManager(ctx, &req); handled {
+			op.BytesRead = resp.Size
+			op.Data = resp.Data
+			op.Callback = resp.Callback
+			return fs.finalizeReadFileOp(op, fastErr)
+		}
+	}
 
 	fh.Inode().Lock()
 	if fh.Inode().IsUsingStreamingWriteHandler() {
@@ -3106,7 +3155,7 @@ func (fs *fileSystem) ReadFile(
 
 		if err != nil {
 			fh.Inode().Unlock()
-			return err
+			return fs.finalizeReadFileOp(op, err)
 		}
 	}
 	// Serve the read.
@@ -3148,6 +3197,10 @@ func (fs *fileSystem) ReadFile(
 		op.Dst, op.BytesRead, err = fh.Read(ctx, op.Dst, op.Offset, fs.sequentialReadSizeMb)
 	}
 
+	return fs.finalizeReadFileOp(op, err)
+}
+
+func (fs *fileSystem) finalizeReadFileOp(op *fuseops.ReadFileOp, err error) error {
 	// A FileClobberedError indicates the underlying GCS object has changed,
 	// making the kernel's dentry for this file stale. We use the notifier to
 	// invalidate this entry, providing feedback to the kernel about the dynamic
@@ -3161,11 +3214,19 @@ func (fs *fileSystem) ReadFile(
 		}
 	}
 	// As required by fuse, we don't treat EOF as an error.
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		err = nil
 	}
+	if err != nil {
+		if op.Callback != nil {
+			op.Callback()
+			op.Callback = nil
+		}
+		op.Data = nil
+		op.BytesRead = 0
+	}
 
-	return
+	return err
 }
 
 // LOCKS_EXCLUDED(fs.mu)

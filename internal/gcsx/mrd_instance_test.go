@@ -18,12 +18,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	storagev2 "cloud.google.com/go/storage"
 	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
 	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
@@ -36,6 +39,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/mem"
+	"google.golang.org/grpc/status"
 )
 
 type MrdInstanceTest struct {
@@ -971,4 +977,264 @@ func (t *MrdInstanceTest) Test_Cache_MultipleEvictions() {
 		assert.NotNil(t.T(), instances[i].mrdPool, "Instance %d should be in cache", i)
 		instances[i].poolMu.RUnlock()
 	}
+}
+
+type customAddMRD struct {
+	gcs.MultiRangeDownloader
+	addFn func(output io.Writer, offset, length int64, callback func(int64, int64, error))
+}
+
+func (m *customAddMRD) Add(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+	m.addFn(output, offset, length, callback)
+}
+
+func (m *customAddMRD) Close() error      { return nil }
+func (m *customAddMRD) Wait()             {}
+func (m *customAddMRD) Error() error      { return nil }
+func (m *customAddMRD) GetHandle() []byte { return nil }
+
+type countingMetricHandle struct {
+	metrics.MetricHandle
+	addCount     atomic.Int64
+	latencyCount atomic.Int64
+}
+
+func (m *countingMetricHandle) GcsRequestCount(inc int64, method metrics.GcsMethod) {
+	if method == "MultiRangeDownloader::Add" {
+		m.addCount.Add(inc)
+	}
+}
+
+func (m *countingMetricHandle) GcsRequestLatencies(_ context.Context, _ time.Duration, method metrics.GcsMethod) {
+	if method == "MultiRangeDownloader::Add" {
+		m.latencyCount.Add(1)
+	}
+}
+
+func (t *MrdInstanceTest) TestReadVectored_PartialShortReadWithPinnedBuffers_CopiesToDestOnError() {
+	outOfRangeErr := status.Error(codes.OutOfRange, "out of range")
+	pool := mem.DefaultBufferPool()
+	rawBuf := pool.Get(2048)
+	copy((*rawBuf)[:6], "hello ")
+	pinnedSlice := (*rawBuf)[:6]
+
+	mrd := &customAddMRD{
+		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+			buf := mem.NewBuffer(rawBuf, pool)
+			var n int
+			if zcw, ok := output.(storagev2.ZeroCopyWriter); ok {
+				n, _ = zcw.WriteZeroCopy(pinnedSlice, buf)
+			} else {
+				n, _ = output.Write(pinnedSlice)
+			}
+			buf.Free()
+			callback(offset, int64(n), outOfRangeErr)
+		},
+	}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Once()
+
+	dst := make([]byte, 11)
+	resp, err := t.mrdInstance.ReadVectored(context.Background(), dst, 0, metrics.NewNoopMetrics())
+
+	assert.ErrorIs(t.T(), err, outOfRangeErr)
+	assert.Equal(t.T(), 6, resp.Size)
+	assert.Nil(t.T(), resp.Data)
+	assert.Nil(t.T(), resp.Callback)
+	assert.Equal(t.T(), "hello ", string(dst[:6]))
+}
+
+func (t *MrdInstanceTest) TestReadVectored_ContextCancelled_DoesNotMutateCallerBufferInBackground() {
+	writeStarted := make(chan struct{})
+	allowBackgroundWrite := make(chan struct{})
+	bgDone := make(chan struct{})
+
+	mrd := &customAddMRD{
+		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+			go func() {
+				defer close(bgDone)
+				close(writeStarted)
+				<-allowBackgroundWrite
+				_, _ = output.Write([]byte("mutated"))
+				callback(offset, 7, nil)
+			}()
+		},
+	}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Once()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-writeStarted
+		cancel()
+	}()
+
+	dst := []byte("initial")
+	resp, err := t.mrdInstance.ReadVectored(ctx, dst, 0, metrics.NewNoopMetrics())
+	assert.ErrorIs(t.T(), err, context.Canceled)
+	assert.Equal(t.T(), 0, resp.Size)
+
+	// Unblock background MRD write after ReadVectored has returned and access dst concurrently.
+	close(allowBackgroundWrite)
+	assert.Equal(t.T(), "initial", string(dst))
+	<-bgDone
+	assert.Equal(t.T(), "initial", string(dst))
+}
+
+func (t *MrdInstanceTest) TestMrdPrefetchChunk_Write_SkipsWhenAbandoned() {
+	chunk := mrdPrefetchChunkPool.Get().(*MrdPrefetchChunk)
+	chunk.Offset = 0
+	chunk.Length = 1024
+	chunk.Consumed = 0
+	chunk.done = make(chan struct{})
+	chunk.refs.Store(2)
+	chunk.written = 0
+	chunk.err = nil
+	chunk.fallback = nil
+
+	// Release queue reference so refs drops to 1 (only MRD callback ref left).
+	chunk.Release()
+	assert.Equal(t.T(), int32(1), chunk.refs.Load())
+
+	n, err := chunk.Write([]byte("abandoned payload"))
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), len("abandoned payload"), n)
+	assert.Equal(t.T(), 0, chunk.written)
+	assert.Empty(t.T(), chunk.slices)
+	assert.Empty(t.T(), chunk.held)
+	assert.Nil(t.T(), chunk.fallback)
+
+	pool := mem.DefaultBufferPool()
+	rawBuf := pool.Get(2048)
+	mb := mem.NewBuffer(rawBuf, pool)
+	n2, err := chunk.WriteZeroCopy((*rawBuf)[:17], mb)
+	mb.Free()
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 17, n2)
+	assert.Equal(t.T(), 0, chunk.written)
+	assert.Empty(t.T(), chunk.slices)
+	assert.Empty(t.T(), chunk.held)
+
+	// Final release from MRD callback returns chunk to pool.
+	chunk.Release()
+}
+
+func (t *MrdInstanceTest) TestStartPrefetchChunk_CapturesMetrics() {
+	data := []byte("hello world")
+	fakeMRD := fake.NewFakeMultiRangeDownloader(t.object, data)
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(fakeMRD, nil).Once()
+
+	mh := &countingMetricHandle{MetricHandle: metrics.NewNoopMetrics()}
+	chunk, err := t.mrdInstance.StartPrefetchChunk(0, 5, mh)
+	assert.NoError(t.T(), err)
+	assert.NotNil(t.T(), chunk)
+
+	err = chunk.Wait(context.Background(), false)
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), int64(1), mh.addCount.Load())
+	assert.Equal(t.T(), int64(1), mh.latencyCount.Load())
+	chunk.Release()
+}
+
+func (t *MrdInstanceTest) TestObjectSizeAndGeneration() {
+	size, gen := t.mrdInstance.ObjectSizeAndGeneration()
+	assert.Equal(t.T(), t.object.Size, size)
+	assert.Equal(t.T(), t.object.Generation, gen)
+
+	t.mrdInstance.object = nil
+	size, gen = t.mrdInstance.ObjectSizeAndGeneration()
+	assert.Equal(t.T(), uint64(0), size)
+	assert.Equal(t.T(), int64(0), gen)
+}
+
+func (t *MrdInstanceTest) TestReadVectored_PinnedSlicesHaveCappedCapacity() {
+	pool := mem.DefaultBufferPool()
+	rawBuf := pool.Get(2048)
+	copy((*rawBuf)[:11], "hello world")
+	pinnedSlice := (*rawBuf)[:11]
+
+	mrd := &customAddMRD{
+		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+			buf := mem.NewBuffer(rawBuf, pool)
+			var n int
+			if zcw, ok := output.(storagev2.ZeroCopyWriter); ok {
+				n, _ = zcw.WriteZeroCopy(pinnedSlice, buf)
+			} else {
+				n, _ = output.Write(pinnedSlice)
+			}
+			buf.Free()
+			callback(offset, int64(n), nil)
+		},
+	}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Once()
+
+	dst := make([]byte, 11)
+	resp, err := t.mrdInstance.ReadVectored(context.Background(), dst, 0, metrics.NewNoopMetrics())
+
+	assert.NoError(t.T(), err)
+	assert.Equal(t.T(), 11, resp.Size)
+	assert.NotNil(t.T(), resp.Callback)
+	assert.Len(t.T(), resp.Data, 1)
+	assert.Equal(t.T(), len(resp.Data), cap(resp.Data), "returned Data slice capacity must be capped to length")
+	assert.Equal(t.T(), len(resp.Data[0]), cap(resp.Data[0]), "returned payload slice capacity must be capped to length")
+	resp.Callback()
+}
+
+func (t *MrdInstanceTest) TestMrdPrefetchChunk_Slice_HasCappedCapacityAndDoesNotMutateUnreadTail() {
+	pool := mem.DefaultBufferPool()
+	rawBuf1 := pool.Get(2048)
+	rawBuf2 := pool.Get(2048)
+	copy((*rawBuf1)[:10], "0123456789")
+	copy((*rawBuf2)[:10], "abcdefghij")
+
+	mrd := &customAddMRD{
+		addFn: func(output io.Writer, offset, length int64, callback func(int64, int64, error)) {
+			buf1 := mem.NewBuffer(rawBuf1, pool)
+			buf2 := mem.NewBuffer(rawBuf2, pool)
+			if zcw, ok := output.(storagev2.ZeroCopyWriter); ok {
+				_, _ = zcw.WriteZeroCopy((*rawBuf1)[:10], buf1)
+				_, _ = zcw.WriteZeroCopy((*rawBuf2)[:10], buf2)
+			} else {
+				_, _ = output.Write((*rawBuf1)[:10])
+				_, _ = output.Write((*rawBuf2)[:10])
+			}
+			buf1.Free()
+			buf2.Free()
+			callback(offset, 20, nil)
+		},
+	}
+	t.bucket.On("NewMultiRangeDownloader", mock.Anything, mock.Anything).Return(mrd, nil).Once()
+
+	chunk, err := t.mrdInstance.StartPrefetchChunk(0, 20, metrics.NewNoopMetrics())
+	assert.NoError(t.T(), err)
+	assert.NoError(t.T(), chunk.Wait(context.Background(), false))
+
+	// Take a mid-chunk sub-range [3, 15) spanning both slices where relStart > 0 and relEnd < c.written.
+	chunk.Retain()
+	resp1, ok := chunk.Slice(3, 15)
+	assert.True(t.T(), ok)
+	assert.Equal(t.T(), 12, resp1.Size)
+	assert.Len(t.T(), resp1.Data, 2)
+	assert.Equal(t.T(), len(resp1.Data), cap(resp1.Data), "outer resp.Data slice capacity must be capped to length")
+	for i, s := range resp1.Data {
+		assert.Equal(t.T(), len(s), cap(s), "inner slice %d capacity must be capped to length", i)
+		// Appending to resp1.Data[i] must allocate a new backing array and NOT overwrite unread tail in chunk.slices.
+		_ = append(s, 'X', 'Y', 'Z')
+	}
+
+	// Verify the unread tail [15, 20) in the chunk was not mutated by the append on resp1.Data[i].
+	chunk.Retain()
+	resp2, ok := chunk.Slice(15, 20)
+	assert.True(t.T(), ok)
+	assert.Equal(t.T(), 5, resp2.Size)
+	assert.Len(t.T(), resp2.Data, 1)
+	assert.Equal(t.T(), len(resp2.Data), cap(resp2.Data))
+	assert.Equal(t.T(), len(resp2.Data[0]), cap(resp2.Data[0]))
+	assert.Equal(t.T(), "fghij", string(resp2.Data[0]))
+
+	if resp1.Callback != nil {
+		resp1.Callback()
+	}
+	if resp2.Callback != nil {
+		resp2.Callback()
+	}
+	chunk.Release()
 }
