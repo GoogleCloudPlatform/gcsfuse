@@ -1,0 +1,30 @@
+--- a/engines/mmap.c
++++ b/engines/mmap.c
+@@ -9,6 +9,7 @@
+ #include <stdlib.h>
+ #include <errno.h>
+ #include <sys/mman.h>
++#include <sys/stat.h>
+ 
+ #include "../fio.h"
+ #include "../optgroup.h"
+@@ -195,6 +196,19 @@
+ 	int ret;
+ 
+ 	/*
++	 * ADM patch: files added by read_iolog skip setup_files() sizing, so
++	 * ->io_size is 0 and mmap() fails with EINVAL. Size them from the fd.
++	 */
++	if (!f->io_size && f->fd != -1) {
++		struct stat st;
++
++		if (!fstat(f->fd, &st) && st.st_size > 0) {
++			f->real_file_size = st.st_size;
++			f->io_size = st.st_size - f->file_offset;
++		}
++	}
++
++	/*
+ 	 * It fits within existing mapping, use it
+ 	 */
+ 	if (io_u->offset >= fmd->mmap_off &&
