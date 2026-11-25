@@ -17,7 +17,7 @@ package diskutil
 import (
 	"syscall"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
 )
 
 const (

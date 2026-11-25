@@ -21,12 +21,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg/pb"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg/pb"
+	"github.com/googlecloudplatform/gcsfuse/v4/common"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -445,6 +445,11 @@ func (t *MainTest) TestForwardedEnvVars_PassedWhenSet() {
 			expectedForwardedEnvVars: []string{"GCE_METADATA_HOST=www.metadata-host.com", "GCE_METADATA_ROOT=metadata-root", "GCE_METADATA_IP=99.100.101.102"},
 		},
 		{
+			name:                     "Storage emulator env vars",
+			inputEnvVars:             map[string]string{"STORAGE_EMULATOR_HOST": "http://localhost:9000", "STORAGE_EMULATOR_HOST_GRPC": "localhost:8888"},
+			expectedForwardedEnvVars: []string{"STORAGE_EMULATOR_HOST=http://localhost:9000", "STORAGE_EMULATOR_HOST_GRPC=localhost:8888"},
+		},
+		{
 			name:                     "GOOGLE_APPLICATION_CREDENTIALS",
 			inputEnvVars:             map[string]string{"GOOGLE_APPLICATION_CREDENTIALS": "goog-app-cred"},
 			expectedForwardedEnvVars: []string{"GOOGLE_APPLICATION_CREDENTIALS=goog-app-cred"},
@@ -489,6 +494,8 @@ func (t *MainTest) TestForwardedEnvVars_NotPassedWhenUnset() {
 		"GOOGLE_CLOUD_PROJECT",
 		"GRPC_GO_LOG_VERBOSITY_LEVEL",
 		"GRPC_GO_LOG_SEVERITY_LEVEL",
+		"STORAGE_EMULATOR_HOST",
+		"STORAGE_EMULATOR_HOST_GRPC",
 		"no_proxy",
 	}
 
@@ -503,6 +510,12 @@ func (t *MainTest) TestForwardedEnvVars_NotPassedWhenUnset() {
 }
 
 func (t *MainTest) TestGetMountConfigsHeader() {
+	const (
+		longMountID = "1234567890123456789012345678901234567890123456789012345678901234" +
+			"1234567890123456789012345678901234567890123456789012345678901234" +
+			"1234567890123456789012345678901234567890123456789012345678901234" +
+			"1234567890123456789012345678901234567890123456789012345678901234"
+	)
 	testCases := []struct {
 		name            string
 		mountConfig     *cfg.Config
@@ -540,6 +553,19 @@ func (t *MainTest) TestGetMountConfigsHeader() {
 			mountInstanceID: "testFS-\xfe",
 			expectedAppName: "app\uFFFD",
 			expectedMountID: "testFS-\uFFFD",
+		},
+		{
+			name:            "LongAppNameIsCapped",
+			mountConfig:     &cfg.Config{AppName: "123456789012345678901234567890123456"},
+			mountInstanceID: "testFS-123",
+			expectedAppName: "12345678901234567890123456789012345",
+			expectedMountID: "testFS-123",
+		},
+		{
+			name:            "LongMountIDIsCapped",
+			mountConfig:     &cfg.Config{},
+			mountInstanceID: longMountID + "a",
+			expectedMountID: longMountID,
 		},
 	}
 

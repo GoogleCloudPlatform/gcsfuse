@@ -17,8 +17,8 @@ package buffer
 import (
 	"sync"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
 )
 
 // Pool defines an interface for on-demand buffer allocation and recycling.

@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/google/s2a-go"
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/auth"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 	dns "github.com/ncruces/go-dns"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"

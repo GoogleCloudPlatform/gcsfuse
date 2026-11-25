@@ -31,26 +31,26 @@ import (
 	"strings"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/tracing"
 	"golang.org/x/sys/unix"
 
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg/pb"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/mountstatus"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/profiler"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg/pb"
+	"github.com/googlecloudplatform/gcsfuse/v4/common"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/kernelparams"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/monitor"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/mountstatus"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/profiler"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
@@ -149,6 +149,10 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	return strings.Join(parts, ":")
 }
 
+// maxMountIDLen caps the mount ID sent in the telemetry payload. GCS clears
+// longer mount IDs on its side.
+const maxMountIDLen = 256
+
 // getMountConfigsHeader returns the base64url-encoded ConfigPayload sent on
 // GetStorageLayout, or "" if it can't be built, since telemetry must never fail
 // the mount. GCS base64url-decodes the whole value and drops it on failure, so
@@ -158,10 +162,9 @@ func getMountConfigsHeader(mountConfig *cfg.Config, mountInstanceID string) stri
 		return ""
 	}
 	payload := &pb.ConfigPayload{
-		Config: mountConfig.ToProto(),
-		// proto3 string fields must be valid UTF-8, otherwise Marshal fails.
-		AppName: strings.ToValidUTF8(mountConfig.AppName, "\uFFFD"),
-		MountId: strings.ToValidUTF8(mountInstanceID, "\uFFFD"),
+		Config:  mountConfig.ToProto(),
+		AppName: cfg.TruncateProtoString(mountConfig.AppName, cfg.MaxProtoStringLen),
+		MountId: cfg.TruncateProtoString(mountInstanceID, maxMountIDLen),
 	}
 	data, err := proto.Marshal(payload)
 	if err != nil {
@@ -370,8 +373,9 @@ func forwardedEnvVars() []string {
 	// also be included to know for which hosts the use of proxies
 	// should be ignored.
 	// Forward GCE_METADATA_HOST, GCE_METADATA_ROOT, GCE_METADATA_IP as these are used for mocked metadata services.
+	// Forward STORAGE_EMULATOR_HOST and STORAGE_EMULATOR_HOST_GRPC as these are used for storage emulator tests.
 	// Forward GRPC_GO_LOG_VERBOSITY_LEVEL and GRPC_GO_LOG_SEVERITY_LEVEL as these are used to enable grpc debug logs.
-	for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_PROJECT", "no_proxy", "GCE_METADATA_HOST", "GCE_METADATA_ROOT", "GCE_METADATA_IP", "GRPC_GO_LOG_VERBOSITY_LEVEL", "GRPC_GO_LOG_SEVERITY_LEVEL"} {
+	for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_PROJECT", "no_proxy", "GCE_METADATA_HOST", "GCE_METADATA_ROOT", "GCE_METADATA_IP", "STORAGE_EMULATOR_HOST", "STORAGE_EMULATOR_HOST_GRPC", "GRPC_GO_LOG_VERBOSITY_LEVEL", "GRPC_GO_LOG_SEVERITY_LEVEL"} {
 		if envval, ok := os.LookupEnv(envvar); ok {
 			env = append(env, fmt.Sprintf("%s=%s", envvar, envval))
 			fmt.Fprintf(

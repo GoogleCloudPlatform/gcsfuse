@@ -19,8 +19,8 @@ import (
 
 	"context"
 
-	newcfg "github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/wrappers"
+	newcfg "github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs/wrappers"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 )

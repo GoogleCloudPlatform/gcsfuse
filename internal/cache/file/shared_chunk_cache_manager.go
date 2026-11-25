@@ -23,9 +23,9 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 )
 
 // SharedChunkCacheManager manages a file cache that can be safely shared across

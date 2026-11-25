@@ -28,7 +28,7 @@ import (
 	"text/template" // NOLINT
 	"unicode"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg/shared"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg/shared"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )

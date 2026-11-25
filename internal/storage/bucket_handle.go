@@ -29,9 +29,9 @@ import (
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
 	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/storageutil"
 	"google.golang.org/api/iterator"
 )
 

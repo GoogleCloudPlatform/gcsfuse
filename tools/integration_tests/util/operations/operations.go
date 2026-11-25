@@ -23,7 +23,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/util"
 )
 
 // GenerateRandomData generates random data that can be used to write to a file.

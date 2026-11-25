@@ -22,10 +22,10 @@ import (
 	"context"
 
 	storagev2 "cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/clock"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/clock"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 )
 
 // InactiveTimeoutReader is a wrapper over gcs.StorageReader that automatically

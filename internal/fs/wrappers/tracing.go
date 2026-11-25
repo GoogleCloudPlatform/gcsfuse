@@ -20,7 +20,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	"github.com/googlecloudplatform/gcsfuse/v4/tracing"
 )
 
 type tracedFS struct {

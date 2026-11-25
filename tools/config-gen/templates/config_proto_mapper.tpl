@@ -20,13 +20,39 @@ package cfg
 import (
 	"encoding/base64"
 	"fmt"
+	"strings"
+	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg/pb"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg/pb"
 	"google.golang.org/protobuf/proto"
 )
 
+// MaxProtoStringLen is the maximum length, in bytes, of the raw strings sent in
+// the telemetry payload: the whitelisted free-text flags (machine-type,
+// profile), the enum-like flags and the app name. It's sized for GCE machine
+// type names, the longest values sent: the 655 predefined types (Nov 2026)
+// average 15 characters, with a p99 of 27 and a max of 34, so 35 fits all of
+// them. Valid enum and profile values are all shorter.
+const MaxProtoStringLen = 35
+
+// TruncateProtoString makes s safe to send as a proto3 string field: invalid
+// UTF-8 is replaced with U+FFFD (otherwise Marshal fails), and the result is
+// capped at maxLen bytes without splitting a character.
+func TruncateProtoString(s string, maxLen int) string {
+	s = strings.ToValidUTF8(s, "\uFFFD")
+	if len(s) <= maxLen {
+		return s
+	}
+	cut := maxLen
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
+}
+
 // ToProto maps a cfg.Config into its flat Protobuf pb.Config representation.
-// High-risk text fields (strings, paths) are booleanized to prevent PII leakage.
+// High-risk text fields (strings, paths) are booleanized to prevent PII leakage,
+// and the remaining raw strings are capped at MaxProtoStringLen.
 func (config *Config) ToProto() *pb.Config {
 	if config == nil {
 		return nil

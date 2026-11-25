@@ -20,8 +20,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 )

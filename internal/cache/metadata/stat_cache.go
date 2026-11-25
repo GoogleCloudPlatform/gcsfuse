@@ -18,11 +18,11 @@ import (
 	"math"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 )
 
 // 9223372036 is math.MaxInt64 / 1,000,000,000 (max seconds representable in nanoseconds)

@@ -20,8 +20,8 @@ import (
 	"time"
 
 	storagev2 "cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 )
 
 // recordRequest records a request and its latency.

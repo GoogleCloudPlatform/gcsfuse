@@ -28,11 +28,11 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/client"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/client"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/test_suite"
 )
 
 const (

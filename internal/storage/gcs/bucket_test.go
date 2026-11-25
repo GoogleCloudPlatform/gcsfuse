@@ -17,7 +17,7 @@ package gcs
 import (
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -16,8 +16,8 @@ package profiler
 
 import (
 	cloudprofiler "cloud.google.com/go/profiler"
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
 	"google.golang.org/api/option"
 )
 

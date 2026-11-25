@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/benchmarks/internal/percentile"
+	"github.com/googlecloudplatform/gcsfuse/v4/benchmarks/internal/percentile"
 	"github.com/stretchr/testify/assert"
 )
 

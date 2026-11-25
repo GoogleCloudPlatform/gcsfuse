@@ -31,9 +31,9 @@ import (
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	"cloud.google.com/go/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/mounting/static_mounting"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/mounting/static_mounting"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/test_suite"
 	"github.com/stretchr/testify/require"
 )
 

@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

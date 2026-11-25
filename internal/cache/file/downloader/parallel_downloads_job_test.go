@@ -25,10 +25,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/data"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
-	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/data"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/util"
+	testutil "github.com/googlecloudplatform/gcsfuse/v4/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

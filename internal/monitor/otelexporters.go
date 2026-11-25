@@ -31,10 +31,10 @@ import (
 	"golang.org/x/oauth2/google"
 
 	cloudmetric "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/auth"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/common"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/auth"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
@@ -321,11 +321,12 @@ func setupPrometheus(port int64) ([]metric.Option, common.ShutdownFn) {
 }
 
 func serveMetrics(port int64, shutdownCh <-chan context.Context, done chan<- any) {
-	logger.Infof("Serving metrics at localhost:%d/metrics", port)
+	listenAddress := fmt.Sprintf(":%d", port)
+	logger.Infof("Serving metrics over HTTP on all interfaces at %s/metrics", listenAddress)
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	prometheusServer := &http.Server{
-		Addr:           fmt.Sprintf(":%d", port),
+		Addr:           listenAddress,
 		Handler:        mux,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,

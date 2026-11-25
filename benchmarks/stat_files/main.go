@@ -30,7 +30,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/benchmarks/internal/format"
+	"github.com/googlecloudplatform/gcsfuse/v4/benchmarks/internal/format"
 	"github.com/jacobsa/fuse/fsutil"
 )
 

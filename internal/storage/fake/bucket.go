@@ -30,9 +30,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/storageutil"
 	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 )

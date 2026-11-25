@@ -24,7 +24,7 @@ import (
 
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 )
 
 // Create an objectCreator that accepts a source object and the contents that

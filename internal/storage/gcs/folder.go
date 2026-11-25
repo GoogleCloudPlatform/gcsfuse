@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage/control/apiv2/controlpb"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
 )
 
 type Folder struct {

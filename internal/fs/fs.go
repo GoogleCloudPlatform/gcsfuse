@@ -30,31 +30,31 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util/diskutil"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/kernelparams"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/workerpool"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/tracing"
 
 	"golang.org/x/sync/semaphore"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/handle"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/buffer"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/lru"
+	cacheutil "github.com/googlecloudplatform/gcsfuse/v4/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs/handle"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -959,7 +959,7 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			fs.newConfig,
 		)
 
-	case inode.IsSymlink(ic.MinObject):
+	case !fs.newConfig.FileSystem.DisableSymlinks && inode.IsSymlink(ic.MinObject):
 		in, err = inode.NewSymlinkInode(
 			parInodeCtx,
 			id,
@@ -1559,12 +1559,13 @@ func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
 // LOCKS_REQUIRED(in)
 func (fs *fileSystem) getAttributes(
 	ctx context.Context,
-	in inode.Inode) (
+	in inode.Inode,
+	clobberedCheck bool) (
 	attr fuseops.InodeAttributes,
 	expiration time.Time,
 	err error) {
 	// Call through.
-	size, mtime, nlink, err := in.Attributes(ctx, true)
+	size, mtime, nlink, err := in.Attributes(ctx, clobberedCheck)
 	if err != nil {
 		return
 	}
@@ -1687,7 +1688,7 @@ func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name,
 	defer child.Unlock()
 
 	// Extract the child's attributes.
-	attributes, expiration, err := fs.getAttributes(ctx, child)
+	attributes, expiration, err := fs.getAttributes(ctx, child, false)
 	if err != nil {
 		// The inode is valid, but we couldn't get attributes.
 		return nil, fmt.Errorf("coreToDirentPlus: unable to fetch attributes for %s: %w", path.Base(fullName.LocalName()), err)
@@ -1712,7 +1713,11 @@ func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name,
 	// Set the directory entry type based on the core type.
 	switch core.Type() {
 	case metadata.SymlinkType:
-		entryPlus.Dirent.Type = fuseutil.DT_Link
+		if fs.newConfig.FileSystem.DisableSymlinks {
+			entryPlus.Dirent.Type = fuseutil.DT_File
+		} else {
+			entryPlus.Dirent.Type = fuseutil.DT_Link
+		}
 	case metadata.RegularFileType:
 		entryPlus.Dirent.Type = fuseutil.DT_File
 	case metadata.ImplicitDirType, metadata.ExplicitDirType:
@@ -1765,7 +1770,7 @@ func (fs *fileSystem) lookupAndFetchAttributesForLocalFileEntriesPlus(parentName
 			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: local file %q disappeared", localEntryName)
 		}
 		// Fetch attributes from the child inode.
-		attrs, expiration, err := fs.getAttributes(context.Background(), child)
+		attrs, expiration, err := fs.getAttributes(context.Background(), child, false)
 		if err != nil {
 			child.Unlock()
 			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: unable to fetch attributes for %s: %w", localEntryName, err)
@@ -1899,7 +1904,7 @@ func (fs *fileSystem) LookUpInode(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, false)
 	if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
 		e.EntryExpiration = e.AttributesExpiration
 	}
@@ -1924,7 +1929,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	defer in.Unlock()
 
 	// Grab its attributes.
-	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
+	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in, true)
 	if err != nil {
 		return err
 	}
@@ -1976,7 +1981,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	// We silently ignore updates to mode and atime.
 
 	// Fill in the response.
-	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
+	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in, true)
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
 		return err
@@ -2046,7 +2051,7 @@ func (fs *fileSystem) MkDir(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, false)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
@@ -2075,7 +2080,7 @@ func (fs *fileSystem) MkNode(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, false)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
@@ -2241,7 +2246,7 @@ func (fs *fileSystem) CreateFile(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, false)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
@@ -2255,6 +2260,9 @@ func (fs *fileSystem) CreateFile(
 func (fs *fileSystem) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
+	if fs.newConfig.FileSystem.DisableSymlinks {
+		return syscall.ENOTSUP
+	}
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2295,7 +2303,7 @@ func (fs *fileSystem) CreateSymlink(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, false)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
@@ -3142,6 +3150,9 @@ func (fs *fileSystem) ReadFile(
 func (fs *fileSystem) ReadSymlink(
 	ctx context.Context,
 	op *fuseops.ReadSymlinkOp) (err error) {
+	if fs.newConfig.FileSystem.DisableSymlinks {
+		return syscall.ENOTSUP
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.symlinkInodeOrDie(op.Inode)

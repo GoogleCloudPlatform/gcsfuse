@@ -19,9 +19,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

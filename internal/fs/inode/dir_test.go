@@ -26,24 +26,24 @@ import (
 
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	storagemock "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/mock"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	storagemock "github.com/googlecloudplatform/gcsfuse/v4/internal/storage/mock"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/tracing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/gcsx"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
@@ -2430,4 +2430,51 @@ func (t *DirTest) TestMetadataPrefetcher_InitializationGuards() {
 			assert.Equal(st, tc.expectActive, d.prefetcher != nil)
 		})
 	}
+}
+
+func (t *DirTest) TestReadEntries_DisableSymlinks() {
+	config := &cfg.Config{
+		List:                         cfg.ListConfig{EnableEmptyManagedFolders: true},
+		MetadataCache:                cfg.MetadataCacheConfig{TypeCacheMaxSizeMb: 4},
+		FileSystem:                   cfg.FileSystemConfig{DisableSymlinks: true},
+		EnableHns:                    false,
+		EnableUnsupportedPathSupport: true,
+		EnableTypeCacheDeprecation:   isTypeCacheDeprecationEnabled,
+		EnableStandardSymlinks:       true,
+	}
+	in := NewDirInode(
+		dirInodeID,
+		NewDirName(NewRootName(""), dirInodeName),
+		context.Background(),
+		false,
+		false,
+		typeCacheTTL,
+		&t.bucket,
+		&t.clock,
+		&t.clock,
+		semaphore.NewWeighted(10),
+		config,
+	)
+	in.Lock()
+	defer in.Unlock()
+
+	objs := []string{
+		dirInodeName + "file",
+		dirInodeName + "symlink",
+	}
+	err := storageutil.CreateEmptyObjects(t.ctx, t.bucket, objs)
+	require.NoError(t.T(), err)
+	err = t.setSymlinkTarget(dirInodeName + "symlink")
+	require.NoError(t.T(), err)
+
+	entries, _, tok, err := in.ReadEntries(t.ctx, "")
+
+	require.NoError(t.T(), err)
+	assert.Empty(t.T(), tok)
+	sort.Sort(DirentSlice(entries))
+	require.Equal(t.T(), 2, len(entries))
+	assert.Equal(t.T(), "file", entries[0].Name)
+	assert.Equal(t.T(), fuseutil.DT_File, entries[0].Type)
+	assert.Equal(t.T(), "symlink", entries[1].Name)
+	assert.Equal(t.T(), fuseutil.DT_File, entries[1].Type)
 }

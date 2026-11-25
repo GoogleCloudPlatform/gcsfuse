@@ -20,8 +20,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/locker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
