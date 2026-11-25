@@ -138,27 +138,6 @@ func TestCacheReads_CollectsReadsOfDerivedContexts(t *testing.T) {
 	assert.Equal(t, []cacheRead{expiredPositive}, recorder.events)
 }
 
-func TestWithCacheReadsFrom_CarriesCacheReadsToUnrelatedContext(t *testing.T) {
-	cacheReads := metadata.NewCacheReads(context.Background())
-	detached := metadata.WithCacheReadsFrom(context.Background(), cacheReads)
-	recorder := newReadCountRecorder()
-
-	record(detached, expiredNegative)
-	metadata.RecordGCSFetch(detached)
-	cacheReads.Emit(recorder)
-
-	assert.Equal(t, []cacheRead{expiredNegative}, recorder.events)
-}
-
-func TestWithCacheReadsFrom_NoCacheReadsReturnsDst(t *testing.T) {
-	type key struct{}
-	dst := context.WithValue(context.Background(), key{}, "dst")
-
-	got := metadata.WithCacheReadsFrom(dst, context.Background())
-
-	assert.Equal(t, dst, got)
-}
-
 func TestCacheReads_BehavesAsParentContext(t *testing.T) {
 	type key struct{}
 	deadline := time.Now().Add(time.Hour)

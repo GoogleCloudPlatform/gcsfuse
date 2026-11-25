@@ -302,38 +302,61 @@ func TestWithIgnoreInterrupts_Destroy(t *testing.T) {
 }
 
 func TestWithIgnoreInterrupts_PreservesTracingAndMonitoringContext(t *testing.T) {
-	ex := newInMemoryExporter(t)
-	tracer := tracing.NewOTELTracer()
-	recorder := &readCountRecorder{MetricHandle: metrics.NewNoopMetrics()}
-
-	inner := &ctxRecordingFS{
-		onCall: func(ctx context.Context) {
-			assert.NoError(t, ctx.Err())
-			_, childSpan := tracer.StartSpan(ctx, "inner.op")
-			tracer.EndSpan(childSpan)
-			metadata.RecordCacheRead(ctx, true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr)
-		},
+	testCases := []struct {
+		name            string
+		cancelMidFlight bool
+	}{
+		{name: "canceled_before_call", cancelMidFlight: false},
+		{name: "canceled_mid_flight", cancelMidFlight: true},
 	}
 
-	// Match the production wrapper stack in NewServer:
-	// WithMonitoring -> WithTracing -> WithIgnoreInterrupts -> inner FS.
-	fs := WithIgnoreInterrupts(inner)
-	fs = WithTracing(fs, tracer)
-	fs = WithMonitoring(fs, recorder)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newInMemoryExporter(t)
+			tracer := tracing.NewOTELTracer()
+			recorder := &readCountRecorder{MetricHandle: metrics.NewNoopMetrics()}
 
-	canceledCtx, cancel := context.WithCancel(context.Background())
-	cancel()
+			reqCtx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
-	require.NoError(t, fs.LookUpInode(canceledCtx, &fuseops.LookUpInodeOp{}))
+			inner := &ctxRecordingFS{
+				onCall: func(ctx context.Context) {
+					if tc.cancelMidFlight {
+						// Mirror FUSE_INTERRUPT arriving while an op is in progress.
+						cancel()
+						require.ErrorIs(t, reqCtx.Err(), context.Canceled)
+					}
+					assert.NoError(t, ctx.Err())
+					assert.Nil(t, ctx.Done())
+					_, childSpan := tracer.StartSpan(ctx, "inner.op")
+					tracer.EndSpan(childSpan)
+					metadata.RecordCacheRead(ctx, true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr)
+				},
+			}
 
-	// Metadata cache read recorded inside the wrapped FS is emitted by WithMonitoring.
-	assert.Equal(t, []readCountEvent{
-		{true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr},
-	}, recorder.events)
+			// Match the production wrapper stack in NewServer verbatim:
+			// WithMonitoring -> WithTracing -> WithErrorMapping -> WithIgnoreInterrupts -> inner FS.
+			fs := WithIgnoreInterrupts(inner)
+			fs = WithErrorMapping(fs)
+			fs = WithTracing(fs, tracer)
+			fs = WithMonitoring(fs, recorder)
 
-	// Child span created inside the wrapped FS shares the trace ID with WithTracing's root span.
-	spans := ex.GetSpans()
-	require.Len(t, spans, 2)
-	assert.Equal(t, spans[0].SpanContext.TraceID(), spans[1].SpanContext.TraceID())
-	assert.Equal(t, spans[1].SpanContext.SpanID(), spans[0].Parent.SpanID())
+			if !tc.cancelMidFlight {
+				cancel()
+			}
+
+			require.NoError(t, fs.LookUpInode(reqCtx, &fuseops.LookUpInodeOp{}))
+
+			// Metadata cache read recorded inside the wrapped FS is emitted by WithMonitoring.
+			assert.Equal(t, []readCountEvent{
+				{true, metrics.EntryStatusPositiveAttr, metrics.LookupDetailFoundAttr},
+			}, recorder.events)
+
+			// Child span created inside the wrapped FS shares the trace ID with WithTracing's root span.
+			spans := ex.GetSpans()
+			require.Len(t, spans, 2)
+			assert.Equal(t, spans[0].SpanContext.TraceID(), spans[1].SpanContext.TraceID())
+			assert.Equal(t, spans[1].SpanContext.SpanID(), spans[0].Parent.SpanID())
+		})
+	}
 }
