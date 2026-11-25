@@ -86,6 +86,9 @@ func createTestFileSystemWithTraces(ctx context.Context, t *testing.T, ignoreInt
 	}
 	server, err := fs.NewFileSystem(ctx, serverCfg)
 	require.NoError(t, err, "NewFileSystem")
+	if ignoreInterrupts {
+		server = wrappers.WithIgnoreInterrupts(server)
+	}
 	return bucket, server
 }
 

@@ -32,6 +32,9 @@ func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
 		return nil, fmt.Errorf("create file system: %w", err)
 	}
 
+	if cfg.NewConfig.FileSystem.IgnoreInterrupts {
+		fs = wrappers.WithIgnoreInterrupts(fs)
+	}
 	fs = wrappers.WithErrorMapping(fs)
 	if newcfg.IsTracingEnabled(cfg.NewConfig) {
 		fs = wrappers.WithTracing(fs, cfg.TraceHandle)

@@ -97,6 +97,7 @@ func newProductionLikeMetadataCacheFS(ctx context.Context, t *testing.T, opts me
 		BucketManager:       &fakeBucketManagerWithMetrics{buckets: map[string]gcs.Bucket{bucketName: bucket}},
 	})
 	require.NoError(t, err, "NewFileSystem")
+	server = wrappers.WithIgnoreInterrupts(server)
 	return &metadataCacheTestEnv{
 		bucket: uncachedBucket,
 		server: wrappers.WithMonitoring(server, mh),
@@ -107,14 +108,17 @@ func newProductionLikeMetadataCacheFS(ctx context.Context, t *testing.T, opts me
 }
 
 // With ignore-interrupts on, ops run on a context detached from the FUSE
-// request's. Their metadata cache reads must still be counted.
+// request's. Their metadata cache reads must still be counted even when the
+// incoming request context is canceled.
 func TestMetadataCacheReadCount_IgnoreInterrupts(t *testing.T) {
 	ctx := context.Background()
 	env := newProductionLikeMetadataCacheFS(ctx, t, metadataCacheFSOptions{ttl: metadataCacheTTL, negativeTTL: metadataCacheTTL})
 	env.putObject(ctx, t, "existing_file.txt")
 
+	canceledCtx, cancel := context.WithCancel(ctx)
+	cancel()
 	for range 2 {
-		_, err := env.lookUp(ctx, fuseops.RootInodeID, "existing_file.txt")
+		_, err := env.lookUp(canceledCtx, fuseops.RootInodeID, "existing_file.txt")
 		require.NoError(t, err)
 	}
 
