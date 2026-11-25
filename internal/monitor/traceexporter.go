@@ -16,6 +16,7 @@ package monitor
 
 import (
 	"context"
+	"os"
 
 	cloudtrace "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
@@ -27,6 +28,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+const goStorageDevOtelTracingEnv = "GO_STORAGE_DEV_OTEL_TRACING"
+
 // SetupTracing bootstraps the OpenTelemetry tracing pipeline.
 func SetupTracing(ctx context.Context, c *cfg.Config, mountID string) common.ShutdownFn {
 	tp, shutdown, err := newTraceProvider(ctx, c, mountID)
@@ -36,6 +39,15 @@ func SetupTracing(ctx context.Context, c *cfg.Config, mountID string) common.Shu
 	}
 	if tp != nil {
 		otel.SetTracerProvider(tp)
+		if cfg.IsTracingEnabled(c) {
+			// TODO: Remove once cloud.google.com/go/storage enables OpenTelemetry tracing
+			// without requiring the GO_STORAGE_DEV_OTEL_TRACING dev environment variable.
+			if _, exists := os.LookupEnv(goStorageDevOtelTracingEnv); !exists {
+				if err := os.Setenv(goStorageDevOtelTracingEnv, "true"); err != nil {
+					logger.Warnf("failed to set %s: %v", goStorageDevOtelTracingEnv, err)
+				}
+			}
+		}
 		return shutdown
 	}
 
@@ -72,7 +84,10 @@ func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace
 
 	res, err := getResource(ctx, mountID)
 	if err != nil {
-		return nil, nil, err
+		logger.Errorf("Error while fetching resource: %v", err)
+		if res == nil {
+			return nil, nil, err
+		}
 	}
 
 	opts = append(opts, sdktrace.WithResource(res), sdktrace.WithSampler(sdktrace.TraceIDRatioBased(c.Trace.SamplingRatio)))

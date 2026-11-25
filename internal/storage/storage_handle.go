@@ -36,7 +36,6 @@ import (
 	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/storageutil"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"golang.org/x/oauth2"
@@ -185,9 +184,10 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 		})))
 	}
 
-	if clientConfig.TracingEnabled {
-		clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithStatsHandler(otelgrpc.NewClientHandler())))
-	}
+	// Do not manually attach otelgrpc.NewClientHandler(): both storage.NewGRPCClient
+	// and control.NewStorageControlClient register an otelgrpc client stats handler by
+	// default via grpctransport. Adding a second handler causes duplicate/orphaned gRPC
+	// spans (b/470254210).
 
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
 	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
