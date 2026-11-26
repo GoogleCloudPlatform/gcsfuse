@@ -372,8 +372,6 @@ func NewDirInode(
 		typed.cache = cache
 	}
 
-	typed.lc.Init(id)
-
 	// Set up invariant checking.
 	typed.mu = locker.NewRW(name.GcsObjectName(), typed.checkInvariants)
 
@@ -599,12 +597,12 @@ func (d *dirInode) Name() Name {
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) IncrementLookupCount() {
-	d.lc.Inc()
+	d.lc.Inc(d.id)
 }
 
 // LOCKS_REQUIRED(d)
 func (d *dirInode) DecrementLookupCount(n uint64) (destroy bool) {
-	destroy = d.lc.Dec(n)
+	destroy = d.lc.Dec(d.id, n)
 	return
 }
 
@@ -613,6 +611,7 @@ func (d *dirInode) Destroy() (err error) {
 	// When destroying the inode, we cancel its subdirectory prefetches.
 	// This cleans up any curr dir + child dir prefetchers.
 	d.CancelSubdirectoryPrefetches()
+	d.lc.Destroy()
 	return
 }
 
