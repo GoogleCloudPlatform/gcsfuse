@@ -90,8 +90,11 @@ type CreateWriteHandlerRequest struct {
 	TraceHandle              tracing.TraceHandle
 }
 
-// NewWriteHandler creates the appropriate WriteHandler implementation (buffered or unbuffered).
+// NewWriteHandler creates the WriteHandler for the bucket's write strategy: the
+// unbuffered write handler for parallel uploads, and the buffered one otherwise.
 func NewWriteHandler(req *CreateWriteHandlerRequest) (WriteHandler, error) {
-	// TODO(b/581184469): Route to newUnbufferedWriteHandler(req) when the write strategy is parallel.
+	if req.Bucket.BucketType().WriteStrategy() == gcs.WriteStrategyParallel {
+		return newUnbufferedWriteHandler(req), nil
+	}
 	return newBufferedWriteHandler(req)
 }

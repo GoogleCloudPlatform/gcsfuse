@@ -322,6 +322,14 @@ func (testSuite *StorageHandleTest) TestLookupBucketType_RapidCacheInfo() {
 			expectedWriteStrategy: gcs.WriteStrategyAppendable,
 		},
 		{
+			name:                  "rapid-cache-ultra with RapidWrite and parallel upload enabled",
+			writeConfig:           &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled, ExperimentalEnableParallelUpload: true},
+			rapidCacheInfo:        &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},
+			expectedRCU:           true,
+			expectedIsRapid:       true,
+			expectedWriteStrategy: gcs.WriteStrategyParallel,
+		},
+		{
 			name:                  "rapid-cache-ultra with RapidWrite disabled",
 			writeConfig:           &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyDisabled},
 			rapidCacheInfo:        &controlpb.StorageLayout_RapidCacheInfo{CacheType: rapidCacheUltraType},

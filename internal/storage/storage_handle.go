@@ -469,7 +469,8 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 		RCU:          isRCUBucket,
 	}
 	if sh.clientConfig.WriteConfig != nil {
-		bt = bt.WithRapidWriteStrategy(sh.clientConfig.WriteConfig.RapidWrite)
+		bt = bt.WithRapidWriteStrategy(sh.clientConfig.WriteConfig.RapidWrite).
+			WithParallelUploadEnabled(sh.clientConfig.WriteConfig.ExperimentalEnableParallelUpload)
 	}
 
 	return &bt, nil

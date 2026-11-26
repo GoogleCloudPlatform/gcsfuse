@@ -265,6 +265,93 @@ func (t *FileStreamingWritesZonalBucketTest) TestSyncPendingStreamingWritesForZo
 	assert.Equal(t.T(), uint64(6), t.in.src.Size)
 }
 
+////////////////////////////////////////////////////////////////////////
+// Tests (Parallel Upload Write Strategy)
+////////////////////////////////////////////////////////////////////////
+
+type FileStreamingWritesParallelUploadTest struct {
+	FileStreamingWritesCommon
+}
+
+func TestFileStreamingWritesParallelUploadTestSuite(t *testing.T) {
+	suite.Run(t, new(FileStreamingWritesParallelUploadTest))
+}
+
+func (t *FileStreamingWritesParallelUploadTest) SetupTest() {
+	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
+	bucketType := gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled).WithParallelUploadEnabled(true)
+	t.bucket = fake.NewFakeBucket(&t.clock, "some_bucket", bucketType)
+	t.setupTest()
+}
+
+func (t *FileStreamingWritesParallelUploadTest) SetupSubTest() {
+	t.SetupTest()
+}
+
+func (t *FileStreamingWritesParallelUploadTest) TestSourceGenerationIsAuthoritativeReturnsFalseAfterWrite() {
+	t.createStreamingWriteHandler()
+	gcsSynced, err := t.in.Write(t.ctx, []byte("taco"), 0, WriteMode, t.writeCtx)
+	require.NoError(t.T(), err)
+	require.False(t.T(), gcsSynced)
+
+	authoritative := t.in.SourceGenerationIsAuthoritative()
+
+	assert.False(t.T(), authoritative)
+}
+
+func (t *FileStreamingWritesParallelUploadTest) TestSyncPendingStreamingWritesDoesNotPromoteInode() {
+	t.createStreamingWriteHandler()
+	gcsSynced, err := t.in.Write(t.ctx, []byte("pizza"), 0, WriteMode, t.writeCtx)
+	require.NoError(t.T(), err)
+	require.False(t.T(), gcsSynced)
+
+	gcsSynced, err = t.in.SyncPendingStreamingWrites(t.ctx)
+
+	require.NoError(t.T(), err)
+	assert.False(t.T(), gcsSynced)
+	assert.True(t.T(), t.in.IsLocal())
+	_, err = storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+	var notFoundErr *gcs.NotFoundError
+	assert.ErrorAs(t.T(), err, &notFoundErr)
+}
+
+func (t *FileStreamingWritesParallelUploadTest) TestFlushUsingStreamingWriteHandlerFinalizesObject() {
+	testCases := []struct {
+		name    string
+		isLocal bool
+	}{
+		{
+			name:    "LocalFile",
+			isLocal: true,
+		},
+		{
+			name:    "EmptyGCSFile",
+			isLocal: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			if !tc.isLocal {
+				t.createInode(emptyGCSFile)
+			}
+			t.createStreamingWriteHandler()
+			gcsSynced, err := t.in.Write(t.ctx, []byte("taco"), 0, WriteMode, t.writeCtx)
+			require.NoError(t.T(), err)
+			require.False(t.T(), gcsSynced)
+
+			err = t.in.flushUsingStreamingWriteHandler(t.ctx)
+
+			require.NoError(t.T(), err)
+			assert.Nil(t.T(), t.in.streamingWriteHandler)
+			assert.False(t.T(), t.in.IsLocal())
+			assert.Equal(t.T(), uint64(4), t.in.src.Size)
+			content, err := storageutil.ReadObject(t.ctx, t.bucket, t.in.Name().GcsObjectName())
+			require.NoError(t.T(), err)
+			assert.Equal(t.T(), "taco", string(content))
+		})
+	}
+}
+
 // //////////////////////////////////////////////////////////////////////
 // Tests (Non Zonal Bucket)
 // //////////////////////////////////////////////////////////////////////

@@ -17,8 +17,63 @@ package streamingwrites
 import (
 	"testing"
 
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/tracing"
+	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/semaphore"
 )
+
+func TestNewWriteHandler_RoutesByWriteStrategy(t *testing.T) {
+	testCases := []struct {
+		name         string
+		bucketType   gcs.BucketType
+		expectedType WriteHandler
+	}{
+		{
+			name:         "Resumable",
+			bucketType:   gcs.BucketType{},
+			expectedType: &bufferedWriteHandlerImpl{},
+		},
+		{
+			name:         "Appendable",
+			bucketType:   gcs.BucketType{Zonal: true},
+			expectedType: &bufferedWriteHandlerImpl{},
+		},
+		{
+			name:         "RapidWritesWithoutParallelUpload",
+			bucketType:   gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled),
+			expectedType: &bufferedWriteHandlerImpl{},
+		},
+		{
+			name:         "Parallel",
+			bucketType:   gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled).WithParallelUploadEnabled(true),
+			expectedType: &unbufferedWriteHandlerImpl{},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &CreateWriteHandlerRequest{
+				ObjectName:               objectName,
+				Bucket:                   fake.NewFakeBucket(timeutil.RealClock(), "some_bucket", tc.bucketType),
+				BlockSize:                blockSize,
+				MaxBlocksPerFile:         maxBlocks,
+				GlobalMaxBlocksSem:       semaphore.NewWeighted(maxBlocks),
+				ChunkRetryDeadlineSecs:   chunkRetryDeadlineSecs,
+				ChunkTransferTimeoutSecs: chunkTransferTimeoutSecs,
+				TraceHandle:              tracing.NewNoopTracer(),
+			}
+
+			wh, err := NewWriteHandler(req)
+
+			require.NoError(t, err)
+			assert.IsType(t, tc.expectedType, wh)
+		})
+	}
+}
 
 func TestIsSequentialWrite(t *testing.T) {
 	testCases := []struct {

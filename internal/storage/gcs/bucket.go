@@ -45,10 +45,18 @@ type BucketType struct {
 	Zonal              bool
 	RCU                bool
 	rapidWriteStrategy cfg.RapidWriteStrategy
+	// parallelUploadEnabled makes rapid writes on Rapid Cache Ultra buckets use
+	// parallel uploads instead of the appendable API.
+	parallelUploadEnabled bool
 }
 
 func (bt BucketType) WithRapidWriteStrategy(strategy cfg.RapidWriteStrategy) BucketType {
 	bt.rapidWriteStrategy = strategy
+	return bt
+}
+
+func (bt BucketType) WithParallelUploadEnabled(enabled bool) BucketType {
+	bt.parallelUploadEnabled = enabled
 	return bt
 }
 
@@ -63,6 +71,10 @@ func (bt BucketType) WriteStrategy() WriteStrategy {
 		return WriteStrategyAppendable
 	}
 	if bt.RCU && bt.rapidWriteStrategy == cfg.RapidWriteStrategyEnabled {
+		// TODO(b/576160379): Use parallel uploads without the experimental flag at GA.
+		if bt.parallelUploadEnabled {
+			return WriteStrategyParallel
+		}
 		return WriteStrategyAppendable
 	}
 	return WriteStrategyResumable
