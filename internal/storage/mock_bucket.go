@@ -132,7 +132,7 @@ func (m *mockBucket) CreateObject(p0 context.Context, p1 *gcs.CreateObjectReques
 	return
 }
 
-func (m *mockBucket) CreateObjectChunkWriter(p0 context.Context, p1 *gcs.CreateObjectRequest, p2 int, p3 func(bytesUploadedSoFar int64)) (o0 gcs.Writer, o1 error) {
+func (m *mockBucket) CreateObjectChunkWriter(p0 context.Context, p1 *gcs.CreateObjectRequest, p2 func(bytesUploadedSoFar int64)) (o0 gcs.Writer, o1 error) {
 	// Get a file name and line number for the caller.
 	_, file, line, _ := runtime.Caller(1)
 
@@ -142,7 +142,7 @@ func (m *mockBucket) CreateObjectChunkWriter(p0 context.Context, p1 *gcs.CreateO
 		"CreateObjectChunkWriter",
 		file,
 		line,
-		[]any{p0, p1, p2, p3})
+		[]any{p0, p1, p2})
 
 	if len(retVals) != 2 {
 		panic(fmt.Sprintf("mockBucket.CreateObjectChunkWriter: invalid return values: %v", retVals))

@@ -45,10 +45,18 @@ type BucketType struct {
 	Zonal              bool
 	RCU                bool
 	rapidWriteStrategy cfg.RapidWriteStrategy
+	// parallelUploadEnabled makes rapid writes on Rapid Cache Ultra buckets use
+	// parallel uploads instead of the appendable API.
+	parallelUploadEnabled bool
 }
 
 func (bt BucketType) WithRapidWriteStrategy(strategy cfg.RapidWriteStrategy) BucketType {
 	bt.rapidWriteStrategy = strategy
+	return bt
+}
+
+func (bt BucketType) WithParallelUploadEnabled(enabled bool) BucketType {
+	bt.parallelUploadEnabled = enabled
 	return bt
 }
 
@@ -63,6 +71,10 @@ func (bt BucketType) WriteStrategy() WriteStrategy {
 		return WriteStrategyAppendable
 	}
 	if bt.RCU && bt.rapidWriteStrategy == cfg.RapidWriteStrategyEnabled {
+		// TODO(b/576160379): Use parallel uploads without the experimental flag at GA.
+		if bt.parallelUploadEnabled {
+			return WriteStrategyParallel
+		}
 		return WriteStrategyAppendable
 	}
 	return WriteStrategyResumable
@@ -142,11 +154,11 @@ type Bucket interface {
 
 	// CreateObjectChunkWriter creates a *storage.Writer that can be used for
 	// chunked uploads. Depending on the underlying bucket's capabilities, it is
-	// used for either resumable uploads or appendable object uploads. For standard
-	// resumable uploads, the object becomes available for reading only after the
+	// used for resumable, appendable or parallel uploads. For resumable and
+	// parallel uploads, the object becomes available for reading only after the
 	// writer is closed (finalized). For appendable uploads, the unfinalized
 	// object is available for reading immediately.
-	CreateObjectChunkWriter(ctx context.Context, req *CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (Writer, error)
+	CreateObjectChunkWriter(ctx context.Context, req *CreateObjectRequest, callBack func(bytesUploadedSoFar int64)) (Writer, error)
 
 	// CreateAppendableObjectWriter creates a Writer for "Takeover"
 	// operations. It allows appending to an existing, unfinalized object by

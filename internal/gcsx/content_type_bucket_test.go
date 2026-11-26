@@ -117,7 +117,7 @@ func TestContentTypeBucket_CreateObjectChunkWriter(t *testing.T) {
 			ContentType: tc.request,
 		}
 
-		w, err := bucket.CreateObjectChunkWriter(context.Background(), req, 0, func(_ int64) {})
+		w, err := bucket.CreateObjectChunkWriter(context.Background(), req, func(_ int64) {})
 		if err != nil {
 			t.Fatalf("Test case %d: CreateObjectChunkWriter: %v", i, err)
 		}

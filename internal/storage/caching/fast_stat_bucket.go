@@ -361,8 +361,8 @@ func (b *fastStatBucket) CreateObject(
 	return
 }
 
-func (b *fastStatBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
-	return b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
+func (b *fastStatBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+	return b.wrapped.CreateObjectChunkWriter(ctx, req, callBack)
 }
 
 func (b *fastStatBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {

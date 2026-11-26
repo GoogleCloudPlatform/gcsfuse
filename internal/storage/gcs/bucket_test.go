@@ -61,11 +61,12 @@ func TestBucketType_IsRapid(t *testing.T) {
 
 func TestBucketType_WriteStrategy(t *testing.T) {
 	testCases := []struct {
-		name               string
-		zonal              bool
-		rcu                bool
-		rapidWriteStrategy cfg.RapidWriteStrategy
-		expected           WriteStrategy
+		name                  string
+		zonal                 bool
+		rcu                   bool
+		rapidWriteStrategy    cfg.RapidWriteStrategy
+		parallelUploadEnabled bool
+		expected              WriteStrategy
 	}{
 		{
 			name:               "Standard bucket",
@@ -96,6 +97,33 @@ func TestBucketType_WriteStrategy(t *testing.T) {
 			expected:           WriteStrategyResumable,
 		},
 		{
+			name:                  "Rapid Cache Ultra, Rapid Writes Enabled, Parallel Upload Enabled",
+			rcu:                   true,
+			rapidWriteStrategy:    cfg.RapidWriteStrategyEnabled,
+			parallelUploadEnabled: true,
+			expected:              WriteStrategyParallel,
+		},
+		{
+			name:                  "Rapid Cache Ultra, Rapid Writes Disabled, Parallel Upload Enabled",
+			rcu:                   true,
+			rapidWriteStrategy:    cfg.RapidWriteStrategyDisabled,
+			parallelUploadEnabled: true,
+			expected:              WriteStrategyResumable,
+		},
+		{
+			name:                  "Zonal bucket, Parallel Upload Enabled",
+			zonal:                 true,
+			rapidWriteStrategy:    cfg.RapidWriteStrategyEnabled,
+			parallelUploadEnabled: true,
+			expected:              WriteStrategyAppendable,
+		},
+		{
+			name:                  "Standard bucket, Parallel Upload Enabled",
+			rapidWriteStrategy:    cfg.RapidWriteStrategyEnabled,
+			parallelUploadEnabled: true,
+			expected:              WriteStrategyResumable,
+		},
+		{
 			name:               "Rapid Cache Ultra, empty RapidWriteStrategy",
 			zonal:              false,
 			rcu:                true,
@@ -108,7 +136,7 @@ func TestBucketType_WriteStrategy(t *testing.T) {
 			bt := BucketType{
 				Zonal: tc.zonal,
 				RCU:   tc.rcu,
-			}.WithRapidWriteStrategy(tc.rapidWriteStrategy)
+			}.WithRapidWriteStrategy(tc.rapidWriteStrategy).WithParallelUploadEnabled(tc.parallelUploadEnabled)
 
 			assert.Equal(t, tc.expected, bt.WriteStrategy())
 		})

@@ -18,9 +18,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -558,8 +560,26 @@ func (testSuite *BucketHandleTest) TestCreateObjectMethodWhenGivenGenerationObje
 	assert.True(testSuite.T(), errors.As(err, &precondition))
 }
 
+func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectWithParallelUploadReturnsCopyError() {
+	createBucketHandle(testSuite, &controlpb.StorageLayout{})
+	bucketType := gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled).WithParallelUploadEnabled(true)
+	testSuite.bucketHandle.bucketType = &bucketType
+	testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{RapidWrite: cfg.RapidWriteStrategyEnabled, BlockSizeMb: 32, MaxBlocksPerFile: 4}
+	copyErr := errors.New("read failed")
+
+	obj, err := testSuite.bucketHandle.CreateObject(context.Background(),
+		&gcs.CreateObjectRequest{
+			Name:     "test_object",
+			Contents: iotest.ErrReader(copyErr),
+		})
+
+	assert.ErrorIs(testSuite.T(), err, copyErr)
+	assert.Nil(testSuite.T(), obj)
+}
+
 func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
 	createBucketHandle(testSuite, &controlpb.StorageLayout{})
+	testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{BlockSizeMb: 32}
 	var generation0 int64 = 0
 	var generationNon0 int64 = 786
 	var metaGeneration0 int64 = 0
@@ -570,43 +590,36 @@ func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
 		generation     *int64
 		metageneration *int64
 		objectName     string
-		chunkSize      int
 	}{
 		{
 			name:       "NilGeneration",
 			generation: nil,
 			objectName: "test_object_1",
-			chunkSize:  1024 * 1024,
 		},
 		{
 			name:       "GenerationAsZero",
 			generation: &generation0,
 			objectName: "test_object_2",
-			chunkSize:  1024 * 1024,
 		},
 		{
 			name:       "NonZeroGeneration",
 			generation: &generationNon0,
 			objectName: "test_object_3",
-			chunkSize:  1000,
 		},
 		{
 			name:           "NilMetaGeneration",
 			metageneration: nil,
 			objectName:     "test_object_1",
-			chunkSize:      1024 * 1024,
 		},
 		{
 			name:           "MetaGenerationAsZero",
 			metageneration: &metaGeneration0,
 			objectName:     "test_object_2",
-			chunkSize:      1024 * 1024,
 		},
 		{
 			name:           "NonZeroMetaGeneration",
 			metageneration: &metaGenerationNon0,
 			objectName:     "test_object_3",
-			chunkSize:      1000,
 		},
 	}
 
@@ -619,7 +632,6 @@ func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
 					GenerationPrecondition:     tt.generation,
 					MetaGenerationPrecondition: tt.metageneration,
 				},
-				tt.chunkSize,
 				progressFunc,
 			)
 
@@ -628,7 +640,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
 			require.True(t, ok)
 			require.NotNil(t, objWr)
 			assert.Equal(t, tt.objectName, objWr.ObjectName())
-			assert.Equal(t, tt.chunkSize, objWr.ChunkSize)
+			assert.Equal(t, 32*1024*1024, objWr.ChunkSize)
 			assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
 		})
 	}
@@ -636,10 +648,13 @@ func (testSuite *BucketHandleTest) TestBucketHandle_CreateObjectChunkWriter() {
 
 func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 	tests := []struct {
-		name                 string
-		bucketType           gcs.BucketType
-		finalizeFileForRapid bool
-		expectedAppend       bool
+		name                         string
+		bucketType                   gcs.BucketType
+		finalizeFileForRapid         bool
+		maxBlocksPerFile             int64
+		expectedAppend               bool
+		expectedParallelUpload       bool
+		expectedParallelUploadConfig storage.ParallelUploadConfig
 	}{
 		{
 			name:                 "StandardBucket",
@@ -665,21 +680,92 @@ func (testSuite *BucketHandleTest) TestBucketHandle_WriterAttributes() {
 			finalizeFileForRapid: false,
 			expectedAppend:       false,
 		},
+		{
+			name:                         "RCUBucket_ParallelUpload",
+			bucketType:                   gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled).WithParallelUploadEnabled(true),
+			finalizeFileForRapid:         true,
+			maxBlocksPerFile:             4,
+			expectedAppend:               false,
+			expectedParallelUpload:       true,
+			expectedParallelUploadConfig: storage.ParallelUploadConfig{PartSize: 64 * 1024 * 1024, MaxConcurrency: 4},
+		},
+		{
+			name:                         "RCUBucket_ParallelUploadWithUnlimitedBlocksPerFile",
+			bucketType:                   gcs.BucketType{RCU: true}.WithRapidWriteStrategy(cfg.RapidWriteStrategyEnabled).WithParallelUploadEnabled(true),
+			finalizeFileForRapid:         true,
+			maxBlocksPerFile:             math.MaxInt16,
+			expectedAppend:               false,
+			expectedParallelUpload:       true,
+			expectedParallelUploadConfig: storage.ParallelUploadConfig{PartSize: 64 * 1024 * 1024, MaxConcurrency: 0},
+		},
 	}
 
 	for _, tt := range tests {
 		testSuite.T().Run(tt.name, func(t *testing.T) {
 			createBucketHandle(testSuite, &controlpb.StorageLayout{})
 			testSuite.bucketHandle.bucketType = &tt.bucketType
-			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{FinalizeFileForRapid: tt.finalizeFileForRapid}
+			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{
+				FinalizeFileForRapid: tt.finalizeFileForRapid,
+				BlockSizeMb:          33,
+				MaxBlocksPerFile:     tt.maxBlocksPerFile,
+			}
 
-			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), &gcs.CreateObjectRequest{Name: "test_object"}, 1024, nil)
+			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), &gcs.CreateObjectRequest{Name: "test_object"}, nil)
 
 			require.NoError(t, err)
 			objWr, ok := w.(*ObjectWriter)
 			require.True(t, ok)
 			assert.Equal(t, tt.expectedAppend, objWr.Append)
 			assert.Equal(t, tt.finalizeFileForRapid, objWr.FinalizeOnClose)
+			assert.Equal(t, tt.expectedParallelUpload, objWr.EnableParallelUpload)
+			assert.Equal(t, tt.expectedParallelUploadConfig, objWr.ParallelUploadConfig)
+		})
+	}
+}
+
+func TestParallelUploadPartSize(t *testing.T) {
+	tests := []struct {
+		name             string
+		blockSizeMb      float64
+		expectedPartSize int
+	}{
+		{
+			name:             "FractionalBlockSize",
+			blockSizeMb:      0.5,
+			expectedPartSize: 32 * 1024 * 1024,
+		},
+		{
+			name:             "BlockSizeBelowAlignment",
+			blockSizeMb:      1,
+			expectedPartSize: 32 * 1024 * 1024,
+		},
+		{
+			name:             "BlockSizeEqualToAlignment",
+			blockSizeMb:      32,
+			expectedPartSize: 32 * 1024 * 1024,
+		},
+		{
+			name:             "BlockSizeJustAboveAlignment",
+			blockSizeMb:      33,
+			expectedPartSize: 64 * 1024 * 1024,
+		},
+		{
+			name:             "BlockSizeMultipleOfAlignment",
+			blockSizeMb:      64,
+			expectedPartSize: 64 * 1024 * 1024,
+		},
+		{
+			name:             "BlockSizeNotMultipleOfAlignment",
+			blockSizeMb:      100,
+			expectedPartSize: 128 * 1024 * 1024,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			partSize := parallelUploadPartSize(tt.blockSizeMb)
+
+			assert.Equal(t, tt.expectedPartSize, partSize)
 		})
 	}
 }
@@ -744,7 +830,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_StorageClassOverrides() {
 			testSuite.bucketHandle.writeConfig = &cfg.WriteConfig{RapidWrite: scenario.rapidWrite}
 			req := &gcs.CreateObjectRequest{Name: "test_object_2", StorageClass: scenario.initialStorageClass}
 
-			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), req, 1024, nil)
+			w, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(), req, nil)
 
 			require.NoError(t, err)
 			objWr, ok := w.(*ObjectWriter)
@@ -776,25 +862,22 @@ func (testSuite *BucketHandleTest) TestBucketHandle_FinalizeUploadSuccess() {
 		name       string
 		generation *int64
 		objectName string
-		chunkSize  int
 	}{
 		{
 			name:       "NilGeneration",
 			generation: nil,
 			objectName: "test_object_1",
-			chunkSize:  1024 * 1024,
 		},
 		{
 			name:       "GenerationAsZero",
 			generation: &generation0,
 			objectName: "test_object_2",
-			chunkSize:  1024 * 100,
 		},
 	}
 
 	for _, tt := range tests {
 		testSuite.T().Run(tt.name, func(t *testing.T) {
-			wr := testSuite.createObjectChunkWriter(t, tt.objectName, tt.generation, tt.chunkSize)
+			wr := testSuite.createObjectChunkWriter(t, tt.objectName, tt.generation)
 
 			o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
 
@@ -809,12 +892,12 @@ func (testSuite *BucketHandleTest) TestFinalizeUploadWithGenerationAsZeroWhenObj
 	// Pre-create the object (creating writer and finalizing upload).
 	objName := "pre_created_test_object"
 	var generation int64 = 0
-	wr := testSuite.createObjectChunkWriter(testSuite.T(), objName, &generation, 100)
+	wr := testSuite.createObjectChunkWriter(testSuite.T(), objName, &generation)
 	o, err := testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
 	require.NoError(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), o)
 	// Create Object Writer again when object already exists.
-	wr = testSuite.createObjectChunkWriter(testSuite.T(), objName, &generation, 100)
+	wr = testSuite.createObjectChunkWriter(testSuite.T(), objName, &generation)
 
 	o, err = testSuite.bucketHandle.FinalizeUpload(context.Background(), wr)
 
@@ -863,7 +946,7 @@ func (testSuite *BucketHandleTest) TestBucketHandle_AbortUpload() {
 	}
 }
 
-func (testSuite *BucketHandleTest) createObjectChunkWriter(t *testing.T, objectName string, generation *int64, chunkSize int) gcs.Writer {
+func (testSuite *BucketHandleTest) createObjectChunkWriter(t *testing.T, objectName string, generation *int64) gcs.Writer {
 	t.Helper()
 	progressFunc := func(_ int64) {}
 	wr, err := testSuite.bucketHandle.CreateObjectChunkWriter(context.Background(),
@@ -871,7 +954,6 @@ func (testSuite *BucketHandleTest) createObjectChunkWriter(t *testing.T, objectN
 			Name:                   objectName,
 			GenerationPrecondition: generation,
 		},
-		chunkSize,
 		progressFunc,
 	)
 	require.NoError(t, err)
@@ -879,7 +961,6 @@ func (testSuite *BucketHandleTest) createObjectChunkWriter(t *testing.T, objectN
 	require.True(t, ok)
 	require.NotNil(t, objWr)
 	assert.Equal(t, objectName, objWr.ObjectName())
-	assert.Equal(t, chunkSize, objWr.ChunkSize)
 	assert.Equal(t, reflect.ValueOf(progressFunc).Pointer(), reflect.ValueOf(objWr.ProgressFunc).Pointer())
 
 	return wr
@@ -908,7 +989,7 @@ func (testSuite *BucketHandleTest) TestFlushPendingWritesFails() {
 			createBucketHandle(testSuite, &controlpb.StorageLayout{
 				LocationType: tt.bucketType,
 			})
-			wr := testSuite.createObjectChunkWriter(t, TestObjectName, &generation0, 100)
+			wr := testSuite.createObjectChunkWriter(t, TestObjectName, &generation0)
 
 			_, err := testSuite.bucketHandle.FlushPendingWrites(context.Background(), wr)
 

@@ -123,7 +123,7 @@ func (uh *UploadHandler) createObjectWriter(ctx context.Context) (err error) {
 		}
 		uh.writer, err = uh.bucket.CreateAppendableObjectWriter(ctx, &chunkWriterReq)
 	} else {
-		uh.writer, err = uh.bucket.CreateObjectChunkWriter(ctx, req, int(uh.blockSize), nil)
+		uh.writer, err = uh.bucket.CreateObjectChunkWriter(ctx, req, nil)
 	}
 	return
 }

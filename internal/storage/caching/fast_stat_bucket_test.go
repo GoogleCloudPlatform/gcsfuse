@@ -163,39 +163,35 @@ func (t *CreateObjectChunkWriterTest) CallsWrappedWithExpectedParameters() {
 	const name = "taco"
 	// Wrapped
 	var wrappedReq *gcs.CreateObjectRequest
-	var wrappedChunkSize int
 	var wrappedCallback func(_ int64)
-	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any(), Any()).
-		WillOnce(DoAll(SaveArg(1, &wrappedReq), SaveArg(2, &wrappedChunkSize), SaveArg(3, &wrappedCallback), Return(nil, errors.New(""))))
+	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any()).
+		WillOnce(DoAll(SaveArg(1, &wrappedReq), SaveArg(2, &wrappedCallback), Return(nil, errors.New(""))))
 	// Call
 	req := &gcs.CreateObjectRequest{
 		Name: name,
 	}
-	chunkSize := 1024
 	callback := func(_ int64) {
 		fmt.Println("callback called!")
 	}
 
-	_, _ = t.bucket.CreateObjectChunkWriter(context.TODO(), req, chunkSize, callback)
+	_, _ = t.bucket.CreateObjectChunkWriter(context.TODO(), req, callback)
 
 	AssertNe(nil, wrappedReq)
 	ExpectEq(req, wrappedReq)
-	ExpectEq(chunkSize, wrappedChunkSize)
 	ExpectEq(callback, wrappedCallback)
 }
 
 func (t *CreateObjectChunkWriterTest) WrappedFails() {
-	chunkSize := 1024
 	progressFunc := func(_ int64) {}
 	ctx := context.TODO()
 	req := &gcs.CreateObjectRequest{}
 	var err error
 	// Wrapped
-	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any(), Any()).
+	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any()).
 		WillOnce(Return(nil, errors.New("taco")))
 
 	// Call
-	_, err = t.bucket.CreateObjectChunkWriter(ctx, req, chunkSize, progressFunc)
+	_, err = t.bucket.CreateObjectChunkWriter(ctx, req, progressFunc)
 
 	ExpectThat(err, Error(HasSubstr("taco")))
 }
@@ -210,11 +206,11 @@ func (t *CreateObjectChunkWriterTest) WrappedSucceeds() {
 	wr := &storage.ObjectWriter{
 		Writer: &gostorage.Writer{ChunkSize: chunkSize, ProgressFunc: progressFunc},
 	}
-	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any(), Any()).
+	ExpectCall(t.wrapped, "CreateObjectChunkWriter")(Any(), Any(), Any()).
 		WillOnce(Return(wr, nil))
 
 	// Call
-	gotWr, err := t.bucket.CreateObjectChunkWriter(ctx, req, chunkSize, progressFunc)
+	gotWr, err := t.bucket.CreateObjectChunkWriter(ctx, req, progressFunc)
 
 	AssertEq(nil, err)
 	ExpectEq(wr, gotWr)

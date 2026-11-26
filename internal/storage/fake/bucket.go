@@ -705,7 +705,7 @@ func (b *bucket) CreateObject(
 	return
 }
 
-func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, _ int, _ func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+func (b *bucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, _ func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
 	return NewFakeObjectWriter(b, req, false)
 }
 
