@@ -161,7 +161,7 @@ type Bucket interface {
 	FinalizeUpload(ctx context.Context, writer Writer) (*MinObject, error)
 
 	// AbortUpload discards an upload that hasn't been finalized, so no object
-	// is created. It's the counterpart of FinalizeUpload.
+	// is created.
 	AbortUpload(ctx context.Context, writer Writer) error
 
 	// FlushPendingWrites is used for zonal buckets to flush any pending data in

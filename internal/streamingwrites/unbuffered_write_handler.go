@@ -39,13 +39,11 @@ const zeroPaddingChunkSize = 1024 * 1024
 //
 // TODO(b/581184469): Nothing creates this handler yet.
 type unbufferedWriteHandlerImpl struct {
-	// writer uploads the object. It's created on the first write or on flush.
+	// writer uploads the object. It's created on the first write or on flush,
+	// and set to nil once the upload is finalized or aborted.
 	writer gcs.Writer
 	// cancelFunc cancels the context of the writer.
 	cancelFunc context.CancelFunc
-	// writerClosed is set once the upload is finalized or aborted, after which
-	// abort does nothing.
-	writerClosed bool
 
 	// Parameters for creating the writer.
 	bucket                   gcs.Bucket
@@ -155,8 +153,8 @@ func (wh *unbufferedWriteHandlerImpl) Flush(ctx context.Context) (obj *gcs.MinOb
 		wh.handleUploadFailure(ctx, err)
 		return nil, err
 	}
-	// The upload is complete, so mark the writer closed and release its context.
-	wh.writerClosed = true
+	// The upload is complete, so release the writer and its context.
+	wh.writer = nil
 	wh.cancelFunc()
 	// The writer is closed now, so the errors below are sticky too: a later Flush
 	// from another write handle must not finalize the object again.
@@ -300,13 +298,12 @@ func (wh *unbufferedWriteHandlerImpl) handleUploadFailure(ctx context.Context, e
 	}
 }
 
-// abort discards the upload if it was started and hasn't been finalized or
-// aborted yet, and releases the context of the writer.
+// abort discards the active upload, if any, and releases the writer and its
+// context.
 func (wh *unbufferedWriteHandlerImpl) abort(ctx context.Context) (err error) {
-	if wh.writer == nil || wh.writerClosed {
+	if wh.writer == nil {
 		return nil
 	}
-	wh.writerClosed = true
 	bytes := wh.totalSize
 	ctx, finishSpan := wh.traceHandle.TraceUpload(ctx, tracing.StreamingUploadAbort, wh.objectName, &bytes, &err)
 	defer finishSpan()
@@ -314,10 +311,9 @@ func (wh *unbufferedWriteHandlerImpl) abort(ctx context.Context) (err error) {
 	// Abort before canceling the context of the writer, in case Abort uses it
 	// to reach GCS.
 	err = wh.bucket.AbortUpload(ctx, wh.writer)
+	wh.writer = nil
 	wh.cancelFunc()
 	if err != nil {
-		// TODO(b/540721232): cloud.google.com/go/storage v1.70.0 doesn't implement
-		// Writer.Abort yet.
 		err = fmt.Errorf("AbortUpload failed for object %s: %w", wh.objectName, err)
 	}
 	return err
