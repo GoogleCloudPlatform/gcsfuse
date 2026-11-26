@@ -1328,7 +1328,9 @@ func (fs *fileSystem) lookUpOrCreateChildDirInode(
 func (fs *fileSystem) promoteToGenerationBacked(f *inode.FileInode) {
 	fs.mu.Lock()
 	name := f.Name()
-	delete(fs.localFileInodes, name)
+	if fs.localFileInodes[name] == f {
+		delete(fs.localFileInodes, name)
+	}
 	if _, ok := fs.generationBackedInodes[name]; !ok {
 		fs.generationBackedInodes[name] = f
 	}
@@ -1375,9 +1377,14 @@ func (fs *fileSystem) flushFile(
 	if err != nil {
 		err = fmt.Errorf("FileInode.Sync: %w", err)
 		// If the inode was local file inode, treat it as unlinked.
-		fs.mu.Lock()
-		delete(fs.localFileInodes, f.Name())
-		fs.mu.Unlock()
+		if f.IsLocal() {
+			f.Unlink()
+			fs.mu.Lock()
+			if fs.localFileInodes[f.Name()] == f {
+				delete(fs.localFileInodes, f.Name())
+			}
+			fs.mu.Unlock()
+		}
 		return err
 	}
 
@@ -1414,12 +1421,7 @@ func (fs *fileSystem) syncFile(
 	// Sync the inode.
 	gcsSynced, err := f.Sync(ctx, fs.getWriteContext())
 	if err != nil {
-		err = fmt.Errorf("FileInode.Sync: %w", err)
-		// If the inode was local file inode, treat it as unlinked.
-		fs.mu.Lock()
-		delete(fs.localFileInodes, f.Name())
-		fs.mu.Unlock()
-		return err
+		return fmt.Errorf("FileInode.Sync: %w", err)
 	}
 
 	// If gcsSynced is true, it means the inode was fully synced to GCS In this
@@ -2168,17 +2170,10 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	parent := fs.dirInodeOrDie(parentID)
 
 	defer func() {
-		if err != nil {
-			if child == nil {
-				return
-			}
-			// fs.mu lock is already taken
-			delete(fs.localFileInodes, child.Name())
-		}
 		// We need to release the filesystem lock before acquiring the inode lock.
 		fs.mu.Unlock()
 
-		if child != nil {
+		if err == nil && child != nil {
 			child.Lock()
 			child.IncrementLookupCount()
 			// Unlock is done by the calling method.
@@ -2195,7 +2190,7 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	// Create a new inode when a file is created first time, or when a local file is unlinked and then recreated with the same name.
 	core, err := parent.CreateLocalChildFileCore(name)
 	if err != nil {
-		return
+		return nil, err
 	}
 	child, err = fs.mintInode(core, parent.Context())
 	if err != nil {
@@ -2209,10 +2204,20 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	defer fs.mu.Lock()
 	fileInode.Lock()
 	err = fs.createStreamingWriteHandlerAndSyncOrTempWriter(ctx, fileInode, openMode)
-	fileInode.Unlock()
 	if err != nil {
-		return
+		if fileInode.IsLocal() {
+			fileInode.Unlink()
+			fs.mu.Lock()
+			if fs.localFileInodes[fileInode.Name()] == fileInode {
+				delete(fs.localFileInodes, fileInode.Name())
+			}
+			fs.mu.Unlock()
+		}
+		fileInode.IncrementLookupCount()
+		fs.unlockAndDecrementLookupCount(fileInode, 1)
+		return nil, err
 	}
+	fileInode.Unlock()
 
 	parent.Lock()
 	defer parent.Unlock()
