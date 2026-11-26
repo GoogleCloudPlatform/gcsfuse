@@ -35,6 +35,9 @@
 
 # Add retired proto-tag numbers here when deleted from active params list.
 # Preserves tag reservation for Protobuf schema generation.
+# A flag cherry-picked from master to a release branch keeps its master
+# proto-tag. If that skips newer master tags, add them here on the release
+# branch.
 retired-params: [47, 154]
 # Example of retired parameters entry:
 #   retired-params: [28, 42]
