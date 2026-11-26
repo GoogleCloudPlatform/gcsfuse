@@ -322,7 +322,7 @@ func (t *PrefixBucketTest) TestCreateObjectChunkWriterAndFinalizeUpload() {
 			ContentEncoding: "gzip",
 			Contents:        nil,
 		},
-		1024, nil)
+		nil)
 	assert.NoError(t.T(), err)
 	_, err = w.Write(content)
 	assert.NoError(t.T(), err)
@@ -339,7 +339,7 @@ func (t *PrefixBucketTest) TestCreateObjectChunkWriterAndFinalizeUpload() {
 
 func (t *PrefixBucketTest) TestCreateObjectChunkWriterAndAbortUpload() {
 	suffix := "taco"
-	w, err := t.bucket.CreateObjectChunkWriter(t.ctx, &gcs.CreateObjectRequest{Name: suffix}, 1024, nil)
+	w, err := t.bucket.CreateObjectChunkWriter(t.ctx, &gcs.CreateObjectRequest{Name: suffix}, nil)
 	require.NoError(t.T(), err)
 	_, err = w.Write([]byte("foobar"))
 	require.NoError(t.T(), err)
@@ -368,7 +368,7 @@ func (t *PrefixBucketTest) TestCreateObjectChunkWriterAndFlushPendingWrites() {
 			ContentEncoding: "gzip",
 			Contents:        nil,
 		},
-		1024, nil)
+		nil)
 	assert.NoError(t.T(), err)
 	_, err = w.Write(content)
 	assert.NoError(t.T(), err)

@@ -86,9 +86,9 @@ func (mb *monitoringBucket) CreateObject(
 	return o, err
 }
 
-func (mb *monitoringBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+func (mb *monitoringBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
 	startTime := time.Now()
-	wc, err := mb.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
+	wc, err := mb.wrapped.CreateObjectChunkWriter(ctx, req, callBack)
 	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodCreateObjectChunkWriterAttr, startTime)
 	return wc, err
 }

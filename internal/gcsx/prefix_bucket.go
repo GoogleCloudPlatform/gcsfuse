@@ -97,13 +97,13 @@ func (b *prefixBucket) CreateObject(
 	return
 }
 
-func (b *prefixBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+func (b *prefixBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
 	// Modify the request and call through.
 	mReq := new(gcs.CreateObjectRequest)
 	*mReq = *req
 	mReq.Name = b.wrappedName(req.Name)
 
-	wc, err := b.wrapped.CreateObjectChunkWriter(ctx, mReq, chunkSize, callBack)
+	wc, err := b.wrapped.CreateObjectChunkWriter(ctx, mReq, callBack)
 	if err != nil {
 		return nil, err
 	}

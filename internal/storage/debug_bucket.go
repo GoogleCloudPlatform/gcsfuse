@@ -177,7 +177,7 @@ func (b *debugBucket) CreateObject(
 	return
 }
 
-func (b *debugBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
+func (b *debugBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
 	id, desc, start := b.startRequest("CreateObjectChunkWriter(%q)", req.Name)
 	defer b.finishRequest(id, desc, start, &err)
 	if callBack == nil {
@@ -185,7 +185,7 @@ func (b *debugBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.Crea
 			logger.Tracef("gcs: Req %#16x: -- UploadBlock(%q): %20v bytes uploaded so far", id, req.Name, bytesUploadedSoFar)
 		}
 	}
-	wc, err = b.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
+	wc, err = b.wrapped.CreateObjectChunkWriter(ctx, req, callBack)
 	return
 }
 

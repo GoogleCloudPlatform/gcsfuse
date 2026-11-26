@@ -274,9 +274,7 @@ func (wh *unbufferedWriteHandlerImpl) ensureWriter(ctx context.Context) error {
 	// must live until the upload is finalized or aborted. So the writer gets its
 	// own context, which carries only the operation's trace.
 	writerCtx, cancel := context.WithCancel(wh.traceHandle.PropagateTraceContext(context.Background(), ctx))
-	// Parallel uploads don't use the chunk size.
-	// TODO(b/581184469): Remove the chunkSize argument of CreateObjectChunkWriter.
-	writer, err := wh.bucket.CreateObjectChunkWriter(writerCtx, req, 0, nil)
+	writer, err := wh.bucket.CreateObjectChunkWriter(writerCtx, req, nil)
 	if err != nil {
 		// No writer holds the context, so release it here.
 		cancel()

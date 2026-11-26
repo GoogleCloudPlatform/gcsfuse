@@ -59,14 +59,14 @@ func (b contentTypeBucket) ComposeObjects(
 	return
 }
 
-func (b contentTypeBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+func (b contentTypeBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
 	// Guess a content type if necessary.
 	if req.ContentType == "" {
 		req.ContentType = mime.TypeByExtension(path.Ext(req.Name))
 	}
 
 	// Pass on the request.
-	return b.Bucket.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
+	return b.Bucket.CreateObjectChunkWriter(ctx, req, callBack)
 }
 
 func (b contentTypeBucket) CreateAppendableObjectWriter(ctx context.Context, req *gcs.CreateObjectChunkWriterRequest) (gcs.Writer, error) {

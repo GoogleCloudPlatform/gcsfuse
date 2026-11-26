@@ -52,7 +52,7 @@ func (m *TestifyMockBucket) CreateObject(ctx context.Context, req *gcs.CreateObj
 	return args.Get(0).(*gcs.Object), nil
 }
 
-func (m *TestifyMockBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
+func (m *TestifyMockBucket) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, callBack func(bytesUploadedSoFar int64)) (wc gcs.Writer, err error) {
 	args := m.Called(ctx, req)
 	if args.Get(1) != nil {
 		return nil, args.Error(1)

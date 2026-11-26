@@ -54,7 +54,7 @@ func TestFakeObjectWriter_OperationsAfterAbortFail(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			bucket := NewFakeBucket(timeutil.RealClock(), "some_bucket", gcs.BucketType{})
-			w, err := bucket.CreateObjectChunkWriter(context.Background(), &gcs.CreateObjectRequest{Name: "foo"}, 0, nil)
+			w, err := bucket.CreateObjectChunkWriter(context.Background(), &gcs.CreateObjectRequest{Name: "foo"}, nil)
 			require.NoError(t, err)
 			_, err = w.Write([]byte("bar"))
 			require.NoError(t, err)

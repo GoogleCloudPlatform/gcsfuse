@@ -108,9 +108,8 @@ func (d *dummyIOBucket) CreateObject(
 func (d *dummyIOBucket) CreateObjectChunkWriter(
 	ctx context.Context,
 	req *gcs.CreateObjectRequest,
-	chunkSize int,
 	callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
-	return d.wrapped.CreateObjectChunkWriter(ctx, req, chunkSize, callBack)
+	return d.wrapped.CreateObjectChunkWriter(ctx, req, callBack)
 }
 
 // CreateAppendableObjectWriter creates a writer to append to an existing object.

@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -30,8 +31,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
 	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
 	"google.golang.org/api/iterator"
 )
 
@@ -237,12 +240,20 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	// When writer.Append is false, then this parameter is anyways ignored.
 	// Refer: https://github.com/googleapis/google-cloud-go/blob/bf56afb2a15301500b9981ee76ccc5f449e3f545/storage/writer.go#L160
 	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileForRapid
+	bh.setParallelUploadAttrs(wc)
 
 	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
-		// TODO(b/581184469): Abort the writer once CreateObject uses parallel
-		// uploads, so that their buffers and upload session aren't leaked.
 		err = fmt.Errorf("failed io.Copy for %q: %w", req.Name, err)
+		if wc.EnableParallelUpload {
+			// Abort the parallel upload, so that its buffers and upload session
+			// aren't leaked.
+			// TODO(b/540721232): cloud.google.com/go/storage v1.71.0 doesn't
+			// implement Writer.Abort.
+			if abortErr := wc.Abort(); abortErr != nil {
+				logger.Warnf("CreateObject: aborting the upload of %q: %v", req.Name, abortErr)
+			}
+		}
 		return
 	}
 
@@ -259,13 +270,15 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 	return
 }
 
-func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, chunkSize int, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
+func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.CreateObjectRequest, callBack func(bytesUploadedSoFar int64)) (gcs.Writer, error) {
 	req.StorageClass = bh.getStorageClassForCreateObject(req.StorageClass)
 
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
 	wc := &ObjectWriter{obj.NewWriter(ctx)}
-	wc.ChunkSize = chunkSize
+	// The chunk size is write.block-size-mb, the block size of the buffered
+	// write handler. Parallel uploads don't use it.
+	wc.ChunkSize = int(bh.writeConfig.BlockSizeMb * float64(util.MiB))
 	wc.Writer = storageutil.SetAttrsInWriter(wc.Writer, req)
 	wc.ChunkRetryDeadline = time.Duration(req.ChunkRetryDeadlineSecs) * time.Second
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
@@ -282,7 +295,48 @@ func (bh *bucketHandle) CreateObjectChunkWriter(ctx context.Context, req *gcs.Cr
 	// When writer.Append is false, then this parameter is anyways ignored.
 	// Refer: https://github.com/googleapis/google-cloud-go/blob/bf56afb2a15301500b9981ee76ccc5f449e3f545/storage/writer.go#L160
 	wc.FinalizeOnClose = bh.writeConfig.FinalizeFileForRapid
+	bh.setParallelUploadAttrs(wc.Writer)
 	return wc, nil
+}
+
+// parallelUploadPartAlignment is the alignment of parallel upload parts: their
+// size must be a multiple of it. It's also the smallest part size.
+const parallelUploadPartAlignment = 32 * util.MiB
+
+// parallelUploadPartSize returns the part size, in bytes, for parallel uploads:
+// write.block-size-mb rounded up to a multiple of 32 MiB.
+func parallelUploadPartSize(blockSizeMb float64) int {
+	blockSize := int(blockSizeMb * float64(util.MiB))
+	parts := max(1, (blockSize+parallelUploadPartAlignment-1)/parallelUploadPartAlignment)
+	return parts * parallelUploadPartAlignment
+}
+
+// setParallelUploadAttrs makes the writer upload the object in parts,
+// concurrently, when the bucket's write strategy is parallel.
+//
+// TODO(b/540721232): cloud.google.com/go/storage v1.71.0 uploads the parts as
+// temporary objects and composes them, which the RAPID storage class doesn't
+// support. These uploads work once the SDK supports gRPC parallel uploads.
+// TODO(b/567198348): Those reject preconditions, so skip them for content
+// uploads then, and keep zero-byte creates, which rely on them for EEXIST, on
+// writers without parallel uploads.
+func (bh *bucketHandle) setParallelUploadAttrs(wc *storage.Writer) {
+	if bh.BucketType().WriteStrategy() != gcs.WriteStrategyParallel {
+		return
+	}
+	// The SDK starts MaxConcurrency upload goroutines for each object, so an
+	// unlimited write.max-blocks-per-file (-1, rationalized to math.MaxInt16)
+	// uses the SDK's default concurrency instead.
+	// TODO(b/576160379): Choose the default concurrency for parallel uploads at GA.
+	maxConcurrency := int(bh.writeConfig.MaxBlocksPerFile)
+	if bh.writeConfig.MaxBlocksPerFile == math.MaxInt16 {
+		maxConcurrency = 0
+	}
+	wc.EnableParallelUpload = true
+	wc.ParallelUploadConfig = storage.ParallelUploadConfig{
+		PartSize:       parallelUploadPartSize(bh.writeConfig.BlockSizeMb),
+		MaxConcurrency: maxConcurrency,
+	}
 }
 
 func (bh *bucketHandle) CreateAppendableObjectWriter(ctx context.Context,
