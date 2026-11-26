@@ -1973,8 +1973,8 @@ func (s *spanLifecycleTracker) OnEnd(span sdktrace.ReadOnlySpan) {
 func (s *spanLifecycleTracker) Shutdown(context.Context) error   { return nil }
 func (s *spanLifecycleTracker) ForceFlush(context.Context) error { return nil }
 
-// TestCreateGRPCAndControlClient_WithTracingEmitsCleanSpansWithoutOrphans verifies b/470254210:
-// creating gRPC storage and control clients with TracingEnabled=true must not leave un-ended
+// TestCreateGRPCAndControlClient_WithTracingEmitsCleanSpansWithoutOrphans verifies that
+// creating gRPC storage and control clients with TracingEnabled=true does not leave un-ended
 // or orphaned spans from duplicate otelgrpc stats handlers.
 func (testSuite *StorageHandleTest) TestCreateGRPCAndControlClient_WithTracingEmitsCleanSpansWithoutOrphans() {
 	t := testSuite.T()

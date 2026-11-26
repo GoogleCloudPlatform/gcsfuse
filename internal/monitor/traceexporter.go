@@ -84,10 +84,8 @@ func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace
 
 	res, err := getResource(ctx, mountID)
 	if err != nil {
-		logger.Errorf("Error while fetching resource: %v", err)
-		if res == nil {
-			return nil, nil, err
-		}
+		logger.Warnf("Error while fetching resource: %v", err)
+		return nil, nil, err
 	}
 
 	opts = append(opts, sdktrace.WithResource(res), sdktrace.WithSampler(sdktrace.TraceIDRatioBased(c.Trace.SamplingRatio)))

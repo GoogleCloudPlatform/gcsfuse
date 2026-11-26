@@ -187,7 +187,7 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 	// Do not manually attach otelgrpc.NewClientHandler(): both storage.NewGRPCClient
 	// and control.NewStorageControlClient register an otelgrpc client stats handler by
 	// default via grpctransport. Adding a second handler causes duplicate/orphaned gRPC
-	// spans (b/470254210).
+	// spans.
 
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
 	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
