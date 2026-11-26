@@ -545,7 +545,7 @@ params:
     type: "int"
     default: 8
     hide-flag: true
-    usage: "Number of concurrent goroutines reading FUSE ops from /dev/fuse."
+    usage: "Number of concurrent goroutines reading FUSE ops from /dev/fuse. Values <= 0 default to 1."
 
   - config-path: "file-system.fuse-options"
     proto-tag: 53

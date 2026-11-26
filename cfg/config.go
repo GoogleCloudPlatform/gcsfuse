@@ -1323,7 +1323,7 @@ func BuildFlagSet(flagSet *pflag.FlagSet) error {
 		return err
 	}
 
-	flagSet.IntP("fuse-num-readers", "", 8, "Number of concurrent goroutines reading FUSE ops from /dev/fuse.")
+	flagSet.IntP("fuse-num-readers", "", 8, "Number of concurrent goroutines reading FUSE ops from /dev/fuse. Values <= 0 default to 1.")
 
 	if err := flagSet.MarkHidden("fuse-num-readers"); err != nil {
 		return err
