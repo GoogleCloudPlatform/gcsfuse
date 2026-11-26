@@ -17,10 +17,8 @@ package util
 import (
 	"net/http"
 	"testing"
-	"time"
 	"unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/googleapi"
 )
@@ -42,8 +40,7 @@ var (
 	sizeOfEmptyIntArray     = int(unsafe.Sizeof(intArray))
 	sizeOfEmptyStringIntMap = int(unsafe.Sizeof(stringIntMap))
 
-	sizeOfEmptyMinObject = int(unsafe.Sizeof(gcs.MinObject{}))
-	sizeOfEmptyStruct    = int(unsafe.Sizeof(struct{}{}))
+	sizeOfEmptyStruct = int(unsafe.Sizeof(struct{}{}))
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -91,18 +88,6 @@ func TestUnsafeSizeOf(t *testing.T) {
 	stringIntMapVal := map[string]int{"few ": 432, "fewfgwe": -21, "": 1, "fewawef": 0}
 	assert.Equal(t, sizeOfEmptyStringIntMap, UnsafeSizeOf(&stringIntMapVal))
 
-	var emptyMinObj gcs.MinObject
-	assert.Equal(t, int(unsafe.Sizeof(emptyMinObj)), UnsafeSizeOf(&emptyMinObj))
-
-	ptrToM := &emptyMinObj
-	assert.Equal(t, int(unsafe.Sizeof(ptrToM)), UnsafeSizeOf(&ptrToM))
-
-	var emptyFolder gcs.Folder
-	assert.Equal(t, int(unsafe.Sizeof(emptyFolder)), UnsafeSizeOf(&emptyFolder))
-
-	ptrToF := &emptyFolder
-	assert.Equal(t, int(unsafe.Sizeof(ptrToF)), UnsafeSizeOf(&ptrToF))
-
 	var nilInt *int = nil
 	assert.Equal(t, 0, UnsafeSizeOf(nilInt))
 }
@@ -126,7 +111,7 @@ func TestContentSizeOfString(t *testing.T) {
 			expected_content_size: 11,
 		},
 	} {
-		assert.Equal(t, tc.expected_content_size, contentSizeOfString(&tc.str))
+		assert.Equal(t, tc.expected_content_size, ContentSizeOfString(&tc.str))
 	}
 }
 
@@ -186,7 +171,7 @@ func TestContentSizeOfStringToStringMap(t *testing.T) {
 			expected_content_size: emptyStringSize + 1 + emptyStringSize + 2 + emptyStringSize + 3 + emptyStringSize + 5,
 		},
 	} {
-		assert.Equal(t, tc.expected_content_size, contentSizeOfStringToStringMap(&tc.m))
+		assert.Equal(t, tc.expected_content_size, ContentSizeOfStringToStringMap(&tc.m))
 	}
 }
 
@@ -247,73 +232,5 @@ func TestContentSizeOfServerResponse(t *testing.T) {
 		},
 	} {
 		assert.Equal(t, tc.expected_content_size, contentSizeOfServerResponse(&tc.sr))
-	}
-}
-
-func TestNestedSizeOfGcsMinObject(t *testing.T) {
-	const name string = "my-object"
-	const contentEncoding string = "gzip/none"
-	var generation int64 = 858734898
-	var metaGeneration int64 = 858734899
-	var crc32 uint32 = 1234
-	updated := time.Now()
-	customMetadaField1 := "google-symlink"
-	customMetadaValue1 := "true"
-	customMetadaField2 := "google-xyz-field"
-	customMetadaValue2 := "google-symlink"
-	customMetadataFields := map[string]string{customMetadaField1: customMetadaValue1, customMetadaField2: customMetadaValue2}
-	customMetadataFieldsContentSize := emptyStringSize + contentSizeOfString(&customMetadaField1) + emptyStringSize + contentSizeOfString(&customMetadaValue1) + emptyStringSize + contentSizeOfString(&customMetadaField2) + emptyStringSize + contentSizeOfString(&customMetadaValue2)
-
-	m := gcs.MinObject{
-		Name:            name,
-		Size:            100,
-		ContentEncoding: contentEncoding,
-		Metadata:        customMetadataFields,
-		Generation:      generation,
-		MetaGeneration:  metaGeneration,
-		Updated:         gcs.TimeToNS(updated),
-		Finalized:       0,
-		CRC32C:          &crc32,
-	}
-
-	var expectedSize int = sizeOfEmptyMinObject
-	expectedSize += len(name) + len(contentEncoding) + sizeOfUInt32
-	expectedSize += customMetadataFieldsContentSize
-
-	assert.Equal(t, expectedSize, NestedSizeOfGcsMinObject(&m))
-}
-
-func TestNestedSizeOfGcsFolder(t *testing.T) {
-	f1 := &gcs.Folder{}
-	f2 := &gcs.Folder{
-		Name: "folder/name/",
-	}
-
-	testCases := []struct {
-		name     string
-		folder   *gcs.Folder
-		expected int
-	}{
-		{
-			name:     "NilFolder",
-			folder:   nil,
-			expected: 0,
-		},
-		{
-			name:     "EmptyFolder",
-			folder:   f1,
-			expected: UnsafeSizeOf(f1),
-		},
-		{
-			name:     "FolderWithName",
-			folder:   f2,
-			expected: UnsafeSizeOf(f2) + len(f2.Name),
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(st *testing.T) {
-			assert.Equal(st, tc.expected, NestedSizeOfGcsFolder(tc.folder))
-		})
 	}
 }

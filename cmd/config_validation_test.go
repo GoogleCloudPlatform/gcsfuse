@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -277,12 +277,13 @@ func TestValidateConfigFile_WriteConfig(t *testing.T) {
 			configFile: "testdata/valid_config.yaml",
 			expectedConfig: &cfg.Config{
 				Write: cfg.WriteConfig{
-					CreateEmptyFile:       false, // changed due to enabled streaming writes.
-					BlockSizeMb:           10,
-					EnableStreamingWrites: true,
-					GlobalMaxBlocks:       20,
-					MaxBlocksPerFile:      2,
-					RapidWrite:            cfg.RapidWriteStrategyEnabled,
+					CreateEmptyFile:                  false, // changed due to enabled streaming writes.
+					BlockSizeMb:                      10,
+					EnableStreamingWrites:            true,
+					GlobalMaxBlocks:                  20,
+					MaxBlocksPerFile:                 2,
+					RapidWrite:                       cfg.RapidWriteStrategyEnabled,
+					ExperimentalEnableParallelUpload: true,
 				},
 			},
 		},
@@ -577,7 +578,7 @@ func TestValidateConfigFile_GCSConnectionConfigSuccessful(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				GcsConnection: cfg.GcsConnectionConfig{
 					BillingProject:             "",
-					ClientProtocol:             "http1",
+					ClientProtocol:             "",
 					CustomEndpoint:             "",
 					ExperimentalEnableJsonRead: false,
 					GrpcPathStrategy:           "direct-path-with-fallback",
@@ -642,6 +643,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:     1024,
+					FuseNumReaders:         8,
 					DirMode:                0755,
 					DisableParallelDirops:  false,
 					FileMode:               0644,
@@ -664,6 +666,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:     1024,
+					FuseNumReaders:         8,
 					DirMode:                0755,
 					DisableParallelDirops:  false,
 					FileMode:               0644,
@@ -686,6 +689,7 @@ func TestValidateConfigFile_FileSystemConfigSuccessful(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:   int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:     1024,
+					FuseNumReaders:         8,
 					DirMode:                0777,
 					DisableParallelDirops:  true,
 					FileMode:               0666,

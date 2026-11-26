@@ -21,9 +21,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/setup"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/integration_tests/util/test_suite"
-	"github.com/googlecloudplatform/gcsfuse/v3/tools/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/setup"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/integration_tests/util/test_suite"
+	"github.com/googlecloudplatform/gcsfuse/v4/tools/util"
 )
 
 // A directory containing outputs created by build_gcsfuse, set up and deleted

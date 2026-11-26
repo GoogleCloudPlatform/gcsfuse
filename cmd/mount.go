@@ -21,18 +21,18 @@ import (
 
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/kernelparams"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/tracing"
 	"github.com/spf13/viper"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/perms"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/perms"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
@@ -111,6 +111,7 @@ be interacting with the file system.`)
 		IsTypeCacheDeprecated:              newConfig.EnableTypeCacheDeprecation,
 		ImplicitDir:                        newConfig.ImplicitDirs,
 		EnableEmptyManagedFolders:          newConfig.List.EnableEmptyManagedFolders,
+		RapidWrite:                         newConfig.Write.RapidWrite,
 	}
 	bm := gcsx.NewBucketManager(bucketCfg, storageHandle, metricHandle)
 
@@ -200,6 +201,8 @@ func getFuseMountConfig(fsName string, newConfig *cfg.Config) *fuse.MountConfig 
 		EnableReaddirplus: newConfig.FileSystem.ExperimentalEnableReaddirplus,
 		// Enable async reads if enable-kernel-reader flag is set to true.
 		EnableAsyncReads: newConfig.FileSystem.EnableKernelReader,
+		// Set number of parallel readers doing the ReadOp operation from /dev/fuse.
+		NumReaders: int(newConfig.FileSystem.FuseNumReaders),
 	}
 
 	mountCfg.MaxWrite = uint32(newConfig.FileSystem.FuseMaxWriteSizeKb * 1024)

@@ -54,12 +54,12 @@ func TestCreateRetryTest(t *testing.T) {
 	defer mockServer.Close()
 
 	instructions := map[string][]string{"retry": {"retry-instruction"}}
-	testID, err := CreateRetryTest(mockServer.URL, instructions)
+	testID, err := CreateRetryTest(mockServer.URL, instructions, "http")
 	assert.NoError(t, err)
 	assert.Equal(t, "test-id-123", testID, "Unexpected test ID returned")
 
 	// Test with empty instructions
-	testID, err = CreateRetryTest(mockServer.URL, map[string][]string{})
+	testID, err = CreateRetryTest(mockServer.URL, map[string][]string{}, "http")
 	assert.NoError(t, err)
 	assert.Equal(t, "", testID, "Expected empty test ID for empty instructions")
 }

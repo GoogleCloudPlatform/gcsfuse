@@ -18,6 +18,7 @@
 package cfg
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -115,6 +116,95 @@ func TestApplyOptimizations(t *testing.T) {
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.FileSystem.CongestionThreshold)
+			})
+		}
+	})
+	// Tests for gcs-connection.enable-grpc-by-default
+	t.Run("gcs-connection.enable-grpc-by-default", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			userSetFlags    map[string]any
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name:   "user_set",
+				config: Config{},
+				userSetFlags: map[string]any{
+					"gcs-connection.enable-grpc-by-default": true,
+					"machine-type":                          "a2-megagpu-16g",
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   true,
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   false,
+			},
+			{
+				name:   "machine_group_high-performance",
+				config: Config{Profile: ""},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
+				},
+				input:           &OptimizationInput{IsGKE: true},
+				expectOptimized: true,
+				expectedValue:   true,
+			}, {
+				name:   "fallback_to_machine_type_with_non_existent_profile",
+				config: Config{Profile: "non_existent_profile"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
+				},
+				input:           &OptimizationInput{IsGKE: true},
+				expectOptimized: true,
+				expectedValue:   true,
+			}, {
+				name:   "fallback_to_machine_type_when_aiml-training_is_unrelated",
+				config: Config{Profile: "aiml-training"},
+				userSetFlags: map[string]any{
+					"machine-type": "a2-megagpu-16g",
+				},
+				input:           &OptimizationInput{IsGKE: true},
+				expectOptimized: true,
+				expectedValue:   true,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.GcsConnection.EnableGrpcByDefault = tc.expectedValue.(bool)
+				} else {
+					c.GcsConnection.EnableGrpcByDefault = bool(false)
+				}
+
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "gcs-connection.enable-grpc-by-default")
+				} else {
+					assert.NotContains(t, optimizedFlags, "gcs-connection.enable-grpc-by-default")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.GcsConnection.EnableGrpcByDefault)
 			})
 		}
 	})
@@ -1344,6 +1434,87 @@ func TestApplyOptimizations(t *testing.T) {
 				}
 				// Use EqualValues to handle the int vs int64 type mismatch for default values.
 				assert.EqualValues(t, tc.expectedValue, c.Write.GlobalMaxBlocks)
+			})
+		}
+	})
+	// Tests for write.max-blocks-per-file
+	t.Run("write.max-blocks-per-file", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			config          Config
+			conditions      map[string]any
+			userSetFlags    map[string]any
+			input           *OptimizationInput
+			expectOptimized bool
+			expectedValue   any
+		}{
+			{
+				name:   "user_set",
+				config: Config{},
+				userSetFlags: map[string]any{
+					"write.max-blocks-per-file": 98765,
+					"machine-type":              "a2-megagpu-16g",
+				},
+				conditions: map[string]any{
+					"write.experimental-enable-parallel-upload": true,
+				},
+				input:           &OptimizationInput{BucketType: BucketTypeRCU},
+				expectOptimized: false,
+				expectedValue:   int64(98765),
+			},
+			{
+				name:   "no_optimization",
+				config: Config{Profile: "non_existent_profile"},
+				userSetFlags: map[string]any{
+					"machine-type": "low-end-machine",
+				},
+				input:           nil,
+				expectOptimized: false,
+				expectedValue:   1,
+			},
+			{
+				name:   "bucket_type_rcu_write.experimental-enable-parallel-upload_true",
+				config: Config{Profile: ""},
+				conditions: map[string]any{
+					"write.experimental-enable-parallel-upload": true,
+				},
+				userSetFlags:    map[string]any{},
+				input:           &OptimizationInput{BucketType: BucketTypeRCU},
+				expectOptimized: true,
+				expectedValue:   4,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// We need a copy of the config for each test case.
+				c := tc.config
+				for k, v := range tc.conditions {
+					if f, ok := getConfigFieldByPath(&c, k); ok {
+						f.Set(reflect.ValueOf(v).Convert(f.Type()))
+					}
+				}
+				// Set the default or non-default value on the config object.
+				if tc.name == "user_set" {
+					c.Write.MaxBlocksPerFile = tc.expectedValue.(int64)
+				} else {
+					c.Write.MaxBlocksPerFile = int64(1)
+				}
+
+				v := viper.New()
+				for key, val := range tc.userSetFlags {
+					v.Set(key, val)
+				}
+
+				optimizedFlags := c.ApplyOptimizations(v, tc.input)
+
+				if tc.expectOptimized {
+					assert.Contains(t, optimizedFlags, "write.max-blocks-per-file")
+				} else {
+					assert.NotContains(t, optimizedFlags, "write.max-blocks-per-file")
+				}
+				// Use EqualValues to handle the int vs int64 type mismatch for default values.
+				assert.EqualValues(t, tc.expectedValue, c.Write.MaxBlocksPerFile)
 			})
 		}
 	})

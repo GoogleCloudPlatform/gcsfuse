@@ -18,7 +18,6 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 	"google.golang.org/api/googleapi"
 )
 
@@ -107,7 +106,7 @@ func UnsafeSizeOf[T any](ptr *T) int {
 	return int(unsafe.Sizeof(*ptr))
 }
 
-func contentSizeOfString(s *string) int {
+func ContentSizeOfString(s *string) int {
 	if s == nil {
 		return 0
 	}
@@ -120,19 +119,19 @@ func contentSizeOfArrayOfStrings(arr *[]string) (size int) {
 	}
 
 	for _, str := range *arr {
-		size += emptyStringSize + contentSizeOfString(&str)
+		size += emptyStringSize + ContentSizeOfString(&str)
 	}
 	return
 }
 
-func contentSizeOfStringToStringMap(m *map[string]string) (size int) {
+func ContentSizeOfStringToStringMap(m *map[string]string) (size int) {
 	if m == nil {
 		return
 	}
 
 	for k, v := range *m {
-		size += emptyStringSize + contentSizeOfString(&k)
-		size += emptyStringSize + contentSizeOfString(&v)
+		size += emptyStringSize + ContentSizeOfString(&k)
+		size += emptyStringSize + ContentSizeOfString(&v)
 	}
 	return
 }
@@ -143,7 +142,7 @@ func contentSizeOfStringToStringArrayMap(m *map[string][]string) (size int) {
 	}
 
 	for k, v := range *m {
-		size += emptyStringSize + contentSizeOfString(&k)
+		size += emptyStringSize + ContentSizeOfString(&k)
 		size += emptyStringArraySize + contentSizeOfArrayOfStrings(&v)
 	}
 	return
@@ -159,53 +158,6 @@ func contentSizeOfServerResponse(sr *googleapi.ServerResponse) (size int) {
 
 	// Account for map members.
 	size += contentSizeOfStringToStringArrayMap((*map[string][]string)(&sr.Header))
-
-	return
-}
-
-// NestedSizeOfGcsMinObject returns the full nested memory size
-// of the gcs.MinObject pointed by the passed pointer.
-// Improvement scope: This can be generalized to a general-struct
-// but that needs better understanding of the reflect package
-// and other related packages.
-func NestedSizeOfGcsMinObject(m *gcs.MinObject) (size int) {
-	if m == nil {
-		return
-	}
-
-	// Get raw size of the structure.
-	size = UnsafeSizeOf(m)
-
-	// Account for string members.
-	for _, strPtr := range []*string{&m.Name, &m.ContentEncoding} {
-		size += contentSizeOfString(strPtr)
-	}
-
-	// Account for pointers to built in types.
-	size += UnsafeSizeOf(m.CRC32C)
-
-	// Account for integer members - Size, Generation, MetaGeneration.
-	// Account for time members - Updated.
-	// Nothing to be added for any built-in types - already accounted for in unsafeSizeOf(o).
-
-	// Account for map members.
-	size += contentSizeOfStringToStringMap(&m.Metadata)
-
-	return
-}
-
-// NestedSizeOfGcsFolder returns the full nested memory size
-// of the gcs.Folder pointed by the passed pointer.
-func NestedSizeOfGcsFolder(f *gcs.Folder) (size int) {
-	if f == nil {
-		return
-	}
-
-	// Get raw size of the structure.
-	size = UnsafeSizeOf(f)
-
-	// Account for string members.
-	size += contentSizeOfString(&f.Name)
 
 	return
 }

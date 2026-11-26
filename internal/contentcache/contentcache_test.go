@@ -22,7 +22,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/contentcache"
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"

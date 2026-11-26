@@ -19,12 +19,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/storageutil"
 	"github.com/jacobsa/timeutil"
 	"golang.org/x/sync/semaphore"
 )
@@ -40,7 +40,8 @@ func newBenchmarkDirInode(b *testing.B, implicitDirs bool) *dirInode {
 		chunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
-		bucket)
+		bucket,
+		false)
 
 	config := &cfg.Config{
 		List:                         cfg.ListConfig{EnableEmptyManagedFolders: true},

@@ -17,8 +17,8 @@ package fs
 import (
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util/diskutil"
 	"github.com/stretchr/testify/assert"
 )
 

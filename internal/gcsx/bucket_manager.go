@@ -20,18 +20,18 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/ratelimit"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/monitor"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/ratelimit"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 	"github.com/jacobsa/timeutil"
 )
 
@@ -79,6 +79,8 @@ type BucketConfig struct {
 	ImplicitDir bool
 
 	EnableEmptyManagedFolders bool
+
+	RapidWrite cfg.RapidWriteStrategy
 }
 
 // BucketManager manages the lifecycle of buckets.
@@ -259,7 +261,8 @@ func (bm *bucketManager) SetUpBucket(
 		bm.config.ChunkRetryDeadlineSecs,
 		bm.config.ChunkTransferTimeoutSecs,
 		bm.config.TmpObjectPrefix,
-		b)
+		b,
+		bm.config.RapidWrite != cfg.RapidWriteStrategyDisabled)
 
 	// Fetch bucket type from storage layout api and set bucket type.
 	b.BucketType()

@@ -22,11 +22,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
@@ -77,6 +77,7 @@ func setupBaseDirTest(t *testing.T) (context.Context, *timeutil.SimulatedClock, 
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
 		fake.NewFakeBucket(clock, "bucketA", gcs.BucketType{}),
+		false,
 	)
 	bm.buckets["bucketB"] = gcsx.NewSyncerBucket(
 		1,
@@ -84,6 +85,7 @@ func setupBaseDirTest(t *testing.T) (context.Context, *timeutil.SimulatedClock, 
 		chunkTransferTimeoutSecs,
 		".gcsfuse_tmp/",
 		fake.NewFakeBucket(clock, "bucketB", gcs.BucketType{}),
+		false,
 	)
 
 	in := NewBaseDirInode(

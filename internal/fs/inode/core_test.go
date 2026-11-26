@@ -20,12 +20,12 @@ import (
 
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/storageutil"
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 )
@@ -53,7 +53,8 @@ func (t *CoreTest) SetUp(ti *TestInfo) {
 		/*appendThreshold=*/ 1,
 		/*chunkRetryDeadlineSecs=*/ 120,
 		/*chunkTransferTimeoutSecs=*/ 10,
-		".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{}))
+		".gcsfuse_tmp/", fake.NewFakeBucket(&t.clock, "some_bucket", gcs.BucketType{}),
+		false)
 	t.clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 }
 

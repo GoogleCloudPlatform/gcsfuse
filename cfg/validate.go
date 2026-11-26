@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
 	"github.com/spf13/viper"
 )
 

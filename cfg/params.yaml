@@ -446,6 +446,16 @@ params:
     default: false
     hide-flag: true
 
+  - config-path: "file-system.disable-symlinks"
+    proto-tag: 164
+    flag-name: "disable-symlinks"
+    type: "bool"
+    usage: >-
+      Disables symbolic link support. When enabled, creating new symlinks is blocked
+      and existing symlink objects in the bucket are treated as regular files.
+    default: false
+    hide-flag: false
+
   - config-path: "file-system.enable-kernel-reader"
     proto-tag: 45
     flag-name: "enable-kernel-reader"
@@ -528,6 +538,14 @@ params:
       of 1MB is supported.
     default: 1024
     hide-flag: true
+
+  - config-path: "file-system.fuse-num-readers"
+    proto-tag: 165
+    flag-name: "fuse-num-readers"
+    type: "int"
+    default: 8
+    hide-flag: true
+    usage: "Number of concurrent goroutines reading FUSE ops from /dev/fuse. Values <= 0 default to 1."
 
   - config-path: "file-system.fuse-options"
     proto-tag: 53
@@ -730,7 +748,7 @@ params:
       The protocol used for communicating with the GCS backend.
       Value can be 'http1' (HTTP/1.1), 'http2' (HTTP/2), 'grpc', or 'httpmtls'.
       'httpmtls' delegates connection creation to the SDK (enabling mTLS) and uses HTTP/2 by default, falling back to HTTP/1.1 if the server doesn't support it.
-    default: "http1"
+    default: ""
 
   - config-path: "gcs-connection.custom-endpoint"
     proto-tag: 72
@@ -748,6 +766,11 @@ params:
       If true, enables gRPC protocol by default (e.g. for new GKE deployments).
     default: false
     hide-flag: true
+    optimizations:
+      machine-based-optimization:
+        - group: "high-performance"
+          value: true
+          gke-only: true
 
   - config-path: "gcs-connection.enable-http-dns-cache"
     proto-tag: 73
@@ -1549,6 +1572,14 @@ params:
     usage: "Enables streaming uploads during write file operation."
     default: true
 
+  - config-path: "write.experimental-enable-parallel-upload"
+    proto-tag: 163
+    flag-name: "experimental-enable-parallel-upload"
+    type: "bool"
+    usage: "Enables experimental parallel uploads to write to the RAPID storage class on RCU buckets."
+    default: false
+    hide-flag: true
+
   - config-path: "write.finalize-file-for-rapid"
     proto-tag: 156
     flag-name: "finalize-file-for-rapid"
@@ -1586,6 +1617,13 @@ params:
       streaming writes. The value should be >= 1 or -1 (for infinite blocks).
     default: 1
     hide-flag: true
+    optimizations:
+      bucket-type-optimization:
+        # TODO(b/584557180): 4 is a placeholder value; update once experiments complete and the optimal value is determined.
+        - bucket-type: "rcu"
+          conditions:
+            write.experimental-enable-parallel-upload: true
+          value: 4
 
   - config-path: "write.rapid-write"
     proto-tag: 162

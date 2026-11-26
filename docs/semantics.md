@@ -478,7 +478,7 @@ From GCSFuse v3.9.0 onwards, the standard GCS representation for symbolic links 
 
 **Note**
 
-While GCSFuse supports symlinks that point to paths external to the mount point, it should be avoided as it could lead to broken links and security issues.
+While GCSFuse supports symlinks that point to paths external to the mount point, it should be avoided as it could lead to broken links and security issues. To mitigate this risk in untrusted or multi-tenant environments, you can disable symlink support using the `--disable-symlinks` flag (or `file-system: disable-symlinks: true` in the configuration file). When enabled, creating new symlinks fails with `ENOTSUP` and existing symlink objects in the bucket are treated as regular files.
 
 
 ___

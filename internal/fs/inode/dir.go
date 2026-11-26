@@ -23,14 +23,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
@@ -279,6 +279,7 @@ type dirInode struct {
 	activeWriters atomic.Int32
 
 	isStandardSymlinkRepresentationEnabled bool
+	disableSymlinks                        bool
 	isUnsupportedPathSupportEnabled        bool
 	isEnableTypeCacheDeprecation           bool
 
@@ -345,6 +346,7 @@ func NewDirInode(
 		mtime:                                  mtimeClock.Now(),
 		isHNSEnabled:                           cfg.EnableHns,
 		isStandardSymlinkRepresentationEnabled: cfg.EnableStandardSymlinks,
+		disableSymlinks:                        cfg.FileSystem.DisableSymlinks,
 		isUnsupportedPathSupportEnabled:        cfg.EnableUnsupportedPathSupport,
 		isEnableTypeCacheDeprecation:           cfg.EnableTypeCacheDeprecation,
 		unlinked:                               false,
@@ -1094,7 +1096,11 @@ func (d *dirInode) ReadEntries(
 		}
 		switch core.Type() {
 		case metadata.SymlinkType:
-			entry.Type = fuseutil.DT_Link
+			if d.disableSymlinks {
+				entry.Type = fuseutil.DT_File
+			} else {
+				entry.Type = fuseutil.DT_Link
+			}
 		case metadata.RegularFileType:
 			entry.Type = fuseutil.DT_File
 		case metadata.ImplicitDirType, metadata.ExplicitDirType:

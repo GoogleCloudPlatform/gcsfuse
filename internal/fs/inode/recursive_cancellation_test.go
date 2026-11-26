@@ -19,10 +19,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
@@ -46,6 +46,7 @@ func (t *RecursiveCancellationTest) SetupTest() {
 		/*chunkRetryDeadlineSecs=*/ 120,
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/", t.fake,
+		false,
 	)
 	t.config = &cfg.Config{
 		MetadataCache: cfg.MetadataCacheConfig{

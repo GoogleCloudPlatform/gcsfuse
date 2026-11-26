@@ -18,6 +18,89 @@ set -x
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
+
+# Prints the value at the given metadata server path, e.g. instance/name.
+function get_metadata() {
+  curl -sSf --retry 5 -H "Metadata-Flavor: Google" "${METADATA_URL}/$1"
+}
+
+# Prints the value of the given instance metadata attribute, or nothing if it is not set.
+function get_metadata_attribute() {
+  get_metadata "instance/attributes/$1" 2>/dev/null || true
+}
+
+# Runs curl with the given arguments, authenticated as the VM service account. The access token is passed in a
+# temporary header file so that it does not show up in the set -x output.
+function curl_with_vm_credentials() {
+  local header_file
+  header_file=$(mktemp)
+  get_metadata instance/service-accounts/default/token |
+    sed -n 's/.*"access_token" *: *"\([^"]*\)".*/Authorization: Bearer \1/p' > "$header_file"
+  local exit_code=0
+  curl -sSf --retry 5 -H @"$header_file" "$@" || exit_code=$?
+  rm -f "$header_file"
+  return "$exit_code"
+}
+
+# Read the run configuration and the release details before any other setup step. Only curl and the metadata server
+# are used for this, so that a failure in a later step (e.g. installing packages or gcloud) can still be reported.
+CUSTOM_BUCKET=$(get_metadata_attribute custom_bucket)
+RUN_ON_ZB_ONLY=$(get_metadata_attribute run-on-zb-only)
+RUN_READ_CACHE_TESTS_ONLY=$(get_metadata_attribute run-read-cache-only)
+RUN_LIGHT_TEST=$(get_metadata_attribute run-light-test)
+
+# If CUSTOM_BUCKET is empty, use the release-packages bucket as default. When a custom bucket is provided, this script
+# will use the provided bucket to fetch details.txt file for the run and will upload the results to that bucket,
+# specially useful for testing.
+BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-release-packages"}
+
+#details.txt file contains the release version and commit hash of the current release.
+# Using dynamic bucket.
+DETAILS_FILE=$(pwd)/details.txt
+curl_with_vm_credentials -o "$DETAILS_FILE" "https://storage.googleapis.com/${BUCKET_NAME_TO_USE}/version-detail/details.txt"
+# Writing VM instance name to details.txt (Format: release-test-<os-name>)
+get_metadata instance/name >>"$DETAILS_FILE"
+# GCS location for the results of this run: v<release version>/<VM instance name> in the bucket. Not stored in a
+# VERSION variable, because sourcing /etc/os-release below overwrites VERSION.
+RESULTS_URL="https://storage.googleapis.com/${BUCKET_NAME_TO_USE}/v$(sed -n 1p "$DETAILS_FILE")/$(sed -n 3p "$DETAILS_FILE")"
+
+# Testcases whose results are uploaded in the active run mode. The Louhi wait step polls GCS until the log files of
+# all of them exist, so keep this in sync with the test runs at the end of this script.
+if [[ "$RUN_LIGHT_TEST" == "true" ]]; then
+  EXPECTED_TESTCASES=("flat" "hns" "zonal" "emulator")
+elif [[ "$RUN_READ_CACHE_TESTS_ONLY" == "true" ]]; then
+  EXPECTED_TESTCASES=("flat" "hns" "zonal")
+elif [[ "$RUN_ON_ZB_ONLY" == "true" ]]; then
+  EXPECTED_TESTCASES=("zonal")
+else
+  EXPECTED_TESTCASES=("flat" "hns" "emulator")
+fi
+
+# On exit, uploads a failure log for every expected testcase whose log file is not in GCS yet (e.g. a setup step
+# failed before the tests ran), so that the Louhi wait step fails fast. Uses curl, as gcloud may not be usable yet.
+function upload_missing_logs() {
+  # Capture the exit code and the command that triggered the exit before any other command overwrites them.
+  local exit_code=$?
+  local last_command=${BASH_COMMAND%%$'\n'*}
+  # Keep going if a request fails, so that every missing log file is still attempted.
+  set +e
+  local testcase log_name
+  for testcase in "${EXPECTED_TESTCASES[@]}"; do
+    log_name="logs-${testcase}.txt"
+    if [[ "$testcase" == "flat" ]]; then
+      log_name="logs.txt"
+    fi
+    if curl_with_vm_credentials -I -o /dev/null "${RESULTS_URL}/${log_name}" 2>/dev/null; then
+      continue
+    fi
+    printf "No results were reported for the %s tests: e2e_test.sh exited with code %s while running: %s\n%s\n" \
+      "$testcase" "$exit_code" "$last_command" "See the startup-script output in the VM serial console for details." |
+      curl_with_vm_credentials -X PUT -H "Content-Type: text/plain" --data-binary @- "${RESULTS_URL}/${log_name}"
+  done
+}
+trap upload_missing_logs EXIT
+
 # Install wget
 if command -v apt-get &> /dev/null; then
     # For Debian/Ubuntu-based systems
@@ -61,23 +144,6 @@ $INSTALL_COMMAND
 export PATH=/usr/local/google-cloud-sdk/bin:$PATH
 gcloud version && rm gcloud.tar.gz
 
-# Extract the metadata parameters passed, for which we need the zone of the GCE VM
-# on which the tests are supposed to run.
-ZONE=$(curl -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
-echo "Got ZONE=\"${ZONE}\" from metadata server."
-# The format for the above extracted zone is projects/{project-id}/zones/{zone}, thus, from this
-# need extracted zone name.
-ZONE_NAME=$(basename "$ZONE")
-
-CUSTOM_BUCKET=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.custom_bucket)')
-RUN_ON_ZB_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-on-zb-only)')
-RUN_READ_CACHE_TESTS_ONLY=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-read-cache-only)')
-RUN_LIGHT_TEST=$(gcloud compute instances describe "$HOSTNAME" --zone="$ZONE_NAME" --format='get(metadata.run-light-test)')
-
-# If CUSTOM_BUCKET is empty, use the release-packages bucket as default. When a custom bucket is provided, this script
-# will use the provided bucket to fetch details.txt file for the runa nd will upload the results to that bucket,
-# specially useful for testing.
-BUCKET_NAME_TO_USE=${CUSTOM_BUCKET:-"gcsfuse-release-packages"}
 echo "BUCKET_NAME_TO_USE set to: \"${BUCKET_NAME_TO_USE}\""
 echo "RUN_ON_ZB_ONLY flag set to : \"${RUN_ON_ZB_ONLY}\""
 echo "RUN_READ_CACHE_TESTS_ONLY flag set to : \"${RUN_READ_CACHE_TESTS_ONLY}\""
@@ -99,12 +165,6 @@ fi
 if [[ "$RUN_LIGHT_TEST" == "true" ]]; then
 	echo "Running light tests only..."
 fi
-
-#details.txt file contains the release version and commit hash of the current release.
-# Using dynamic bucket.
-gcloud storage cp gs://${BUCKET_NAME_TO_USE}/version-detail/details.txt .
-# Writing VM instance name to details.txt (Format: release-test-<os-name>)
-curl http://metadata.google.internal/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google" >>details.txt
 
 # Function to create the local user
 create_user() {
@@ -178,7 +238,6 @@ grant_sudo() {
 ################################################################################
 USERNAME=starterscriptuser
 HOMEDIR="/home/${USERNAME}"
-DETAILS_FILE=$(pwd)/details.txt
 
 create_user "$USERNAME" "$HOMEDIR" "$DETAILS_FILE"
 grant_sudo  "$USERNAME" "$HOMEDIR"
@@ -191,11 +250,26 @@ set -e
 # Print commands and their arguments as they are executed.
 
 function cleanup() {
+    # Capture the exit code and the command that triggered the exit before any other command overwrites them.
+    local script_exit_code=$?
+    local last_command=$BASH_COMMAND
+    # errexit is still on after a setup failure. Keep going if a command fails, so that the logs are still uploaded.
+    set +e
     echo "Performing cleanup..."
+    if [[ "$script_exit_code" -ne 0 ]]; then
+      echo "e2e_test.sh exited with code ${script_exit_code} while running: ${last_command}" &>> "$LOG_FILE"
+      echo "See the startup-script output in the VM serial console for details." &>> "$LOG_FILE"
+    fi
+    # exit_status is only filled in by the test runs at the end of this script, after log_based_on_exit_status is
+    # defined. If no test ran (e.g. a setup step failed), only upload LOG_FILE. upload_missing_logs in the root part
+    # of this script then uploads a failure log for every other expected log file.
+    if [[ "${#exit_status[@]}" -eq 0 ]]; then
+      gcloud storage cp "$LOG_FILE" "gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/"
+      return
+    fi
     #Log results based on the collected exit statuses.
     log_based_on_exit_status exit_status
 }
-trap cleanup EXIT
 set -x
 # GCSFuse test suite uses this environment variable to save failure logs at the specified location.
 export KOKORO_ARTIFACTS_DIR=/home/starterscriptuser/failure_logs
@@ -211,7 +285,7 @@ export BUCKET_NAME_TO_USE='$BUCKET_NAME_TO_USE'
 
 #Copy details.txt to starterscriptuser home directory and create logs.txt
 cd ~/
-cp /details.txt .
+cp '$DETAILS_FILE' .
 touch logs.txt
 touch logs-hns.txt
 touch logs-zonal.txt
@@ -227,6 +301,10 @@ echo "Current Working Directory: $(pwd)" &>> ${LOG_FILE}
 VERSION=$(sed -n 1p ~/details.txt)
 COMMIT_HASH=$(sed -n 2p ~/details.txt)
 VM_INSTANCE_NAME=$(sed -n 3p ~/details.txt)
+
+# Upload results on exit, including when a setup step below fails. Registered after VERSION and VM_INSTANCE_NAME
+# are set; earlier failures are reported by upload_missing_logs in the root part of this script.
+trap cleanup EXIT
 
 VERSION_CLEAN=$(echo "$VERSION" | sed 's/^v//')
 GO_TEST_SHORT_FLAG=""
@@ -303,7 +381,7 @@ else
     fi
 
     sudo yum makecache
-    sudo yum -y update
+    sudo yum -y update --allowerasing
 
     #Install fuse
     sudo yum -y install fuse
@@ -363,6 +441,21 @@ if [[ "${BUCKET_NAME_TO_USE}" != "gcsfuse-release-packages" ]]; then
     GOOS=linux GOARCH=${architecture} go run tools/build_gcsfuse/main.go . . "${VERSION}"
     sudo cp bin/* /usr/bin/
     sudo cp sbin/* /usr/sbin/
+fi
+
+SKIP_LEGACY_RELEASE_VERSION_PKG=false
+if [[ "$VERSION_CLEAN" == *-frontier-* ]] && \
+   [[ -f tools/integration_tests/release_version/release_version_test.go ]] && \
+   ! grep -q -- "-frontier-" tools/integration_tests/release_version/release_version_test.go; then
+    echo "Checked-out branch predates Frontier support in release_version_test.go; verifying gcsfuse --version directly..." |& tee -a ${LOG_FILE}
+    VERSION_OUTPUT="$(gcsfuse --version 2>&1)" || true
+    EXPECTED_VERSION_RE="^gcsfuse version ([0-9]+\.[0-9]+\.[0-9]+(-frontier-[a-z0-9]+\.[0-9]+)?) \(Go version go.+\)$"
+    if [[ ! "$VERSION_OUTPUT" =~ $EXPECTED_VERSION_RE ]] || [[ "${BASH_REMATCH[1]}" != "$VERSION_CLEAN" ]]; then
+        echo "Unexpected gcsfuse --version output ($VERSION_OUTPUT) for release ($VERSION_CLEAN)." |& tee -a ${LOG_FILE}
+        gcloud storage cp ${LOG_FILE} "gs://${BUCKET_NAME_TO_USE}/v${VERSION}/${VM_INSTANCE_NAME}/" || true
+        exit 1
+    fi
+    SKIP_LEGACY_RELEASE_VERSION_PKG=true
 fi
 
 #run tests with testbucket flag
@@ -439,6 +532,20 @@ TEST_DIR_PARALLEL_ZONAL=(
   "unsupported_path"
   "symlink_handling"
 )
+
+if [[ "$SKIP_LEGACY_RELEASE_VERSION_PKG" == "true" ]]; then
+  FILTERED_PARALLEL=()
+  for pkg in "${TEST_DIR_PARALLEL[@]}"; do
+    [[ "$pkg" != "release_version" ]] && FILTERED_PARALLEL+=("$pkg")
+  done
+  TEST_DIR_PARALLEL=("${FILTERED_PARALLEL[@]}")
+
+  FILTERED_PARALLEL_ZONAL=()
+  for pkg in "${TEST_DIR_PARALLEL_ZONAL[@]}"; do
+    [[ "$pkg" != "release_version" ]] && FILTERED_PARALLEL_ZONAL+=("$pkg")
+  done
+  TEST_DIR_PARALLEL_ZONAL=("${FILTERED_PARALLEL_ZONAL[@]}")
+fi
 
 # For Zonal Buckets :  These tests never become parallel as they are changing bucket permissions.
 TEST_DIR_NON_PARALLEL_ZONAL=(
@@ -670,7 +777,7 @@ function log_based_on_exit_status() {
 function run_e2e_tests_for_emulator_and_log() {
   ./tools/integration_tests/emulator_tests/emulator_tests.sh true > ~/logs-emulator.txt
   emulator_test_status=$?
-  if [ $e2e_tests_emulator_status != 0 ];
+  if [ $emulator_test_status != 0 ];
     then
         echo "Test failures detected in emulator based tests." &>> ~/logs-emulator.txt
     else

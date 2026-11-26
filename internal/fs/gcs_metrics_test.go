@@ -22,19 +22,19 @@ import (
 
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/wrappers"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/caching"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs/wrappers"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/monitor"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/caching"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/tracing"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
@@ -67,6 +67,7 @@ func (bm *fakeBucketManagerWithMetrics) SetUpBucket(
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		gcsx.NewContentTypeBucket(monitor.NewMonitoringBucket(bucket, mh)),
+		false,
 	)
 	return sb, err
 }
@@ -135,12 +136,11 @@ func createTestFileSystemWithMonitoredBucket(ctx context.Context, t *testing.T, 
 // TestGCSMetrics_RequestCount_StatObject validates the "gcs/request_count" metric for StatObject calls.
 //
 // Expected Behavior:
-//   - LookUpInode invokes StatObject 3 times in this test scenario:
+//   - LookUpInode invokes StatObject 2 times in this test scenario:
 //     1. Lookup Directory: Check if the object is a directory.
 //     2. Lookup File: Check if the object itself exists.
-//     3. Attribute Refresh: Fetch fresh attributes to ensure validity for the new inode.
 //   - GetInodeAttributes invokes StatObject 1 time to refresh attributes.
-//   - Therefore, we verify that "gcs/request_count" with "gcs_method=StatObject" is recorded as 4.
+//   - Therefore, we verify that "gcs/request_count" with "gcs_method=StatObject" is recorded as 3.
 func TestGCSMetrics_RequestCount_StatObject(t *testing.T) {
 	ctx := context.Background()
 	bucket, server, _, reader := createTestFileSystemWithMonitoredBucket(ctx, t, defaultServerConfigParams())
@@ -157,7 +157,7 @@ func TestGCSMetrics_RequestCount_StatObject(t *testing.T) {
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
-		3)
+		2)
 
 	// Trigger another StatObject via GetInodeAttributes to verify stat count increments.
 	err = server.GetInodeAttributes(ctx, &fuseops.GetInodeAttributesOp{Inode: lookupOp.Entry.Child})
@@ -166,7 +166,7 @@ func TestGCSMetrics_RequestCount_StatObject(t *testing.T) {
 
 	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
-		4) // Previously 3, now incremented by 1
+		3) // Previously 2, now incremented by 1
 }
 
 // TestGCSMetrics_RequestCount_CreateObject validates the "gcs/request_count" metric for CreateObject calls.
@@ -203,11 +203,74 @@ func TestGCSMetrics_RequestCount_CreateObject(t *testing.T) {
 		1)
 }
 
+// TestGCSMetrics_RequestCount_CreateFile_ZonalBucket validates the GCS API calls made during
+// CreateFile on a zonal (rapid) bucket with streaming writes enabled and metadata cache disabled.
+//
+// Expected Behavior:
+//   - CreateFile initializes the buffered write handler and syncs the new file to GCS to create
+//     an unfinalized object, invoking CreateObjectChunkWriter (1) and FlushPendingWrites (1).
+//   - Fetching attributes for the newly created inode skips the clobbered check, so StatObject
+//     is not invoked (0).
+func TestGCSMetrics_RequestCount_CreateFile_ZonalBucket(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableStreamingWrites = true
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, true)
+	server = wrappers.WithMonitoring(server, mh)
+
+	createOp := &fuseops.CreateFileOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "new_zonal_file.txt",
+		Mode:   0644,
+	}
+	err := server.CreateFile(ctx, createOp)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// Verify total GCS API calls across all methods is 2 (CreateObjectChunkWriter + FlushPendingWrites).
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(), 2, metrics.Subset())
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(attribute.String("gcs_method", "CreateObjectChunkWriter")),
+		1)
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(attribute.String("gcs_method", "FlushPendingWrites")),
+		1)
+}
+
+// TestGCSMetrics_RequestCount_CreateFile_RegionalBucket validates the GCS API calls made during
+// CreateFile on a regional bucket with streaming writes enabled and metadata cache disabled.
+//
+// Expected Behavior:
+//   - CreateFile initializes a local file inode and buffered write handler without uploading to GCS.
+//   - Fetching attributes for the newly created inode skips the clobbered check, so 0 GCS API calls
+//     are made during CreateFile.
+func TestGCSMetrics_RequestCount_CreateFile_RegionalBucket(t *testing.T) {
+	ctx := context.Background()
+	params := defaultServerConfigParams()
+	params.enableStreamingWrites = true
+	_, server, mh, reader := createTestFileSystemWithMetrics(ctx, t, params, false)
+	server = wrappers.WithMonitoring(server, mh)
+
+	createOp := &fuseops.CreateFileOp{
+		Parent: fuseops.RootInodeID,
+		Name:   "new_regional_file.txt",
+		Mode:   0644,
+	}
+	err := server.CreateFile(ctx, createOp)
+	require.NoError(t, err)
+	waitForMetricsProcessing()
+
+	// Verify 0 GCS API calls are made across all methods.
+	metrics.VerifyCounterMetric(t, ctx, reader, "gcs/request_count",
+		attribute.NewSet(), 0, metrics.Subset())
+}
+
 // TestGCSMetrics_RequestLatencies validates the "gcs/request_latencies" histogram metric.
 //
 // Expected Behavior:
-//   - Similar to TestGCSMetrics_RequestCount_StatObject, this operation triggers 3 StatObject calls.
-//   - We verify that the "gcs/request_latencies" histogram with "gcs_method=StatObject" has recorded 3 events.
+//   - Similar to TestGCSMetrics_RequestCount_StatObject, this operation triggers 2 StatObject calls.
+//   - We verify that the "gcs/request_latencies" histogram with "gcs_method=StatObject" has recorded 2 events.
 //   - This test ensures that latency tracking is active for GCS requests.
 func TestGCSMetrics_RequestLatencies(t *testing.T) {
 	ctx := context.Background()
@@ -226,7 +289,7 @@ func TestGCSMetrics_RequestLatencies(t *testing.T) {
 
 	metrics.VerifyHistogramMetric(t, ctx, reader, "gcs/request_latencies",
 		attribute.NewSet(attribute.String("gcs_method", "StatObject")),
-		3)
+		2)
 }
 
 // TestGCSMetrics_DownloadBytesCount_Explicit validates the "gcs/download_bytes_count" metric.
@@ -478,7 +541,7 @@ type fakeBucketManagerForShortCircuit struct {
 }
 
 func (bm *fakeBucketManagerForShortCircuit) SetUpBucket(ctx context.Context, name string, _ bool, _ metrics.MetricHandle) (gcsx.SyncerBucket, error) {
-	return gcsx.NewSyncerBucket(0, 120, 10, bm.tempDir, gcsx.NewContentTypeBucket(bm.bucket)), nil
+	return gcsx.NewSyncerBucket(0, 120, 10, bm.tempDir, gcsx.NewContentTypeBucket(bm.bucket), false), nil
 }
 func (bm *fakeBucketManagerForShortCircuit) ShutDown() {}
 

@@ -20,13 +20,39 @@ package cfg
 import (
 	"encoding/base64"
 	"fmt"
+	"strings"
+	"unicode/utf8"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg/pb"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg/pb"
 	"google.golang.org/protobuf/proto"
 )
 
+// MaxProtoStringLen is the maximum length, in bytes, of the raw strings sent in
+// the telemetry payload: the whitelisted free-text flags (machine-type,
+// profile), the enum-like flags and the app name. It's sized for GCE machine
+// type names, the longest values sent: the 655 predefined types (Nov 2026)
+// average 15 characters, with a p99 of 27 and a max of 34, so 35 fits all of
+// them. Valid enum and profile values are all shorter.
+const MaxProtoStringLen = 35
+
+// TruncateProtoString makes s safe to send as a proto3 string field: invalid
+// UTF-8 is replaced with U+FFFD (otherwise Marshal fails), and the result is
+// capped at maxLen bytes without splitting a character.
+func TruncateProtoString(s string, maxLen int) string {
+	s = strings.ToValidUTF8(s, "\uFFFD")
+	if len(s) <= maxLen {
+		return s
+	}
+	cut := maxLen
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
+}
+
 // ToProto maps a cfg.Config into its flat Protobuf pb.Config representation.
-// High-risk text fields (strings, paths) are booleanized to prevent PII leakage.
+// High-risk text fields (strings, paths) are booleanized to prevent PII leakage,
+// and the remaining raw strings are capped at MaxProtoStringLen.
 func (config *Config) ToProto() *pb.Config {
 	if config == nil {
 		return nil
@@ -102,13 +128,13 @@ func (config *Config) ToProto() *pb.Config {
 		GcsAuthReuseTokenFromUrl:                              config.GcsAuth.ReuseTokenFromUrl,
 		IsGcsAuthTokenUrlSet:                                  config.GcsAuth.TokenUrl != "",
 		IsGcsConnectionBillingProjectSet:                      config.GcsConnection.BillingProject != "",
-		GcsConnectionClientProtocol:                           string(config.GcsConnection.ClientProtocol),
+		GcsConnectionClientProtocol:                           TruncateProtoString(string(config.GcsConnection.ClientProtocol), MaxProtoStringLen),
 		IsGcsConnectionCustomEndpointSet:                      config.GcsConnection.CustomEndpoint != "",
 		GcsConnectionEnableHttpDnsCache:                       config.GcsConnection.EnableHttpDnsCache,
 		GcsConnectionExperimentalEnableJsonRead:               config.GcsConnection.ExperimentalEnableJsonRead,
 		IsGcsConnectionExperimentalLocalSocketAddressSet:      config.GcsConnection.ExperimentalLocalSocketAddress != "",
 		GcsConnectionGrpcConnPoolSize:                         config.GcsConnection.GrpcConnPoolSize,
-		GcsConnectionGrpcPathStrategy:                         string(config.GcsConnection.GrpcPathStrategy),
+		GcsConnectionGrpcPathStrategy:                         TruncateProtoString(string(config.GcsConnection.GrpcPathStrategy), MaxProtoStringLen),
 		GcsConnectionHttpClientTimeout:                        int64(config.GcsConnection.HttpClientTimeout),
 		GcsConnectionLimitBytesPerSec:                         config.GcsConnection.LimitBytesPerSec,
 		GcsConnectionLimitOpsPerSec:                           config.GcsConnection.LimitOpsPerSec,
@@ -137,9 +163,9 @@ func (config *Config) ToProto() *pb.Config {
 		LoggingLogRotateBackupFileCount:                       config.Logging.LogRotate.BackupFileCount,
 		LoggingLogRotateCompress:                              config.Logging.LogRotate.Compress,
 		LoggingLogRotateMaxFileSizeMb:                         config.Logging.LogRotate.MaxFileSizeMb,
-		LoggingSeverity:                                       string(config.Logging.Severity),
+		LoggingSeverity:                                       TruncateProtoString(string(config.Logging.Severity), MaxProtoStringLen),
 		IsLoggingWireLogSet:                                   string(config.Logging.WireLog) != "",
-		MachineType:                                           string(config.MachineType),
+		MachineType:                                           TruncateProtoString(string(config.MachineType), MaxProtoStringLen),
 		MetadataCacheDeprecatedStatCacheCapacity:              config.MetadataCache.DeprecatedStatCacheCapacity,
 		MetadataCacheDeprecatedStatCacheTtl:                   int64(config.MetadataCache.DeprecatedStatCacheTtl),
 		MetadataCacheDeprecatedTypeCacheTtl:                   int64(config.MetadataCache.DeprecatedTypeCacheTtl),
@@ -166,7 +192,7 @@ func (config *Config) ToProto() *pb.Config {
 		IsMountIdSet:                                          config.MountId != "",
 		MrdPoolSize:                                           config.Mrd.PoolSize,
 		IsOnlyDirSet:                                          config.OnlyDir != "",
-		Profile:                                               string(config.Profile),
+		Profile:                                               TruncateProtoString(string(config.Profile), MaxProtoStringLen),
 		ReadBlockSizeMb:                                       config.Read.BlockSizeMb,
 		ReadEnableBufferedRead:                                config.Read.EnableBufferedRead,
 		ReadEnableGrpcReadChecksums:                           config.Read.EnableGrpcReadChecksums,
@@ -192,7 +218,10 @@ func (config *Config) ToProto() *pb.Config {
 		GcsConnectionEnableGrpcByDefault:                      config.GcsConnection.EnableGrpcByDefault,
 		IsGcsAuthS2AAddressSet:                                config.GcsAuth.S2aAddress != "",
 		IsGcsAuthS2ASpiffeIdSet:                               config.GcsAuth.S2aSpiffeId != "",
-		WriteRapidWrite:                                       string(config.Write.RapidWrite),
+		WriteRapidWrite:                                       TruncateProtoString(string(config.Write.RapidWrite), MaxProtoStringLen),
+		WriteExperimentalEnableParallelUpload:                 config.Write.ExperimentalEnableParallelUpload,
+		FileSystemDisableSymlinks:                             config.FileSystem.DisableSymlinks,
+		FileSystemFuseNumReaders:                              config.FileSystem.FuseNumReaders,
 	}
 }
 

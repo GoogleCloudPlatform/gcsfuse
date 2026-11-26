@@ -20,12 +20,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/buffer"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 )
 
 // KernelRangeReader implements the Reader interface for regional buckets.

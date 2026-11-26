@@ -20,6 +20,7 @@
 package cmd
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -30,30 +31,32 @@ import (
 	"strings"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/tracing"
 	"golang.org/x/sys/unix"
 
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/canned"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/monitor"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/mount"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/mountstatus"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/profiler"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg/pb"
+	"github.com/googlecloudplatform/gcsfuse/v4/common"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/canned"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/kernelparams"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/monitor"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/mount"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/mountstatus"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/profiler"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
 	"github.com/jacobsa/daemonize"
 	"github.com/jacobsa/fuse"
 	"github.com/kardianos/osext"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -145,7 +148,33 @@ func getConfigForUserAgent(mountConfig *cfg.Config) string {
 	}
 	return strings.Join(parts, ":")
 }
-func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle metrics.MetricHandle, isGKE bool, isDynamicMount bool) (storageHandle storage.StorageHandle, err error) {
+
+// maxMountIDLen caps the mount ID sent in the telemetry payload. GCS clears
+// longer mount IDs on its side.
+const maxMountIDLen = 256
+
+// getMountConfigsHeader returns the base64url-encoded ConfigPayload sent on
+// GetStorageLayout, or "" if it can't be built, since telemetry must never fail
+// the mount. GCS base64url-decodes the whole value and drops it on failure, so
+// app name and mount-id travel as proto fields, not as extra text.
+func getMountConfigsHeader(mountConfig *cfg.Config, mountInstanceID string) string {
+	if mountConfig == nil {
+		return ""
+	}
+	payload := &pb.ConfigPayload{
+		Config:  mountConfig.ToProto(),
+		AppName: cfg.TruncateProtoString(mountConfig.AppName, cfg.MaxProtoStringLen),
+		MountId: cfg.TruncateProtoString(mountInstanceID, maxMountIDLen),
+	}
+	data, err := proto.Marshal(payload)
+	if err != nil {
+		logger.Warnf("Skipping mount configs telemetry: marshaling config payload: %v", err)
+		return ""
+	}
+	return base64.RawURLEncoding.EncodeToString(data)
+}
+
+func createStorageHandle(newConfig *cfg.Config, userAgent string, mountConfigsHeader string, metricHandle metrics.MetricHandle, isGKE bool, isDynamicMount bool) (storageHandle storage.StorageHandle, err error) {
 	storageClientConfig := storageutil.StorageClientConfig{
 		ClientProtocol:             newConfig.GcsConnection.ClientProtocol,
 		MaxConnsPerHost:            int(newConfig.GcsConnection.MaxConnsPerHost),
@@ -156,6 +185,7 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		RetryMultiplier:            newConfig.GcsRetries.Multiplier,
 		EnableMountRetries:         newConfig.GcsRetries.EnableMountRetries && !isDynamicMount,
 		UserAgent:                  userAgent,
+		MountConfigsHeader:         mountConfigsHeader,
 		CustomEndpoint:             newConfig.GcsConnection.CustomEndpoint,
 		KeyFile:                    string(newConfig.GcsAuth.KeyFile),
 		AnonymousAccess:            newConfig.GcsAuth.AnonymousAccess,
@@ -181,6 +211,9 @@ func createStorageHandle(newConfig *cfg.Config, userAgent string, metricHandle m
 		WriteConfig:                &newConfig.Write,
 	}
 	logger.Infof("UserAgent = %s\n", storageClientConfig.UserAgent)
+	if storageClientConfig.MountConfigsHeader != "" {
+		logger.Infof("MountConfigsHeader = %s\n", storageClientConfig.MountConfigsHeader)
+	}
 	storageHandle, err = storage.NewStorageHandle(context.Background(), storageClientConfig, newConfig.GcsConnection.BillingProject)
 	return
 }
@@ -207,9 +240,11 @@ func mountWithArgs(bucketName string, mountPoint string, newConfig *cfg.Config, 
 	// connection.
 	var storageHandle storage.StorageHandle
 	if bucketName != canned.FakeBucketName {
-		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig), logger.MountInstanceID(fsName(bucketName), newConfig.MountId))
+		mountInstanceID := logger.MountInstanceID(fsName(bucketName), newConfig.MountId)
+		userAgent := getUserAgent(newConfig.AppName, getConfigForUserAgent(newConfig), mountInstanceID)
+		mountConfigsHeader := getMountConfigsHeader(newConfig, mountInstanceID)
 		logger.Info("Creating Storage handle...")
-		storageHandle, err = createStorageHandle(newConfig, userAgent, metricHandle, isGKE, isDynamicMount(bucketName))
+		storageHandle, err = createStorageHandle(newConfig, userAgent, mountConfigsHeader, metricHandle, isGKE, isDynamicMount(bucketName))
 		if err != nil {
 			err = fmt.Errorf("failed to create storage handle using createStorageHandle: %w", err)
 			return
@@ -338,8 +373,9 @@ func forwardedEnvVars() []string {
 	// also be included to know for which hosts the use of proxies
 	// should be ignored.
 	// Forward GCE_METADATA_HOST, GCE_METADATA_ROOT, GCE_METADATA_IP as these are used for mocked metadata services.
+	// Forward STORAGE_EMULATOR_HOST and STORAGE_EMULATOR_HOST_GRPC as these are used for storage emulator tests.
 	// Forward GRPC_GO_LOG_VERBOSITY_LEVEL and GRPC_GO_LOG_SEVERITY_LEVEL as these are used to enable grpc debug logs.
-	for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_PROJECT", "no_proxy", "GCE_METADATA_HOST", "GCE_METADATA_ROOT", "GCE_METADATA_IP", "GRPC_GO_LOG_VERBOSITY_LEVEL", "GRPC_GO_LOG_SEVERITY_LEVEL"} {
+	for _, envvar := range []string{"GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_PROJECT", "no_proxy", "GCE_METADATA_HOST", "GCE_METADATA_ROOT", "GCE_METADATA_IP", "STORAGE_EMULATOR_HOST", "STORAGE_EMULATOR_HOST_GRPC", "GRPC_GO_LOG_VERBOSITY_LEVEL", "GRPC_GO_LOG_SEVERITY_LEVEL"} {
 		if envval, ok := os.LookupEnv(envvar); ok {
 			env = append(env, fmt.Sprintf("%s=%s", envvar, envval))
 			fmt.Fprintf(

@@ -15,8 +15,6 @@ package util
 
 import (
 	"testing"
-
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
 )
 
 func BenchmarkUnsafeSizeOf_Int(b *testing.B) {
@@ -29,16 +27,6 @@ func BenchmarkUnsafeSizeOf_Int(b *testing.B) {
 
 func BenchmarkUnsafeSizeOf_String(b *testing.B) {
 	val := "benchmark_test_string"
-	b.ResetTimer()
-	for range b.N {
-		_ = UnsafeSizeOf(&val)
-	}
-}
-
-func BenchmarkUnsafeSizeOf_MinObject(b *testing.B) {
-	val := gcs.MinObject{
-		Name: "benchmark_test_min_object",
-	}
 	b.ResetTimer()
 	for range b.N {
 		_ = UnsafeSizeOf(&val)

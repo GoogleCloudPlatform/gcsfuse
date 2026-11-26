@@ -17,7 +17,7 @@ package kernel_readers
 import (
 	"sync"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 )
 
 // KernelRangeReaderInstance manages a reference to the latest gcs.MinObject

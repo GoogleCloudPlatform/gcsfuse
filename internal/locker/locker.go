@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
 )
 
 // TODO: Migrate all usages of these global variables to explicitly instantiate and pass locker.Options.

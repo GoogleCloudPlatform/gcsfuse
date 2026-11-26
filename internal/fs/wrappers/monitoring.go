@@ -20,8 +20,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 )
@@ -345,7 +345,10 @@ func (fs *monitoring) OpenFile(ctx context.Context, op *fuseops.OpenFileOp) erro
 }
 
 func (fs *monitoring) ReadFile(ctx context.Context, op *fuseops.ReadFileOp) error {
-	fs.metricHandle.ReadBlockSizes(ctx, int64(len(op.Dst)))
+	// Record the size the kernel requested. op.Dst is nil for reads larger than
+	// the FUSE library's ~1 MiB request buffer (vectored reads, served through
+	// op.Data), so len(op.Dst) would record 0 for exactly the largest reads.
+	fs.metricHandle.ReadBlockSizes(ctx, op.Size)
 	err := fs.invokeWrapped(ctx, metrics.FsOpReadFileAttr, func(ctx context.Context) error { return fs.wrapped.ReadFile(ctx, op) })
 	// Count only the bytes actually returned to the kernel. BytesRead (not
 	// len(op.Dst)) is exact for short reads at EOF and for vectored reads, where

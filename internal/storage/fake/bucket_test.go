@@ -20,8 +20,8 @@ import (
 
 	"context"
 
-	gcstesting "github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake/testing"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	gcstesting "github.com/googlecloudplatform/gcsfuse/v4/internal/storage/fake/testing"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
 )

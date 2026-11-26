@@ -18,11 +18,11 @@ import (
 	"math"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 )
 
 // 9223372036 is math.MaxInt64 / 1,000,000,000 (max seconds representable in nanoseconds)
@@ -150,8 +150,8 @@ type entry struct {
 // Size returns the approximate memory-size (resident set size) of the receiver entry.
 // It estimates the memory consumption on the heap and converts it to an estimated RSS:
 //  1. util.UnsafeSizeOf(&e): The base size of the entry struct itself.
-//  2. util.NestedSizeOfGcsMinObject(e.m): The deep size of the gcs.MinObject, if present.
-//  3. util.NestedSizeOfGcsFolder(e.f): The deep size of the gcs.Folder, if present.
+//  2. gcs.NestedSizeOfGcsMinObject(e.m): The deep size of the gcs.MinObject, if present.
+//  3. gcs.NestedSizeOfGcsFolder(e.f): The deep size of the gcs.Folder, if present.
 //  4. A fixed 515-byte constant is added for positive MinObject entries. Because
 //     unsafe.Sizeof and NestedSizeOfGcsMinObject do not account for hidden allocations
 //     in nested structures (like maps, slices, linked-lists etc.), this constant
@@ -159,13 +159,13 @@ type entry struct {
 //  5. The final heap size is multiplied by util.HeapSizeToRssConversionFactor to
 //     estimate the Resident Set Size (RSS).
 func (e entry) Size() uint64 {
-	size := uint64(util.UnsafeSizeOf(&e) + util.NestedSizeOfGcsMinObject(e.m))
+	size := uint64(util.UnsafeSizeOf(&e) + gcs.NestedSizeOfGcsMinObject(e.m))
 	if e.m != nil {
 		size += 515
 	}
 
 	if e.f != nil {
-		size += uint64(util.NestedSizeOfGcsFolder(e.f))
+		size += uint64(gcs.NestedSizeOfGcsFolder(e.f))
 	}
 
 	// Convert heap-size to RSS (resident set size).

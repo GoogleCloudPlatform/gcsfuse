@@ -21,7 +21,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 )

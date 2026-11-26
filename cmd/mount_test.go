@@ -17,8 +17,8 @@ package cmd
 import (
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -224,6 +224,40 @@ func TestGetFuseMountConfig_MaxPagesAndMaxWrite(t *testing.T) {
 
 			assert.Equal(t, tc.expectedMaxPages, fuseMountCfg.MaxPages)
 			assert.Equal(t, tc.expectedMaxWrite, fuseMountCfg.MaxWrite)
+		})
+	}
+}
+
+func TestGetFuseMountConfig_NumReaders(t *testing.T) {
+	testCases := []struct {
+		name               string
+		fuseNumReaders     int64
+		expectedNumReaders int
+	}{
+		{
+			name:               "SingleReader",
+			fuseNumReaders:     1,
+			expectedNumReaders: 1,
+		},
+		{
+			name:               "MultipleReaders",
+			fuseNumReaders:     8,
+			expectedNumReaders: 8,
+		},
+	}
+
+	fsName := "mybucket"
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			newConfig := &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					FuseNumReaders: tc.fuseNumReaders,
+				},
+			}
+
+			fuseMountCfg := getFuseMountConfig(fsName, newConfig)
+
+			assert.Equal(t, tc.expectedNumReaders, fuseMountCfg.NumReaders)
 		})
 	}
 }

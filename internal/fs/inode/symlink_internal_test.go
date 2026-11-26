@@ -21,11 +21,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/storageutil"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/timeutil"
 	"github.com/stretchr/testify/assert"
@@ -76,6 +76,7 @@ func (t *SymlinkInternalTest) createSymlinkInode(name string, target string, leg
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
+		false,
 	)
 
 	s, err := NewSymlinkInode(
@@ -167,6 +168,7 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_Legacy() {
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
+		false,
 	)
 
 	s, err := NewSymlinkInode(
@@ -197,6 +199,7 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_Standard() {
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
+		false,
 	)
 
 	s, err := NewSymlinkInode(
@@ -227,6 +230,7 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_Standard_ReadError() {
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
+		false,
 	)
 
 	_, err := NewSymlinkInode(
@@ -251,6 +255,7 @@ func (t *SymlinkInternalTest) TestNewSymlinkInode_InvalidMetadata() {
 		/*chunkTransferTimeoutSecs=*/ 10,
 		".gcsfuse_tmp/",
 		t.bucket,
+		false,
 	)
 
 	_, err := NewSymlinkInode(

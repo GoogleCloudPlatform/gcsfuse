@@ -32,7 +32,7 @@ import (
 
 	"context"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/ratelimit"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/ratelimit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )

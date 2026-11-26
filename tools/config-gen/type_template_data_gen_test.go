@@ -239,7 +239,7 @@ func TestComputeProtoMappings(t *testing.T) {
 				ProtoTag:       5,
 			},
 			expectedProtoFieldName: "GcsConnectionClientProtocol",
-			expectedGoExpression:   "string(config.GcsConnection.ClientProtocol)",
+			expectedGoExpression:   "TruncateProtoString(string(config.GcsConnection.ClientProtocol), MaxProtoStringLen)",
 		},
 		{
 			param: Param{
@@ -251,7 +251,7 @@ func TestComputeProtoMappings(t *testing.T) {
 				ProtoTag:       6,
 			},
 			expectedProtoFieldName: "MachineType",
-			expectedGoExpression:   "string(config.MachineType)",
+			expectedGoExpression:   "TruncateProtoString(string(config.MachineType), MaxProtoStringLen)",
 		},
 		{
 			param: Param{
@@ -263,7 +263,7 @@ func TestComputeProtoMappings(t *testing.T) {
 				ProtoTag:       7,
 			},
 			expectedProtoFieldName: "Profile",
-			expectedGoExpression:   "string(config.Profile)",
+			expectedGoExpression:   "TruncateProtoString(string(config.Profile), MaxProtoStringLen)",
 		},
 	}
 

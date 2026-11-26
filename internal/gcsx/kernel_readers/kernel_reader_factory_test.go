@@ -17,8 +17,8 @@ package kernel_readers
 import (
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 	"github.com/stretchr/testify/assert"
 )
 

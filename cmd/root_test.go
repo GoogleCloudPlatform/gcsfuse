@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -284,6 +284,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 		expectedWriteMaxBlocksPerFile int64
 		expectedRapidWrite            cfg.RapidWriteStrategy
 		expectedFinalizeFileForRapid  bool
+		expectedEnableParallelUpload  bool
 	}{
 		{
 			name:                          "Test create-empty-file flag true works when streaming writes are explicitly disabled.",
@@ -471,6 +472,54 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 			expectedRapidWrite:            cfg.RapidWriteStrategyEnabled,
 			expectedFinalizeFileForRapid:  true,
 		},
+		{
+			name:                          "Test experimental-enable-parallel-upload flag true.",
+			args:                          []string{"gcsfuse", "--experimental-enable-parallel-upload", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  4,
+			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
+			expectedEnableParallelUpload:  true,
+		},
+		{
+			name:                          "Test experimental-enable-parallel-upload flag with rapid-write enabled.",
+			args:                          []string{"gcsfuse", "--rapid-write=enabled", "--experimental-enable-parallel-upload=true", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  4,
+			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyEnabled,
+			expectedEnableParallelUpload:  true,
+		},
+		{
+			name:                          "Test experimental-enable-parallel-upload flag false.",
+			args:                          []string{"gcsfuse", "--experimental-enable-parallel-upload=false", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: true,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  4,
+			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
+			expectedEnableParallelUpload:  false,
+		},
+		{
+			name:                          "Test experimental-enable-parallel-upload flag is accepted when streaming writes are disabled.",
+			args:                          []string{"gcsfuse", "--enable-streaming-writes=false", "--experimental-enable-parallel-upload=true", "abc", "pqr"},
+			expectedCreateEmptyFile:       false,
+			expectedEnableStreamingWrites: false,
+			expectedEnableRapidAppends:    true,
+			expectedWriteBlockSizeMB:      32,
+			expectedWriteGlobalMaxBlocks:  4,
+			expectedWriteMaxBlocksPerFile: 1,
+			expectedRapidWrite:            cfg.RapidWriteStrategyDisabled,
+			expectedEnableParallelUpload:  true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -493,6 +542,7 @@ func TestArgsParsing_WriteConfigFlags(t *testing.T) {
 				assert.Equal(t, tc.expectedEnableRapidAppends, wc.EnableRapidAppends)
 				assert.Equal(t, tc.expectedRapidWrite, wc.RapidWrite)
 				assert.Equal(t, tc.expectedFinalizeFileForRapid, wc.FinalizeFileForRapid)
+				assert.Equal(t, tc.expectedEnableParallelUpload, wc.ExperimentalEnableParallelUpload)
 			}
 		})
 	}
@@ -882,7 +932,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				GcsConnection: cfg.GcsConnectionConfig{
 					BillingProject:             "",
-					ClientProtocol:             "http1",
+					ClientProtocol:             "",
 					CustomEndpoint:             "",
 					ExperimentalEnableJsonRead: false,
 					GrpcPathStrategy:           "direct-path-with-fallback",
@@ -903,7 +953,7 @@ func TestArgsParsing_GCSConnectionFlags(t *testing.T) {
 			expectedConfig: &cfg.Config{
 				GcsConnection: cfg.GcsConnectionConfig{
 					BillingProject:             "",
-					ClientProtocol:             "http1",
+					ClientProtocol:             "",
 					CustomEndpoint:             "",
 					ExperimentalEnableJsonRead: false,
 					GrpcPathStrategy:           "direct-path-with-fallback",
@@ -987,6 +1037,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 		FileMode:                      0644,
 		FuseMaxRequestSizeKb:          int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 		FuseMaxWriteSizeKb:            1024,
+		FuseNumReaders:                8,
 		FuseOptions:                   []string{},
 		Gid:                           -1,
 		IgnoreInterrupts:              true,
@@ -1017,6 +1068,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:          int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:            1024,
+					FuseNumReaders:                8,
 					DirMode:                       0777,
 					DisableParallelDirops:         true,
 					ExperimentalEnableDentryCache: true,
@@ -1041,6 +1093,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:          int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:            1024,
+					FuseNumReaders:                8,
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1065,6 +1118,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:          int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:            1024,
+					FuseNumReaders:                8,
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1091,6 +1145,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:          int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:            1024,
+					FuseNumReaders:                8,
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1117,6 +1172,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:          int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:            1024,
+					FuseNumReaders:                8,
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1198,6 +1254,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1216,6 +1273,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1235,6 +1293,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1253,6 +1312,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1272,6 +1332,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1291,6 +1352,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1310,6 +1372,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1329,6 +1392,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1349,6 +1413,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1368,6 +1433,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:    int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:      1024,
+					FuseNumReaders:          8,
 					DirMode:                 0755,
 					FileMode:                0644,
 					FuseOptions:             []string{},
@@ -1387,6 +1453,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1406,6 +1473,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1415,6 +1483,44 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					ExperimentalODirect:  false,
 					Uid:                  -1,
 					KernelParamsFile:     "/tmp/config_params",
+				},
+			},
+		},
+		{
+			name: "Test file system fuse-num-readers flag.",
+			args: []string{"gcsfuse", "--fuse-num-readers=4", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
+					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       4,
+					DirMode:              0755,
+					FileMode:             0644,
+					FuseOptions:          []string{},
+					Gid:                  -1,
+					IgnoreInterrupts:     true,
+					InactiveMrdCacheSize: 1000,
+					ExperimentalODirect:  false,
+					Uid:                  -1,
+				},
+			},
+		},
+		{
+			name: "Test file system fuse-num-readers from config file.",
+			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "file-system:\n  fuse-num-readers: 4"), "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
+					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       4,
+					DirMode:              0755,
+					FileMode:             0644,
+					FuseOptions:          []string{},
+					Gid:                  -1,
+					IgnoreInterrupts:     true,
+					InactiveMrdCacheSize: 1000,
+					ExperimentalODirect:  false,
+					Uid:                  -1,
 				},
 			},
 		},
@@ -1693,6 +1799,48 @@ func TestArgsParsing_EnableStandardSymlinks(t *testing.T) {
 
 			if assert.NoError(t, err) {
 				assert.Equal(t, tc.expectedEnableStandardSymlinks, gotEnableStandardSymlinks)
+			}
+		})
+	}
+}
+
+func TestArgsParsing_DisableSymlinks(t *testing.T) {
+	tests := []struct {
+		name                    string
+		args                    []string
+		expectedDisableSymlinks bool
+	}{
+		{
+			name:                    "default",
+			args:                    []string{"gcsfuse", "abc", "pqr"},
+			expectedDisableSymlinks: false,
+		},
+		{
+			name:                    "enabled",
+			args:                    []string{"gcsfuse", "--disable-symlinks=true", "abc", "pqr"},
+			expectedDisableSymlinks: true,
+		},
+		{
+			name:                    "disabled",
+			args:                    []string{"gcsfuse", "--disable-symlinks=false", "abc", "pqr"},
+			expectedDisableSymlinks: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotDisableSymlinks bool
+			cmd, err := newRootCmd(func(mountInfo *mountInfo, _, _ string) error {
+				gotDisableSymlinks = mountInfo.config.FileSystem.DisableSymlinks
+				return nil
+			})
+			require.Nil(t, err)
+			cmd.SetArgs(convertToPosixArgs(tc.args, cmd))
+
+			err = cmd.Execute()
+
+			if assert.NoError(t, err) {
+				assert.Equal(t, tc.expectedDisableSymlinks, gotDisableSymlinks)
 			}
 		})
 	}

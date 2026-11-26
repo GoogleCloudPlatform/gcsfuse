@@ -32,10 +32,10 @@ import (
 	"github.com/google/s2a-go"
 	"github.com/google/uuid"
 	"github.com/googleapis/gax-go/v2"
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/storageutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/storageutil"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -43,6 +43,8 @@ import (
 	option "google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/metadata"
 
 	// Side effect to run grpc client with direct-path on gcp machine.
 	_ "google.golang.org/grpc/balancer/rls"
@@ -58,6 +60,13 @@ const (
 	zonalLocationType   = "zone"
 	rapidCacheUltraType = "rapid-cache-ultra"
 
+	// mountConfigsMetadataKey carries the base64url-encoded ConfigPayload on
+	// GetStorageLayout only. It temporarily reuses the Go SDK feature header,
+	// which GCS already logs into client_features.go_sdk_features. Never set it
+	// on data-path calls: the Go SDK overwrites this key there with its bitmask.
+	// TODO(b/575276203): Switch to x-goog-storage-gcsfuse-features; remove by Jan 2027.
+	mountConfigsMetadataKey = "x-goog-storage-go-features"
+
 	// DirectPath detection parameters - used for fast-fail detection during client creation
 	directPathDetectionMaxAttempts = 5
 	directPathDetectionTimeout     = 15 * time.Second
@@ -65,6 +74,19 @@ const (
 
 	// nonExistentObjectName is the object name used for bucket existence/access check when HNS feature is disabled by providing "--enable-hns:false". E.g. Using Regional Endpoints which do not support GRPC protocol.
 	nonExistentObjectName = "gcsfuse-nonexistent-object-check"
+)
+
+var (
+	// gRPC keepalive parameters to detect mid-stream stalls on active RPCs when
+	// the remote peer's OS kernel continues ACKing TCP keepalives while the L7
+	// stream is wedged. Defined as vars so unit tests can use shorter intervals.
+	//
+	// Do not reduce grpcKeepaliveTime below 30s without first verifying GCS
+	// server-side keepalive enforcement limits, as more frequent pings on open
+	// but idle streams (such as cached MultiRangeDownloader BidiReadObject
+	// streams) could trigger GOAWAY(ENHANCE_YOUR_CALM, "too_many_pings").
+	grpcKeepaliveTime    = 30 * time.Second
+	grpcKeepaliveTimeout = 20 * time.Second
 )
 
 type StorageHandle interface {
@@ -169,6 +191,10 @@ func createClientOptionForGRPCClient(ctx context.Context, clientConfig *storageu
 
 	clientOpts = append(clientOpts, option.WithGRPCConnectionPool(clientConfig.GrpcConnPoolSize))
 	clientOpts = append(clientOpts, option.WithUserAgent(clientConfig.UserAgent))
+	clientOpts = append(clientOpts, option.WithGRPCDialOption(grpc.WithKeepaliveParams(keepalive.ClientParameters{
+		Time:    grpcKeepaliveTime,
+		Timeout: grpcKeepaliveTimeout,
+	})))
 
 	if clientConfig.EnableGrpcMetrics && clientConfig.IsGKE {
 		// Pass the OpenTelemetry MeterProvider to the Go storage client,
@@ -435,27 +461,29 @@ func (sh *storageClient) lookupBucketType(bucketName string) (*gcs.BucketType, e
 
 	logger.Infof("GetStorageLayout -> (%s, prefix: %q) %v msec", bucketName, prefix, duration.Milliseconds())
 
-	rcuState := gcs.RCUStateNone
 	isRCUBucket := storageLayout.GetRapidCacheInfo() != nil && storageLayout.GetRapidCacheInfo().GetCacheType() == rapidCacheUltraType
-	if isRCUBucket {
-		if sh.clientConfig.WriteConfig != nil && sh.clientConfig.WriteConfig.RapidWrite == cfg.RapidWriteStrategyEnabled {
-			rcuState = gcs.RCUStateRapidWritesEnabled
-		} else {
-			rcuState = gcs.RCUStateRapidWritesDisabled
-		}
-	}
 
-	return &gcs.BucketType{
+	bt := gcs.BucketType{
 		Hierarchical: storageLayout.GetHierarchicalNamespace().GetEnabled(),
 		Zonal:        storageLayout.GetLocationType() == zonalLocationType,
-		RCU:          rcuState,
-	}, nil
+		RCU:          isRCUBucket,
+	}
+	if sh.clientConfig.WriteConfig != nil {
+		bt = bt.WithRapidWriteStrategy(sh.clientConfig.WriteConfig.RapidWrite)
+	}
+
+	return &bt, nil
 }
 
 func (sh *storageClient) getStorageLayout(bucketName string) (*controlpb.StorageLayout, error) {
 	var callOptions []gax.CallOption
 
-	storageLayout, err := sh.storageControlClient.GetStorageLayout(context.Background(), &controlpb.GetStorageLayoutRequest{
+	ctx := context.Background()
+	if sh.clientConfig.MountConfigsHeader != "" {
+		ctx = metadata.AppendToOutgoingContext(ctx, mountConfigsMetadataKey, sh.clientConfig.MountConfigsHeader)
+	}
+
+	storageLayout, err := sh.storageControlClient.GetStorageLayout(ctx, &controlpb.GetStorageLayoutRequest{
 		Name:      fmt.Sprintf("projects/_/buckets/%s/storageLayout", bucketName),
 		Prefix:    sh.clientConfig.OnlyDir,
 		RequestId: uuid.NewString(),

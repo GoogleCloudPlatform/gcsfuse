@@ -18,8 +18,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/buffer"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 )
 
 // FallbackToAnotherReader is returned when data could not be retrieved

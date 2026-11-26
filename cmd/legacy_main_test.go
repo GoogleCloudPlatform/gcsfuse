@@ -15,19 +15,22 @@
 package cmd
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/common"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg/pb"
+	"github.com/googlecloudplatform/gcsfuse/v4/common"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
 )
 
 func Test_Main(t *testing.T) {
@@ -48,7 +51,7 @@ func (t *MainTest) TestCreateStorageHandle() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false, false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "", metrics.NewNoopMetrics(), false, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -60,7 +63,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPC() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), false, false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "", metrics.NewNoopMetrics(), false, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -72,7 +75,7 @@ func (t *MainTest) TestCreateStorageHandle_WithClientProtocolAsGRPCIsGKE() {
 		GcsAuth:       cfg.GcsAuthConfig{KeyFile: "testdata/test_creds.json"},
 	}
 
-	storageHandle, err := createStorageHandle(newConfig, "AppName", metrics.NewNoopMetrics(), true, false)
+	storageHandle, err := createStorageHandle(newConfig, "AppName", "", metrics.NewNoopMetrics(), true, false)
 
 	assert.Nil(t.T(), err)
 	assert.NotNil(t.T(), storageHandle)
@@ -442,6 +445,11 @@ func (t *MainTest) TestForwardedEnvVars_PassedWhenSet() {
 			expectedForwardedEnvVars: []string{"GCE_METADATA_HOST=www.metadata-host.com", "GCE_METADATA_ROOT=metadata-root", "GCE_METADATA_IP=99.100.101.102"},
 		},
 		{
+			name:                     "Storage emulator env vars",
+			inputEnvVars:             map[string]string{"STORAGE_EMULATOR_HOST": "http://localhost:9000", "STORAGE_EMULATOR_HOST_GRPC": "localhost:8888"},
+			expectedForwardedEnvVars: []string{"STORAGE_EMULATOR_HOST=http://localhost:9000", "STORAGE_EMULATOR_HOST_GRPC=localhost:8888"},
+		},
+		{
 			name:                     "GOOGLE_APPLICATION_CREDENTIALS",
 			inputEnvVars:             map[string]string{"GOOGLE_APPLICATION_CREDENTIALS": "goog-app-cred"},
 			expectedForwardedEnvVars: []string{"GOOGLE_APPLICATION_CREDENTIALS=goog-app-cred"},
@@ -486,6 +494,8 @@ func (t *MainTest) TestForwardedEnvVars_NotPassedWhenUnset() {
 		"GOOGLE_CLOUD_PROJECT",
 		"GRPC_GO_LOG_VERBOSITY_LEVEL",
 		"GRPC_GO_LOG_SEVERITY_LEVEL",
+		"STORAGE_EMULATOR_HOST",
+		"STORAGE_EMULATOR_HOST_GRPC",
 		"no_proxy",
 	}
 
@@ -497,4 +507,87 @@ func (t *MainTest) TestForwardedEnvVars_NotPassedWhenUnset() {
 		require.True(t.T(), ok, "Invalid env var format: %s", forwardedVar)
 		assert.NotContains(t.T(), unexpectedForwardedEnvVars, name, "unexpected env var %q was forwarded", name)
 	}
+}
+
+func (t *MainTest) TestGetMountConfigsHeader() {
+	const (
+		longMountID = "1234567890123456789012345678901234567890123456789012345678901234" +
+			"1234567890123456789012345678901234567890123456789012345678901234" +
+			"1234567890123456789012345678901234567890123456789012345678901234" +
+			"1234567890123456789012345678901234567890123456789012345678901234"
+	)
+	testCases := []struct {
+		name            string
+		mountConfig     *cfg.Config
+		mountInstanceID string
+		expectedAppName string
+		expectedMountID string
+	}{
+		{
+			name:            "DefaultConfig",
+			mountConfig:     &cfg.Config{},
+			mountInstanceID: "testFS-123",
+			expectedMountID: "testFS-123",
+		},
+		{
+			name: "AppNameAndConfigFieldsSet",
+			mountConfig: &cfg.Config{
+				AppName:   "my-app",
+				EnableHns: true,
+				FileCache: cfg.FileCacheConfig{EnableParallelDownloads: true},
+			},
+			mountInstanceID: "testFS-123",
+			expectedAppName: "my-app",
+			expectedMountID: "testFS-123",
+		},
+		{
+			name:            "NonPrintableAndNonASCIIAppNameIsKept",
+			mountConfig:     &cfg.Config{AppName: "app\nnamé"},
+			mountInstanceID: "testFS-123",
+			expectedAppName: "app\nnamé",
+			expectedMountID: "testFS-123",
+		},
+		{
+			name:            "InvalidUTF8IsReplaced",
+			mountConfig:     &cfg.Config{AppName: "app\xff"},
+			mountInstanceID: "testFS-\xfe",
+			expectedAppName: "app\uFFFD",
+			expectedMountID: "testFS-\uFFFD",
+		},
+		{
+			name:            "LongAppNameIsCapped",
+			mountConfig:     &cfg.Config{AppName: "123456789012345678901234567890123456"},
+			mountInstanceID: "testFS-123",
+			expectedAppName: "12345678901234567890123456789012345",
+			expectedMountID: "testFS-123",
+		},
+		{
+			name:            "LongMountIDIsCapped",
+			mountConfig:     &cfg.Config{},
+			mountInstanceID: longMountID + "a",
+			expectedMountID: longMountID,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.T().Run(tc.name, func(t *testing.T) {
+			header := getMountConfigsHeader(tc.mountConfig, tc.mountInstanceID)
+
+			// GCS decodes this header with absl::WebSafeBase64Unescape, so it must be
+			// bare unpadded base64url that round-trips to the ConfigPayload.
+			decoded, err := base64.RawURLEncoding.DecodeString(header)
+			require.NoError(t, err)
+			payload := &pb.ConfigPayload{}
+			require.NoError(t, proto.Unmarshal(decoded, payload))
+			assert.True(t, proto.Equal(tc.mountConfig.ToProto(), payload.GetConfig()))
+			assert.Equal(t, tc.expectedAppName, payload.GetAppName())
+			assert.Equal(t, tc.expectedMountID, payload.GetMountId())
+		})
+	}
+}
+
+func (t *MainTest) TestGetMountConfigsHeaderIsEmptyForNilConfig() {
+	header := getMountConfigsHeader(nil, "testFS-123")
+
+	assert.Empty(t.T(), header)
 }

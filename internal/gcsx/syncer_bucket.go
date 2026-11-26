@@ -15,7 +15,7 @@
 package gcsx
 
 import (
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 )
 
 type SyncerBucket struct {
@@ -31,7 +31,8 @@ func NewSyncerBucket(
 	chunkTransferTimeoutSecs int64,
 	tmpObjectPrefix string,
 	bucket gcs.Bucket,
+	useRapidStorageClass bool,
 ) SyncerBucket {
-	syncer := NewSyncer(appendThreshold, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, tmpObjectPrefix, bucket)
+	syncer := NewSyncer(appendThreshold, chunkRetryDeadlineSecs, chunkTransferTimeoutSecs, tmpObjectPrefix, bucket, useRapidStorageClass)
 	return SyncerBucket{bucket, syncer}
 }

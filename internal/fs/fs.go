@@ -30,31 +30,31 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util/diskutil"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/metadata"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/gcsfuse_errors"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/kernelparams"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/workerpool"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/metadata"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs/gcsfuse_errors"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/kernelparams"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/workerpool"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/tracing"
 
 	"golang.org/x/sync/semaphore"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/buffer"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	cacheutil "github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/contentcache"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/handle"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/fs/inode"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/gcsx"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/locker"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/logger"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/buffer"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/lru"
+	cacheutil "github.com/googlecloudplatform/gcsfuse/v4/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/contentcache"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs/handle"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/fs/inode"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/gcsx"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/locker"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -272,7 +272,7 @@ func NewFileSystem(ctx context.Context, serverCfg *ServerConfig) (fuseutil.FileS
 			if bucketType.IsRapid() && serverCfg.ViperConfig.IsSet("file-system.fuse-max-request-size-kb") {
 				return nil, fmt.Errorf("fuse-max-request-size-kb flag is not supported for rapid buckets")
 			}
-			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.RCU != gcs.RCUStateNone)
+			bucketTypeEnum := cfg.GetBucketType(bucketType.Hierarchical, bucketType.Zonal, bucketType.RCU)
 			optimizedFlags := serverCfg.NewConfig.ApplyOptimizations(serverCfg.ViperConfig, &cfg.OptimizationInput{
 				BucketType: bucketTypeEnum,
 			})
@@ -959,7 +959,7 @@ func (fs *fileSystem) mintInode(ic inode.Core, parInodeCtx context.Context) (in 
 			fs.newConfig,
 		)
 
-	case inode.IsSymlink(ic.MinObject):
+	case !fs.newConfig.FileSystem.DisableSymlinks && inode.IsSymlink(ic.MinObject):
 		in, err = inode.NewSymlinkInode(
 			parInodeCtx,
 			id,
@@ -1430,13 +1430,13 @@ func (fs *fileSystem) syncFile(
 	return nil
 }
 
-// Initializes Buffered Write Handler if Eligible and synchronizes the file inode to GCS if initialization succeeds.
+// Initializes the streaming write handler if eligible and synchronizes the file inode to GCS if initialization succeeds.
 // Otherwise creates an empty temp writer if temp file nil.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
-func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
-	err := fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, f, openMode)
+func (fs *fileSystem) createStreamingWriteHandlerAndSyncOrTempWriter(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
+	err := fs.initStreamingWriteHandlerAndSyncFileIfEligible(ctx, f, openMode)
 	if err != nil {
 		return err
 	}
@@ -1447,18 +1447,18 @@ func (fs *fileSystem) createBufferedWriteHandlerAndSyncOrTempWriter(ctx context.
 	return nil
 }
 
-// Initializes Buffered Write Handler if Eligible and synchronizes the file inode to GCS if initialization succeeds.
+// Initializes the streaming write handler if eligible and synchronizes the file inode to GCS if initialization succeeds.
 //
 // LOCKS_EXCLUDED(fs.mu)
 // LOCKS_REQUIRED(f.mu)
-func (fs *fileSystem) initBufferedWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
-	initialized, err := f.InitBufferedWriteHandlerIfEligible(ctx, openMode, fs.getWriteContext())
+func (fs *fileSystem) initStreamingWriteHandlerAndSyncFileIfEligible(ctx context.Context, f *inode.FileInode, openMode util.OpenMode) error {
+	initialized, err := f.InitStreamingWriteHandlerIfEligible(ctx, openMode, fs.getWriteContext())
 	if err != nil {
 		return err
 	}
 	if initialized {
-		// Calling syncFile is safe here as we have file inode lock and BWH is initialized.
-		// Thus sync method of BWH will be invoked.
+		// Calling syncFile is safe here as we have file inode lock and the streaming write handler is initialized.
+		// Thus sync method of the streaming write handler will be invoked.
 		// 1. In case of zonal bucket it creates unfinalized new generation object.
 		// 2. In case of non zonal bucket it's no-op as we don't have pending buffers to upload.
 		err = fs.syncFile(ctx, f)
@@ -1559,12 +1559,13 @@ func (fs *fileSystem) unlockAndMaybeDisposeOfInode(
 // LOCKS_REQUIRED(in)
 func (fs *fileSystem) getAttributes(
 	ctx context.Context,
-	in inode.Inode) (
+	in inode.Inode,
+	clobberedCheck bool) (
 	attr fuseops.InodeAttributes,
 	expiration time.Time,
 	err error) {
 	// Call through.
-	size, mtime, nlink, err := in.Attributes(ctx, true)
+	size, mtime, nlink, err := in.Attributes(ctx, clobberedCheck)
 	if err != nil {
 		return
 	}
@@ -1687,7 +1688,7 @@ func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name,
 	defer child.Unlock()
 
 	// Extract the child's attributes.
-	attributes, expiration, err := fs.getAttributes(ctx, child)
+	attributes, expiration, err := fs.getAttributes(ctx, child, false)
 	if err != nil {
 		// The inode is valid, but we couldn't get attributes.
 		return nil, fmt.Errorf("coreToDirentPlus: unable to fetch attributes for %s: %w", path.Base(fullName.LocalName()), err)
@@ -1712,7 +1713,11 @@ func (fs *fileSystem) coreToDirentPlus(ctx context.Context, fullName inode.Name,
 	// Set the directory entry type based on the core type.
 	switch core.Type() {
 	case metadata.SymlinkType:
-		entryPlus.Dirent.Type = fuseutil.DT_Link
+		if fs.newConfig.FileSystem.DisableSymlinks {
+			entryPlus.Dirent.Type = fuseutil.DT_File
+		} else {
+			entryPlus.Dirent.Type = fuseutil.DT_Link
+		}
 	case metadata.RegularFileType:
 		entryPlus.Dirent.Type = fuseutil.DT_File
 	case metadata.ImplicitDirType, metadata.ExplicitDirType:
@@ -1765,7 +1770,7 @@ func (fs *fileSystem) lookupAndFetchAttributesForLocalFileEntriesPlus(parentName
 			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: local file %q disappeared", localEntryName)
 		}
 		// Fetch attributes from the child inode.
-		attrs, expiration, err := fs.getAttributes(context.Background(), child)
+		attrs, expiration, err := fs.getAttributes(context.Background(), child, false)
 		if err != nil {
 			child.Unlock()
 			return fmt.Errorf("lookupAndFetchAttributesForLocalFileEntriesPlus: unable to fetch attributes for %s: %w", localEntryName, err)
@@ -1915,7 +1920,7 @@ func (fs *fileSystem) LookUpInode(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, false)
 	if fs.newConfig.FileSystem.ExperimentalEnableDentryCache {
 		e.EntryExpiration = e.AttributesExpiration
 	}
@@ -1941,7 +1946,7 @@ func (fs *fileSystem) GetInodeAttributes(
 	defer in.Unlock()
 
 	// Grab its attributes.
-	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
+	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in, true)
 	if err != nil {
 		return err
 	}
@@ -1974,8 +1979,8 @@ func (fs *fileSystem) SetInodeAttributes(
 
 	// Truncate files.
 	if isFile && op.Size != nil {
-		// Initialize BWH if eligible and Sync file inode.
-		err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, file, util.NewOpenMode(util.WriteOnly, 0))
+		// Initialize the streaming write handler if eligible and sync the file inode.
+		err = fs.initStreamingWriteHandlerAndSyncFileIfEligible(ctx, file, util.NewOpenMode(util.WriteOnly, 0))
 		if err != nil {
 			return
 		}
@@ -1994,7 +1999,7 @@ func (fs *fileSystem) SetInodeAttributes(
 	// We silently ignore updates to mode and atime.
 
 	// Fill in the response.
-	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in)
+	op.Attributes, op.AttributesExpiration, err = fs.getAttributes(ctx, in, true)
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
 		return err
@@ -2065,7 +2070,7 @@ func (fs *fileSystem) MkDir(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, false)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
@@ -2095,7 +2100,7 @@ func (fs *fileSystem) MkNode(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, false)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
@@ -2203,7 +2208,7 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 	fs.mu.Unlock()
 	defer fs.mu.Lock()
 	fileInode.Lock()
-	err = fs.createBufferedWriteHandlerAndSyncOrTempWriter(ctx, fileInode, openMode)
+	err = fs.createStreamingWriteHandlerAndSyncOrTempWriter(ctx, fileInode, openMode)
 	fileInode.Unlock()
 	if err != nil {
 		return
@@ -2262,7 +2267,7 @@ func (fs *fileSystem) CreateFile(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, false)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
@@ -2276,6 +2281,9 @@ func (fs *fileSystem) CreateFile(
 func (fs *fileSystem) CreateSymlink(
 	ctx context.Context,
 	op *fuseops.CreateSymlinkOp) (err error) {
+	if fs.newConfig.FileSystem.DisableSymlinks {
+		return syscall.ENOTSUP
+	}
 	ctx = fs.getInterruptlessContext(ctx)
 	// Find the parent.
 	fs.mu.Lock()
@@ -2317,7 +2325,7 @@ func (fs *fileSystem) CreateSymlink(
 	// Fill out the response.
 	e := &op.Entry
 	e.Child = child.ID()
-	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child)
+	e.Attributes, e.AttributesExpiration, err = fs.getAttributes(ctx, child, false)
 
 	if err != nil {
 		err = fmt.Errorf("getAttributes: %w", err)
@@ -3092,13 +3100,13 @@ func (fs *fileSystem) ReadFile(
 	fs.mu.Unlock()
 
 	fh.Inode().Lock()
-	if fh.Inode().IsUsingBWH() {
+	if fh.Inode().IsUsingStreamingWriteHandler() {
 		// Flush/Sync Pending streaming writes and issue read within same inode lock.
 		// With rapid buckets, we can read from unfinalized objects as well.
 		// Hence, there is no need to finalize the object from here for rapid buckets.
 		// Hence, if FinalizeFileForRapid is set, then we will call syncFile otherwise
 		// we can call flushFile (as it will not finalize when FinalizeFileForRapid is false) itself.
-		if fh.Inode().Bucket().BucketType().RapidWritesEnabled() && fs.newConfig.Write.FinalizeFileForRapid {
+		if fh.Inode().Bucket().BucketType().WriteStrategy() == gcs.WriteStrategyAppendable && fs.newConfig.Write.FinalizeFileForRapid {
 			err = fs.syncFile(ctx, fh.Inode())
 		} else {
 			err = fs.flushFile(ctx, fh.Inode())
@@ -3172,6 +3180,9 @@ func (fs *fileSystem) ReadFile(
 func (fs *fileSystem) ReadSymlink(
 	ctx context.Context,
 	op *fuseops.ReadSymlinkOp) (err error) {
+	if fs.newConfig.FileSystem.DisableSymlinks {
+		return syscall.ENOTSUP
+	}
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.symlinkInodeOrDie(op.Inode)
@@ -3201,7 +3212,7 @@ func (fs *fileSystem) WriteFile(
 	var gcsSynced bool
 	in.Lock()
 	defer in.Unlock()
-	if err = fs.initBufferedWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode()); err != nil {
+	if err = fs.initStreamingWriteHandlerAndSyncFileIfEligible(ctx, in, fh.OpenMode()); err != nil {
 		// A FileClobberedError on write indicates the file was modified in GCS,
 		// making the kernel's dentry stale. By invalidating the cache
 		// entry, we ensure the filesystem corrects the inconsistency caused by this

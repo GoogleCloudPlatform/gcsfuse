@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
 )
 
 const (

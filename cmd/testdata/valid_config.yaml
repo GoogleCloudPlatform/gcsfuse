@@ -16,6 +16,7 @@ write:
   max-blocks-per-file: 2
   enable-rapid-appends: false
   rapid-write: enabled
+  experimental-enable-parallel-upload: true
 file-cache:
   cache-file-for-range-read: true
   download-chunk-size-mb: 300

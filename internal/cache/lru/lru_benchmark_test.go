@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/lru"
 )
 
 func BenchmarkInsert(b *testing.B) {

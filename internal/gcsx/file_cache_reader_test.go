@@ -26,19 +26,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/util/diskutil"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/util/diskutil"
 
-	"github.com/googlecloudplatform/gcsfuse/v3/cfg"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/file/downloader"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/lru"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/cache/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/fake"
-	"github.com/googlecloudplatform/gcsfuse/v3/internal/storage/gcs"
-	testutil "github.com/googlecloudplatform/gcsfuse/v3/internal/util"
-	"github.com/googlecloudplatform/gcsfuse/v3/metrics"
-	"github.com/googlecloudplatform/gcsfuse/v3/tracing"
+	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/file"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/file/downloader"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/lru"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/fake"
+	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
+	testutil "github.com/googlecloudplatform/gcsfuse/v4/internal/util"
+	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
+	"github.com/googlecloudplatform/gcsfuse/v4/tracing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -81,7 +81,7 @@ func TestZonalFileCacheReaderTestSuite(t *testing.T) {
 
 func TestRCUFileCacheReaderTestSuite(t *testing.T) {
 	rcuBucketFileCacheReaderTestSuite := &fileCacheReaderTest{
-		bucketType: gcs.BucketType{RCU: gcs.RCUStateRapidWritesEnabled}}
+		bucketType: gcs.BucketType{RCU: true}}
 	suite.Run(t, rcuBucketFileCacheReaderTestSuite)
 }
 

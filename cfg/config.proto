@@ -19,10 +19,12 @@ syntax = "proto3";
 
 package gcsfuse.cfg.v1;
 
-option go_package = "github.com/googlecloudplatform/gcsfuse/v3/cfg/pb";
+option go_package = "github.com/googlecloudplatform/gcsfuse/v4/cfg/pb";
 
 message ConfigPayload {
   Config config = 1;
+  string app_name = 2;
+  string mount_id = 3;
 }
 
 message Config {
@@ -187,4 +189,7 @@ message Config {
   bool is_gcs_auth_s2a_address_set = 160;
   bool is_gcs_auth_s2a_spiffe_id_set = 161;
   string write_rapid_write = 162;
+  bool write_experimental_enable_parallel_upload = 163;
+  bool file_system_disable_symlinks = 164;
+  sint64 file_system_fuse_num_readers = 165;
 }
