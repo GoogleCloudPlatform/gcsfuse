@@ -1037,6 +1037,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 		FileMode:                      0644,
 		FuseMaxRequestSizeKb:          int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 		FuseMaxWriteSizeKb:            1024,
+		FuseNumReaders:                8,
 		FuseOptions:                   []string{},
 		Gid:                           -1,
 		IgnoreInterrupts:              true,
@@ -1067,6 +1068,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:          int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:            1024,
+					FuseNumReaders:                8,
 					DirMode:                       0777,
 					DisableParallelDirops:         true,
 					ExperimentalEnableDentryCache: true,
@@ -1091,6 +1093,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:          int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:            1024,
+					FuseNumReaders:                8,
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1115,6 +1118,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:          int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:            1024,
+					FuseNumReaders:                8,
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1141,6 +1145,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:          int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:            1024,
+					FuseNumReaders:                8,
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1167,6 +1172,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:          int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:            1024,
+					FuseNumReaders:                8,
 					DirMode:                       0777,
 					DisableParallelDirops:         false,
 					ExperimentalEnableDentryCache: false,
@@ -1248,6 +1254,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1266,6 +1273,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1285,6 +1293,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1303,6 +1312,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1322,6 +1332,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1341,6 +1352,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1360,6 +1372,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1379,6 +1392,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1399,6 +1413,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1418,6 +1433,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb:    int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:      1024,
+					FuseNumReaders:          8,
 					DirMode:                 0755,
 					FileMode:                0644,
 					FuseOptions:             []string{},
@@ -1437,6 +1453,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1456,6 +1473,7 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 				FileSystem: cfg.FileSystemConfig{
 					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
 					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       8,
 					DirMode:              0755,
 					FileMode:             0644,
 					FuseOptions:          []string{},
@@ -1465,6 +1483,44 @@ func TestArgsParsing_FileSystemFlags(t *testing.T) {
 					ExperimentalODirect:  false,
 					Uid:                  -1,
 					KernelParamsFile:     "/tmp/config_params",
+				},
+			},
+		},
+		{
+			name: "Test file system fuse-num-readers flag.",
+			args: []string{"gcsfuse", "--fuse-num-readers=4", "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
+					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       4,
+					DirMode:              0755,
+					FileMode:             0644,
+					FuseOptions:          []string{},
+					Gid:                  -1,
+					IgnoreInterrupts:     true,
+					InactiveMrdCacheSize: 1000,
+					ExperimentalODirect:  false,
+					Uid:                  -1,
+				},
+			},
+		},
+		{
+			name: "Test file system fuse-num-readers from config file.",
+			args: []string{"gcsfuse", "--config-file", createTempConfigFile(t, "file-system:\n  fuse-num-readers: 4"), "abc", "pqr"},
+			expectedConfig: &cfg.Config{
+				FileSystem: cfg.FileSystemConfig{
+					FuseMaxRequestSizeKb: int64(cfg.StorageClassRapid.DefaultFuseMaxRequestSizeKb()),
+					FuseMaxWriteSizeKb:   1024,
+					FuseNumReaders:       4,
+					DirMode:              0755,
+					FileMode:             0644,
+					FuseOptions:          []string{},
+					Gid:                  -1,
+					IgnoreInterrupts:     true,
+					InactiveMrdCacheSize: 1000,
+					ExperimentalODirect:  false,
+					Uid:                  -1,
 				},
 			},
 		},

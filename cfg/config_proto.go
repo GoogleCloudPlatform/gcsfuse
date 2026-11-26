@@ -221,6 +221,7 @@ func (config *Config) ToProto() *pb.Config {
 		WriteRapidWrite:                                       TruncateProtoString(string(config.Write.RapidWrite), MaxProtoStringLen),
 		WriteExperimentalEnableParallelUpload:                 config.Write.ExperimentalEnableParallelUpload,
 		FileSystemDisableSymlinks:                             config.FileSystem.DisableSymlinks,
+		FileSystemFuseNumReaders:                              config.FileSystem.FuseNumReaders,
 	}
 }
 
