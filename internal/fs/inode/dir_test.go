@@ -2034,7 +2034,7 @@ func (t *DirTest) TestLocalFileEntriesWithUnlinkedLocalChildFiles() {
 	in3 := t.createLocalFileInode(Name{bucketName: "abc", objectName: "def/"}, "3_localNonChildInode", 3)
 	// Unlink local file inode 2.
 	filein2, _ := in2.(*FileInode)
-	filein2.Unlink()
+	filein2.Unlink(t.ctx)
 	// Create local file inodes map.
 	localFileInodes := map[Name]Inode{
 		in1.Name(): in1,

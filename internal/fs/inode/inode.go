@@ -65,7 +65,7 @@ type Inode interface {
 	Destroy() (err error)
 
 	// Unlink operation marks the inode as unlinked/deleted.
-	Unlink()
+	Unlink(ctx context.Context)
 }
 
 // An inode owned by a gcs bucket.

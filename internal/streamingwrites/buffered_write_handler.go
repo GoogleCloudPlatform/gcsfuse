@@ -240,7 +240,7 @@ func (wh *bufferedWriteHandlerImpl) WriteFileInfo() WriteFileInfo {
 	}
 }
 
-func (wh *bufferedWriteHandlerImpl) Destroy() error {
+func (wh *bufferedWriteHandlerImpl) Destroy(_ context.Context) error {
 	if wh.current != nil {
 		wh.blockPool.Release(wh.current)
 		wh.current = nil
@@ -271,7 +271,7 @@ func (wh *bufferedWriteHandlerImpl) writeDataForTruncatedSize(ctx context.Contex
 	return nil
 }
 
-func (wh *bufferedWriteHandlerImpl) Unlink() {
+func (wh *bufferedWriteHandlerImpl) Unlink(_ context.Context) {
 	wh.uploadHandler.CancelUpload()
 	// Since bwh is not cleared after unlink, we will not release last block yet.
 	// Last block will be released when file handle for this file is closed.

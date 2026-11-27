@@ -129,6 +129,14 @@ func (b *throttledBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*gc
 	return b.wrapped.FinalizeUpload(ctx, w)
 }
 
+func (b *throttledBucket) AbortUpload(ctx context.Context, w gcs.Writer) error {
+	// AbortUpload is not throttled, so that the limiter never delays or blocks
+	// discarding an abandoned upload.
+	// Note: CreateObjectChunkWriter, a prerequisite for AbortUpload, is
+	// throttled.
+	return b.wrapped.AbortUpload(ctx, w)
+}
+
 func (b *throttledBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	// FlushPendingWrites is not throttled to prevent permanent data loss in case the
 	// limiter's burst size is exceeded.

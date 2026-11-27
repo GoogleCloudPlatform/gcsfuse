@@ -51,10 +51,10 @@ type WriteHandler interface {
 	WriteFileInfo() WriteFileInfo
 
 	// Destroy cleans up resources held by the write handler when write handles are closed.
-	Destroy() error
+	Destroy(ctx context.Context) error
 
 	// Unlink cancels/aborts the ongoing upload and frees up any local buffers.
-	Unlink()
+	Unlink(ctx context.Context)
 }
 
 // WriteFileInfo is used as part of serving fileInode attributes (GetInodeAttributes call).

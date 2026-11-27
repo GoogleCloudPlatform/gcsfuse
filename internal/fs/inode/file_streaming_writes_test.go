@@ -448,7 +448,7 @@ func (t *FileStreamingWritesTest) TestUnlinkLocalFileBeforeWrite() {
 	assert.True(t.T(), t.in.IsLocal())
 
 	// Unlink.
-	t.in.Unlink()
+	t.in.Unlink(t.ctx)
 
 	assert.True(t.T(), t.in.unlinked)
 	// Data shouldn't be updated to GCS.
@@ -465,7 +465,7 @@ func (t *FileStreamingWritesTest) TestUnlinkLocalFileAfterWrite() {
 	assert.False(t.T(), gcsSynced)
 
 	// Unlink.
-	t.in.Unlink()
+	t.in.Unlink(t.ctx)
 
 	assert.True(t.T(), t.in.IsUnlinked())
 	// Data shouldn't be updated to GCS.
@@ -483,7 +483,7 @@ func (t *FileStreamingWritesTest) TestUnlinkEmptySyncedFile() {
 	assert.False(t.T(), gcsSynced)
 
 	// Unlink.
-	t.in.Unlink()
+	t.in.Unlink(t.ctx)
 
 	assert.True(t.T(), t.in.unlinked)
 }
@@ -797,7 +797,7 @@ func (t *FileStreamingWritesTest) TestDeRegisterFileHandle() {
 			t.in.writeHandleCount = tc.currentVal
 			t.createStreamingWriteHandler()
 
-			t.in.DeRegisterFileHandle(tc.readonly)
+			t.in.DeRegisterFileHandle(t.ctx, tc.readonly)
 
 			assert.Equal(t.T(), tc.expectedVal, t.in.writeHandleCount)
 			if tc.isStreamingWriteHandlerNil {
@@ -809,10 +809,47 @@ func (t *FileStreamingWritesTest) TestDeRegisterFileHandle() {
 	}
 }
 
+func (t *FileStreamingWritesTest) TestWriteHandlerGetsOperationContext() {
+	testCases := []struct {
+		name string
+		op   func(ctx context.Context)
+	}{
+		{
+			name: "Unlink",
+			op:   func(ctx context.Context) { t.in.Unlink(ctx) },
+		},
+		{
+			name: "DeRegisterLastWriteHandle",
+			op:   func(ctx context.Context) { t.in.DeRegisterFileHandle(ctx, false) },
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func() {
+			var handlerCtx context.Context
+			t.in.writeHandleCount = 1
+			t.in.streamingWriteHandler = &FakeWriteHandler{
+				UnlinkFunc: func(ctx context.Context) { handlerCtx = ctx },
+				DestroyFunc: func(ctx context.Context) error {
+					handlerCtx = ctx
+					return nil
+				},
+			}
+			opCtx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			tc.op(opCtx)
+
+			assert.Same(t.T(), opCtx, handlerCtx)
+		})
+	}
+}
+
 // FakeWriteHandler is a test double for streamingwrites.WriteHandler.
 type FakeWriteHandler struct {
-	WriteFunc func(data []byte, offset int64) error
-	FlushFunc func() (*gcs.MinObject, error)
+	WriteFunc   func(data []byte, offset int64) error
+	FlushFunc   func() (*gcs.MinObject, error)
+	DestroyFunc func(ctx context.Context) error
+	UnlinkFunc  func(ctx context.Context)
 }
 
 func (t *FakeWriteHandler) Write(ctx context.Context, data []byte, offset int64) error {
@@ -839,8 +876,19 @@ func (t *FakeWriteHandler) WriteFileInfo() streamingwrites.WriteFileInfo {
 func (t *FakeWriteHandler) Sync(ctx context.Context) (*gcs.MinObject, error) { return nil, nil }
 func (t *FakeWriteHandler) SetMtime(_ time.Time)                             {}
 func (t *FakeWriteHandler) Truncate(_ int64) error                           { return nil }
-func (t *FakeWriteHandler) Destroy() error                                   { return nil }
-func (t *FakeWriteHandler) Unlink()                                          {}
+
+func (t *FakeWriteHandler) Destroy(ctx context.Context) error {
+	if t.DestroyFunc != nil {
+		return t.DestroyFunc(ctx)
+	}
+	return nil
+}
+
+func (t *FakeWriteHandler) Unlink(ctx context.Context) {
+	if t.UnlinkFunc != nil {
+		t.UnlinkFunc(ctx)
+	}
+}
 
 func (t *FakeWriteHandler) SetTotalSize() {}
 

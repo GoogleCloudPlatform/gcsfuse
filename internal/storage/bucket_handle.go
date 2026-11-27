@@ -240,6 +240,8 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 
 	// Copy the contents to the writer.
 	if _, err = io.Copy(wc, req.Contents); err != nil {
+		// TODO(b/581184469): Abort the writer once CreateObject uses parallel
+		// uploads, so that their buffers and upload session aren't leaked.
 		err = fmt.Errorf("failed io.Copy for %q: %w", req.Name, err)
 		return
 	}
@@ -325,6 +327,17 @@ func (bh *bucketHandle) FinalizeUpload(ctx context.Context, w gcs.Writer) (o *gc
 	attrs := w.Attrs() // Retrieving the attributes of the created object.
 	// Converting attrs to type *MinObject.
 	o = storageutil.ObjectAttrsToMinObject(attrs)
+	return
+}
+
+func (bh *bucketHandle) AbortUpload(ctx context.Context, w gcs.Writer) (err error) {
+	defer func() {
+		err = gcs.GetGCSError(err)
+	}()
+
+	if err = w.Abort(); err != nil {
+		err = fmt.Errorf("error in aborting writer: %w", err)
+	}
 	return
 }
 

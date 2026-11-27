@@ -208,6 +208,7 @@
   - attribute-name: gcs_method
     attribute-type: string
     values: &gcs_method_list
+    - "AbortUpload"
     - "ComposeObjects"
     - "CopyObject"
     - "CreateAppendableObjectWriter"

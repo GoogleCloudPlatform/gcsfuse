@@ -129,6 +129,13 @@ func (d *dummyIOBucket) FinalizeUpload(
 	return d.wrapped.FinalizeUpload(ctx, writer)
 }
 
+// AbortUpload discards an upload that hasn't been finalized.
+func (d *dummyIOBucket) AbortUpload(
+	ctx context.Context,
+	writer gcs.Writer) error {
+	return d.wrapped.AbortUpload(ctx, writer)
+}
+
 // FlushPendingWrites flushes pending data in the writer buffer for zonal buckets.
 // TODO: Add custom logic for Write path if needed
 func (d *dummyIOBucket) FlushPendingWrites(

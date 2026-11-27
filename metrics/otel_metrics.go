@@ -529,6 +529,7 @@ var (
 	gcsReadCountReadTypeUnknownAttrSet                                                                     = metric.WithAttributeSet(attribute.NewSet(attribute.String("read_type", "Unknown")))
 	gcsReaderCountIoMethodClosedAttrSet                                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "closed")))
 	gcsReaderCountIoMethodOpenedAttrSet                                                                    = metric.WithAttributeSet(attribute.NewSet(attribute.String("io_method", "opened")))
+	gcsRequestCountGcsMethodAbortUploadAttrSet                                                             = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "AbortUpload")))
 	gcsRequestCountGcsMethodComposeObjectsAttrSet                                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")))
 	gcsRequestCountGcsMethodCopyObjectAttrSet                                                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CopyObject")))
 	gcsRequestCountGcsMethodCreateAppendableObjectWriterAttrSet                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateAppendableObjectWriter")))
@@ -548,6 +549,7 @@ var (
 	gcsRequestCountGcsMethodRenameFolderAttrSet                                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "RenameFolder")))
 	gcsRequestCountGcsMethodStatObjectAttrSet                                                              = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "StatObject")))
 	gcsRequestCountGcsMethodUpdateObjectAttrSet                                                            = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "UpdateObject")))
+	gcsRequestLatenciesGcsMethodAbortUploadAttrSet                                                         = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "AbortUpload")))
 	gcsRequestLatenciesGcsMethodComposeObjectsAttrSet                                                      = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "ComposeObjects")))
 	gcsRequestLatenciesGcsMethodCopyObjectAttrSet                                                          = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CopyObject")))
 	gcsRequestLatenciesGcsMethodCreateAppendableObjectWriterAttrSet                                        = metric.WithAttributeSet(attribute.NewSet(attribute.String("gcs_method", "CreateAppendableObjectWriter")))
@@ -1074,6 +1076,7 @@ type otelMetrics struct {
 	gcsReadCountReadTypeUnknownAtomic                                                                     *atomic.Int64
 	gcsReaderCountIoMethodClosedAtomic                                                                    *atomic.Int64
 	gcsReaderCountIoMethodOpenedAtomic                                                                    *atomic.Int64
+	gcsRequestCountGcsMethodAbortUploadAtomic                                                             *atomic.Int64
 	gcsRequestCountGcsMethodComposeObjectsAtomic                                                          *atomic.Int64
 	gcsRequestCountGcsMethodCopyObjectAtomic                                                              *atomic.Int64
 	gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic                                            *atomic.Int64
@@ -2431,6 +2434,8 @@ func (o *otelMetrics) GcsRequestCount(
 		return
 	}
 	switch gcsMethod {
+	case GcsMethodAbortUploadAttr:
+		o.gcsRequestCountGcsMethodAbortUploadAtomic.Add(inc)
 	case GcsMethodComposeObjectsAttr:
 		o.gcsRequestCountGcsMethodComposeObjectsAtomic.Add(inc)
 	case GcsMethodCopyObjectAttr:
@@ -2479,6 +2484,8 @@ func (o *otelMetrics) GcsRequestLatencies(
 	ctx context.Context, latency time.Duration, gcsMethod GcsMethod) {
 	var record histogramRecord
 	switch gcsMethod {
+	case GcsMethodAbortUploadAttr:
+		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodAbortUploadAttrSet}
 	case GcsMethodComposeObjectsAttr:
 		record = histogramRecord{ctx: ctx, instrument: o.gcsRequestLatencies, value: latency.Milliseconds(), attributes: gcsRequestLatenciesGcsMethodComposeObjectsAttrSet}
 	case GcsMethodCopyObjectAttr:
@@ -3180,7 +3187,8 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 	var gcsReaderCountIoMethodClosedAtomic,
 		gcsReaderCountIoMethodOpenedAtomic atomic.Int64
 
-	var gcsRequestCountGcsMethodComposeObjectsAtomic,
+	var gcsRequestCountGcsMethodAbortUploadAtomic,
+		gcsRequestCountGcsMethodComposeObjectsAtomic,
 		gcsRequestCountGcsMethodCopyObjectAtomic,
 		gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic,
 		gcsRequestCountGcsMethodCreateFolderAtomic,
@@ -3797,6 +3805,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		metric.WithDescription("The cumulative number of GCS requests processed along with the GCS method."),
 		metric.WithUnit(""),
 		metric.WithInt64Callback(func(_ context.Context, obsrv metric.Int64Observer) error {
+			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodAbortUploadAtomic, gcsRequestCountGcsMethodAbortUploadAttrSet)
 			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodComposeObjectsAtomic, gcsRequestCountGcsMethodComposeObjectsAttrSet)
 			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodCopyObjectAtomic, gcsRequestCountGcsMethodCopyObjectAttrSet)
 			conditionallyObserve(obsrv, &gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic, gcsRequestCountGcsMethodCreateAppendableObjectWriterAttrSet)
@@ -4371,6 +4380,7 @@ func NewOTelMetrics(ctx context.Context, workers int, bufferSize int) (*otelMetr
 		gcsReadCountReadTypeUnknownAtomic:                                                  &gcsReadCountReadTypeUnknownAtomic,
 		gcsReaderCountIoMethodClosedAtomic:                                                 &gcsReaderCountIoMethodClosedAtomic,
 		gcsReaderCountIoMethodOpenedAtomic:                                                 &gcsReaderCountIoMethodOpenedAtomic,
+		gcsRequestCountGcsMethodAbortUploadAtomic:                                          &gcsRequestCountGcsMethodAbortUploadAtomic,
 		gcsRequestCountGcsMethodComposeObjectsAtomic:                                       &gcsRequestCountGcsMethodComposeObjectsAtomic,
 		gcsRequestCountGcsMethodCopyObjectAtomic:                                           &gcsRequestCountGcsMethodCopyObjectAtomic,
 		gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic:                         &gcsRequestCountGcsMethodCreateAppendableObjectWriterAtomic,

@@ -16,7 +16,6 @@ package streamingwrites
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -29,11 +28,6 @@ import (
 // object up to the size requested by a forward truncate.
 const zeroPaddingChunkSize = 1024 * 1024
 
-// errNotImplemented is returned by the unbufferedWriteHandlerImpl methods that
-// are not implemented yet.
-// TODO(b/581184283): Remove once Destroy is implemented.
-var errNotImplemented = errors.New("unbuffered write handler: not implemented")
-
 // unbufferedWriteHandlerImpl implements WriteHandler for parallel uploads.
 // Rather than buffering writes in GCSFuse, it forwards incoming data directly
 // to the Go SDK writer, which uploads parts concurrently. Only sequential
@@ -43,10 +37,10 @@ var errNotImplemented = errors.New("unbuffered write handler: not implemented")
 // All methods assume the caller holds the FileInode lock, so no internal
 // synchronization is needed.
 //
-// TODO(b/581184283): Implement Destroy and Unlink.
 // TODO(b/581184469): Nothing creates this handler yet.
 type unbufferedWriteHandlerImpl struct {
-	// writer uploads the object. It's created on the first write or on flush.
+	// writer uploads the object. It's created on the first write or on flush,
+	// and set to nil once the upload is finalized or aborted.
 	writer gcs.Writer
 	// cancelFunc cancels the context of the writer.
 	cancelFunc context.CancelFunc
@@ -55,7 +49,6 @@ type unbufferedWriteHandlerImpl struct {
 	bucket                   gcs.Bucket
 	objectName               string
 	obj                      *gcs.Object
-	blockSize                int64
 	chunkRetryDeadlineSecs   int64
 	chunkTransferTimeoutSecs int64
 	traceHandle              tracing.TraceHandle
@@ -72,9 +65,14 @@ type unbufferedWriteHandlerImpl struct {
 	mtime time.Time
 
 	// uploadError is the first error from the writer, including a failed writer
-	// creation. Once set, Write, Sync and Flush return it without touching the
-	// writer, so no new upload is started.
+	// creation. Once set, and until Unlink, Write, Sync and Flush return it
+	// without touching the writer, so no new upload is started.
 	uploadError error
+	// unlinked is set by Unlink. Once set, writes and truncates are discarded
+	// and Sync and Flush do nothing, without touching the writer, so that the
+	// deleted object isn't created. They return no error, even after an upload
+	// failure, so that applications holding the file open can finish cleanly.
+	unlinked bool
 }
 
 var _ WriteHandler = (*unbufferedWriteHandlerImpl)(nil)
@@ -87,7 +85,6 @@ func newUnbufferedWriteHandler(req *CreateWriteHandlerRequest) *unbufferedWriteH
 		bucket:                   req.Bucket,
 		objectName:               req.ObjectName,
 		obj:                      req.Object,
-		blockSize:                req.BlockSize,
 		chunkRetryDeadlineSecs:   req.ChunkRetryDeadlineSecs,
 		chunkTransferTimeoutSecs: req.ChunkTransferTimeoutSecs,
 		traceHandle:              req.TraceHandle,
@@ -98,6 +95,9 @@ func newUnbufferedWriteHandler(req *CreateWriteHandlerRequest) *unbufferedWriteH
 }
 
 func (wh *unbufferedWriteHandlerImpl) Write(ctx context.Context, data []byte, offset int64) error {
+	if wh.unlinked {
+		return nil
+	}
 	if wh.uploadError != nil {
 		return wh.uploadError
 	}
@@ -117,13 +117,21 @@ func (wh *unbufferedWriteHandlerImpl) Write(ctx context.Context, data []byte, of
 
 // Sync returns a nil object and the stored upload error, if any. It doesn't
 // touch the writer: it neither waits for the parts in flight nor finalizes the
-// object, so the data isn't durable or visible on GCS until Flush.
+// object, so the data isn't durable or visible on GCS until Flush. After
+// Unlink, it returns no error.
 func (wh *unbufferedWriteHandlerImpl) Sync(ctx context.Context) (*gcs.MinObject, error) {
+	if wh.unlinked {
+		return nil, nil
+	}
 	return nil, wh.uploadError
 }
 
-// Flush writes any pending zero padding and finalizes the object.
+// Flush writes any pending zero padding and finalizes the object. After Unlink,
+// it does nothing.
 func (wh *unbufferedWriteHandlerImpl) Flush(ctx context.Context) (obj *gcs.MinObject, err error) {
+	if wh.unlinked {
+		return nil, nil
+	}
 	if wh.uploadError != nil {
 		return nil, wh.uploadError
 	}
@@ -142,22 +150,23 @@ func (wh *unbufferedWriteHandlerImpl) Flush(ctx context.Context) (obj *gcs.MinOb
 	if err != nil {
 		// FinalizeUpload already converts the error to a GCS error.
 		err = fmt.Errorf("FinalizeUpload failed for object %s: %w", wh.objectName, err)
-		wh.handleUploadFailure(err)
+		wh.handleUploadFailure(ctx, err)
 		return nil, err
 	}
-	// The upload is complete, so release the context of the writer.
+	// The upload is complete, so release the writer and its context.
+	wh.writer = nil
 	wh.cancelFunc()
 	// The writer is closed now, so the errors below are sticky too: a later Flush
 	// from another write handle must not finalize the object again.
 	if obj == nil {
 		err = fmt.Errorf("FinalizeUpload returned nil object for %s", wh.objectName)
-		wh.handleUploadFailure(err)
+		wh.handleUploadFailure(ctx, err)
 		return nil, err
 	}
 	bytes = int64(obj.Size)
 	if obj.Size != uint64(wh.totalSize) {
 		err = fmt.Errorf("could not upload entire data, expected size %d, got %d", wh.totalSize, obj.Size)
-		wh.handleUploadFailure(err)
+		wh.handleUploadFailure(ctx, err)
 		return nil, err
 	}
 	return obj, nil
@@ -171,6 +180,11 @@ func (wh *unbufferedWriteHandlerImpl) SetMtime(mtime time.Time) {
 // below the current size returns ErrOutOfOrderWrite, so that the caller falls
 // back to staged writes.
 func (wh *unbufferedWriteHandlerImpl) Truncate(size int64) error {
+	// After Unlink, truncates are discarded, so a truncate below the current size
+	// doesn't make the caller fall back to staged writes for the deleted file.
+	if wh.unlinked {
+		return nil
+	}
 	if size < wh.totalSize {
 		return ErrOutOfOrderWrite
 	}
@@ -190,12 +204,18 @@ func (wh *unbufferedWriteHandlerImpl) WriteFileInfo() WriteFileInfo {
 	}
 }
 
-func (wh *unbufferedWriteHandlerImpl) Destroy() error {
-	return errNotImplemented
+// Destroy aborts the upload if it hasn't been finalized.
+func (wh *unbufferedWriteHandlerImpl) Destroy(ctx context.Context) error {
+	return wh.abort(ctx)
 }
 
-func (wh *unbufferedWriteHandlerImpl) Unlink() {
-	// TODO(b/581184283): Abort the upload and discard later writes.
+// Unlink aborts the upload and makes later writes, truncates, syncs and
+// flushes do nothing.
+func (wh *unbufferedWriteHandlerImpl) Unlink(ctx context.Context) {
+	wh.unlinked = true
+	if err := wh.abort(ctx); err != nil {
+		logger.Warnf("UnbufferedWriteHandler.Unlink: %v", err)
+	}
 }
 
 // write writes data to the writer, creating the writer if needed.
@@ -216,7 +236,7 @@ func (wh *unbufferedWriteHandlerImpl) write(ctx context.Context, data []byte) er
 		// TODO(b/577926767): Map errors for files that exceed the size limit to
 		// EFBIG.
 		err = fmt.Errorf("write failed for object %s: %w", wh.objectName, gcs.GetGCSError(err))
-		wh.handleUploadFailure(err)
+		wh.handleUploadFailure(ctx, err)
 		return err
 	}
 	// Once the file reaches the truncated size, the truncate is complete.
@@ -251,15 +271,17 @@ func (wh *unbufferedWriteHandlerImpl) ensureWriter(ctx context.Context) error {
 	req := gcs.NewCreateObjectRequest(wh.obj, wh.objectName, nil, wh.chunkRetryDeadlineSecs, wh.chunkTransferTimeoutSecs)
 	// ctx is scoped to the FUSE operation that creates the writer (e.g.
 	// WriteFile) and may be canceled when that operation returns, but the writer
-	// must live until the upload is finalized or canceled. So the writer gets its
+	// must live until the upload is finalized or aborted. So the writer gets its
 	// own context, which carries only the operation's trace.
 	writerCtx, cancel := context.WithCancel(wh.traceHandle.PropagateTraceContext(context.Background(), ctx))
-	writer, err := wh.bucket.CreateObjectChunkWriter(writerCtx, req, int(wh.blockSize), nil)
+	// Parallel uploads don't use the chunk size.
+	// TODO(b/581184469): Remove the chunkSize argument of CreateObjectChunkWriter.
+	writer, err := wh.bucket.CreateObjectChunkWriter(writerCtx, req, 0, nil)
 	if err != nil {
 		// No writer holds the context, so release it here.
 		cancel()
 		err = fmt.Errorf("CreateObjectChunkWriter failed for object %s: %w", wh.objectName, err)
-		wh.handleUploadFailure(err)
+		wh.handleUploadFailure(ctx, err)
 		return err
 	}
 	wh.writer = writer
@@ -267,13 +289,32 @@ func (wh *unbufferedWriteHandlerImpl) ensureWriter(ctx context.Context) error {
 	return nil
 }
 
-// handleUploadFailure records err as a sticky upload error and cancels any
+// handleUploadFailure records err as a sticky upload error and aborts any
 // active upload.
-func (wh *unbufferedWriteHandlerImpl) handleUploadFailure(err error) {
+func (wh *unbufferedWriteHandlerImpl) handleUploadFailure(ctx context.Context, err error) {
 	wh.uploadError = err
-	if wh.cancelFunc != nil {
-		// TODO(b/581184283): Also abort the upload, so that the parts uploaded so
-		// far are discarded.
-		wh.cancelFunc()
+	if abortErr := wh.abort(ctx); abortErr != nil {
+		logger.Warnf("UnbufferedWriteHandler.handleUploadFailure: %v", abortErr)
 	}
+}
+
+// abort discards the active upload, if any, and releases the writer and its
+// context.
+func (wh *unbufferedWriteHandlerImpl) abort(ctx context.Context) (err error) {
+	if wh.writer == nil {
+		return nil
+	}
+	bytes := wh.totalSize
+	ctx, finishSpan := wh.traceHandle.TraceUpload(ctx, tracing.StreamingUploadAbort, wh.objectName, &bytes, &err)
+	defer finishSpan()
+
+	// Abort before canceling the context of the writer, in case Abort uses it
+	// to reach GCS.
+	err = wh.bucket.AbortUpload(ctx, wh.writer)
+	wh.writer = nil
+	wh.cancelFunc()
+	if err != nil {
+		err = fmt.Errorf("AbortUpload failed for object %s: %w", wh.objectName, err)
+	}
+	return err
 }

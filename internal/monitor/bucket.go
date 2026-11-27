@@ -107,6 +107,13 @@ func (mb *monitoringBucket) FinalizeUpload(ctx context.Context, w gcs.Writer) (*
 	return o, err
 }
 
+func (mb *monitoringBucket) AbortUpload(ctx context.Context, w gcs.Writer) error {
+	startTime := time.Now()
+	err := mb.wrapped.AbortUpload(ctx, w)
+	recordRequest(ctx, mb.metricHandle, metrics.GcsMethodAbortUploadAttr, startTime)
+	return err
+}
+
 func (mb *monitoringBucket) FlushPendingWrites(ctx context.Context, w gcs.Writer) (*gcs.MinObject, error) {
 	startTime := time.Now()
 	o, err := mb.wrapped.FlushPendingWrites(ctx, w)
