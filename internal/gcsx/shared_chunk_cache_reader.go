@@ -250,6 +250,7 @@ func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, 
 			Start: uint64(chunkStart),
 			Limit: uint64(chunkEnd),
 		},
+		ReadCompressed: r.object.HasContentEncodingGzip(),
 	}
 	reader, err := r.bucket.NewReaderWithReadHandle(ctx, readReq)
 	if err != nil {
@@ -259,13 +260,15 @@ func (r *SharedChunkCacheReader) downloadChunk(ctx context.Context, chunkIndex, 
 	defer reader.Close()
 
 	// Step 4: Copy data from GCS to temp file
-	bytesWritten, err := io.Copy(tmpFile, reader)
+	// A mismatched or transcoded response must not consume unbounded cache space.
+	expectedBytes := chunkEnd - chunkStart
+	bytesWritten, err := io.Copy(tmpFile, io.LimitReader(reader, expectedBytes+1))
 	if err != nil || bytesWritten != (chunkEnd-chunkStart) {
 		os.Remove(tmpPath) // Cleanup
 		if err != nil {
 			return fmt.Errorf("failed to copy data to temp file: %w", err)
 		}
-		return fmt.Errorf("incomplete copy, expected %d bytes but wrote %d bytes", (chunkEnd - chunkStart), bytesWritten)
+		return fmt.Errorf("unexpected chunk length, expected %d bytes but wrote %d bytes", expectedBytes, bytesWritten)
 	}
 
 	// Close implies Sync() on NFS (intended use case).
