@@ -83,17 +83,16 @@ func TestMapCacheWorkloads(t *testing.T) {
 		t.Logf("=== WORKLOAD: %s (%d files) ===", w, count)
 
 		// 1. Pure MapLRU
-		paths := generatePaths(w, count)
 		baseMem := getMemStats()
 
 		pureCache := lru.NewCache(capacity)
-		for _, p := range paths {
+		for _, p := range generatePaths(w, count) {
 			_, _ = pureCache.Insert(p, dummyValue{})
 		}
+
 		alloc := getMemStats()
 		pureMem := alloc - baseMem
 		runtime.KeepAlive(pureCache)
-		runtime.KeepAlive(paths)
 
 		t.Logf("%-20s Heap Used: %10.2f MB\n", "MapLRU", float64(pureMem)/(1024*1024))
 	}
