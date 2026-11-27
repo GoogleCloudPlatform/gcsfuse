@@ -21,6 +21,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/v4/cfg"
@@ -108,7 +109,7 @@ type FileInode struct {
 
 	// A mutex that must be held when calling certain methods. See documentation
 	// for each method.
-	mu syncutil.InvariantMutex
+	mu sync.Mutex
 
 	// GUARDED_BY(mu)
 	lc lookupCount
@@ -214,7 +215,9 @@ func NewFileInode(
 		f.kernelRangeReaderInstance = kernel_readers.NewKernelRangeReaderInstance(&minObj)
 	}
 
-	f.mu = syncutil.NewInvariantMutex(f.checkInvariants)
+	if syncutil.InvariantCheckingEnabled() {
+		f.checkInvariants()
+	}
 
 	return
 }
@@ -428,9 +431,15 @@ func (f *FileInode) ensureContent(ctx context.Context) (err error) {
 
 func (f *FileInode) Lock() {
 	f.mu.Lock()
+	if syncutil.InvariantCheckingEnabled() {
+		f.checkInvariants()
+	}
 }
 
 func (f *FileInode) Unlock() {
+	if syncutil.InvariantCheckingEnabled() {
+		f.checkInvariants()
+	}
 	f.mu.Unlock()
 }
 
