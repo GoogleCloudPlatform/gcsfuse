@@ -25,18 +25,36 @@ import (
 	"github.com/jacobsa/fuse/fuseutil"
 )
 
-// NewServer creates a fuse file system server according to the supplied configuration.
-func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
+// newWrappedFileSystem creates the base file system and attaches the FUSE-layer
+// wrappers in the required order:
+//
+//	Monitoring -> Tracing -> ErrorMapping -> IgnoreInterrupts -> FileSystem
+//
+// NewFileSystem intentionally returns the bare file system and relies on
+// NewServer (via this helper) to apply FUSE-layer wrappers.
+func newWrappedFileSystem(ctx context.Context, cfg *ServerConfig) (fuseutil.FileSystem, error) {
 	fs, err := NewFileSystem(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("create file system: %w", err)
 	}
 
+	if cfg.NewConfig.FileSystem.IgnoreInterrupts {
+		fs = wrappers.WithIgnoreInterrupts(fs)
+	}
 	fs = wrappers.WithErrorMapping(fs)
 	if newcfg.IsTracingEnabled(cfg.NewConfig) {
 		fs = wrappers.WithTracing(fs, cfg.TraceHandle)
 	}
 	fs = wrappers.WithMonitoring(fs, cfg.MetricHandle)
+	return fs, nil
+}
+
+// NewServer creates a fuse file system server according to the supplied configuration.
+func NewServer(ctx context.Context, cfg *ServerConfig) (fuse.Server, error) {
+	fs, err := newWrappedFileSystem(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
 	if cfg.Notifier != nil {
 		return fuse.NewServerWithNotifier(cfg.Notifier, fuseutil.NewFileSystemServer(fs)), nil
 	}

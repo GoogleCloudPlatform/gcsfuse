@@ -257,13 +257,3 @@ func BenchmarkCacheReads_PerOp(b *testing.B) {
 		})
 	}
 }
-
-// BenchmarkCacheReads_WithCacheReadsFrom measures carrying an op's collector
-// to the context that getInterruptlessContext detaches from the FUSE request.
-func BenchmarkCacheReads_WithCacheReadsFrom(b *testing.B) {
-	cacheReads := metadata.NewCacheReads(context.Background())
-	b.ReportAllocs()
-	for b.Loop() {
-		ctxSink = metadata.WithCacheReadsFrom(context.Background(), cacheReads)
-	}
-}

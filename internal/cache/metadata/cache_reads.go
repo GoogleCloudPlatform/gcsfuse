@@ -65,16 +65,6 @@ func (r *CacheReads) Value(key any) any {
 	return r.Context.Value(key)
 }
 
-// WithCacheReadsFrom returns dst carrying the CacheReads of src, if src has
-// one. Use it when an op continues on a context that is not derived from its
-// own, so that the op's reads are still collected.
-func WithCacheReadsFrom(dst, src context.Context) context.Context {
-	if r := cacheReadsFrom(src); r != nil {
-		return context.WithValue(dst, cacheReadsKey{}, r)
-	}
-	return dst
-}
-
 // RecordCacheRead records the outcome of one stat-cache read with the
 // CacheReads carried by ctx. It is a no-op when ctx carries none. A read that
 // misses does not make the op a miss by itself: see RecordGCSFetch.

@@ -1875,21 +1875,6 @@ func (fs *fileSystem) StatFS(
 	return
 }
 
-// getInterruptlessContext returns a new context that is not cancellable by the
-// parent context if the ignore-interrupts flag is set. Otherwise, it returns
-// the original context.
-func (fs *fileSystem) getInterruptlessContext(ctx context.Context) context.Context {
-	if fs.newConfig.FileSystem.IgnoreInterrupts {
-		// When ignore interrupts config is set, we are creating a new context not
-		// cancellable by parent context. It keeps collecting the op's metadata
-		// cache reads so that the op still records its metadata_cache/read_count.
-		newCtx := metadata.WithCacheReadsFrom(context.Background(), ctx)
-		return fs.traceHandle.PropagateTraceContext(newCtx, ctx)
-	}
-
-	return ctx
-}
-
 func (fs *fileSystem) getWriteContext() *inode.WriteContext {
 	return &inode.WriteContext{
 		Config:             fs.newConfig,
@@ -1903,7 +1888,6 @@ func (fs *fileSystem) getWriteContext() *inode.WriteContext {
 func (fs *fileSystem) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
 	// Find the parent directory in question.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -1936,7 +1920,6 @@ func (fs *fileSystem) LookUpInode(
 func (fs *fileSystem) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -1958,7 +1941,6 @@ func (fs *fileSystem) GetInodeAttributes(
 func (fs *fileSystem) SetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -2028,7 +2010,6 @@ func (fs *fileSystem) ForgetInode(
 func (fs *fileSystem) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2084,7 +2065,6 @@ func (fs *fileSystem) MkDir(
 func (fs *fileSystem) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
 	if (op.Mode & (iofs.ModeNamedPipe | iofs.ModeSocket)) != 0 {
 		return syscall.ENOTSUP
 	}
@@ -2224,7 +2204,6 @@ func (fs *fileSystem) createLocalFile(ctx context.Context, parentID fuseops.Inod
 func (fs *fileSystem) CreateFile(
 	ctx context.Context,
 	op *fuseops.CreateFileOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
 	// Create the child.
 	var child inode.Inode
 	openMode := util.FileOpenMode(op.OpenFlags)
@@ -2284,7 +2263,6 @@ func (fs *fileSystem) CreateSymlink(
 	if fs.newConfig.FileSystem.DisableSymlinks {
 		return syscall.ENOTSUP
 	}
-	ctx = fs.getInterruptlessContext(ctx)
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2351,7 +2329,6 @@ func (fs *fileSystem) RmDir(
 
 	ctx context.Context,
 	op *fuseops.RmDirOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
 	// Find the parent.
 	fs.mu.Lock()
 	parent := fs.dirInodeOrDie(op.Parent)
@@ -2465,7 +2442,6 @@ func (fs *fileSystem) RmDir(
 func (fs *fileSystem) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
 	// Find the old and new parents.
 	fs.mu.Lock()
 	oldParent := fs.dirInodeOrDie(op.OldParent)
@@ -2846,8 +2822,6 @@ func (fs *fileSystem) renameNonHierarchicalDir(
 func (fs *fileSystem) Unlink(
 	ctx context.Context,
 	op *fuseops.UnlinkOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
-
 	fs.mu.Lock()
 
 	// Find the parent and file name.
@@ -2943,7 +2917,6 @@ func (fs *fileSystem) OpenDir(
 func (fs *fileSystem) ReadDir(
 	ctx context.Context,
 	op *fuseops.ReadDirOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
 	// Find the handle.
 	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*handle.DirHandle)
@@ -2965,7 +2938,6 @@ func (fs *fileSystem) ReadDir(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *fileSystem) ReadDirPlus(ctx context.Context, op *fuseops.ReadDirPlusOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
 	// Find the handle.
 	fs.mu.Lock()
 	dh := fs.handles[op.Handle].(*handle.DirHandle)
@@ -3092,8 +3064,6 @@ func (fs *fileSystem) OpenFile(
 func (fs *fileSystem) ReadFile(
 	ctx context.Context,
 	op *fuseops.ReadFileOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
-
 	// Find the handle and lock it.
 	fs.mu.Lock()
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
@@ -3201,8 +3171,6 @@ func (fs *fileSystem) ReadSymlink(
 func (fs *fileSystem) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
-
 	// Find the inode( and file handle in case of appends).
 	fs.mu.Lock()
 	fh := fs.handles[op.Handle].(*handle.FileHandle)
@@ -3244,7 +3212,6 @@ func (fs *fileSystem) WriteFile(
 func (fs *fileSystem) SyncFile(
 	ctx context.Context,
 	op *fuseops.SyncFileOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.inodeOrDie(op.Inode)
@@ -3271,7 +3238,6 @@ func (fs *fileSystem) SyncFile(
 func (fs *fileSystem) FlushFile(
 	ctx context.Context,
 	op *fuseops.FlushFileOp) (err error) {
-	ctx = fs.getInterruptlessContext(ctx)
 	// Find the inode.
 	fs.mu.Lock()
 	in := fs.fileInodeOrDie(op.Inode)
