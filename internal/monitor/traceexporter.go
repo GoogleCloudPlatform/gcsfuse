@@ -37,21 +37,23 @@ func SetupTracing(ctx context.Context, c *cfg.Config, mountID string) common.Shu
 		logger.Errorf("error occurred while setting up tracing: %v", err)
 		return nil
 	}
-	if tp != nil {
-		otel.SetTracerProvider(tp)
-		if cfg.IsTracingEnabled(c) {
-			// TODO: Remove once cloud.google.com/go/storage enables OpenTelemetry tracing
-			// without requiring the GO_STORAGE_DEV_OTEL_TRACING dev environment variable.
-			if _, exists := os.LookupEnv(goStorageDevOtelTracingEnv); !exists {
-				if err := os.Setenv(goStorageDevOtelTracingEnv, "true"); err != nil {
-					logger.Warnf("failed to set %s: %v", goStorageDevOtelTracingEnv, err)
-				}
-			}
-		}
+	if tp == nil {
+		return nil
+	}
+	otel.SetTracerProvider(tp)
+	if !cfg.IsTracingEnabled(c) {
 		return shutdown
 	}
-
-	return nil
+	// TODO: Remove once cloud.google.com/go/storage enables OpenTelemetry tracing
+	// without requiring the GO_STORAGE_DEV_OTEL_TRACING dev environment variable.
+	if _, exists := os.LookupEnv(goStorageDevOtelTracingEnv); exists {
+		// Respect an explicit override from the environment.
+		return shutdown
+	}
+	if err := os.Setenv(goStorageDevOtelTracingEnv, "true"); err != nil {
+		logger.Warnf("failed to set %s: %v", goStorageDevOtelTracingEnv, err)
+	}
+	return shutdown
 }
 
 type exporterFactory func() (sdktrace.SpanExporter, error)
@@ -84,7 +86,6 @@ func newTraceProvider(ctx context.Context, c *cfg.Config, mountID string) (trace
 
 	res, err := getResource(ctx, mountID)
 	if err != nil {
-		logger.Warnf("Error while fetching resource: %v", err)
 		return nil, nil, err
 	}
 
