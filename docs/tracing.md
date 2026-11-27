@@ -80,12 +80,29 @@ Common Spans recorded and what each of them signifies
 | **fs.file.flush** | Called when a file handle is being closed. This is an opportunity to flush any cached data. |
 | **fs.file.release_handle** | Releases an open file handle, called when a process closes a file. |
 | **fs.symlink.read** | Reads the target of a symbolic link. |
+| **GCS Client Library (Go SDK)** | Client-side spans emitted by `cloud.google.com/go/storage` around API requests, chunked uploads, and retries. |
+| **cloud.google.com/go/storage.Object.Reader** | Client-side operation to read object data. |
+| **cloud.google.com/go/storage.Object.MultiRangeDownloader** | Client-side operation for reading multiple byte ranges concurrently. |
+| **cloud.google.com/go/storage.Object.Writer** | Client-side operation to write or upload object data. |
+| **cloud.google.com/go/storage.Object.WriterFromAppendableObject** | Client-side operation to resume writing to an appendable object. |
+| **cloud.google.com/go/storage.Object.Update** | Client-side operation to update an object's metadata. |
+| **cloud.google.com/go/storage.Object.Delete** | Client-side operation to delete an object. |
+| **cloud.google.com/go/storage.Copier.Run** | Client-side operation to copy or rewrite an object. |
+| **cloud.google.com/go/storage.Composer.Run** | Client-side operation to compose multiple source objects into one object. |
+| **cloud.google.com/go/storage.Storage.UploadChunk** | Individual chunk upload within a resumable write. |
+| **cloud.google.com/go/storage.RetryBackoff** | Backoff wait time between retryable Storage request attempts. |
 | **GCS Operations (gRPC)** | |
 | **google.storage.v2.Storage/ListObjects** | The gRPC call to list a collection of objects (like a directory listing) within a Google Cloud Storage bucket. |
 | **cloud.google.com/go/storage.grpcStorageClient.ObjectsListCall** | The gRPC client-side function call within the Go library that initiates the object listing operation. |
+| **cloud.google.com/go/storage.grpcStorageClient.NewRangeReader** | Initializes a gRPC range read stream for an object. |
+| **cloud.google.com/go/storage.grpcStorageClient.NewRangeReaderReadObject** | Executes the underlying gRPC object read stream with retry handling. |
 | **google.storage.v2.Storage/ReadObject** | The gRPC call to stream the content (data) of a specific GCS object. |
+| **google.storage.v2.Storage/BidiReadObject** | Bidirectional gRPC stream for reading object ranges (such as multi-range downloads). |
 | **google.storage.v2.Storage/GetObject** | The gRPC call to retrieve the **metadata/attributes** (not the data content) of a single GCS object. |
+| **google.storage.v2.Storage/BidiWriteObject** | Bidirectional gRPC stream for writing or appending object data. |
+| **google.storage.v2.Storage/StartResumableWrite** | Initiates a resumable upload session over gRPC. |
 | **google.storage.control.v2.StorageControl/GetFolder** | A specific gRPC call to retrieve metadata for a GCS Folder (using the Storage Control API). |
+| **google.storage.control.v2.StorageControl/GetStorageLayout** | A Storage Control gRPC call to inspect bucket storage layout properties. |
 | **Read flow traces** | |
 | **buffered_reader** | Indicates the read is served by the in-memory buffered reader, which prefetches data from GCS. |
 | **file_cache_reader** | Indicates the read is served from the on-disk file cache. |
@@ -103,7 +120,9 @@ Common Spans recorded and what each of them signifies
 | **GCS Operations (HTTP)** | |
 | **HTTP GET** | An entire end-to-end trace for a client's GET request. |
 | **HTTP POST** | An entire end-to-end trace for a client's POST request. |
+| **HTTP PUT** | An HTTP request used to upload chunks in resumable uploads. |
 | **cloud.google.com/go/storage.httpStorageClient.ObjectsListCall** | A specific operation to list objects within a Google Cloud Storage (GCS) bucket. |
+| **cloud.google.com/go/storage.httpStorageClient.NewRangeReader** | Initiates an HTTP range read request for an object. |
 | **cloud.google.com/go/storage.Object.Attrs** | A specific operation to get the metadata/attributes of a single GCS object. |
 | **Low-level HTTP Transport** | |
 | **http.dns** | Time spent resolving the domain name to an IP address. |
@@ -129,13 +148,20 @@ You can differentiate gRPC traces and spans from traditional HTTP ones based on 
 The attributes (tags) attached to the span clearly indicate the protocol:
 
 * **gRPC Spans** will contain OpenTelemetry attributes starting with `rpc.`:  
-  * `rpc.system`: Typically `"grpc"`  
-  * `rpc.method`: The full method name (e.g., `ListObjects`)  
-  * `rpc.grpc.status_code`: The gRPC status code (e.g., `0` for OK)  
-* **HTTP Spans** will contain attributes starting with `http.`:  
-  * `http.method`: The HTTP verb (`GET`, `POST`)  
-  * `http.url`: The full resource URL  
-  * `http.status_code`: The three-digit HTTP status code (e.g., `200`, `404`)
+  * `rpc.system.name`: Typically `"grpc"`  
+  * `rpc.method`: The full service and method name (e.g., `google.storage.v2.Storage/GetObject`)  
+  * `rpc.response.status_code`: The gRPC status name or code (e.g., `OK`, `NOT_FOUND`, `CANCELLED`)  
+* **HTTP Spans** will contain attributes starting with `http.` and `url.`:  
+  * `http.request.method`: The HTTP verb (`GET`, `POST`, `PUT`)  
+  * `url.full`: The full request URL  
+  * `http.response.status_code`: The three-digit HTTP status code (e.g., `200`, `206`, `404`)
+* **Google Cloud Storage SDK Spans** may also include helpful storage and retry attributes:
+  * `gcp.storage.uri`: The target bucket or object URI (`gs://<bucket>/<object>`)
+  * `gcp.storage.read.mode` / `gcp.storage.write.mode`: The transfer mode used (e.g., `range`, `multi_range`, `oneshot`, `resumable`, `appendable`)
+  * `gcp.storage.upload.id` / `gcp.storage.upload.chunk.number`: Resumable upload identifier and chunk sequence number
+  * `gcp.storage.payload.offset` / `gcp.storage.payload.size_bytes`: Byte offset and payload size for a read or chunk upload
+  * `gcp.client.retry.attempt_number`: Attempt counter recorded on retried requests (`1`, `2`, ...)
+  * `error.type`: Error classification attached when an operation fails (e.g., `NOT_FOUND`)
 
 ### Best practices
 

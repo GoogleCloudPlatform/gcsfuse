@@ -17,6 +17,7 @@ package storage
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -42,6 +43,9 @@ import (
 	"github.com/stretchr/testify/suite"
 	"go.opentelemetry.io/otel"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -50,6 +54,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const invalidBucketName string = "will-not-be-present-in-fake-server"
@@ -1107,7 +1112,7 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithTra
 	assert.NotNil(testSuite.T(), clientOption)
 }
 
-func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithTracingAddsOneOption() {
+func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithTracingDoesNotAddDuplicateStatsHandler() {
 	scWithoutTracing := storageutil.GetDefaultStorageClientConfig(keyFile)
 	scWithoutTracing.TracingEnabled = false
 	optsWithoutTracing, err := createClientOptionForGRPCClient(context.TODO(), &scWithoutTracing, false)
@@ -1119,7 +1124,7 @@ func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithTra
 
 	assert.Nil(testSuite.T(), err)
 	assert.NotNil(testSuite.T(), optsWithTracing)
-	assert.Len(testSuite.T(), optsWithTracing, len(optsWithoutTracing)+1, "Enabling tracing should add exactly one client option.")
+	assert.Len(testSuite.T(), optsWithTracing, len(optsWithoutTracing), "Enabling tracing must not add a manual otelgrpc stats handler because grpctransport registers one by default.")
 }
 
 func (testSuite *StorageHandleTest) Test_CreateClientOptionForGRPCClient_WithReadStallRetryAddsOneOption() {
@@ -1937,4 +1942,125 @@ func (testSuite *StorageHandleTest) Test_GrpcKeepaliveMidStreamStall() {
 	require.NoError(t, err)
 	assert.True(t, conn1.intercepted.Load(), "expected blackholed first connection to intercept mid-stream reads")
 	assert.Equal(t, payload, buf.Bytes())
+}
+
+// spanLifecycleTracker tracks started vs. ended span IDs to detect un-ended or orphaned spans.
+type spanLifecycleTracker struct {
+	mu      sync.Mutex
+	started map[string]string
+	ended   map[string]int
+}
+
+func newSpanLifecycleTracker() *spanLifecycleTracker {
+	return &spanLifecycleTracker{
+		started: make(map[string]string),
+		ended:   make(map[string]int),
+	}
+}
+
+func (s *spanLifecycleTracker) OnStart(_ context.Context, span sdktrace.ReadWriteSpan) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.started[span.SpanContext().SpanID().String()] = span.Name()
+}
+
+func (s *spanLifecycleTracker) OnEnd(span sdktrace.ReadOnlySpan) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ended[span.SpanContext().SpanID().String()]++
+}
+
+func (s *spanLifecycleTracker) Shutdown(context.Context) error   { return nil }
+func (s *spanLifecycleTracker) ForceFlush(context.Context) error { return nil }
+
+// TestCreateGRPCAndControlClient_WithTracingEmitsCleanSpansWithoutOrphans verifies that
+// creating gRPC storage and control clients with TracingEnabled=true does not leave un-ended
+// or orphaned spans from duplicate otelgrpc stats handlers.
+func (testSuite *StorageHandleTest) TestCreateGRPCAndControlClient_WithTracingEmitsCleanSpansWithoutOrphans() {
+	t := testSuite.T()
+	prevTP := otel.GetTracerProvider()
+	defer otel.SetTracerProvider(prevTP)
+	t.Setenv("GO_STORAGE_DEV_OTEL_TRACING", "true")
+
+	tracker := newSpanLifecycleTracker()
+	rec := tracetest.NewSpanRecorder()
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+		sdktrace.WithSpanProcessor(tracker),
+		sdktrace.WithSpanProcessor(rec),
+	)
+	otel.SetTracerProvider(tp)
+	defer func() { _ = tp.Shutdown(context.Background()) }()
+
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	srv := grpc.NewServer(grpc.UnknownServiceHandler(func(_ any, stream grpc.ServerStream) error {
+		var req emptypb.Empty
+		if err := stream.RecvMsg(&req); err != nil {
+			return err
+		}
+		return stream.SendMsg(&emptypb.Empty{})
+	}))
+	controlpb.RegisterStorageControlServer(srv, &fakeStorageControlServer{})
+	go func() {
+		_ = srv.Serve(lis)
+	}()
+	defer srv.Stop()
+
+	ctx := context.Background()
+	sc := storageutil.GetDefaultStorageClientConfig("")
+	sc.TracingEnabled = true
+	sc.AnonymousAccess = true
+	sc.CustomEndpoint = lis.Addr().String()
+	sc.EnableGrpcMetrics = false
+
+	clientOpts, err := createClientOptionForGRPCClient(ctx, &sc, false)
+	require.NoError(t, err)
+
+	storageOpts := append([]option.ClientOption{}, clientOpts...)
+	grpcStorageClient, err := storage.NewGRPCClient(ctx, storageOpts...)
+	require.NoError(t, err)
+	defer func() { _ = grpcStorageClient.Close() }()
+
+	ctrlOpts := append([]option.ClientOption{}, clientOpts...)
+	ctrlClient, err := storageutil.CreateGRPCControlClient(ctx, ctrlOpts, true)
+	require.NoError(t, err)
+	defer func() { _ = ctrlClient.Close() }()
+
+	rootCtx, rootSpan := tp.Tracer("gcsfuse-test").Start(ctx, "fs.dir.read")
+	it := grpcStorageClient.Bucket("my-bucket").Objects(rootCtx, nil)
+	for {
+		_, err := it.Next()
+		if errors.Is(err, iterator.Done) {
+			break
+		}
+		require.NoError(t, err)
+	}
+	_, err = ctrlClient.CreateFolder(rootCtx, &controlpb.CreateFolderRequest{Parent: "projects/_/buckets/my-bucket"})
+	require.NoError(t, err)
+	rootSpan.End()
+
+	endedSpans := rec.Ended()
+	assert.Equal(t, len(tracker.started), len(endedSpans), "every started span must end exactly once")
+
+	endedIDs := make(map[string]bool, len(endedSpans))
+	spanNames := make(map[string]bool, len(endedSpans))
+	for _, s := range endedSpans {
+		endedIDs[s.SpanContext().SpanID().String()] = true
+		spanNames[s.Name()] = true
+	}
+
+	for id, name := range tracker.started {
+		assert.Equal(t, 1, tracker.ended[id], "span %s (%s) must end exactly once", name, id)
+	}
+	for _, s := range endedSpans {
+		if s.Parent().IsValid() {
+			assert.True(t, endedIDs[s.Parent().SpanID().String()], "span %s has missing parent %s", s.Name(), s.Parent().SpanID())
+		}
+	}
+
+	assert.True(t, spanNames["fs.dir.read"])
+	assert.True(t, spanNames["cloud.google.com/go/storage.grpcStorageClient.ObjectsListCall"])
+	assert.True(t, spanNames["google.storage.v2.Storage/ListObjects"])
+	assert.True(t, spanNames["google.storage.control.v2.StorageControl/CreateFolder"])
 }
