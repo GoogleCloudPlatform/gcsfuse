@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 
@@ -34,6 +35,8 @@ import (
 // bucket name, object name, and generation, and uses fixed-size chunk files for
 // caching object data. It also supports regex-based inclusion/exclusion of files
 // from caching.
+// Cache path callers must supply the full bucket-relative object name, including
+// any mount prefix.
 type SharedChunkCacheManager struct {
 	// cacheDir is the local path which contains the cache data
 	cacheDir string
@@ -96,9 +99,10 @@ func NewSharedChunkCacheManager(
 	return handler, nil
 }
 
-// ShouldExcludeFromCache checks if the file should be excluded from caching.
+// ShouldExcludeFromCache applies regex rules to the full GCS object path,
+// including any mount prefix.
 func (sccm *SharedChunkCacheManager) ShouldExcludeFromCache(bucket gcs.Bucket, object *gcs.MinObject) bool {
-	objectPath := filepath.Join(bucket.Name(), object.Name)
+	objectPath := path.Join(bucket.Name(), bucket.GCSName(object))
 
 	// If include regex is set, only include matching files
 	if sccm.includeRegex != nil {
@@ -148,17 +152,13 @@ func (sccm *SharedChunkCacheManager) GetChunkSize() int64 {
 
 // computeObjectHash computes SHA256 hash of bucketName, objectName, and generation.
 func computeObjectHash(bucketName, objectName string, generation int64) string {
-	h := sha256.New()
-
 	// Use length prefixes to prevent different (bucket, objectName) tuples from resulting in
 	// the same pre-hash string. This is defensive, even though bucket names currently cannot
 	// contain '/'.
 	// Format: <bucketNameLength>:<bucketName><objectNameLength>:<objectName>:<generation>
-	fmt.Fprintf(h, "%d:%s", len(bucketName), bucketName)
-	fmt.Fprintf(h, "%d:%s", len(objectName), objectName)
-	fmt.Fprintf(h, ":%d", generation)
+	hash := sha256.Sum256(fmt.Appendf(nil, "%d:%s%d:%s:%d", len(bucketName), bucketName, len(objectName), objectName, generation))
 
-	return hex.EncodeToString(h.Sum(nil))
+	return hex.EncodeToString(hash[:])
 }
 
 // GetObjectDir returns the directory path for an object with generation encoded.
