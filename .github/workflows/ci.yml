@@ -56,6 +56,34 @@ jobs:
         gofmt -s -w .
         go mod tidy
         git diff --exit-code --name-only
+    - name: Check grpc-go version alignment with cloud.google.com/go/storage
+      run: |
+        STORAGE_MOD=$(GOWORK=off go list -mod=readonly -m -f '{{.Path}}@{{.Version}}' cloud.google.com/go/storage)
+        GCSFUSE_GRPC=$(GOWORK=off go list -mod=readonly -m -f '{{.Version}}' google.golang.org/grpc)
+        GRPC_REPLACE=$(GOWORK=off go list -mod=readonly -m -f '{{if .Replace}}{{.Replace}}{{end}}' google.golang.org/grpc)
+        if [ -n "$GRPC_REPLACE" ]; then
+          echo "::error::google.golang.org/grpc is replaced (${GRPC_REPLACE}), which bypasses alignment with ${STORAGE_MOD}."
+          exit 1
+        fi
+
+        SDK_GRPC=$(GOWORK=off go mod graph | awk -v sm="$STORAGE_MOD" '$1 == sm && $2 ~ /^google\.golang\.org\/grpc@/ {sub(/^google\.golang\.org\/grpc@/, "", $2); print $2}')
+        if [ -z "$SDK_GRPC" ]; then
+          echo "::error::Could not determine google.golang.org/grpc version required by $STORAGE_MOD"
+          exit 1
+        fi
+
+        echo "GCSFuse grpc-go: ${GCSFUSE_GRPC} | ${STORAGE_MOD} grpc-go: ${SDK_GRPC}"
+        if [ "$GCSFUSE_GRPC" != "$SDK_GRPC" ]; then
+          MAIN_MOD=$(GOWORK=off go list -mod=readonly -m -f '{{.Path}}')
+          OTHER_REQUIRES_CURRENT=$(GOWORK=off go mod graph | awk -v main="$MAIN_MOD" -v target="google.golang.org/grpc@${GCSFUSE_GRPC}" -v sm="$STORAGE_MOD" '$1 != main && $1 != sm && $2 == target { out = (out ? out ", " : "") $1 } END { print out }')
+          if [ -n "$OTHER_REQUIRES_CURRENT" ]; then
+            echo "::warning::google.golang.org/grpc ($GCSFUSE_GRPC) differs from $STORAGE_MOD ($SDK_GRPC) due to transitive MVS requirement from: ${OTHER_REQUIRES_CURRENT}."
+            exit 0
+          fi
+          echo "::error::google.golang.org/grpc ($GCSFUSE_GRPC) does not match $STORAGE_MOD ($SDK_GRPC)."
+          echo "To align with $STORAGE_MOD, run: go mod edit -require=google.golang.org/grpc@$SDK_GRPC && go mod tidy"
+          exit 1
+        fi
 
   linux-tests:
     needs: filter
