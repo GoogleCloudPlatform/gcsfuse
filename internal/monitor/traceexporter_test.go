@@ -88,8 +88,12 @@ func TestSetupTracing_GoStorageDevOtelTracingEnv(t *testing.T) {
 
 			c := &cfg.Config{Trace: tc.traceConfig}
 			shutdown := SetupTracing(context.Background(), c, "test-mount-id")
-			require.NotNil(t, shutdown)
-			t.Cleanup(func() { _ = shutdown(context.Background()) })
+			if cfg.IsTracingEnabled(c) {
+				require.NotNil(t, shutdown)
+				t.Cleanup(func() { _ = shutdown(context.Background()) })
+			} else {
+				assert.Nil(t, shutdown)
+			}
 
 			gotVal, gotExists := os.LookupEnv(goStorageDevOtelTracingEnv)
 			assert.Equal(t, tc.expectedExists, gotExists)

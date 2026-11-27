@@ -32,6 +32,9 @@ const goStorageDevOtelTracingEnv = "GO_STORAGE_DEV_OTEL_TRACING"
 
 // SetupTracing bootstraps the OpenTelemetry tracing pipeline.
 func SetupTracing(ctx context.Context, c *cfg.Config, mountID string) common.ShutdownFn {
+	if !cfg.IsTracingEnabled(c) {
+		return nil
+	}
 	tp, shutdown, err := newTraceProvider(ctx, c, mountID)
 	if err != nil {
 		logger.Errorf("error occurred while setting up tracing: %v", err)
@@ -41,9 +44,6 @@ func SetupTracing(ctx context.Context, c *cfg.Config, mountID string) common.Shu
 		return nil
 	}
 	otel.SetTracerProvider(tp)
-	if !cfg.IsTracingEnabled(c) {
-		return shutdown
-	}
 	// TODO: Remove once cloud.google.com/go/storage enables OpenTelemetry tracing
 	// without requiring the GO_STORAGE_DEV_OTEL_TRACING dev environment variable.
 	if _, exists := os.LookupEnv(goStorageDevOtelTracingEnv); exists {
