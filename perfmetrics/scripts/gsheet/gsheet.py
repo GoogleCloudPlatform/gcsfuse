@@ -29,12 +29,14 @@ def _get_sheets_service_client():
 
 
 def write_to_google_sheet(worksheet: str, data,
-    spreadsheet_id=SPREADSHEET_ID) -> None:
+    spreadsheet_id=SPREADSHEET_ID, clear_sheet: bool = False) -> None:
   """Calls the API to update the values of a sheet.
 
   Args:
     worksheet: string, name of the worksheet to be edited appended by a "!"
     data: list of tuples/lists, data to be added to the worksheet
+    spreadsheet_id: string, spreadsheet ID
+    clear_sheet: bool, whether to clear rows from A2 downwards before writing
 
   Raises:
     HttpError: For any Google Sheets API call related errors
@@ -45,15 +47,19 @@ def write_to_google_sheet(worksheet: str, data,
   spreadsheet_response = sheets_client.spreadsheets().values().get(
       spreadsheetId=spreadsheet_id,
       range='{}!A1:A'.format(worksheet)).execute()
-  entries = len(spreadsheet_response['values'])
+  entries = len(spreadsheet_response.get('values', []))
 
-  # Clearing the occupied rows
-  request = sheets_client.spreadsheets().values().clear(
-      spreadsheetId=spreadsheet_id,
-      range='{}!A2:{}'.format(worksheet, entries + 1),
-      body={}).execute()
+  if clear_sheet:
+    if entries > 1:
+      sheets_client.spreadsheets().values().clear(
+          spreadsheetId=spreadsheet_id,
+          range='{}!A2:{}'.format(worksheet, entries + 1),
+          body={}).execute()
+    target_row = 2
+  else:
+    target_row = max(2, entries + 1)
 
-  # Appending new rows
+  # Writing rows starting at target_row
   sheets_client.spreadsheets().values().update(
       spreadsheetId=spreadsheet_id,
       valueInputOption='USER_ENTERED',
@@ -61,4 +67,4 @@ def write_to_google_sheet(worksheet: str, data,
           'majorDimension': 'ROWS',
           'values': data
       },
-      range='{}!A2'.format(worksheet)).execute()
+      range='{}!A{}'.format(worksheet, target_row)).execute()
