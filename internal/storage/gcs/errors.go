@@ -20,6 +20,7 @@ import (
 	"net/http"
 
 	"cloud.google.com/go/storage"
+	"github.com/googleapis/gax-go/v2/apierror"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -47,6 +48,44 @@ type PreconditionError struct {
 // Returns pe.Err.Error().
 func (pe *PreconditionError) Error() string {
 	return fmt.Sprintf("gcs.PreconditionError: %v", pe.Err)
+}
+
+// ObjectTooLargeError indicates that an object exceeds the maximum size supported by the upload strategy.
+type ObjectTooLargeError struct {
+	Err error
+}
+
+func (e *ObjectTooLargeError) Error() string {
+	return fmt.Sprintf("gcs.ObjectTooLargeError: %v", e.Err)
+}
+
+func (e *ObjectTooLargeError) Unwrap() error {
+	return e.Err
+}
+
+// ErrorInfo domain and reasons that GCS returns when an upload exceeds the
+// maximum object size.
+const (
+	gcsErrorDomain                    = "storage.googleapis.com"
+	reasonSegmentNumberOutOfRange     = "GRPC_SEGMENT_NUMBER_OUT_OF_RANGE"
+	reasonObjectSizeExceedsGCSMaximum = "GRPC_OBJECT_SIZE_EXCEEDS_GCS_MAXIMUM"
+)
+
+// GetParallelUploadError converts an error into an *ObjectTooLargeError when
+// GCS reports that the upload exceeds the maximum object size. Other errors are
+// returned unchanged.
+func GetParallelUploadError(err error) error {
+	var objectTooLargeErr *ObjectTooLargeError
+	if err == nil || errors.As(err, &objectTooLargeErr) {
+		return err
+	}
+	if apiErr, ok := apierror.FromError(err); ok && apiErr.Domain() == gcsErrorDomain {
+		switch apiErr.Reason() {
+		case reasonSegmentNumberOutOfRange, reasonObjectSizeExceedsGCSMaximum:
+			return &ObjectTooLargeError{Err: err}
+		}
+	}
+	return err
 }
 
 // GetGCSError converts an error returned by go-sdk into gcsfuse specific common gcs error.
