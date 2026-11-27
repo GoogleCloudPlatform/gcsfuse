@@ -214,13 +214,16 @@ func (bh *bucketHandle) CreateObject(ctx context.Context, req *gcs.CreateObjectR
 		err = gcs.GetGCSError(err)
 	}()
 
+	uploadCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	req.StorageClass = bh.getStorageClassForCreateObject(req.StorageClass)
 
 	obj := bh.getObjectHandleWithPreconditionsSet(req)
 
 	// Creating a NewWriter with requested attributes, using Go Storage Client.
 	// Chuck size for resumable upload is default i.e. 16MB.
-	wc := obj.NewWriter(ctx)
+	wc := obj.NewWriter(uploadCtx)
 	wc.ChunkRetryDeadline = time.Duration(req.ChunkRetryDeadlineSecs) * time.Second
 	wc.ChunkTransferTimeout = time.Duration(req.ChunkTransferTimeoutSecs) * time.Second
 	wc = storageutil.SetAttrsInWriter(wc, req)
