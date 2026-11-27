@@ -103,6 +103,10 @@ type StorageClientConfig struct {
 	// IsGKE inspects the mountPoint and indicates if running in a GKE environment.
 	IsGKE bool
 
+	// IsDynamicMount is true when no bucket is specified and all accessible
+	// buckets are mounted. All of them then share one storage handle.
+	IsDynamicMount bool
+
 	// EnableGrpcByDefault enforces DirectPath connectivity for gRPC and falls back to HTTP if unavailable.
 	EnableGrpcByDefault bool
 

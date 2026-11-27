@@ -97,7 +97,7 @@ func (testSuite *StorageHandleTest) TearDownTest() {
 	testSuite.fakeStorage.ShutDown()
 }
 
-func (testSuite *StorageHandleTest) mockStorageLayout(bucketType gcs.BucketType) {
+func storageLayoutFor(bucketType gcs.BucketType) *controlpb.StorageLayout {
 	storageLayout := &controlpb.StorageLayout{
 		HierarchicalNamespace: &controlpb.StorageLayout_HierarchicalNamespace{Enabled: false},
 		LocationType:          "nil",
@@ -119,7 +119,21 @@ func (testSuite *StorageHandleTest) mockStorageLayout(bucketType gcs.BucketType)
 		}
 	}
 
-	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(storageLayout, nil)
+	return storageLayout
+}
+
+func (testSuite *StorageHandleTest) mockStorageLayout(bucketType gcs.BucketType) {
+	testSuite.mockClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(storageLayoutFor(bucketType), nil)
+}
+
+// mockStorageLayoutForBucket mocks GetStorageLayout for one bucket only, so that
+// a test can look up several buckets of different types on the same handle.
+func (testSuite *StorageHandleTest) mockStorageLayoutForBucket(bucketName string, bucketType gcs.BucketType) {
+	layoutName := fmt.Sprintf("projects/_/buckets/%s/storageLayout", bucketName)
+	isForBucket := mock.MatchedBy(func(req *controlpb.GetStorageLayoutRequest) bool {
+		return req.GetName() == layoutName
+	})
+	testSuite.mockClient.On("GetStorageLayout", mock.Anything, isForBucket, mock.Anything).Return(storageLayoutFor(bucketType), nil)
 }
 
 // Helpers
@@ -127,6 +141,35 @@ func (testSuite *StorageHandleTest) mockStorageLayout(bucketType gcs.BucketType)
 func (testSuite *StorageHandleTest) controlClientCallOptionsWithoutRetry() *control.StorageControlCallOptions {
 	testSuite.T().Helper()
 	return &control.StorageControlCallOptions{}
+}
+
+// newLocalControlClient returns a real control client connected to a local fake
+// StorageControl server, so that closing it really tears down the connection.
+func (testSuite *StorageHandleTest) newLocalControlClient() *control.StorageControlClient {
+	t := testSuite.T()
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	grpcServer := grpc.NewServer()
+	controlpb.RegisterStorageControlServer(grpcServer, &fakeStorageControlServer{})
+	serveErr := make(chan error, 1)
+	go func() {
+		serveErr <- grpcServer.Serve(listener)
+	}()
+	t.Cleanup(func() {
+		grpcServer.Stop()
+		if err := <-serveErr; err != nil && err != grpc.ErrServerStopped {
+			t.Errorf("grpcServer.Serve failed: %v", err)
+		}
+	})
+	clientConfig := storageutil.GetDefaultStorageClientConfig("")
+	clientConfig.CustomEndpoint = listener.Addr().String()
+	clientConfig.AnonymousAccess = true
+	clientOpts, err := createClientOptionForGRPCClient(testSuite.ctx, &clientConfig, false)
+	require.NoError(t, err)
+	controlClient, err := storageutil.CreateGRPCControlClient(testSuite.ctx, clientOpts, true)
+	require.NoError(t, err)
+	return controlClient
 }
 
 // Test functions
@@ -273,7 +316,7 @@ func (testSuite *StorageHandleTest) TestBucketHandle_ControlClientIsWrappedWithR
 	sh := storageHandle.(*storageClient)
 	mockRawControlClientWithoutRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithoutRetry()}
 	sh.rawStorageControlClient = mockRawControlClientWithoutRetries
-	testSuite.mockStorageLayout(gcs.BucketType{})
+	testSuite.mockStorageLayout(gcs.BucketType{Hierarchical: true})
 
 	bucketHandle, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
 
@@ -291,7 +334,7 @@ func (testSuite *StorageHandleTest) TestBucketHandle_ControlClientIsWrappedWithB
 	sh := storageHandle.(*storageClient)
 	mockRawControlClientWithoutRetries := &control.StorageControlClient{CallOptions: testSuite.controlClientCallOptionsWithoutRetry()}
 	sh.rawStorageControlClient = mockRawControlClientWithoutRetries
-	testSuite.mockStorageLayout(gcs.BucketType{})
+	testSuite.mockStorageLayout(gcs.BucketType{Hierarchical: true})
 
 	bucketHandle, err := sh.BucketHandle(testSuite.ctx, TestBucketName, projectID)
 
@@ -302,6 +345,114 @@ func (testSuite *StorageHandleTest) TestBucketHandle_ControlClientIsWrappedWithB
 	billingProjectWrapper, ok := controlClient.(*storageControlClientWithBillingProject)
 	require.True(testSuite.T(), ok, "Expected a billing project wrapper")
 	assert.Equal(testSuite.T(), projectID, billingProjectWrapper.billingProject)
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_ControlClientLifecycle() {
+	testCases := []struct {
+		name                    string
+		bucketType              gcs.BucketType
+		isDynamicMount          bool
+		wantBucketControlClient bool
+		wantControlClientKept   bool
+		// gRPC code of a probe call on the control client after BucketHandle.
+		wantProbeCode codes.Code
+	}{
+		{
+			name:                    "StaticMountFlatBucketClosesControlClient",
+			bucketType:              gcs.BucketType{},
+			isDynamicMount:          false,
+			wantBucketControlClient: false,
+			wantControlClientKept:   false,
+			wantProbeCode:           codes.Canceled,
+		},
+		{
+			name:                    "StaticMountHNSBucketKeepsControlClient",
+			bucketType:              gcs.BucketType{Hierarchical: true},
+			isDynamicMount:          false,
+			wantBucketControlClient: true,
+			wantControlClientKept:   true,
+			wantProbeCode:           codes.OK,
+		},
+		{
+			name:                    "StaticMountZonalBucketKeepsControlClient",
+			bucketType:              gcs.BucketType{Zonal: true},
+			isDynamicMount:          false,
+			wantBucketControlClient: true,
+			wantControlClientKept:   true,
+			wantProbeCode:           codes.OK,
+		},
+		{
+			name:                    "DynamicMountFlatBucketKeepsControlClient",
+			bucketType:              gcs.BucketType{},
+			isDynamicMount:          true,
+			wantBucketControlClient: false,
+			wantControlClientKept:   true,
+			wantProbeCode:           codes.OK,
+		},
+		{
+			name:                    "DynamicMountHNSBucketKeepsControlClient",
+			bucketType:              gcs.BucketType{Hierarchical: true},
+			isDynamicMount:          true,
+			wantBucketControlClient: true,
+			wantControlClientKept:   true,
+			wantProbeCode:           codes.OK,
+		},
+	}
+
+	for _, tc := range testCases {
+		testSuite.Run(tc.name, func() {
+			sh := testSuite.fakeStorage.CreateStorageHandle().(*storageClient)
+			sh.clientConfig.IsDynamicMount = tc.isDynamicMount
+			rawControlClient := testSuite.newLocalControlClient()
+			sh.rawStorageControlClient = rawControlClient
+			// A fresh mock per subtest, as mock expectations accumulate across calls.
+			layoutClient := new(MockStorageControlClient)
+			layoutClient.On("GetStorageLayout", mock.Anything, mock.Anything, mock.Anything).Return(storageLayoutFor(tc.bucketType), nil)
+			sh.storageControlClient = layoutClient
+
+			bucketHandle, err := sh.BucketHandle(testSuite.ctx, TestBucketName, "")
+
+			require.NoError(testSuite.T(), err)
+			assert.Equal(testSuite.T(), tc.wantBucketControlClient, bucketHandle.controlClient != nil)
+			assert.Equal(testSuite.T(), tc.wantControlClientKept, sh.rawStorageControlClient != nil)
+			assert.Equal(testSuite.T(), tc.wantControlClientKept, sh.storageControlClient != nil)
+			_, err = rawControlClient.CreateFolder(testSuite.ctx, &controlpb.CreateFolderRequest{})
+			assert.Equal(testSuite.T(), tc.wantProbeCode, status.Code(err))
+		})
+	}
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_DynamicMountDetectsHNSBucketLookedUpAfterFlatBucket() {
+	sh := testSuite.fakeStorage.CreateStorageHandle().(*storageClient)
+	sh.clientConfig.IsDynamicMount = true
+	sh.rawStorageControlClient = testSuite.newLocalControlClient()
+	testSuite.mockStorageLayoutForBucket("flat-bucket", gcs.BucketType{})
+	testSuite.mockStorageLayoutForBucket("hns-bucket", gcs.BucketType{Hierarchical: true})
+	_, err := sh.BucketHandle(testSuite.ctx, "flat-bucket", "")
+	require.NoError(testSuite.T(), err)
+
+	hnsBucketHandle, err := sh.BucketHandle(testSuite.ctx, "hns-bucket", "")
+
+	require.NoError(testSuite.T(), err)
+	assert.True(testSuite.T(), hnsBucketHandle.BucketType().Hierarchical)
+	assert.NotNil(testSuite.T(), hnsBucketHandle.controlClient)
+}
+
+func (testSuite *StorageHandleTest) TestBucketHandle_DynamicMountKeepsFolderAPIsOfHNSBucketAfterFlatBucketLookup() {
+	sh := testSuite.fakeStorage.CreateStorageHandle().(*storageClient)
+	sh.clientConfig.IsDynamicMount = true
+	sh.rawStorageControlClient = testSuite.newLocalControlClient()
+	testSuite.mockStorageLayoutForBucket("hns-bucket", gcs.BucketType{Hierarchical: true})
+	testSuite.mockStorageLayoutForBucket("flat-bucket", gcs.BucketType{})
+	hnsBucketHandle, err := sh.BucketHandle(testSuite.ctx, "hns-bucket", "")
+	require.NoError(testSuite.T(), err)
+
+	_, err = sh.BucketHandle(testSuite.ctx, "flat-bucket", "")
+
+	require.NoError(testSuite.T(), err)
+	// The HNS bucket's folder APIs share the control client, so it must still work.
+	_, err = hnsBucketHandle.CreateFolder(testSuite.ctx, "dir")
+	assert.NoError(testSuite.T(), err)
 }
 
 func (testSuite *StorageHandleTest) TestLookupBucketType_RapidCacheInfo() {
