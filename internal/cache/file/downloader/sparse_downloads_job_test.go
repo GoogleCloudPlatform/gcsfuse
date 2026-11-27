@@ -208,6 +208,7 @@ func TestSparse_DownloadRange(t *testing.T) {
 
 	// Create the cache file
 	file, err := util.CreateFile(data.FileSpec{
+		RootDir:  dt.job.fileSpec.RootDir,
 		Path:     dt.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600),
 		DirPerm:  os.FileMode(0700),
@@ -300,6 +301,7 @@ func TestSparse_HandleSparseRead_NeedsDownload(t *testing.T) {
 
 	// Create the cache file
 	file, err := util.CreateFile(data.FileSpec{
+		RootDir:  dt.job.fileSpec.RootDir,
 		Path:     dt.job.fileSpec.Path,
 		FilePerm: os.FileMode(0600),
 		DirPerm:  os.FileMode(0700),

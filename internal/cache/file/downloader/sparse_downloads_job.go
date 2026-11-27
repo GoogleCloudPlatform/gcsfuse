@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"github.com/googlecloudplatform/gcsfuse/v4/internal/cache/data"
+	cacheutil "github.com/googlecloudplatform/gcsfuse/v4/internal/cache/util"
 	"github.com/googlecloudplatform/gcsfuse/v4/internal/logger"
 	"github.com/googlecloudplatform/gcsfuse/v4/internal/storage/gcs"
 	"github.com/googlecloudplatform/gcsfuse/v4/metrics"
@@ -223,7 +224,7 @@ func (job *Job) downloadSparseRange(ctx context.Context, start, end uint64) erro
 	metrics.CaptureGCSReadMetrics(job.metricsHandle, metrics.ReadTypeNames[metrics.ReadTypeRandom], int64(end-start))
 
 	// Open cache file for writing
-	cacheFile, err := os.OpenFile(job.fileSpec.Path, os.O_WRONLY, job.fileSpec.FilePerm)
+	cacheFile, err := cacheutil.OpenFile(job.fileSpec, os.O_WRONLY)
 	if err != nil {
 		return fmt.Errorf("downloadSparseRange: error opening cache file: %w", err)
 	}

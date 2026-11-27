@@ -81,6 +81,9 @@ func (fi FileInfo) Size() uint64 {
 }
 
 type FileSpec struct {
+	// RootDir is the trusted cache root. Path must remain within it, including
+	// when filesystem operations resolve symbolic links.
+	RootDir  string
 	Path     string
 	FilePerm os.FileMode
 	DirPerm  os.FileMode

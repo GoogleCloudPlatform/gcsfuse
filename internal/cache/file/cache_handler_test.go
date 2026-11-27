@@ -104,7 +104,7 @@ func initializeCacheHandlerTestArgs(t *testing.T, fileCacheConfig *cfg.FileCache
 	fileInfoKeyName := addTestFileInfoEntryInCache(t, cache, object, storage.TestBucketName, cacheDirVolumeBlockSize)
 	downloadPath, err := util.GetDownloadPath(cacheHandler.cacheDir, util.GetObjectPath(bucket.Name(), object.Name))
 	require.NoError(t, err)
-	_, err = util.CreateFile(data.FileSpec{Path: downloadPath, FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, os.O_RDONLY)
+	_, err = util.CreateFile(data.FileSpec{RootDir: cacheDir, Path: downloadPath, FilePerm: util.DefaultFilePerm, DirPerm: util.DefaultDirPerm}, os.O_RDONLY)
 	t.Cleanup(func() {
 		operations.RemoveDir(cacheDir)
 	})
