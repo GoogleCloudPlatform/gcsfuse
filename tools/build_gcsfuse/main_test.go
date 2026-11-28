@@ -25,6 +25,7 @@ import (
 )
 
 func TestVersion(t *testing.T) {
+	t.Setenv("GCSFUSE_USE_BUILD_CACHE", "true")
 	dir, err := os.MkdirTemp(os.TempDir(), "gcsfuse-test")
 	if err != nil {
 		t.Fatalf("Error while creating temporary directory: %v", err)
